@@ -1,6 +1,6 @@
 // Force strict mode so mutations are only allowed within actions.
 import {configure, flow, makeAutoObservable, runInAction} from "mobx";
-import {dataStore} from "./index";
+import {editStore} from "./index";
 import UrlJoin from "url-join";
 
 configure({
@@ -66,11 +66,8 @@ class StreamStore {
 
     yield this.client.StreamConfig({name: objectId, customSettings});
 
-    // Update site links after stream configuration
-    yield this.client.UpdateContentObjectGraph({
-      libraryId: dataStore.siteLibraryId,
-      versionHash: yield this.client.LatestVersionHash({objectId: dataStore.siteId})
-    });
+    // Update stream link in site after stream configuration
+    yield editStore.UpdateStreamLink({objectId, slug});
 
     const response = yield this.CheckStatus({
       objectId
