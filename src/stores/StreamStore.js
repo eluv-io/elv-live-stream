@@ -65,8 +65,9 @@ class StreamStore {
     }
 
     yield this.client.StreamConfig({name: objectId, customSettings});
-    yield editStore.CreateSiteLinks({objectId});
-    yield editStore.AddStreamToSite({objectId});
+
+    // Update stream link in site after stream configuration
+    yield editStore.UpdateStreamLink({objectId, slug});
 
     const response = yield this.CheckStatus({
       objectId
