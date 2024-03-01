@@ -180,9 +180,11 @@ class StreamStore {
       const response = yield this.client.StreamStopSession({name: objectId});
 
       this.UpdateStream({key: slug, value: { status: response.state }});
+      const streamMeta = this.streams[slug];
+      const key = streamMeta?.referenceUrl || streamMeta?.originUrl;
 
       dataStore.UpdateStreamUrl({
-        key: response.reference_url,
+        key,
         value: {
           active: StreamIsActive(response.state)
         }
