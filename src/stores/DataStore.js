@@ -233,6 +233,11 @@ class DataStore {
           "live_recording/recording_config/recording_params/origin_url",
           "live_recording/recording_config/recording_params/simple_watermark",
           "live_recording/recording_config/recording_params/image_watermark",
+          "live_recording/recording_config/recording_params/xc_params/connection_timeout",
+          "live_recording/recording_config/recording_params/reconnect_timeout",
+          "live_recording/playout_config/dvr_enabled",
+          "live_recording/playout_config/dvr_start_time",
+          "live_recording/playout_config/dvr_max_duration",
           "live_recording_config/reference_url",
           "live_recording_config/url",
           "live_recording_config/drm_type",
@@ -266,19 +271,24 @@ class DataStore {
       const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
 
       return {
-        originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
-        format: probeType,
-        videoBitrate: videoStream?.bit_rate,
         codecName: videoStream?.codec_name,
-        audioStreamCount,
-        referenceUrl: streamMeta?.live_recording_config?.reference_url,
-        drm: streamMeta?.live_recording_config?.drm_type,
-        simpleWatermark: streamMeta?.live_recording?.recording_config?.recording_params?.simple_watermark,
-        imageWatermark: streamMeta?.live_recording?.recording_config?.recording_params?.image_watermark,
+        connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
         description: streamMeta?.public?.description,
+        display_title: streamMeta?.public?.asset_metadata?.display_title,
+        drm: streamMeta?.live_recording_config?.drm_type,
+        dvrEnabled: streamMeta?.live_recording?.playout_config?.dvr_enabled,
+        dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
+        dvrMaxDuration: streamMeta?.live_recording?.playout_config?.dvr_max_duration,
+        format: probeType,
+        imageWatermark: streamMeta?.live_recording?.recording_config?.recording_params?.image_watermark,
+        originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
         partTtl: streamMeta?.live_recording_config?.part_ttl,
+        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,
+        referenceUrl: streamMeta?.live_recording_config?.reference_url,
+        simpleWatermark: streamMeta?.live_recording?.recording_config?.recording_params?.simple_watermark,
         title: streamMeta?.public?.name,
-        display_title: streamMeta?.public?.asset_metadata?.display_title
+        videoBitrate: videoStream?.bit_rate,
+        audioStreamCount
       };
     } catch(error) {
       // eslint-disable-next-line no-console

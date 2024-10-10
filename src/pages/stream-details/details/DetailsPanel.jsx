@@ -31,7 +31,7 @@ export const Runtime = ({startTime, endTime, currentTimeMs, format="hh,mm,ss"}) 
   return time;
 };
 
-const DetailsPanel = observer(({title, recordingInfo, currentRetention, slug, embedUrl}) => {
+const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, slug, embedUrl}) => {
   const [frameSegmentUrl, setFrameSegmentUrl] = useState("");
   const [status, setStatus] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -174,6 +174,7 @@ const DetailsPanel = observer(({title, recordingInfo, currentRetention, slug, em
       </Grid>
       <div className="form__section-header">Recording Periods</div>
       <RecordingPeriodsTable
+        libraryId={libraryId}
         objectId={params.id}
         records={recordingInfo?.live_offering}
         title={title}

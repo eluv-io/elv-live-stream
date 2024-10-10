@@ -73,6 +73,29 @@ export const RETENTION_OPTIONS = [
   {label: "1 Month", value: 2635200} // 60 * 60 * 24 * 30.5 = 2635200 seconds
 ];
 
+export const DVR_DURATION_OPTIONS = [
+  {label: "10 Minutes", value: 600},
+  {label: "30 Minutes", value: 1800},
+  {label: "1 Hour", value: 3600},
+  {label: "2 Hours", value: 7200},
+  {label: "4 Hours", value: 14400}
+];
+
+export const CONNECTION_TIMEOUT_OPTIONS = [
+  {label: "10 Minutes", value: 600},
+  {label: "30 Minutes", value: 1800},
+  {label: "1 Hour", value: 3600},
+  {label: "4 Hours", value: 14400}
+];
+
+export const RECONNECTION_TIMEOUT_OPTIONS = [
+  {label: "No Reconnection", value: -1},
+  {label: "10 Minutes", value: 600},
+  {label: "30 Minutes", value: 1800},
+  {label: "1 Hour", value: 3600},
+  {label: "4 Hours", value: 14400}
+];
+
 // Human-readable text
 
 export const STATUS_TEXT = {

@@ -5,6 +5,8 @@ import {rootStore} from "@/stores";
 import "@mantine/core/styles.css";
 import "mantine-datatable/styles.css";
 import "@mantine/notifications/styles.css";
+import "@mantine/dates/styles.css";
+
 import {AppShell, MantineProvider} from "@mantine/core";
 import {Notifications} from "@mantine/notifications";
 

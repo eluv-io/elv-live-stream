@@ -1,15 +1,16 @@
 import {cloneElement, useRef, useState} from "react";
-import path from "path";
-import {ActionIcon, Box, FileButton, Flex, Group, Menu, Paper, Text, Textarea} from "@mantine/core";
-import {DEFAULT_WATERMARK_TEXT, STATUS_MAP} from "@/utils/constants";
-import {observer} from "mobx-react-lite";
-import {Select} from "@/components/Inputs.jsx";
-import {ENCRYPTION_OPTIONS} from "@/utils/constants";
-import classes from "@/assets/stylesheets/modules/PlayoutPanel.module.css";
-import {streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Loader} from "@/components/Loader.jsx";
+import path from "path";
+import {observer} from "mobx-react-lite";
+import {ActionIcon, Box, Checkbox, FileButton, Flex, Group, Menu, Paper, Text, Textarea} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
+import {DateTimePicker} from "@mantine/dates";
+import {DEFAULT_WATERMARK_TEXT, DVR_DURATION_OPTIONS, STATUS_MAP} from "@/utils/constants";
+import {editStore, streamStore} from "@/stores";
+import {ENCRYPTION_OPTIONS} from "@/utils/constants";
+import {Select} from "@/components/Inputs.jsx";
+import {Loader} from "@/components/Loader.jsx";
+import classes from "@/assets/stylesheets/modules/PlayoutPanel.module.css";
 import {EditIcon, TrashIcon} from "@/assets/icons";
 
 const WatermarkBox = ({type, value, actions=[]}) => {
@@ -48,7 +49,10 @@ const PlayoutPanel = observer(({
   currentDrm,
   simpleWatermark,
   imageWatermark,
-  title
+  title,
+  currentDvrEnabled,
+  currentDvrMaxDuration,
+  currentDvrStartTime
 }) => {
   const [drm, setDrm] = useState(currentDrm);
   // const [formDrm, setFormDrm] = useState(currentDrm ? currentDrm : undefined);
@@ -59,6 +63,10 @@ const PlayoutPanel = observer(({
     }
   );
   const [showTextWatermarkInput, setShowTextWatermarkInput] = useState(false);
+  const [dvrEnabled, setDvrEnabled] = useState(currentDvrEnabled || false);
+  const [dvrStartTime, setDvrStartTime] = useState(currentDvrStartTime !== undefined ? new Date(currentDvrStartTime) : null);
+  const [dvrMaxDuration, setDvrMaxDuration] = useState(currentDvrMaxDuration !== undefined ? currentDvrMaxDuration : 0);
+
   const [applyingChanges, setApplyingChanges] = useState(false);
   const resetRef = useRef(null);
   const params = useParams();
@@ -105,6 +113,14 @@ const PlayoutPanel = observer(({
         drmType: drm
       });
 
+      await editStore.UpdateConfigMetadata({
+        objectId,
+        slug,
+        dvrEnabled,
+        dvrMaxDuration,
+        dvrStartTime
+      });
+
       notifications.show({
         title: `${title || params.id} updated`,
         message: "Settings have been applied successfully"
@@ -117,7 +133,7 @@ const PlayoutPanel = observer(({
       });
 
       // eslint-disable-next-line no-console
-      console.error("Unable to configure watermark", error);
+      console.error("Unable to apply settings", error);
     } finally {
       setApplyingChanges(false);
     }
@@ -148,9 +164,66 @@ const PlayoutPanel = observer(({
           }
         />
       </Box>
-      <Box mb="24px" maw="60%">
+
+      <Box mb={24} maw="50%">
+        <div className="form__section-header">DVR</div>
+
+        <Box mb={24}>
+          <Checkbox
+              label="Enable DVR"
+              checked={dvrEnabled}
+              description="Users can seek back in the live stream."
+              onChange={(event) => setDvrEnabled(event.target.checked)}
+            />
+        </Box>
+
+
+        {
+          dvrEnabled &&
+          <>
+            <Box mb={24}>
+              <DateTimePicker
+                label="Start Time"
+                placeholder="Pick date and time"
+                description="Users can only seek back to this point in time. Useful for event streams. If not set, users can seek to the beginning of the stream."
+                value={dvrStartTime}
+                onChange={setDvrStartTime}
+                disabled={!dvrEnabled}
+                valueFormat={"MM/DD/YYYY, HH:mm:ss A"}
+                minDate={new Date()}
+                w="100%"
+                size="md"
+                classNames={{
+                  label: classes.datePickerLabel,
+                  description: classes.datePickerDescription,
+                  input: classes.datePickerInput,
+                  placeholder: classes.datePickerPlaceholder
+              }}
+                clearable
+                withSeconds
+              />
+            </Box>
+            <Select
+              label="Max Duration"
+              labelDescription="Users are only able to seek back this many minutes. Useful for 24/7 streams and long events."
+              formName="maxDuration"
+              options={DVR_DURATION_OPTIONS}
+              style={{width: "100%"}}
+              defaultOption={{
+                value: "",
+                label: "Select Max Duration"
+              }}
+              value={dvrMaxDuration}
+              onChange={(event) => setDvrMaxDuration(event.target.value)}
+              disabled={!dvrEnabled}
+            />
+          </>
+        }
+      </Box>
+
+      <Box mb="24px" maw="50%">
         <Group mb={16}>
-          <div style={{fontSize: "1.25rem", fontWeight: 400}}>Visible Watermark</div>
+          <div className="form__section-header">Visible Watermark</div>
         </Group>
 
         {/* Add WM button */}

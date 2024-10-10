@@ -1,12 +1,31 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {Box, Flex, Modal, Text} from "@mantine/core";
-import {TextInput} from "@/components/Inputs.jsx";
+import {Select, TextInput} from "@/components/Inputs.jsx";
 import {Loader} from "@/components/Loader.jsx";
+import {dataStore} from "@/stores/index.js";
 
-const CopyToVodModal = observer(({show, close, title, setTitle, Callback}) => {
+const CopyToVodModal = observer(({
+  show,
+  close,
+  title,
+  setTitle,
+  libraryId,
+  setLibraryId,
+  Callback
+}) => {
   const [error, setError] = useState();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const LoadData = async() => {
+      await dataStore.LoadLibraries();
+    };
+
+    if(!dataStore.libraries) {
+      LoadData();
+    }
+  }, []);
 
   return (
     <Modal
@@ -19,6 +38,31 @@ const CopyToVodModal = observer(({show, close, title, setTitle, Callback}) => {
       centered
     >
       <Box w="100%">
+        {
+          !dataStore.libraries ?
+            <Loader /> :
+            (
+              <Select
+                label="Library"
+                required={true}
+                options={
+                  Object.keys(dataStore.libraries || {}).map(libraryId => (
+                    {
+                      label: dataStore.libraries[libraryId].name || "",
+                      value: libraryId
+                    }
+                  ))
+                }
+                defaultOption={{
+                  value: "",
+                  label: "Select Library"
+                }}
+                value={libraryId}
+                onChange={event => setLibraryId(event.target.value)}
+                style={{width: "100%", marginBottom: "1rem"}}
+              />
+            )
+        }
         <TextInput
           label="Enter a title for the VoD"
           required={true}

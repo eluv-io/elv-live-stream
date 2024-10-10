@@ -4,3 +4,26 @@
     pointer-events: none;
   }
 }
+
+.datePickerInput {
+  &[data-disabled] {
+    background-color: white !important;
+    opacity: 0.6 !important;
+  }
+}
+
+.datePickerPlaceholder {
+  color: black !important;
+}
+
+.datePickerLabel {
+  font-size: 1rem;
+  font-weight: 400 !important;
+}
+
+.datePickerDescription {
+  font-size: .8rem !important;
+  font-weight: 400 !important;
+  color: #404040 !important;
+  line-height: 1.5 !important;
+}
