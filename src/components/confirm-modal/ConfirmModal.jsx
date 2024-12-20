@@ -1,6 +1,7 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {Flex, Loader, Modal, Text} from "@mantine/core";
+import ElvButton from "@/components/button/ElvButton.jsx";
 
 const ConfirmModal = observer(({
   message,
@@ -13,7 +14,11 @@ const ConfirmModal = observer(({
   confirmText="Confirm"
 }) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState();
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setError(null);
+  }, [show]);
 
   return (
     <Modal
@@ -24,6 +29,7 @@ const ConfirmModal = observer(({
       radius="6px"
       size="lg"
       centered
+      closeOnClickOutside={false}
     >
       <Text>{message}</Text>
       {
@@ -36,19 +42,19 @@ const ConfirmModal = observer(({
             Error: { error }
           </div>
       }
-      <Flex direction="row" align="center" className="modal__actions">
-        <button type="button" className="button__secondary" onClick={CloseCallback}>
+      <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
+        <ElvButton type="button" variant="outline" onClick={CloseCallback} mr="0.5rem">
           {cancelText}
-        </button>
-        <button
-          type="button"
+        </ElvButton>
+        <ElvButton
           disabled={loading}
-          className="button__primary"
+          variant="filled"
           onClick={async () => {
             try {
               setError(undefined);
               setLoading(true);
               await ConfirmCallback();
+              CloseCallback();
             } catch(error) {
               // eslint-disable-next-line no-console
               console.error(error);
@@ -58,8 +64,8 @@ const ConfirmModal = observer(({
             }
           }}
         >
-          {loading ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : confirmText}
-        </button>
+          {loading ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} color="white" /> : confirmText}
+        </ElvButton>
       </Flex>
     </Modal>
   );

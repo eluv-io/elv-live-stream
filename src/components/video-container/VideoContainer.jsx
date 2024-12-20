@@ -5,7 +5,7 @@ import {ActionIcon, AspectRatio, Box} from "@mantine/core";
 import {PlayCircleIcon as PlayIcon} from "@/assets/icons/index.js";
 import Video from "@/components/video/Video.jsx";
 import {IconX} from "@tabler/icons-react";
-import classes from "@/components/video-container/VideoContainer.module.css";
+import styles from "./VideoContainer.module.css";
 
 export const VideoContainer = observer(({slug, index, showPreview, allowClose=true}) => {
   const [play, setPlay] = useState(false);
@@ -48,7 +48,7 @@ export const VideoContainer = observer(({slug, index, showPreview, allowClose=tr
   }, [frameKey, frameSegmentUrl]);
 
   return (
-    <div className={classes.videoWrapper}>
+    <Box className={styles.videoWrapper}>
       <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%">
         {
           !play ?
@@ -56,7 +56,7 @@ export const VideoContainer = observer(({slug, index, showPreview, allowClose=tr
               role="button"
               tabIndex={1}
               onClick={() => setPlay(true)}
-              className="monitor__video-placeholder"
+              className={styles.videoPlaceholder}
             >
               {
                 status === "running" &&
@@ -64,7 +64,7 @@ export const VideoContainer = observer(({slug, index, showPreview, allowClose=tr
               }
               {
                 (!showPreview || !frameSegmentUrl) ? null :
-                  <video src={frameSegmentUrl} className="monitor__video-frame" controls={false} onContextMenu={e => e.preventDefault()} />
+                  <video src={frameSegmentUrl} className={styles.videoFrame} controls={false} onContextMenu={e => e.preventDefault()} />
               }
             </button> :
             <>
@@ -72,7 +72,7 @@ export const VideoContainer = observer(({slug, index, showPreview, allowClose=tr
                 {
                   allowClose &&
                   <ActionIcon
-                  className={classes.closeButton}
+                  className={styles.closeButton}
                   title="Stop Playback"
                   color="gray.1"
                   variant="transparent"
@@ -93,7 +93,7 @@ export const VideoContainer = observer(({slug, index, showPreview, allowClose=tr
             </>
         }
       </AspectRatio>
-    </div>
+    </Box>
   );
 });
 

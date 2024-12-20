@@ -44,21 +44,21 @@ export const DEFAULT_WATERMARK_FORENSIC = {
 };
 
 export const DRM_MAP = {
-  ALL: ["hls-sample-aes", "hls-aes128", "hls-fairplay", "hls-widevine-cenc", "hls-playready-cenc"],
-  PUBLIC: ["hls-sample-aes", "hls-aes128"],
+  ALL: ["hls-sample-aes", "hls-aes128", "hls-fairplay", "hls-widevine-cenc", "hls-playready-cenc", "dash-widevine", "dash-playready-cenc"],
+  PUBLIC: ["hls-sample-aes", "hls-aes128", "dash-widevine", "dash-playready-cenc"],
   FAIRPLAY: ["hls-fairplay"],
-  CLEAR: ["hls-clear"],
+  CLEAR: ["hls-clear", "dash-clear"],
   HLS_WIDEVINE: ["hls-widevine-cenc"],
   PLAYREADY: ["hls-playready-cenc"]
 };
 
 export const ENCRYPTION_OPTIONS = [
-  {value: "drm-public", label: "DRM - Public Access", title: "Playout Formats - HLS Sample AES, HLS AES-128", format: DRM_MAP.PUBLIC, id: "drm-public"},
-  {value: "drm-all", label: "DRM - All Formats", title: "Playout Formats - HLS Sample AES, HLS AES-128, HLS Fairplay", format: DRM_MAP.ALL, id: "drm-all"},
+  {value: "drm-public", label: "DRM - Public Access", title: "Playout Formats - HLS Sample AES, HLS AES-128, Dash Widevine, Dash PlayReady", format: DRM_MAP.PUBLIC, id: "drm-public"},
+  {value: "drm-all", label: "DRM - All Formats", title: "Playout Formats - HLS Sample AES, HLS AES-128, HLS Fairplay, Dash Widevine, Dash PlayReady", format: DRM_MAP.ALL, id: "drm-all"},
   {value: "drm-fairplay", label: "DRM - Fairplay", title: "Playout Formats - HLS Fairplay", format: DRM_MAP.FAIRPLAY, id: "drm-fairplay"},
   {value: "drm-widevine", label: "DRM - HLS Widevine", title: "Playout Formats - HLS Widevine", format: DRM_MAP.HLS_WIDEVINE, id: "drm-widevine"},
   {value: "drm-playready", label: "DRM - HLS PlayReady", title: "Playout Formats - HLS PlayReady", format: DRM_MAP.PLAYREADY, id: "drm-playready"},
-  {value: "clear", label: "Clear", title: "Playout Formats - HLS Clear", format: DRM_MAP.CLEAR, id: "clear"}
+  {value: "clear", label: "Clear", title: "Playout Formats - HLS Clear, Dash Clear", format: DRM_MAP.CLEAR, id: "clear"}
 ];
 
 export const QUALITY_MAP = {
@@ -77,34 +77,34 @@ export const RECORDING_BITRATE_OPTIONS = [
 ];
 
 export const RETENTION_OPTIONS = [
-  {label: "1 Hour", value: 3600}, // 60 * 60 = 3600 seconds
-  {label: "6 Hours", value: 21600}, // 60 * 60 * 6 = 21600
-  {label: "1 Day", value: 86400}, // 60 * 60 * 24 = 86400 seconds
-  {label: "1 Week", value: 604800}, // 60 * 60 * 24 * 7 = 604800 seconds
-  {label: "1 Month", value: 2635200} // 60 * 60 * 24 * 30.5 = 2635200 seconds
+  {label: "1 Hour", value: "3600"}, // 60 * 60 = 3600 seconds
+  {label: "6 Hours", value: "21600"}, // 60 * 60 * 6 = 21600
+  {label: "1 Day", value: "86400"}, // 60 * 60 * 24 = 86400 seconds
+  {label: "1 Week", value: "604800"}, // 60 * 60 * 24 * 7 = 604800 seconds
+  {label: "1 Month", value: "2635200"} // 60 * 60 * 24 * 30.5 = 2635200 seconds
 ];
 
 export const DVR_DURATION_OPTIONS = [
-  {label: "10 Minutes", value: 600},
-  {label: "30 Minutes", value: 1800},
-  {label: "1 Hour", value: 3600},
-  {label: "2 Hours", value: 7200},
-  {label: "4 Hours", value: 14400}
+  {label: "10 Minutes", value: "600"},
+  {label: "30 Minutes", value: "1800"},
+  {label: "1 Hour", value: "3600"},
+  {label: "2 Hours", value: "7200"},
+  {label: "4 Hours", value: "14400"}
 ];
 
 export const CONNECTION_TIMEOUT_OPTIONS = [
-  {label: "10 Minutes", value: 600},
-  {label: "30 Minutes", value: 1800},
-  {label: "1 Hour", value: 3600},
-  {label: "4 Hours", value: 14400}
+  {label: "10 Minutes", value: "600"},
+  {label: "30 Minutes", value: "1800"},
+  {label: "1 Hour", value: "3600"},
+  {label: "4 Hours", value: "14400"}
 ];
 
 export const RECONNECTION_TIMEOUT_OPTIONS = [
-  {label: "No Reconnection", value: -1},
-  {label: "10 Minutes", value: 600},
-  {label: "30 Minutes", value: 1800},
-  {label: "1 Hour", value: 3600},
-  {label: "4 Hours", value: 14400}
+  {label: "No Reconnection", value: "-1"},
+  {label: "10 Minutes", value: "600"},
+  {label: "30 Minutes", value: "1800"},
+  {label: "1 Hour", value: "3600"},
+  {label: "4 Hours", value: "14400"}
 ];
 
 // Human-readable text

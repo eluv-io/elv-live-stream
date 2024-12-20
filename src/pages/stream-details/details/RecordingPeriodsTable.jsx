@@ -9,6 +9,7 @@ import {DateFormat, Pluralize} from "@/utils/helpers";
 import {DataTable} from "mantine-datatable";
 import DetailsCopyModal from "@/pages/stream-details/details/CopyToVodModal";
 import {Runtime} from "@/pages/stream-details/details/DetailsPanel";
+import ElvButton from "@/components/button/ElvButton.jsx";
 
 const RecordingPeriodsTable = observer(({
   records,
@@ -118,15 +119,13 @@ const RecordingPeriodsTable = observer(({
         {
           selectedRecords.length === 0 ? "" : `${Pluralize({base: "item", count: selectedRecords.length})} selected`
         }
-        <button
-          type="button"
-          className="button__primary"
+        <ElvButton
           disabled={selectedRecords.length === 0 || copyingToVod}
           style={{marginLeft: "auto"}}
           onClick={open}
         >
-          {copyingToVod ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : "Copy to VoD"}
-        </button>
+          {copyingToVod ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} color="white" /> : "Copy to VoD"}
+        </ElvButton>
       </Flex>
       <DataTable
         mb="4rem"

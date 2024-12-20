@@ -25,19 +25,17 @@ const App = observer(() => {
           <AppShell.Main>
             <ErrorBanner />
             <Notifications zIndex={1000} position="top-right" autoClose={5000} />
-            <div className="main-content">
-              <DataWrapper>
-                {
-                  rootStore.loaded ?
-                    <AppRoutes /> :
-                    (
-                      <Flex justify="center" align="center">
-                        <Loader />
-                      </Flex>
-                    )
-                }
-              </DataWrapper>
-            </div>
+            <DataWrapper>
+              {
+                rootStore.loaded ?
+                  <AppRoutes /> :
+                  (
+                    <Flex justify="center" align="center">
+                      <Loader />
+                    </Flex>
+                  )
+              }
+            </DataWrapper>
           </AppShell.Main>
         </AppShell>
       </BrowserRouter>

@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {DataTable} from "mantine-datatable";
-import {ActionIcon, Box, Group, Text} from "@mantine/core";
+import {ActionIcon, Box, Group, Stack, Text, Title} from "@mantine/core";
 import {DateFormat, SortTable} from "@/utils/helpers";
 import {editStore, streamStore} from "@/stores";
 import {IconExternalLink, IconTrash} from "@tabler/icons-react";
@@ -24,7 +24,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
 
   return (
     <Box mb="24px" maw="97%">
-      <div className="form__section-header">Live Recording Copies</div>
+      <Title order={3} c="elv-gray.8">Live Recording Copies</Title>
       <DataTable
         idAccessor="_id"
         noRecordsText="No live recording copies found"
@@ -37,10 +37,10 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
             title: "Title",
             sortable: true,
             render: record => (
-              <div className="table__multi-line">
+              <Stack gap={0}>
                 <Text>{record.title}</Text>
                 <Text c="dimmed" fz="xs">{record._id}</Text>
-              </div>
+              </Stack>
             )
           },
           {
