@@ -172,7 +172,6 @@ class DataStore {
           streamMetadata[slug].objectId = objectId;
           streamMetadata[slug].versionHash = versionHash;
           streamMetadata[slug].libraryId = libraryId;
-          streamMetadata[slug].title = stream.title || stream.display_title;
           streamMetadata[slug].embedUrl = await this.EmbedUrl({objectId});
 
           const streamDetails = await this.LoadStreamMetadata({
@@ -366,7 +365,7 @@ class DataStore {
       streamStore.UpdateStream({
         key: slug,
         value: {
-          title: streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
+          title: streamMeta?.name || streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
           description: streamMeta.description,
           display_title: streamMeta.asset_metadata?.display_title
         }
