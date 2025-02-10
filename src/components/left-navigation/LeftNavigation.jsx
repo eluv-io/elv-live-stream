@@ -1,7 +1,7 @@
 import {VideoPlusIcon, StreamIcon, MediaIcon, SettingsIcon} from "@/assets/icons/index.js";
-import {AppShell, NavLink} from "@mantine/core";
+import {AppShell, NavLink, Tooltip} from "@mantine/core";
 import {useLocation, useNavigate} from "react-router-dom";
-import classes from "@/components/left-navigation/LeftNavigation.module.css";
+import styles from "@/components/left-navigation/LeftNavigation.module.css";
 
 const iconDimensions = {
   width: 22,
@@ -20,18 +20,24 @@ const LeftNavigation = () => {
   const location = useLocation();
 
   return (
-    <AppShell.Navbar p="12 0" classNames={classes}>
+    <AppShell.Navbar p="24 14">
       {
         NAV_LINKS.map(({path, label, icon}) => (
-          <NavLink
+          <Tooltip
             key={`navigation-link-${path}`}
-            className={classes.navLink}
-            href="#"
-            onClick={() => navigate(path)}
             label={label}
-            leftSection={icon}
-            active={path === location.pathname}
-          />
+            position="right"
+            withArrow
+          >
+            <NavLink
+              classNames={{section: styles.section, body: styles.body, root: styles.root}}
+              href="#"
+              onClick={() => navigate(path)}
+              leftSection={icon}
+              title={label}
+              active={path === location.pathname}
+            />
+          </Tooltip>
         ))
       }
     </AppShell.Navbar>

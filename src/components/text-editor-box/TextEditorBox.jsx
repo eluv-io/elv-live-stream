@@ -36,9 +36,9 @@ const TextEditorBox = ({
         <Group>
           {
             columns.map(column => (
-              <Flex key={column.id} direction="column" mr={48}>
+              <Flex key={column.id} direction="column" mr={48} maw="80%">
                 <Text c="dimmed" size="xs">{ column.header }</Text>
-                <Text lh={1.125}>{ column.value }</Text>
+                <Text lh={1.125} truncate="end">{ column.value }</Text>
               </Flex>
             ))
           }
