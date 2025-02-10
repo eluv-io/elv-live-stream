@@ -1,5 +1,5 @@
 import {Box, Tooltip} from "@mantine/core";
-import classes from "./DisabledTooltipWrapper.module.css";
+import styles from "./DisabledTooltipWrapper.module.css";
 
 const DisabledTooltipWrapper = ({
   children,
@@ -9,7 +9,7 @@ const DisabledTooltipWrapper = ({
   if(disabled) {
     return (
       <Tooltip.Floating label={tooltipLabel}>
-        <Box data-disabled mb={24} className={classes.box}>
+        <Box data-disabled mb={24} className={styles.box}>
           { children }
         </Box>
       </Tooltip.Floating>

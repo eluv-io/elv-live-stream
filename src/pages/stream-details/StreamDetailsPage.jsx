@@ -1,14 +1,17 @@
 import {useEffect, useState} from "react";
-import PageHeader from "@/components/header/PageHeader";
+import StatusText from "@/components/status-text/StatusText.jsx";
 import {useNavigate, useParams} from "react-router-dom";
 import {streamStore, editStore, dataStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {Loader, Tabs, Text} from "@mantine/core";
 import {useDebouncedCallback, useDisclosure} from "@mantine/hooks";
 import {DETAILS_TABS, STATUS_MAP} from "@/utils/constants";
-import classes from "@/pages/stream-details/StreamDetails.module.css";
+import styles from "@/pages/stream-details/StreamDetails.module.css";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {StreamIsActive} from "@/utils/helpers";
+import PageContainer from "@/components/page-container/PageContainer.jsx";
+import {notifications} from "@mantine/notifications";
+import {IconChevronLeft} from "@tabler/icons-react";
 
 const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
@@ -72,7 +75,8 @@ const StreamDetailsPage = observer(() => {
 
   const actions = [
     {
-      label: "Back",
+      label: "All Streams",
+      leftSection: <IconChevronLeft />,
       variant: "filled",
       uppercase: true,
       onClick: () => navigate(-1)
@@ -87,8 +91,27 @@ const StreamDetailsPage = observer(() => {
           title: "Delete Stream",
           message: "Are you sure you want to delete the stream? This action cannot be undone.",
           confirmText: "Delete",
-          ConfirmCallback: async () => await editStore.DeleteStream({objectId: stream.objectId})
+          danger: true,
+          ConfirmCallback: async () => {
+            try {
+              await editStore.DeleteStream({objectId: stream.objectId});
+            } catch(_e) {
+              notifications.show({
+                title: "Error",
+                color: "red",
+                message: "Unable to delete object"
+              });
+            } finally {
+              notifications.show({
+                title: "Content object deleted",
+                message: `${stream.objectId} successfully deleted`
+              });
+
+              navigate("/streams");
+            }
+          }
         });
+
         open();
       }
     },
@@ -143,19 +166,24 @@ const StreamDetailsPage = observer(() => {
   }
 
   return (
-    <div key={`stream-details-${pageVersion}`}>
-      <PageHeader
-        title={`Edit ${streamStore.streams?.[streamSlug]?.display_title || streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
-        subtitle={stream.objectId}
-        status={stream.status}
-        quality={streamStore.streams?.[streamSlug]?.quality}
-        actions={actions}
-      />
-      <Tabs className={classes.root} value={activeTab} onChange={setActiveTab}>
-        <Tabs.List className={classes.list}>
+    <PageContainer
+      key={`stream-details-${pageVersion}`}
+      title={`Edit ${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
+      subtitle={stream.objectId}
+      titleRightSection={
+        <StatusText
+          status={stream.status}
+          quality={streamStore.streams?.[streamSlug]?.quality}
+          withBorder
+        />
+      }
+      actions={actions}
+    >
+      <Tabs className={styles.root} value={activeTab} onChange={setActiveTab}>
+        <Tabs.List className={styles.list}>
           {
             DETAILS_TABS.map(tab => (
-              <Tabs.Tab value={tab.value} key={`details-tabs-${tab.value}`} className={classes.tab}>
+              <Tabs.Tab value={tab.value} key={`details-tabs-${tab.value}`} className={styles.tab}>
                 <Text fw="400" size="md">{tab.label}</Text>
               </Tabs.Tab>
             ))
@@ -199,8 +227,9 @@ const StreamDetailsPage = observer(() => {
         show={showModal}
         CloseCallback={close}
         ConfirmCallback={modalData.ConfirmCallback}
+        danger={modalData.danger}
       />
-    </div>
+    </PageContainer>
   );
 });
 

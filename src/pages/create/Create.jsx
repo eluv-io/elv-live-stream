@@ -1,46 +1,68 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {dataStore, editStore, streamStore, rootStore} from "@/stores";
-import {Radio, Select, TextInput} from "@/components/Inputs.jsx";
 import {useNavigate} from "react-router-dom";
 import {ENCRYPTION_OPTIONS, RETENTION_OPTIONS} from "@/utils/constants";
-import {Accordion, Alert, Box, Button, Flex, Loader, Text} from "@mantine/core";
-import {IconAlertCircle} from "@tabler/icons-react";
-import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
+import {
+  Accordion,
+  Alert,
+  Box,
+  Button,
+  Flex,
+  Radio,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+  Tooltip
+} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
-import classes from "./Create.module.css";
-import ProbeConfirmation from "@/pages/ProbeConfirmation";
+import {isNotEmpty, useForm} from "@mantine/form";
+import {IconAlertCircle} from "@tabler/icons-react";
 
-const FORM_KEYS = {
-  BASIC: "BASIC",
-  ADVANCED: "ADVANCED",
-  DRM: "DRM"
-};
+import {CircleInfoIcon} from "@/assets/icons/index.js";
+import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
+import PageContainer from "@/components/page-container/PageContainer.jsx";
+import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
+import styles from "./Create.module.css";
+import {ValidateTextField} from "@/utils/validators.js";
 
-const Permissions = observer(({permission, UpdateCallback}) => {
+const Permissions = observer(({form}) => {
   const permissionLevels = rootStore.client.permissionLevels;
 
   return (
     <Select
-      label="Permission"
-      labelDescription="Set a permission level."
-      tooltip={
-        Object.values(rootStore.client.permissionLevels).map(({short, description}) =>
-          <Flex
-            key={`permission-info-${short}`}
-            gap="1rem"
-            lh={1.25}
-            pb={5}
-            maw={500}
+      label={
+        <Flex align="center" gap={6}>
+          Permission
+          <Tooltip
+            multiline
+            w={460}
+            label={
+              Object.values(rootStore.client.permissionLevels).map(({short, description}) =>
+                <Flex
+                  key={`permission-info-${short}`}
+                  gap="1rem"
+                  lh={1.25}
+                  pb={5}
+                >
+                  <Flex flex="0 0 25%">{ short }:</Flex>
+                  <Text fz="sm">{ description }</Text>
+                </Flex>
+              )
+            }
           >
-            <Flex flex="0 0 25%">{ short }:</Flex>
-            <Text fz="sm">{ description }</Text>
-          </Flex>
-        )
+            <Flex w={16}>
+              <CircleInfoIcon color="var(--mantine-color-elv-gray-8)" />
+            </Flex>
+          </Tooltip>
+        </Flex>
       }
-      value={permission}
-      onChange={UpdateCallback}
-      options={
+      description="Set a permission level."
+      name="permission"
+      placeholder="Select Permission"
+      data={
         Object.keys(permissionLevels || {}).map(permissionName => (
           {
             label: permissionLevels[permissionName].short,
@@ -48,154 +70,130 @@ const Permissions = observer(({permission, UpdateCallback}) => {
           }
         ))
       }
+      mb={16}
+      {...form.getInputProps("permission")}
     />
   );
 });
 
-const PlaybackEncryption = observer(({drmFormData, UpdateCallback}) => {
-  const options = ENCRYPTION_OPTIONS;
-
-  return (
-    <Select
-      label="Playback Encryption"
-      labelDescription="Select a playback encryption option. Enable Clear or Digital Rights Management (DRM) copy protection during playback."
-      formName="playbackEncryption"
-      options={options}
-      defaultOption={{
-        value: "",
-        label: "Select Encryption"
-      }}
-      value={drmFormData.encryption}
-      onChange={event => UpdateCallback({event, key: "encryption"})}
-      tooltip={
-        options.map(({label, title, id}) =>
-          <Flex
-            key={`encryption-info-${id}`}
-            gap="1rem"
-            lh={1.25}
-            pb={5}
-            maw={500}
-          >
-            <Flex flex="0 0 25%">{ label }:</Flex>
-            <Text fz="sm">{ title }</Text>
-          </Flex>
-        )
-      }
-    />
-  );
-});
-
-const AdvancedSection = observer(({
-  advancedData,
-  AdvancedUpdateCallback,
-  drmFormData,
-  DrmUpdateCallback,
-  AdvancedSettingsCallback,
+const AdvancedSettingsPanel = observer(({
   objectProbed=false,
   audioTracks,
   audioFormData,
   setAudioFormData,
   setShowProbeConfirmation,
   objectData,
-  useAdvancedSettings,
   DisableProbeButton,
   ladderProfilesData,
-  playoutProfile,
-  setPlayoutProfile
+  form,
+  loading
 }) => {
   return (
     <>
-      <Accordion
-        value={useAdvancedSettings}
-        onValueChange={AdvancedSettingsCallback}
-      >
-        <Accordion.Item value="advanced-item">
-          <Accordion.Control>Advanced Settings</Accordion.Control>
-          <Accordion.Panel>
-            <>
-              <Select
-                label="Retention"
-                labelDescription="Select a retention period for how long stream parts will exist until they are removed from the fabric."
-                formName="retention"
-                options={RETENTION_OPTIONS}
-                value={advancedData.retention}
-                onChange={event => AdvancedUpdateCallback({
-                  key: "retention",
-                  event
-                })
-                }
-              />
+      <Select
+        label="Retention"
+        description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
+        name="retention"
+        data={RETENTION_OPTIONS}
+        placeholder="Select Retention"
+        mb={16}
+        {...form.getInputProps("retention")}
+      />
 
-              <Box mb={16}>
-                <Select
-                  label="Playout Ladder"
-                  formName="playoutLadder"
-                  options={ladderProfilesData}
-                  defaultOption={{
-                    value: "",
-                    label: "Select Ladder Profile"
-                  }}
-                  style={{width: "100%", marginBottom: "0"}}
-                  helperText={ladderProfilesData.length > 0 ? null : "No profiles are configured. Create a profile in Settings."}
-                  value={playoutProfile}
-                  onChange={(event) => setPlayoutProfile(event.target.value)}
-                />
-              </Box>
+      <Box mb={16}>
+        <Select
+          key={ladderProfilesData}
+          label="Playout Ladder"
+          name="playoutProfile"
+          data={ladderProfilesData}
+          placeholder={loading ? "Loading Options..." : "Select Ladder Profile"}
+          mb={16}
+          description={
+          loading ? null : (!ladderProfilesData.length > 0) ? "No profiles are configured. Create a profile in Settings." : null
+        }
+          {...form.getInputProps("playoutProfile")}
+        />
+      </Box>
 
-              <PlaybackEncryption
-                drmFormData={drmFormData}
-                UpdateCallback={({event, key}) => DrmUpdateCallback({
-                  key,
-                  event
-                })}
-              />
-
-              {
-                !objectProbed &&
-                <Alert
-                  variant="light"
-                  color="blue"
-                  mt={24}
-                  mb={24}
-                  icon={<IconAlertCircle/>}
-                  classNames={{
-                    wrapper: classes.alertRoot
-                  }}
-                >
-                  <Flex justify="space-between" align="center">
-                    <Text>
-                      To apply audio stream settings, object must be probed first.
-                    </Text>
-                    <Button
-                      variant="subtle"
-                      onClick={() => setShowProbeConfirmation(true)}
-                      disabled={
-                        objectData !== null ||
-                        DisableProbeButton()
-                      }
-                    >
-                      Probe
-                    </Button>
+      <Select
+        label={
+          <Flex align="center" gap={6}>
+            Playback Encryption
+            <Tooltip
+              multiline
+              w={460}
+              label={
+                ENCRYPTION_OPTIONS.map(({label, title, id}) =>
+                  <Flex
+                    key={`encryption-info-${id}`}
+                    gap="1rem"
+                    lh={1.25}
+                    pb={5}
+                  >
+                    <Flex flex="0 0 35%">{label}:</Flex>
+                    <Text fz="sm">{title}</Text>
                   </Flex>
-                </Alert>
+                )
               }
-              <div className="form__section-header">Audio</div>
-              <AudioTracksTable
-                records={audioTracks}
-                audioFormData={audioFormData}
-                setAudioFormData={setAudioFormData}
-                disabled={!objectProbed}
-              />
-            </>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
+            >
+              <Flex w={16}>
+                <CircleInfoIcon color="var(--mantine-color-elv-gray-8)"/>
+              </Flex>
+            </Tooltip>
+          </Flex>
+        }
+        description="Select a playback encryption option. Enable Clear or Digital Rights Management (DRM) copy protection during playback."
+        name="encryption"
+        data={ENCRYPTION_OPTIONS}
+        placeholder="Select Encryption"
+        mb={16}
+        {...form.getInputProps("encryption")}
+      />
+
+      {
+        !objectProbed &&
+        <Alert
+          variant="light"
+          mt={24}
+          mb={24}
+          icon={<IconAlertCircle/>}
+          classNames={{
+            wrapper: styles.alertRoot
+          }}
+        >
+          <Flex justify="space-between" align="center">
+            <Text>
+              To apply audio stream settings, object must be probed first.
+            </Text>
+            <Button
+              variant="subtle"
+              onClick={() => setShowProbeConfirmation(true)}
+              disabled={
+                objectData !== null ||
+                DisableProbeButton()
+              }
+            >
+              Probe
+            </Button>
+          </Flex>
+        </Alert>
+      }
+      <Title order={3} c="elv-gray.8">Audio</Title>
+      <AudioTracksTable
+        records={audioTracks}
+        audioFormData={audioFormData}
+        setAudioFormData={setAudioFormData}
+        disabled={!objectProbed}
+      />
     </>
   );
 });
 
 const Create = observer(() => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [objectData, setObjectData] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -205,53 +203,6 @@ const Create = observer(() => {
     ])
       .finally(() => setLoading(false));
   }, []);
-
-  const [basicFormData, setBasicFormData] = useState({
-    url: "",
-    protocol: "mpegts",
-    name: "",
-    description: "",
-    displayTitle: "",
-    libraryId: "",
-    accessGroup: "",
-    permission: "editable"
-  });
-
-  const [advancedData, setAdvancedData] = useState({
-    retention: 86400
-  });
-
-  const [useAdvancedSettings, setUseAdvancedSettings] = useState();
-
-  const [drmFormData, setDrmFormData] = useState({
-    encryption: ""
-  });
-
-  const [audioFormData, setAudioFormData] = useState(null);
-
-  const [showProbeConfirmation, setShowProbeConfirmation] = useState(false);
-
-  const navigate = useNavigate();
-  const [isCreating, setIsCreating] = useState(false);
-  const [objectData, setObjectData] = useState(null);
-  const [audioTracks, setAudioTracks] = useState([]);
-  const [playoutProfile, setPlayoutProfile] = useState("Default");
-
-  const urls = basicFormData.protocol === "custom" ?
-    [] :
-    Object.keys(dataStore.liveStreamUrls || {})
-      .filter(url => dataStore.liveStreamUrls[url].protocol === basicFormData.protocol && !dataStore.liveStreamUrls[url].active);
-
-  const defaultOption = dataStore.ladderProfiles?.default ?
-    {
-      label: dataStore.ladderProfiles.default.name,
-      value: dataStore.ladderProfiles.default.name
-    } : {};
-  const ladderProfilesData = dataStore.ladderProfiles ?
-    [
-      defaultOption,
-      ...dataStore.ladderProfiles.custom.map(item => ({label: item.name, value: item.name}))
-    ] : [];
 
   useEffect(() => {
     const LoadConfigData = async () => {
@@ -268,54 +219,142 @@ const Create = observer(() => {
     }
   }, [objectData, streamStore.streams]);
 
-  const UpdateFormData = ({formKey, key, value}) => {
-    const FORM_MAP = {
-      "BASIC": {
-        data: basicFormData,
-        callback: setBasicFormData
-      },
-      "ADVANCED": {
-        data: advancedData,
-        callback: setAdvancedData
-      },
-      "DRM": {
-        data: drmFormData,
-        callback: setDrmFormData
-      }
-    };
-    const {data, callback} = FORM_MAP[formKey];
-    const newData = Object.assign({}, data);
-    newData[key] = value;
+  // Controlled form values that need state variables
+  const [formProtocol, setFormProtocol] = useState("mpegts");
+  const [formUrl, setFormUrl] = useState("");
+  const [formCustomUrl, setFormCustomUrl] = useState("");
 
-    callback(newData);
+  // Toggle values
+  const [useAdvancedSettings, setUseAdvancedSettings] = useState("");
+  const [showProbeConfirmation, setShowProbeConfirmation] = useState(false);
+
+  // Form data dependent on api calls
+  const [urlOptions, setUrlOptions] = useState([]);
+  const [ladderProfilesData, setLadderProfilesData] = useState([]);
+  const [audioFormData, setAudioFormData] = useState(null);
+  const [audioTracks, setAudioTracks] = useState([]);
+
+  const form = useForm({
+    mode: "uncontrolled",
+    initialValues: {
+      accessGroup: "",
+      customUrl: "", // Controlled by local state
+      description: "",
+      displayTitle: "",
+      libraryId: "",
+      name: "",
+      permission: "editable",
+      encryption: "clear",
+      playoutProfile: "Default",
+      protocol: "mpegts", // Controlled by local state
+      retention: "86400",
+      url: "" // Controlled by local state
+    },
+    validate: {
+      name: isNotEmpty("Name is required"),
+      url: (value, values) => values.protocol === "custom" ? null : value ? null : "URL is required",
+      customUrl: (value, values) => values.protocol === "custom" ? value ? null : "Custom URL is required" : null,
+      libraryId: isNotEmpty("Library is required"),
+      description: (value) => ValidateTextField({value, key: "Description"}),
+      displayTitle: (value) => ValidateTextField({value, key: "Display Title"})
+    }
+  });
+
+  useEffect(() => {
+    if(dataStore.ladderProfiles) {
+      const defaultOption = dataStore.ladderProfiles?.default ?
+        {
+          label: dataStore.ladderProfiles.default.name,
+          value: dataStore.ladderProfiles.default.name
+        } : {};
+
+      const options = [
+        defaultOption,
+        ...dataStore.ladderProfiles.custom.map(item => ({label: item.name, value: item.name}))
+      ];
+
+      setLadderProfilesData(options);
+    }
+  }, [dataStore.ladderProfiles]);
+
+  useEffect(() => {
+    const urls = formProtocol === "custom" ?
+      [] :
+      Object.keys(dataStore.liveStreamUrls || {})
+        .filter(url => dataStore.liveStreamUrls[url].protocol === formProtocol && !dataStore.liveStreamUrls[url].active);
+
+    setUrlOptions(urls);
+  }, [formProtocol, dataStore.liveStreamUrls]);
+
+  const HandleProbeConfirm = async() => {
+    const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, playoutProfile, protocol, retention} = form.getValues();
+
+    const {objectId, slug} = await editStore.InitLiveStreamObject({
+      accessGroup,
+      description,
+      displayTitle,
+      encryption,
+      libraryId,
+      name,
+      permission,
+      playoutProfile,
+      protocol,
+      retention: retention ? parseInt(retention) : null,
+      url: formProtocol === "custom" ? formCustomUrl : formUrl
+    });
+
+    await streamStore.ConfigureStream({objectId, slug});
+
+    setObjectData({objectId, slug});
+
+    notifications.show({
+      title: "Probed stream",
+      message: "Stream object was successfully created and probed"
+    });
   };
 
-  const HandleSubmit = async (event) => {
-    event.preventDefault();
+  const HandleSubmit = async () => {
     setIsCreating(true);
 
     try {
-      const formData = {
-        basicFormData,
-        advancedData,
-        drmFormData,
-        playoutProfile
-      };
       let objectId;
+      const url = formProtocol === "custom" ? formCustomUrl : formUrl;
+      const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, playoutProfile, protocol, retention} = form.getValues();
 
       if(objectData === null) {
+        // Stream hasn't been created
         const response = await editStore.InitLiveStreamObject({
-          ...formData
+          accessGroup,
+          description,
+          displayTitle,
+          encryption,
+          libraryId,
+          name,
+          permission,
+          playoutProfile,
+          protocol,
+          retention: retention ? parseInt(retention) : null,
+          url
         });
 
         objectId = response.objectId;
       } else {
+        // Stream has already been created and probed
         objectId = objectData.objectId;
         await editStore.UpdateLiveStreamObject({
           objectId,
           slug: objectData.slug,
           audioFormData,
-          ...formData
+          accessGroup,
+          description,
+          displayTitle,
+          encryption,
+          libraryId,
+          name,
+          playoutProfile,
+          protocol,
+          retention: retention ? parseInt(retention) : null,
+          url
         });
       }
 
@@ -326,130 +365,115 @@ const Create = observer(() => {
   };
 
   return (
-    <div className={`create-form-container ${!dataStore.tenantId ? "create-form-container--disabled" : ""}`}>
-      <div className="page-header">Create Live Stream</div>
-      <form className="form" onSubmit={HandleSubmit}>
-        <Radio
-          label="Protocol"
-          options={[
-            {
-              optionLabel: "MPEGTS",
-              id: "mpegts",
-              value: "mpegts",
-              checked: basicFormData.protocol === "mpegts",
-              onChange: event => UpdateFormData({
-                key: "protocol",
-                value: event.target.value,
-                formKey: FORM_KEYS.BASIC
-              })
-            },
-            {
-              optionLabel: "RTMP",
-              id: "rtmp",
-              value: "rtmp",
-              checked: basicFormData.protocol === "rtmp",
-              onChange: event => UpdateFormData({
-                key: "protocol",
-                value: event.target.value,
-                formKey: FORM_KEYS.BASIC
-              })
-            },
-            {
-              optionLabel: "SRT",
-              id: "srt",
-              value: "srt",
-              checked: basicFormData.protocol === "srt",
-              onChange: event => UpdateFormData({
-                key: "protocol",
-                value: event.target.value,
-                formKey: FORM_KEYS.BASIC
-              })
-            },
-            {
-              optionLabel: "Custom",
-              id: "customProtocol",
-              value: "custom",
-              checked: basicFormData.protocol === "custom",
-              onChange: event => UpdateFormData({
-                key: "protocol",
-                value: event.target.value,
-                formKey: FORM_KEYS.BASIC
-              })
-            }
-          ]}
-        />
+    <PageContainer
+      title="Create Live Stream"
+      className={(dataStore.tenantId && !rootStore.errorMessage) ? "" : styles.disabledContainer}
+    >
+      <form onSubmit={form.onSubmit(HandleSubmit)} style={{width: "700px"}}>
+        <Radio.Group
+          name="protocol"
+          label="Streaming Protocol"
+          description="Select a protocol to see available pre-allocated URLs."
+          mb={16}
+          value={formProtocol}
+          onChange={(value) => {
+            setFormProtocol(value);
+            form.setFieldValue("protocol", value);
+            setFormUrl("");
+            form.setFieldValue("url", "");
+          }}
+        >
+          <Stack mt="xs">
+            <Radio
+              value="mpegts"
+              label="MPEG-TS"
+              description="Perfect for low-latency and interactive streams, widely used in live broadcasting applications."
+            />
+            <Radio
+              value="rtmp"
+              label="RTMP"
+              description="Reliable for stable broadcasts, ensuring high-quality video and audio transmission."
+            />
+            <Radio
+              value="srt"
+              label="SRT"
+              description="Secure and adaptive, ideal for streaming over unpredictable networks with error recovery features."
+            />
+            <Radio
+              value="custom"
+              label="Custom"
+              description="Enter a custom URL."
+            />
+          </Stack>
+        </Radio.Group>
         {
-          basicFormData.protocol === "custom" &&
-          <TextInput
-            label="URL"
-            required={basicFormData.protocol === "custom"}
-            value={basicFormData.url}
-            disabled={objectData !== null}
-            onChange={event => UpdateFormData({
-              key: "url",
-              value: event.target.value,
-              formKey: FORM_KEYS.BASIC
-            })}
-          />
-        }
-        {
-          basicFormData.protocol !== "custom" &&
-          <Select
-            label="URL"
-            required={true}
-            disabled={objectData !== null}
-            defaultValue={urls[0]}
-            options={urls.map(url => (
-              {
-                label: url,
-                value: url
-              }
-            ))}
-            defaultOption={{
-              value: "",
-              label: "Select URL"
-            }}
-            onChange={event => UpdateFormData({
-              key: "url",
-              value: event.target.value,
-              formKey: FORM_KEYS.BASIC
-            })}
-          />
+          formProtocol === "custom" ?
+            (
+              <TextInput
+                label="URL"
+                name="customUrl"
+                disabled={objectData !== null}
+                value={formCustomUrl}
+                onChange={event => {
+                  const {value} = event.target;
+                  setFormCustomUrl(value);
+                  form.setFieldValue("customUrl", value);
+                }}
+                error={formProtocol === "custom" ? form.errors.customUrl : null}
+                withAsterisk={formProtocol === "custom"}
+                mb={16}
+              />
+            ) :
+            (
+              <Select
+                key={formProtocol}
+                label="URL"
+                name="url"
+                disabled={objectData !== null}
+                data={urlOptions.map(url => (
+                  {
+                    label: url,
+                    value: url
+                  }
+                ))}
+                placeholder="Select URL"
+                value={formUrl}
+                onChange={(value) => {
+                  setFormUrl(value);
+                  form.setFieldValue("url", value);
+                }}
+                error={formProtocol !== "custom" ? form.errors.url : null}
+                withAsterisk={formProtocol !== "custom"}
+                mb={16}
+              />
+            )
         }
         <TextInput
           label="Name"
-          required={true}
-          value={basicFormData.name}
-          onChange={event => UpdateFormData({
-            key: "name",
-            value: event.target.value,
-            formKey: FORM_KEYS.BASIC
-          })}
+          name="name"
+          mb={16}
+          withAsterisk
+          {...form.getInputProps("name")}
         />
         <TextInput
           label="Description"
-          value={basicFormData.description}
-          onChange={event => UpdateFormData({
-            key: "description",
-            value: event.target.value,
-            formKey: FORM_KEYS.BASIC
-          })}
+          name="description"
+          mb={16}
+          {...form.getInputProps("description")}
         />
         <TextInput
           label="Display Title"
-          value={basicFormData.displayTitle}
-          onChange={event => UpdateFormData({
-            key: "displayTitle",
-            value: event.target.value,
-            formKey: FORM_KEYS.BASIC
-          })}
+          name="displayTitle"
+          mb={16}
+          {...form.getInputProps("displayTitle")}
         />
 
         <Select
           label="Access Group"
+          name="accessGroup"
           disabled={objectData !== null}
-          labelDescription="This is the Access Group that will manage your live stream object."
-          options={
+          description="This is the Access Group that will manage your live stream object."
+          data={
             Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
               {
                 label: accessGroupName,
@@ -457,32 +481,22 @@ const Create = observer(() => {
               }
             ))
           }
-          defaultOption={{
-            value: "",
-            label: "Select Access Group"
-          }}
-          onChange={event => UpdateFormData({
-            key: "accessGroup",
-            value: event.target.value,
-            formKey: FORM_KEYS.BASIC
-          })}
+          placeholder="Select Access Group"
+          mb={16}
+          {...form.getInputProps("accessGroup")}
         />
 
         <Permissions
-          permission={basicFormData.permission}
-          UpdateCallback={(event) => UpdateFormData({
-            key: "permission",
-            value: event.target.value,
-            formKey: FORM_KEYS.BASIC
-          })}
+          form={form}
         />
 
         <Select
           label="Library"
+          name="libraryId"
           disabled={objectData !== null}
-          labelDescription="This is the library where your live stream object will be created."
+          description="Select the library where your live stream object will be created."
           required={true}
-          options={
+          data={
             Object.keys(dataStore.libraries || {}).map(libraryId => (
               {
                 label: dataStore.libraries[libraryId].name || "",
@@ -490,81 +504,67 @@ const Create = observer(() => {
               }
             ))
           }
-          defaultOption={{
-            value: "",
-            label: "Select Library"
-          }}
-          value={basicFormData.libraryId}
-          onChange={event => UpdateFormData({
-            key: "libraryId",
-            value: event.target.value,
-            formKey: FORM_KEYS.BASIC
-          })}
+          placeholder="Select Library"
+          mb={16}
+          {...form.getInputProps("libraryId")}
         />
 
-        <AdvancedSection
-          advancedData={advancedData}
-          drmFormData={drmFormData}
-          useAdvancedSettings={useAdvancedSettings}
-          DrmUpdateCallback={({event, key}) => UpdateFormData({
-            key,
-            value: event.target.value,
-            formKey: FORM_KEYS.DRM
-          })}
-          AdvancedUpdateCallback={({event, key, value}) => UpdateFormData({
-            key,
-            value: value ? value : event?.target?.value,
-            formKey: FORM_KEYS.ADVANCED
-          })}
-          AdvancedSettingsCallback={setUseAdvancedSettings}
-          objectProbed={objectData !== null}
-          audioTracks={audioTracks}
-          audioFormData={audioFormData}
-          setAudioFormData={setAudioFormData}
-          setShowProbeConfirmation={setShowProbeConfirmation}
-          objectData={objectData}
-          ladderProfilesData={ladderProfilesData}
-          playoutProfile={playoutProfile}
-          setPlayoutProfile={setPlayoutProfile}
-          DisableProbeButton={() => {
-            return !(
-              basicFormData.url &&
-              basicFormData.name &&
-              basicFormData.libraryId
-            );
-          }}
-        />
+        <Accordion
+          value={useAdvancedSettings}
+          onChange={setUseAdvancedSettings}
+        >
+          <Accordion.Item value="advanced-item">
+            <Accordion.Control>Advanced Settings</Accordion.Control>
+            <Accordion.Panel>
+            <AdvancedSettingsPanel
+              form={form}
+              objectProbed={objectData !== null}
+              audioTracks={audioTracks}
+              audioFormData={audioFormData}
+              setAudioFormData={setAudioFormData}
+              setShowProbeConfirmation={setShowProbeConfirmation}
+              objectData={objectData}
+              ladderProfilesData={ladderProfilesData}
+              loading={loading}
+              DisableProbeButton={() => {
+                const {libraryId, name} = form.getValues();
 
-        <div style={{maxWidth: "200px"}}>
-          { loading ? <Flex mt={8}><Loader size="md" /></Flex> : null }
-        </div>
+                return !(
+                  (formCustomUrl || formUrl) &&
+                  name &&
+                  libraryId
+                );
+              }}
+            />
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
 
-        <div className="form__actions">
-          <input disabled={isCreating} type="submit" value={isCreating ? "Submitting..." : "Save"} />
-        </div>
+        <Box mt="2rem" mb="2.5rem">
+          <Button disabled={isCreating} type="submit">
+            { isCreating ? "Submitting..." : "Save" }
+          </Button>
+        </Box>
       </form>
-      <ProbeConfirmation
+
+      <ConfirmModal
         show={showProbeConfirmation}
-        url={basicFormData.url}
         CloseCallback={() => setShowProbeConfirmation(false)}
+        title="Create and Probe Stream"
+        message="Are you sure you want to probe the stream? This will also create the content object."
+        loadingText={`Please send your stream to ${(formProtocol === "custom" ? formCustomUrl : formUrl) || "the URL you specified"}.`}
         ConfirmCallback={async () => {
-          const {objectId, slug} = await editStore.InitLiveStreamObject({
-            basicFormData,
-            advancedData,
-            drmFormData
-          });
-
-          await streamStore.ConfigureStream({objectId, slug});
-
-          setObjectData({objectId, slug});
-
-          notifications.show({
-            title: "Probed stream",
-            message: "Stream object was successfully created and probed"
-          });
+          try {
+            await HandleProbeConfirm();
+            setShowProbeConfirmation(false);
+          } catch(error) {
+            // eslint-disable-next-line no-console
+            console.error("Unable to probe stream", error);
+            throw Error(error);
+          }
         }}
       />
-    </div>
+    </PageContainer>
   );
 });
 

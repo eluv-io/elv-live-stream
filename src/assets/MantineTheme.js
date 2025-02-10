@@ -8,9 +8,8 @@ const theme = createTheme({
   headings: {
     fontFamily: "Helvetica Neue, Helvetica, sans-serif"
   },
-  // TODO: Change primary color
-  // primaryColor: "elv-violet",
-  // primaryShade: 3,
+  primaryColor: "elv-violet",
+  primaryShade: 3,
   colors: {
     "elv-violet": [
       "#f9e9ff",
@@ -23,27 +22,27 @@ const theme = createTheme({
       "#7c00e4",
       "#8f5aff", // eluvio color
       "#5f00b3",
-      "#380C61", // eluvio color
+      "#380c61", // eluvio color
     ],
     "elv-gray": [
       "#f5f5f5",
-      "#eee",
-      "#cdcdcd",
-      "#b2b2b2",
-      "#9a9a9a",
+      "#f0f0f0",
+      "#d7d7d7", // eluvio color
+      "#bdbdbd", // eluvio color
+      "rgba(0,0,0,0.06)", // eluvio color
       "#8b8b8b",
       "#848484",
       "#717171",
-      "#656565",
-      "#3C3C3C" // eluvio color
+      "#4b494e", // eluvio color
+      "#3c3c3c" // eluvio color
     ],
     "elv-neutral": [
       "#f8f2fe",
-      "#e8e4ed",
+      "#ecece8", // eluvio color
       "#cdc8d3",
       "#b2aaba", // eluvio color
       "#a9a0b2", // eluvio color
-      "#8b7f97",
+      "#7b7580", // eluvio color
       "#847791",
       "#71667e",
       "#665972",
@@ -100,14 +99,6 @@ const theme = createTheme({
   },
   // Default styles for components that need styles across components
   components: {
-    Tabs: {
-      styles: () => ({
-        // list: {
-        //   "--tab-border-color": "var(--mantine-color-elv-neutral-4)",
-        //   "--tabs-list-border-size": "1px"
-        // }
-      })
-    },
     Anchor: {
       styles: () => ({
         root: {
@@ -129,13 +120,6 @@ const theme = createTheme({
         root: {
           "--mantine-spacing-xxs": "0.3125rem"
         }
-      })
-    },
-    Button: {
-      styles: () => ({
-        // root: {
-        //   "border": "2px solid var(--mantine-color-elv-violet-outline)"
-        // }
       })
     },
     Modal: {
