@@ -1,6 +1,6 @@
-import {useEffect, useState} from "react";
+import {useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Button, Flex, Loader, Modal, Text} from "@mantine/core";
+import {Flex, Loader, Modal, Text} from "@mantine/core";
 
 const ConfirmModal = observer(({
   message,
@@ -10,15 +10,10 @@ const ConfirmModal = observer(({
   show,
   loadingText,
   cancelText="Cancel",
-  confirmText="Confirm",
-  danger=false
+  confirmText="Confirm"
 }) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    setError(null);
-  }, [show]);
+  const [error, setError] = useState();
 
   return (
     <Modal
@@ -29,7 +24,6 @@ const ConfirmModal = observer(({
       radius="6px"
       size="lg"
       centered
-      closeOnClickOutside={false}
     >
       <Text>{message}</Text>
       {
@@ -42,20 +36,19 @@ const ConfirmModal = observer(({
             Error: { error }
           </div>
       }
-      <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
-        <Button type="button" variant="outline" onClick={CloseCallback} mr="0.5rem" color={danger ? "elv-red.7" : "elv-violet"}>
+      <Flex direction="row" align="center" className="modal__actions">
+        <button type="button" className="button__secondary" onClick={CloseCallback}>
           {cancelText}
-        </Button>
-        <Button
+        </button>
+        <button
+          type="button"
           disabled={loading}
-          variant="filled"
-          color={danger ? "elv-red.7" : "elv-violet"}
+          className="button__primary"
           onClick={async () => {
             try {
               setError(undefined);
               setLoading(true);
               await ConfirmCallback();
-              CloseCallback();
             } catch(error) {
               // eslint-disable-next-line no-console
               console.error(error);
@@ -65,8 +58,8 @@ const ConfirmModal = observer(({
             }
           }}
         >
-          {loading ? <Loader type="dots" size="xs" color="elv-gray.7" /> : confirmText}
-        </Button>
+          {loading ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : confirmText}
+        </button>
       </Flex>
     </Modal>
   );

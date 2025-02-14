@@ -10,7 +10,6 @@ configure({
 // Store for loading all the initial data
 class DataStore {
   rootStore;
-  loaded = false;
   tenantId;
   libraries;
   accessGroups;
@@ -34,24 +33,18 @@ class DataStore {
   }
 
   Initialize = flow(function * (reload=false) {
-    this.loaded = false;
-    try {
-      const tenantContractId = yield this.LoadTenantInfo();
-      if(!this.siteId) {
-        this.siteId = yield this.LoadTenantData({tenantContractId});
-      }
-
-      if(!this.siteLibraryId) {
-        this.siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
-      }
-
-      yield this.LoadLadderProfiles();
-      yield this.LoadStreams();
-      this.loaded = true;
-      yield streamStore.AllStreamsStatus(reload);
-    } catch(error) {
-      this.loaded = true;
+    const tenantContractId = yield this.LoadTenantInfo();
+    if(!this.siteId) {
+      this.siteId = yield this.LoadTenantData({tenantContractId});
     }
+
+    if(!this.siteLibraryId) {
+      this.siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
+    }
+
+    yield this.LoadLadderProfiles();
+    yield this.LoadStreams();
+    yield streamStore.AllStreamsStatus(reload);
   });
 
   LoadTenantInfo = flow(function * () {
@@ -172,6 +165,7 @@ class DataStore {
           streamMetadata[slug].objectId = objectId;
           streamMetadata[slug].versionHash = versionHash;
           streamMetadata[slug].libraryId = libraryId;
+          streamMetadata[slug].title = stream.title || stream.display_title;
           streamMetadata[slug].embedUrl = await this.EmbedUrl({objectId});
 
           const streamDetails = await this.LoadStreamMetadata({
@@ -310,27 +304,23 @@ class DataStore {
       const simpleWatermark = streamMeta?.live_recording?.playout_config?.simple_watermark;
       const imageWatermark = streamMeta?.live_recording?.playout_config?.image_watermark;
       const forensicWatermark = streamMeta?.live_recording?.playout_config?.forensic_watermark;
-      const connectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
-      const reconnectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
-      const partTtl = streamMeta?.live_recording_config?.part_ttl;
-      const dvrMaxDuration = streamMeta?.live_recording?.playout_config?.dvr_max_duration;
 
       return {
         codecName: videoStream?.codec_name,
-        connectionTimeout: connectionTimeout ? connectionTimeout.toString() : null,
+        connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
         description: streamMeta?.public?.description,
         display_title: streamMeta?.public?.asset_metadata?.display_title,
         drm: streamMeta?.live_recording_config?.drm_type,
         dvrEnabled: streamMeta?.live_recording?.playout_config?.dvr_enabled,
         dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
-        dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
+        dvrMaxDuration: streamMeta?.live_recording?.playout_config?.dvr_max_duration,
         forensicWatermark,
         format: probeType,
         imageWatermark,
         originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
-        partTtl: partTtl ? partTtl.toString() : null,
+        partTtl: streamMeta?.live_recording_config?.part_ttl,
         playoutLadderProfile: streamMeta?.live_recording_config?.playout_ladder_profile,
-        reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
+        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,
         referenceUrl: streamMeta?.live_recording_config?.reference_url,
         simpleWatermark,
         title: streamMeta?.public?.name,
@@ -365,7 +355,7 @@ class DataStore {
       streamStore.UpdateStream({
         key: slug,
         value: {
-          title: streamMeta?.name || streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
+          title: streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
           description: streamMeta.description,
           display_title: streamMeta.asset_metadata?.display_title
         }

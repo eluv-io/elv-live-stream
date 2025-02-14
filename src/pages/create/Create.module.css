@@ -1,8 +1,3 @@
 .alertRoot {
   align-items: center;
 }
-
-.disabledContainer {
-  opacity: 0.5;
-  pointer-events: none;
-}

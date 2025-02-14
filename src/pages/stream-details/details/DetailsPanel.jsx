@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {ActionIcon, Box, Code, Flex, Grid, Skeleton, Stack, Text, Title} from "@mantine/core";
+import {Box, Code, Flex, Grid, Skeleton, Stack, Text} from "@mantine/core";
 import {streamStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
@@ -77,7 +77,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         <Grid.Col span={8}>
           <Flex direction="column" style={{flexGrow: "1"}}>
             <Box mb="24px" maw="70%">
-              <Title order={3} c="elv-gray.8">State</Title>
+              <div className="form__section-header">State</div>
               <Text>Quality: {QUALITY_TEXT[status?.quality] || "--"}</Text>
               {
                 status?.warnings &&
@@ -93,7 +93,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
               }
             </Box>
             <Box mb="24px" maw="70%">
-              <Title order={3} c="elv-gray.8">Recording Info</Title>
+              <div className="form__section-header">Recording Info</div>
               <Text>
                 Created: {
                   recordingInfo?._recordingStartTime ?
@@ -133,7 +133,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         <Grid.Col span={4}>
           <Flex>
             <Stack gap={0}>
-              <Title order={3} c="elv-gray.8">Preview</Title>
+              <div className="form__section-header">Preview</div>
               <Skeleton visible={frameSegmentUrl === undefined || !status} height={200} width={350}>
                 {
                   (status?.state === STATUS_MAP.RUNNING && frameSegmentUrl) ?
@@ -152,7 +152,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                   embedUrl &&
                   <Flex direction="row" justify="center" align="center">
                     <Text size="xs" truncate="end" maw={300} ta="center">{embedUrl}</Text>
-                    <ActionIcon variant="transparent" onClick={() => {
+                    <button type="button" onClick={() => {
                       CopyToClipboard({text: embedUrl});
                       setCopied(true);
 
@@ -164,7 +164,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                         copied ?
                           <IconCheck height={16} width={16}/> : <ClipboardIcon/>
                       }
-                    </ActionIcon>
+                    </button>
                   </Flex>
                 }
               </Skeleton>
@@ -172,7 +172,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
           </Flex>
         </Grid.Col>
       </Grid>
-      <Title order={3} c="elv-gray.8">Recording Periods</Title>
+      <div className="form__section-header">Recording Periods</div>
       <RecordingPeriodsTable
         libraryId={libraryId}
         objectId={params.id}

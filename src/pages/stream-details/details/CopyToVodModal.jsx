@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Box, Button, Flex, Loader, Modal, Select, Text, TextInput} from "@mantine/core";
+import {Box, Flex, Loader, Modal, Text} from "@mantine/core";
+import {Select, TextInput} from "@/components/Inputs.jsx";
 import {dataStore} from "@/stores/index.js";
 
 const CopyToVodModal = observer(({
@@ -53,7 +54,7 @@ const CopyToVodModal = observer(({
               <Select
                 label="Library"
                 required={true}
-                data={
+                options={
                   Object.keys(dataStore.libraries || {}).map(libraryId => (
                     {
                       label: dataStore.libraries[libraryId].name || "",
@@ -61,10 +62,13 @@ const CopyToVodModal = observer(({
                     }
                   ))
                 }
-                placeholder="Select Library"
+                defaultOption={{
+                  value: "",
+                  label: "Select Library"
+                }}
                 value={libraryId}
-                onChange={value => setLibraryId(value)}
-                mb={16}
+                onChange={event => setLibraryId(event.target.value)}
+                style={{width: "100%", marginBottom: "1rem"}}
               />
             )
         }
@@ -75,8 +79,8 @@ const CopyToVodModal = observer(({
             (
               <Select
                 label="Access Group"
-                description="This is the Access Group that will manage your live stream object."
-                data={
+                labelDescription="This is the Access Group that will manage your live stream object."
+                options={
                   Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
                     {
                       label: accessGroupName,
@@ -84,17 +88,19 @@ const CopyToVodModal = observer(({
                     }
                   ))
                 }
-                placeholder="Select Access Group"
+                defaultOption={{
+                  value: "",
+                  label: "Select Access Group"
+                }}
                 value={accessGroup}
-                onChange={value => setAccessGroup(value)}
-                mb={16}
+                onChange={event => setAccessGroup(event.target.value)}
+                style={{width: "100%", marginBottom: "1rem"}}
               />
             )
         }
 
         <TextInput
           label="Enter a title for the VoD"
-          name="title"
           required={true}
           value={title}
           onChange={event => setTitle(event.target.value)}
@@ -108,12 +114,14 @@ const CopyToVodModal = observer(({
             Error: { error }
           </div>
       }
-      <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
-        <Button variant="outline" onClick={close} mr="0.5rem">
+      <Flex direction="row" align="center" className="modal__actions">
+        <button type="button" className="button__secondary" onClick={close}>
           Cancel
-        </Button>
-        <Button
+        </button>
+        <button
+          type="button"
           disabled={loading || !libraryId || !title}
+          className="button__primary"
           onClick={async () => {
             try {
               setError(undefined);
@@ -128,8 +136,8 @@ const CopyToVodModal = observer(({
             }
           }}
         >
-          {loading ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Copy"}
-        </Button>
+          {loading ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : "Copy"}
+        </button>
       </Flex>
     </Modal>
   );

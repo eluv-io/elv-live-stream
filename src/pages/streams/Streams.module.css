@@ -15,8 +15,3 @@
   text-decoration: none;
   color: var(--mantine-color-text);
 }
-
-.searchBar {
-  border-radius: 50px;
-  margin: 0;
-}
