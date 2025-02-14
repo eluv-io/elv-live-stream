@@ -20,25 +20,24 @@ const App = observer(() => {
   return (
     <MantineProvider withCSSVariables theme={MantineTheme}>
       <BrowserRouter>
-        <AppShell
-          padding="0"
-          navbar={{width: 70, breakpoint: "sm"}}
-        >
+        <AppShell padding="0" withBorder={false} navbar={{width: 210, breakpoint: "sm"}}>
           <LeftNavigation />
           <AppShell.Main>
             <ErrorBanner />
             <Notifications zIndex={1000} position="top-right" autoClose={5000} />
-            <DataWrapper>
-              {
-                rootStore.loaded ?
-                  <AppRoutes /> :
-                  (
-                    <Flex justify="center" align="center">
-                      <Loader />
-                    </Flex>
-                  )
-              }
-            </DataWrapper>
+            <div className="main-content">
+              <DataWrapper>
+                {
+                  rootStore.loaded ?
+                    <AppRoutes /> :
+                    (
+                      <Flex justify="center" align="center">
+                        <Loader />
+                      </Flex>
+                    )
+                }
+              </DataWrapper>
+            </div>
           </AppShell.Main>
         </AppShell>
       </BrowserRouter>

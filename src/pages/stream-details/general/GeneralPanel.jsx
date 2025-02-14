@@ -1,10 +1,10 @@
 import {observer} from "mobx-react-lite";
-import {Box, Button, Flex, Loader, Select, Text, TextInput, Tooltip} from "@mantine/core";
+import {Box, Flex, Loader, Text} from "@mantine/core";
 import {useEffect, useState} from "react";
 import {dataStore, editStore, rootStore, streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
+import {Select, TextInput} from "@/components/Inputs.jsx";
 import {notifications} from "@mantine/notifications";
-import {CircleInfoIcon} from "@/assets/icons/index.js";
 
 const GeneralPanel = observer(({slug}) => {
   const [formData, setFormData] = useState({
@@ -111,35 +111,32 @@ const GeneralPanel = observer(({slug}) => {
   return (
     <>
       <Flex direction="column" style={{flexGrow: "1"}}>
-        <form onSubmit={HandleSubmit}>
-          <Box mb="24px" w="700px">
+        <form className="form" onSubmit={HandleSubmit}>
+          <Box mb="24px" maw="70%">
             <TextInput
               label="Name"
-              name="name"
+              formName="name"
               required={true}
               value={formData.name}
               onChange={HandleFormChange}
-              mb={16}
             />
             <TextInput
               label="Display Title"
-              name="displayTitle"
+              formName="displayTitle"
               value={formData.displayTitle}
               onChange={HandleFormChange}
-              mb={16}
             />
             <TextInput
               label="Description"
-              name="description"
+              formName="description"
               value={formData.description}
               onChange={HandleFormChange}
-              mb={16}
             />
             <Select
               label="Access Group"
-              description="This is the Access Group that will manage your live stream object."
-              name="accessGroup"
-              data={
+              labelDescription="This is the Access Group that will manage your live stream object."
+              formName="accessGroup"
+              options={
                 Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
                   {
                     label: accessGroupName,
@@ -148,48 +145,33 @@ const GeneralPanel = observer(({slug}) => {
                 ))
               }
               value={formData.accessGroup}
-              placeholder="Select Access Group"
-              onChange={(value) => HandleFormChange({
-                  target: {name: "accessGroup", value}
-                }
-              )}
-              mb={16}
+              defaultOption={{
+                value: "",
+                label: "Select Access Group"
+              }}
+              onChange={HandleFormChange}
             />
             <Select
-              label={
-                <Flex align="center" gap={6}>
-                  Permission
-                  <Tooltip
-                    multiline
-                    w={460}
-                    label={
-                      Object.values(rootStore.client.permissionLevels).map(({short, description}) =>
-                        <Flex
-                          key={`permission-info-${short}`}
-                          gap="1rem"
-                          lh={1.25}
-                          pb={5}
-                        >
-                          <Flex flex="0 0 25%">{ short }:</Flex>
-                          <Text fz="sm">{ description }</Text>
-                        </Flex>
-                      )
-                    }
+              label="Permission"
+              labelDescription="Set a permission level."
+              formName="permission"
+              tooltip={
+                Object.values(rootStore.client.permissionLevels).map(({short, description}) =>
+                  <Flex
+                    key={`permission-info-${short}`}
+                    gap="1rem"
+                    lh={1.25}
+                    pb={5}
+                    maw={500}
                   >
-                    <Flex w={16}>
-                      <CircleInfoIcon color="var(--mantine-color-elv-gray-8)" />
-                    </Flex>
-                  </Tooltip>
-                </Flex>
+                    <Flex flex="0 0 25%">{ short }:</Flex>
+                    <Text fz="sm">{ description }</Text>
+                  </Flex>
+                )
               }
-              description="Set a permission level."
-              name="permission"
-              placeholder="Select Permission"
               value={formData.permission}
-              onChange={(value) => HandleFormChange({
-                target: {name: "permission", value}}
-              )}
-              data={
+              onChange={HandleFormChange}
+              options={
                 Object.keys(rootStore.client.permissionLevels || {}).map(permissionName => (
                   {
                     label: rootStore.client.permissionLevels[permissionName].short,
@@ -197,12 +179,11 @@ const GeneralPanel = observer(({slug}) => {
                   }
                 ))
               }
-              mb={16}
             />
           </Box>
-          <Button type="submit" disabled={applyingChanges}>
-            {applyingChanges ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Save"}
-          </Button>
+          <button type="submit" className="button__primary" disabled={applyingChanges}>
+            {applyingChanges ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : "Save"}
+          </button>
         </form>
       </Flex>
     </>

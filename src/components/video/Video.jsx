@@ -3,7 +3,6 @@ import {observer} from "mobx-react-lite";
 import {InitializeEluvioPlayer, EluvioPlayerParameters} from "@eluvio/elv-player-js/lib/index.js";
 
 import {rootStore} from "@/stores/index.js";
-import {Box} from "@mantine/core";
 
 const Video = observer(({
   objectId,
@@ -26,7 +25,7 @@ const Video = observer(({
   }
 
   return (
-    <Box w="100%" h="100%" className={className}>
+    <div className={`player-container ${player ? "player-container--loaded" : "player-container--loading"} ${className || ""}`}>
       <div
         ref={element => {
           if(!element || player) { return; }
@@ -53,14 +52,14 @@ const Video = observer(({
                 autoplay: EluvioPlayerParameters.autoplay.OFF,
                 controls: EluvioPlayerParameters.controls.AUTO_HIDE,
                 loop: EluvioPlayerParameters.loop.OFF,
-                // playerProfile: EluvioPlayerParameters.playerProfile.LOW_LATENCY,
+                playerProfile: EluvioPlayerParameters.playerProfile.LOW_LATENCY,
                 ...playerOptions
               }
             }
           ).then(newPlayer => setPlayer(newPlayer));
         }}
       />
-    </Box>
+    </div>
   );
 });
 

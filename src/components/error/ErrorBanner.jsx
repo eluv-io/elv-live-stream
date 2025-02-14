@@ -1,21 +1,20 @@
 import {observer} from "mobx-react-lite";
 import {rootStore} from "@/stores";
-import {ActionIcon, Box, Text} from "@mantine/core";
+import {ActionIcon} from "@mantine/core";
 import {IconX} from "@tabler/icons-react";
-import styles from "./ErrorBanner.module.css";
 
 const ErrorBanner = observer(() => {
   if(!rootStore.errorMessage) { return null; }
 
   return (
-    <Box className={styles.root}>
-      <Text>
+    <div className="error-banner">
+      <div className="error-banner__message">
         {rootStore.errorMessage}
-      </Text>
+      </div>
       <ActionIcon onClick={() => rootStore.SetErrorMessage(undefined)}>
         <IconX />
       </ActionIcon>
-    </Box>
+    </div>
   );
 });
 

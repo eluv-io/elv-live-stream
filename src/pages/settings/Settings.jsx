@@ -8,11 +8,10 @@ import {PlusIcon} from "@/assets/icons/index.js";
 import {rootStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
-import PageContainer from "@/components/page-container/PageContainer.jsx";
 
 const Settings = observer(() => {
   const [profileFormData, setProfileFormData] = useState(({default: JSON.stringify({}, null, 2), custom: []}));
-  // For displaying values while user potentially edits name
+  // For displaying values while user potentionally edits name
   const [customProfileNames, setCustomProfileNames] = useState([]);
   const [deleteIndex, setDeleteIndex] = useState(-1);
   const [saving, setSaving] = useState(false);
@@ -137,9 +136,12 @@ const Settings = observer(() => {
   if(!rootStore.loaded) { return <Loader />; }
 
   return (
-    <PageContainer
-      title="Settings"
-    >
+    <>
+      <div className="page-header monitor__page-header">
+        <div>
+          Settings
+        </div>
+      </div>
       <Box>
         <Title order={4}>Playout Profiles</Title>
         <Button
@@ -176,18 +178,18 @@ const Settings = observer(() => {
           ))
         }
       </Box>
-      <Button
-        variant="filled"
+      <button
+        type="button"
+        className="button__primary"
         onClick={HandleSave}
         disabled={saving}
       >
-        {saving ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Save"}
-      </Button>
+        {saving ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : "Save"}
+      </button>
       <ConfirmModal
         title="Delete Profile"
         message="Are you sure you want to delete the profile? This action cannot be undone."
         confirmText="Delete"
-        danger
         show={showModal}
         CloseCallback={() => setShowModal(false)}
         ConfirmCallback={async() => {
@@ -195,7 +197,7 @@ const Settings = observer(() => {
           setShowModal(false);
         }}
       />
-    </PageContainer>
+    </>
   );
 });
 
