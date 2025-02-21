@@ -2,9 +2,6 @@ import {createTheme} from "@mantine/core";
 
 const theme = createTheme({
   fontFamily: "Helvetica Neue, Helvetica, sans-serif",
-  // fontFamily: "-apple-system, system-ui, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif",
-  // fontFamily: "Inter, Montserrat, Helvetica Neue, Helvetica, sans-serif",
-  // fontFamilyMonospace: "Monaco, Courier, monospace",
   headings: {
     fontFamily: "Helvetica Neue, Helvetica, sans-serif"
   },
@@ -12,7 +9,7 @@ const theme = createTheme({
   primaryShade: 5,
   colors: {
     "elv-blue": [
-      "#e8f2ff",
+      "#ebf3fc", // eluvio color
       "#d2e1ff",
       "#a6bff6",
       "#759cee",
@@ -170,6 +167,13 @@ const theme = createTheme({
       styles: () => ({
         root: {
           "--radio-icon-size": "0.5rem"
+        }
+      })
+    },
+    Select: {
+      styles: () => ({
+        input: {
+          "borderRadius": "0"
         }
       })
     },

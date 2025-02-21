@@ -12,6 +12,7 @@ import {
   Flex,
   Radio,
   Select,
+  SimpleGrid,
   Stack,
   Text,
   TextInput,
@@ -60,7 +61,7 @@ const Permissions = observer(({form}) => {
           </Tooltip>
         </Flex>
       }
-      description="Set a permission level."
+      description="Stream permission level."
       name="permission"
       placeholder="Select Permission"
       data={
@@ -91,6 +92,7 @@ const AdvancedSettingsPanel = observer(({
 }) => {
   return (
     <>
+    <SimpleGrid cols={2} spacing={150}>
       <Select
         label="Retention"
         description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
@@ -100,21 +102,6 @@ const AdvancedSettingsPanel = observer(({
         mb={16}
         {...form.getInputProps("retention")}
       />
-
-      <Box mb={16}>
-        <Select
-          key={ladderProfilesData}
-          label="Playout Ladder"
-          name="playoutProfile"
-          data={ladderProfilesData}
-          placeholder={loading ? "Loading Options..." : "Select Ladder Profile"}
-          mb={16}
-          description={
-          loading ? null : (!ladderProfilesData.length > 0) ? "No profiles are configured. Create a profile in Settings." : null
-        }
-          {...form.getInputProps("playoutProfile")}
-        />
-      </Box>
 
       <Select
         label={
@@ -150,11 +137,28 @@ const AdvancedSettingsPanel = observer(({
         mb={16}
         {...form.getInputProps("encryption")}
       />
+    </SimpleGrid>
+
+      <Box mb={16}>
+        <Select
+          key={ladderProfilesData}
+          label="Playout Ladder"
+          name="playoutProfile"
+          data={ladderProfilesData}
+          placeholder={loading ? "Loading Options..." : "Select Ladder Profile"}
+          mb={16}
+          description={
+          loading ? null : (!ladderProfilesData.length > 0) ? "No profiles are configured. Create a profile in Settings." : null
+        }
+          {...form.getInputProps("playoutProfile")}
+        />
+      </Box>
 
       {
         !objectProbed &&
         <Alert
           variant="light"
+          bg="elv-blue.0"
           mt={24}
           mb={24}
           icon={<IconAlertCircle/>}
@@ -370,7 +374,7 @@ const Create = observer(() => {
       title="Create Live Stream"
       className={(dataStore.tenantId && !rootStore.errorMessage) ? "" : styles.disabledContainer}
     >
-      <form onSubmit={form.onSubmit(HandleSubmit)} style={{width: "700px"}}>
+      <form onSubmit={form.onSubmit(HandleSubmit)} style={{width: "80%"}}>
         <Radio.Group
           name="protocol"
           label="Streaming Protocol"
@@ -453,56 +457,61 @@ const Create = observer(() => {
         <Divider mb={12} />
         <Title order={4} size={20} fw={600} c="elv-gray.9" mb={12}>General</Title>
 
-        <TextInput
-          label="Name"
-          name="name"
-          mb={16}
-          withAsterisk
-          {...form.getInputProps("name")}
-        />
+        <SimpleGrid cols={2} spacing={150}>
+          <TextInput
+            label="Name"
+            name="name"
+            mb={16}
+            withAsterisk
+            {...form.getInputProps("name")}
+          />
+          <TextInput
+            label="Display Title"
+            name="displayTitle"
+            mb={16}
+            {...form.getInputProps("displayTitle")}
+          />
+        </SimpleGrid>
         <TextInput
           label="Description"
           name="description"
+          description="Enter a description to provide more details and context."
           mb={16}
           {...form.getInputProps("description")}
-        />
-        <TextInput
-          label="Display Title"
-          name="displayTitle"
-          mb={16}
-          {...form.getInputProps("displayTitle")}
         />
 
         <Divider mb={12} />
         <Title order={4} size={20} fw={600} c="elv-gray.9" mb={12}>Access</Title>
 
-        <Select
-          label="Access Group"
-          name="accessGroup"
-          disabled={objectData !== null}
-          description="This is the Access Group that will manage your live stream object."
-          data={
-            Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
-              {
-                label: accessGroupName,
-                value: accessGroupName
-              }
-            ))
-          }
-          placeholder="Select Access Group"
-          mb={16}
-          {...form.getInputProps("accessGroup")}
-        />
+        <SimpleGrid cols={2} spacing={150}>
+          <Select
+            label="Access Group"
+            name="accessGroup"
+            disabled={objectData !== null}
+            description="Access Group responsible for managing your live stream object."
+            data={
+              Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
+                {
+                  label: accessGroupName,
+                  value: accessGroupName
+                }
+              ))
+            }
+            placeholder="Select Access Group"
+            mb={16}
+            {...form.getInputProps("accessGroup")}
+          />
 
-        <Permissions
-          form={form}
-        />
+          <Permissions
+            form={form}
+          />
+        </SimpleGrid>
 
         <Select
           label="Library"
           name="libraryId"
           disabled={objectData !== null}
-          description="Select the library where your live stream object will be created."
+          description="Select the library where your live stream object will be stored."
           required={true}
           data={
             Object.keys(dataStore.libraries || {}).map(libraryId => (
@@ -523,7 +532,9 @@ const Create = observer(() => {
           chevron={<PlusIcon />}
           classNames={{
             item: styles.accordionItem,
-            control: styles.accordionControl
+            control: styles.accordionControl,
+            label: styles.accordionControlLabel,
+            content: styles.accordionContent
         }}
         >
           <Accordion.Item value="advanced-item">
