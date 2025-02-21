@@ -174,7 +174,10 @@ const theme = createTheme({
     Radio: {
       styles: () => ({
         root: {
-          "--radio-icon-size": "0.5rem"
+          "--radio-icon-size": "0.5rem",
+        },
+        radio: {
+          "--radio-color": "var(--mantine-color-elv-blue-3)"
         }
       })
     },
