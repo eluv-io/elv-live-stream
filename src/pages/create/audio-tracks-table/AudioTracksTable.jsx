@@ -4,6 +4,7 @@ import {DataTable} from "mantine-datatable";
 import {AudioBitrateReadable} from "@/utils/helpers.js";
 import {AudioCodec} from "@/utils/constants.js";
 import {IconCircleCheck, IconCircleCheckFilled} from "@tabler/icons-react";
+import styles from "./AudioTracksTable.module.css";
 
 const AudioTracksTable = observer(({
   records,
@@ -44,6 +45,7 @@ const AudioTracksTable = observer(({
 
   return (
     <DataTable
+      classNames={{header: styles.tableHeader}}
       idAccessor="stream_index"
       noRecordsText="No audio tracks found"
       minHeight={records.length > 0 ? 150 : 200}
@@ -54,7 +56,7 @@ const AudioTracksTable = observer(({
         {
           id: "input",
           title: "Input",
-          style: {fontStyle: "italic", fontSize: "1.125rem"},
+          style: {fontWeight: 500, fontSize: "1rem"},
           columns: [
             {
               accessor: "stream_index",
@@ -83,7 +85,7 @@ const AudioTracksTable = observer(({
         {
           id: "output",
           title: "Output",
-          style: {fontStyle: "italic", fontSize: "1.125rem"},
+          style: {fontWeight: 500, fontSize: "16px"},
           columns: [
             {
               accessor: "playout_label",
@@ -91,6 +93,7 @@ const AudioTracksTable = observer(({
               render: item => {
                 return (
                   <TextInput
+                    classNames={{input: styles.textInput}}
                     value={audioFormData[item.stream_index].playout_label}
                     disabled={disabled}
                     required={audioFormData[item.stream_index].record}
@@ -113,6 +116,7 @@ const AudioTracksTable = observer(({
               render: item => {
                 return (
                   <TextInput
+                    classNames={{input: styles.textInput}}
                     value={audioFormData[item.stream_index].lang}
                     disabled={disabled}
                     onChange={(event) => {
@@ -126,26 +130,6 @@ const AudioTracksTable = observer(({
                 );
               }
             },
-            // {
-            //   accessor: "output_bitrate",
-            //   title: "Bitrate",
-            //   render: item => (
-            //     <Select
-            //       label=""
-            //       style={{minWidth: "125px"}}
-            //       options={RECORDING_BITRATE_OPTIONS}
-            //       disabled={disabled}
-            //       onChange={(event) => {
-            //         HandleFormChange({
-            //           index: item.stream_index,
-            //           key: "recording_bitrate",
-            //           value: parseInt(event.target.value)
-            //         });
-            //       }}
-            //       value={audioFormData[item.stream_index].recording_bitrate}
-            //     />
-            //   )
-            // },
             {
               accessor: "action_default",
               title: "Default",
@@ -153,6 +137,7 @@ const AudioTracksTable = observer(({
               render: item => (
                 <ActionIcon
                   variant="subtle"
+                  color="var(--mantine-color-elv-blue-3)"
                   onClick={() => {
                     HandleToggleDefault({index: item.stream_index, value: !audioFormData[item.stream_index].default});
                   }}

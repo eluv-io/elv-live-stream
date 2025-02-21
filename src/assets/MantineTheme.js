@@ -12,7 +12,7 @@ const theme = createTheme({
       "#ebf3fc", // eluvio color
       "#d2e1ff",
       "#a6bff6",
-      "#759cee",
+      "#228BE6", // eluvio color
       "#3F85E3", // eluvio color
       "#336be4", // eluvio color
       "#2361e3",
@@ -139,6 +139,14 @@ const theme = createTheme({
           ...(params.variant === "outline" && {
             "color": "black"
           })
+        }
+      })
+    },
+    Checkbox: {
+      styles: () => ({
+        input: {
+          "--checkbox-color": "var(--mantine-color-elv-blue-3)",
+          "borderRadius": "0"
         }
       })
     },

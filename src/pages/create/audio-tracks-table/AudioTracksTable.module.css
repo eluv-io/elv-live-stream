@@ -1,0 +1,9 @@
+.tableHeader {
+  th {
+    font-weight: 500;
+  }
+}
+
+.textInput {
+  border-radius: 8px !important;
+}
