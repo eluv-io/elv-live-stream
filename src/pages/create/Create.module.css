@@ -14,4 +14,15 @@
 .accordionControl {
   width: fit-content;
   gap: 10px;
+  padding-left: 0;
+}
+
+.accordionControlLabel {
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--mantine-color-elv-gray-9);
+}
+
+.accordionContent {
+  padding-left: 0;
 }
