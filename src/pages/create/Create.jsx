@@ -8,6 +8,7 @@ import {
   Alert,
   Box,
   Button,
+  Divider,
   Flex,
   Radio,
   Select,
@@ -21,7 +22,7 @@ import {notifications} from "@mantine/notifications";
 import {isNotEmpty, useForm} from "@mantine/form";
 import {IconAlertCircle} from "@tabler/icons-react";
 
-import {CircleInfoIcon} from "@/assets/icons/index.js";
+import {CircleInfoIcon, PlusIcon} from "@/assets/icons/index.js";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
@@ -448,6 +449,10 @@ const Create = observer(() => {
               />
             )
         }
+
+        <Divider mb={12} />
+        <Title order={4} size={20} fw={600} c="elv-gray.9" mb={12}>General</Title>
+
         <TextInput
           label="Name"
           name="name"
@@ -467,6 +472,9 @@ const Create = observer(() => {
           mb={16}
           {...form.getInputProps("displayTitle")}
         />
+
+        <Divider mb={12} />
+        <Title order={4} size={20} fw={600} c="elv-gray.9" mb={12}>Access</Title>
 
         <Select
           label="Access Group"
@@ -512,9 +520,14 @@ const Create = observer(() => {
         <Accordion
           value={useAdvancedSettings}
           onChange={setUseAdvancedSettings}
+          chevron={<PlusIcon />}
+          classNames={{
+            item: styles.accordionItem,
+            control: styles.accordionControl
+        }}
         >
           <Accordion.Item value="advanced-item">
-            <Accordion.Control>Advanced Settings</Accordion.Control>
+            <Accordion.Control>Advanced</Accordion.Control>
             <Accordion.Panel>
             <AdvancedSettingsPanel
               form={form}

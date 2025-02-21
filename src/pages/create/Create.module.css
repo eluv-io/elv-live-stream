@@ -6,3 +6,12 @@
   opacity: 0.5;
   pointer-events: none;
 }
+
+.accordionItem {
+  border-bottom: none;
+}
+
+.accordionControl {
+  width: fit-content;
+  gap: 10px;
+}
