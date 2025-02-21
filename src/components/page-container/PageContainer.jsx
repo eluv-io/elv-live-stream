@@ -1,7 +1,6 @@
 import {ActionIcon, Box, Button, Flex, Group, Text, TextInput, Title} from "@mantine/core";
 import {useState} from "react";
 import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
-import titleSectionStyles from "./TitleSection.module.css";
 import searchBarStyles from "./SearchBar.module.css";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
 
@@ -68,7 +67,7 @@ const TitleSection = ({title, subtitle, rightSection}) => {
   return (
     <Flex direction="column" mb={12}>
       <Group>
-        <Title order={3} size={28} classNames={{root: titleSectionStyles.root}}>
+        <Title order={3} size={28} c="elv-black.0">
           { title }
         </Title>
         {

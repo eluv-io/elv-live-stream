@@ -1,4 +1,4 @@
-import {Box, Button, Loader, Title} from "@mantine/core";
+import {Box, Button, Group, Loader, Title} from "@mantine/core";
 import TextEditorBox from "@/components/text-editor-box/TextEditorBox.jsx";
 import {useEffect, useState} from "react";
 import {DefaultLadderProfile} from "@/utils/profiles.js";
@@ -9,6 +9,7 @@ import {rootStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
+import styles from "./Settings.module.css";
 
 const Settings = observer(() => {
   const [profileFormData, setProfileFormData] = useState(({default: JSON.stringify({}, null, 2), custom: []}));
@@ -141,16 +142,17 @@ const Settings = observer(() => {
       title="Settings"
     >
       <Box>
-        <Title order={4}>Playout Profiles</Title>
-        <Button
-          leftSection={<PlusIcon />}
-          variant="white"
-          mt={16}
-          mb={8}
-          onClick={HandleAddCustom}
-        >
-          Add Custom Profile
-        </Button>
+        <Group mb={8} mt={16}>
+          <Title order={4} c="elv-gray.9" size={20}>Playout Profiles</Title>
+          <Button
+            classNames={{root: styles.root}}
+            leftSection={<PlusIcon />}
+            variant="white"
+            onClick={HandleAddCustom}
+          >
+            Add Custom Profile
+          </Button>
+        </Group>
         <TextEditorBox
           columns={[
             {id: "Default", header: "Profile", value: "Default"}
