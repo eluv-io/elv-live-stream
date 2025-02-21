@@ -46,6 +46,7 @@ module.exports = {
           "bitrate",
           "blockchain",
           "breakpoint",
+          "calc",
           "cenc",
           "checkbox",
           "cloneable",

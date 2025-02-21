@@ -1,6 +1,6 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Anchor, Box, Flex, Grid, Loader, Text, TextInput} from "@mantine/core";
+import {Anchor, Box, Button, Flex, Grid, Loader, Text, TextInput} from "@mantine/core";
 import {useDebouncedValue} from "@mantine/hooks";
 
 import {dataStore, streamStore} from "@/stores";
@@ -27,21 +27,23 @@ const Monitor = observer(() => {
   return (
     <PageContainer
       title="Monitor"
-      actions={[
-        {
-          label: streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews",
-          variant: "outline",
-          onClick: () => streamStore.ToggleMonitorPreviews()
-        }
-      ]}
     >
-      <TextInput
-        maw={400}
-        placeholder="Search by name or object ID"
-        mb="md"
-        value={filter}
-        onChange={event => setFilter(event.target.value)}
-      />
+      <Flex w="100%" align="center" mb="md">
+        <TextInput
+          flex={2}
+          maw={400}
+          placeholder="Search by name or object ID"
+          value={filter}
+          onChange={event => setFilter(event.target.value)}
+        />
+        <Button
+          onClick={() => streamStore.ToggleMonitorPreviews()}
+          variant="outline"
+          ml="auto"
+        >
+          { streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews" }
+        </Button>
+      </Flex>
       {
         !dataStore.tenantId ? null :
           !streams ?
