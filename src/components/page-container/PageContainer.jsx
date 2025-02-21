@@ -66,9 +66,9 @@ const TopActions = ({showSearchBar, actions=[]}) => {
 
 const TitleSection = ({title, subtitle, rightSection}) => {
   return (
-    <Flex direction="column" mb={24}>
+    <Flex direction="column" mb={12}>
       <Group>
-        <Title order={3} classNames={{root: titleSectionStyles.root}}>
+        <Title order={3} size={28} classNames={{root: titleSectionStyles.root}}>
           { title }
         </Title>
         {

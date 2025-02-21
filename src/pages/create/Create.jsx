@@ -541,7 +541,7 @@ const Create = observer(() => {
         </Accordion>
 
         <Box mt="2rem" mb="2.5rem">
-          <Button disabled={isCreating} type="submit">
+          <Button disabled={isCreating} type="submit" size="sm">
             { isCreating ? "Submitting..." : "Save" }
           </Button>
         </Box>
