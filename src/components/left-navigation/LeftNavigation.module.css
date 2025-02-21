@@ -1,14 +1,13 @@
-.section {
-  &[data-position="left"] {
-    margin-inline-end: 0;
-  }
-}
-
-.body {
-  display: none;
-}
-
 .root {
   justify-content: center;
-  padding: 8px 0;
+
+  &:where([data-active]) {
+    background-color: transparent;
+    color: var(--mantine-color-elv-gray-9);
+    font-weight: 700;
+  }
+
+  &:hover {
+    background-color: var(--mantine-color-elv-gray-4);
+  }
 }

@@ -8,9 +8,21 @@ const theme = createTheme({
   headings: {
     fontFamily: "Helvetica Neue, Helvetica, sans-serif"
   },
-  primaryColor: "elv-violet",
-  primaryShade: 3,
+  primaryColor: "elv-blue",
+  primaryShade: 5,
   colors: {
+    "elv-blue": [
+      "#e8f2ff",
+      "#d2e1ff",
+      "#a6bff6",
+      "#759cee",
+      "#4d7ee7",
+      "#336be4", // eluvio color
+      "#2361e3",
+      "#1351cb",
+      "#0648b6",
+      "#003ea2"
+    ],
     "elv-violet": [
       "#f9e9ff",
       "#ebcfff",
