@@ -9,7 +9,7 @@ const DisabledTooltipWrapper = ({
   if(disabled) {
     return (
       <Tooltip.Floating label={tooltipLabel}>
-        <Box data-disabled mb={24} className={styles.box}>
+        <Box data-disabled className={styles.box}>
           { children }
         </Box>
       </Tooltip.Floating>

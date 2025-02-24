@@ -63,11 +63,14 @@ const TopActions = ({showSearchBar, actions=[]}) => {
   );
 };
 
-const TitleSection = ({title, subtitle, rightSection}) => {
+const TitleSection = ({title, subtitle, rightSection, leftSection}) => {
   return (
     <Flex direction="column" mb={12}>
-      <Group>
-        <Title order={3} size={28} c="elv-black.0">
+      <Group gap={6}>
+        {
+          leftSection ? leftSection : null
+        }
+        <Title order={3} size={28} c="elv-gray.9">
           { title }
         </Title>
         {
@@ -94,6 +97,7 @@ const PageContainer = ({
   showSearchBar=false,
   actions=[],
   titleRightSection,
+  titleLeftSection,
   ...rest
 }) => {
   return (
@@ -104,6 +108,7 @@ const PageContainer = ({
         title &&
         <TitleSection
           title={title}
+          leftSection={titleLeftSection}
           subtitle={subtitle}
           rightSection={titleRightSection}
         />

@@ -1,11 +1,11 @@
 import {observer} from "mobx-react-lite";
 import {useParams, useNavigate} from "react-router-dom";
-import {Loader} from "@mantine/core";
+import {ActionIcon, Loader} from "@mantine/core";
 import {rootStore, streamStore} from "@/stores/index.js";
 import AppFrame from "@/components/app-frame/AppFrame.jsx";
 import styles from "./StreamPreview.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import {IconChevronLeft} from "@tabler/icons-react";
+import {IconArrowLeft} from "@tabler/icons-react";
 
 const StreamPreview = observer(() => {
   const {id} = useParams();
@@ -46,14 +46,16 @@ const StreamPreview = observer(() => {
   return (
     <PageContainer
       title={`Preview ${streamObject.title || streamObject.objectId}`}
-      actions={[
-        {
-          label: "All Streams",
-          leftSection: <IconChevronLeft height={18} />,
-          variant: "filled",
-          onClick: () => navigate("/streams")
-        }
-      ]}
+      titleLeftSection={
+        <ActionIcon
+          variant="transparent"
+          c="elv-neutral.4"
+          size="lg"
+          onClick={() => navigate("/streams")}
+        >
+          <IconArrowLeft stroke={3} width={30} height={30} />
+        </ActionIcon>
+      }
     >
       <AppFrame
         className={styles.root}

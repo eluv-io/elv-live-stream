@@ -139,7 +139,7 @@ const theme = createTheme({
             "fontSize": "calc(0.85rem * var(--mantine-scale)"
           }),
           ...(params.variant === "outline" && !params.disabled && {
-            "color": "var(--mantine-color-elv-black.0)"
+            "color": "var(--mantine-color-elv-black-0)"
           })
         }
       })
