@@ -4,7 +4,7 @@ import {useDisclosure} from "@mantine/hooks";
 import {streamStore} from "@/stores";
 import {notifications} from "@mantine/notifications";
 import {RECORDING_STATUS_TEXT} from "@/utils/constants";
-import {Button, Flex, Loader, Text} from "@mantine/core";
+import {Button, Flex, Group, Loader, Text, Title} from "@mantine/core";
 import {DateFormat, Pluralize} from "@/utils/helpers";
 import {DataTable} from "mantine-datatable";
 import DetailsCopyModal from "@/pages/stream-details/details/CopyToVodModal";
@@ -114,18 +114,23 @@ const RecordingPeriodsTable = observer(({
 
   return (
     <>
-      <Flex direction="row" justify="space-between">
-        {
-          selectedRecords.length === 0 ? "" : `${Pluralize({base: "item", count: selectedRecords.length})} selected`
-        }
-        <Button
-          disabled={selectedRecords.length === 0 || copyingToVod}
-          style={{marginLeft: "auto"}}
-          onClick={open}
-        >
-          {copyingToVod ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Copy to VoD"}
-        </Button>
-      </Flex>
+      <Group mb={16} w="100%">
+        <Title order={3} c="elv-gray.9">Recording Periods</Title>
+        <Flex align="center" ml="auto">
+          <Text mr={16}>
+            {
+              selectedRecords.length === 0 ? "" : `${Pluralize({base: "item", count: selectedRecords.length})} selected`
+            }
+          </Text>
+          <Button
+            disabled={selectedRecords.length === 0 || copyingToVod}
+            onClick={open}
+            size="md"
+          >
+            {copyingToVod ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Copy to VoD"}
+          </Button>
+        </Flex>
+      </Group>
       <DataTable
         mb="4rem"
         columns={[

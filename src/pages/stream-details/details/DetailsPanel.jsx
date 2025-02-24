@@ -76,8 +76,8 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       <Grid>
         <Grid.Col span={8}>
           <Flex direction="column" style={{flexGrow: "1"}}>
-            <Box mb="24px" maw="70%">
-              <Title order={3} c="elv-gray.8">State</Title>
+            <Box mb="24px" maw="80%">
+              <Title order={3} c="elv-gray.9" mb={8}>State</Title>
               <Text>Quality: {QUALITY_TEXT[status?.quality] || "--"}</Text>
               {
                 status?.warnings &&
@@ -93,7 +93,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
               }
             </Box>
             <Box mb="24px" maw="70%">
-              <Title order={3} c="elv-gray.8">Recording Info</Title>
+              <Title order={3} c="elv-gray.9" mb={8}>Recording Info</Title>
               <Text>
                 Created: {
                   recordingInfo?._recordingStartTime ?
@@ -133,7 +133,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         <Grid.Col span={4}>
           <Flex>
             <Stack gap={0}>
-              <Title order={3} c="elv-gray.8">Preview</Title>
+              <Title order={3} c="elv-gray.9" mb={8}>Preview</Title>
               <Skeleton visible={frameSegmentUrl === undefined || !status} height={200} width={350}>
                 {
                   (status?.state === STATUS_MAP.RUNNING && frameSegmentUrl) ?
@@ -172,7 +172,6 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
           </Flex>
         </Grid.Col>
       </Grid>
-      <Title order={3} c="elv-gray.8">Recording Periods</Title>
       <RecordingPeriodsTable
         libraryId={libraryId}
         objectId={params.id}

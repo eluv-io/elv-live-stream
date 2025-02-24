@@ -5,12 +5,12 @@ import {observer} from "mobx-react-lite";
 import {
   Box,
   Button,
-  Checkbox,
+  Checkbox, Divider,
   FileButton,
   Flex,
   Group,
   Loader,
-  Select,
+  Select, SimpleGrid,
   Text,
   Textarea,
   Title,
@@ -127,13 +127,13 @@ const PlayoutPanel = observer(({
   };
 
   return (
-    <Box w="700px">
-      <Title order={3} c="elv-gray.8" mb={4}>Playout</Title>
-      <DisabledTooltipWrapper
-        tooltipLabel="Playout Ladder configuration is disabled when the stream is running"
-        disabled={[STATUS_MAP.RUNNING].includes(status)}
-      >
-        <Box mb={24}>
+    <Box maw="80%">
+      <Title order={3} c="elv-gray.9" mb={8}>Playout</Title>
+      <SimpleGrid cols={2} spacing={150}>
+        <DisabledTooltipWrapper
+          tooltipLabel="Playout Ladder configuration is disabled when the stream is running"
+          disabled={[STATUS_MAP.RUNNING].includes(status)}
+        >
           <Select
             label="Playout Ladder"
             name="playoutLadder"
@@ -143,13 +143,11 @@ const PlayoutPanel = observer(({
             value={playoutProfile}
             onChange={(value) => setPlayoutProfile(value)}
           />
-        </Box>
-      </DisabledTooltipWrapper>
-      <DisabledTooltipWrapper
-        tooltipLabel="DRM configuration is disabled when the stream is active"
-        disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED].includes(status)}
-      >
-        <Box mb={24}>
+        </DisabledTooltipWrapper>
+        <DisabledTooltipWrapper
+          tooltipLabel="DRM configuration is disabled when the stream is active"
+          disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED].includes(status)}
+        >
           <Select
             label={
             <Flex align="center" gap={6}>
@@ -183,24 +181,25 @@ const PlayoutPanel = observer(({
             value={drm}
             onChange={(value) => setDrm(value)}
           />
-        </Box>
-      </DisabledTooltipWrapper>
+        </DisabledTooltipWrapper>
+      </SimpleGrid>
+
+      <Divider mb={16} mt={16} />
 
       <DisabledTooltipWrapper tooltipLabel="DVR configuration is disabled while the stream is running" disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}>
-        <Title order={3} c="elv-gray.8" mb={4}>DVR</Title>
+        <Title order={3} c="elv-gray.9" mb={8}>DVR</Title>
 
-        <Box mb={24}>
-          <Checkbox
-              label="Enable DVR"
-              checked={dvrEnabled}
-              description="Users can seek back in the live stream."
-              onChange={(event) => setDvrEnabled(event.target.checked)}
-            />
-        </Box>
+        <Checkbox
+          label="Enable DVR"
+          checked={dvrEnabled}
+          description="Users can seek back in the live stream."
+          onChange={(event) => setDvrEnabled(event.target.checked)}
+          mb={16}
+        />
         {
           dvrEnabled &&
           <>
-            <Box mb={24}>
+            <SimpleGrid cols={2} spacing={150}>
               <DateTimePicker
                 label="Start Time"
                 placeholder="Pick Date and Time"
@@ -215,8 +214,6 @@ const PlayoutPanel = observer(({
                 clearable
                 withSeconds
               />
-            </Box>
-            <Box mb={24}>
               <Select
                 label="Max Duration"
                 description="Users are only able to seek back this many minutes. Useful for 24/7 streams and long events."
@@ -227,18 +224,17 @@ const PlayoutPanel = observer(({
                 onChange={(value) => setDvrMaxDuration(value)}
                 disabled={!dvrEnabled}
               />
-            </Box>
+            </SimpleGrid>
           </>
         }
       </DisabledTooltipWrapper>
 
+      <Divider mb={16} mt={16} />
 
-      <Box mb="24px">
-        <Group mb={16}>
-          <Title order={3} c="elv-gray.8" mb={4}>Visible Watermark</Title>
-        </Group>
+      <Box mb={24}>
+        <Title order={3} c="elv-gray.9" mb={8}>Visible Watermark</Title>
 
-        <Box mb={24}>
+        <SimpleGrid cols={2} spacing={150}>
           <Select
             label="Watermark Type"
             name="watermarkType"
@@ -263,11 +259,12 @@ const PlayoutPanel = observer(({
               }
             }}
           />
-        </Box>
+        </SimpleGrid>
         {
           ["FORENSIC", "TEXT"].includes(watermarkType) &&
           <Textarea
             mb={16}
+            mt={12}
             value={watermarkType === "TEXT" ? formWatermarks.text : watermarkType === "FORENSIC" ? formWatermarks.forensic : ""}
             size="md"
             rows={10}
@@ -301,23 +298,24 @@ const PlayoutPanel = observer(({
               }}
               accept="image/*"
               resetRef={resetRef}
+              mt={12}
             >
               {(props) => (
                 <Button variant="outline" {...props}>Upload image</Button>
               )}
             </FileButton>
-              {
-                formWatermarks?.image ?
-                  (
-                    <Group mb={16} mt={16}>
-                      Selected File:
-                      <Text>
-                        { path.basename(formWatermarks?.image?.name || formWatermarks?.image?.image?.["/"]) }
-                      </Text>
-                    </Group>
-                  )
-                  : null
-              }
+            {
+              formWatermarks?.image ?
+                (
+                  <Group mb={16} mt={16}>
+                    Selected File:
+                    <Text>
+                      { path.basename(formWatermarks?.image?.name || formWatermarks?.image?.image?.["/"]) }
+                    </Text>
+                  </Group>
+                )
+                : null
+            }
           </>
         }
       </Box>

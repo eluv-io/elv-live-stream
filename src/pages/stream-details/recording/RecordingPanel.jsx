@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
 import {dataStore, editStore, streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Box, Button, Loader, Select, Title} from "@mantine/core";
+import {Box, Button, Divider, Loader, Select, SimpleGrid, Title} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
@@ -83,56 +83,64 @@ const RecordingPanel = observer(({
   };
 
   return (
-    <Box w="700px" mb={24}>
+    <Box maw="80%" mb={24}>
       <form onSubmit={HandleSubmit}>
         <DisabledTooltipWrapper
           disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           tooltipLabel="Retention Period configuration is disabled when the stream is running"
         >
-          <Title order={3} c="elv-gray.8">Retention Period</Title>
-          <Select
-            description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
-            name="retention"
-            data={RETENTION_OPTIONS}
-            placeholder="Select Time Duration"
-            value={retention}
-            onChange={value => setRetention(value)}
-            mb={16}
-          />
+          <Title order={3} c="elv-gray.9" mb={8}>Retention</Title>
+          <SimpleGrid cols={2} spacing={150}>
+            <Select
+              description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
+              name="retention"
+              data={RETENTION_OPTIONS}
+              placeholder="Select Time Duration"
+              value={retention}
+              onChange={value => setRetention(value)}
+              mb={16}
+            />
+          </SimpleGrid>
         </DisabledTooltipWrapper>
+
+        <Divider mb={16} />
 
         <DisabledTooltipWrapper
           disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           tooltipLabel="Timeout configuration is disabled when the stream is running"
         >
-          <Title order={3} c="elv-gray.8">Timeout</Title>
-          <Select
-            label="Connection Timeout"
-            description="The stream will remain active and wait for an input feed for this duration."
-            name="connectionTimeout"
-            data={CONNECTION_TIMEOUT_OPTIONS}
-            placeholder="Select Connection Timeout"
-            value={connectionTimeout}
-            onChange={(value) => setConnectionTimeout(value)}
-            mb={16}
-          />
-          <Select
-            label="Reconnection Timeout"
-            description="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
-            name="reconnectionTimeout"
-            data={RECONNECTION_TIMEOUT_OPTIONS}
-            placeholder="Select Reconnection Timeout"
-            value={reconnectionTimeout}
-            onChange={(event) => setReconnectionTimeout(event.target.value)}
-            mb={16}
-          />
+          <Title order={3} c="elv-gray.9" mb={8}>Timeout</Title>
+          <SimpleGrid cols={2} spacing={150}>
+            <Select
+              label="Connection Timeout"
+              description="The stream will remain active and wait for an input feed for this duration."
+              name="connectionTimeout"
+              data={CONNECTION_TIMEOUT_OPTIONS}
+              placeholder="Select Connection Timeout"
+              value={connectionTimeout}
+              onChange={(value) => setConnectionTimeout(value)}
+              mb={16}
+            />
+            <Select
+              label="Reconnection Timeout"
+              description="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
+              name="reconnectionTimeout"
+              data={RECONNECTION_TIMEOUT_OPTIONS}
+              placeholder="Select Reconnection Timeout"
+              value={reconnectionTimeout}
+              onChange={(event) => setReconnectionTimeout(event.target.value)}
+              mb={16}
+            />
+          </SimpleGrid>
         </DisabledTooltipWrapper>
+
+        <Divider mb={16} />
 
         <DisabledTooltipWrapper
           disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           tooltipLabel="Audio Track configuration is disabled when the stream is running"
         >
-          <Title order={3} c="elv-gray.8">Audio Tracks</Title>
+          <Title order={3} c="elv-gray.9" mb={8}>Audio Tracks</Title>
           <AudioTracksTable
             records={audioTracks}
             audioFormData={audioFormData}
