@@ -17,10 +17,22 @@ const StreamDetailsPage = observer(() => {
   const params = useParams();
   let streamSlug, stream;
   const [showModal, {open, close}] = useDisclosure(false);
-  const [modalData, setModalData] = useState({});
   const [pageVersion, setPageVersion] = useState(0);
   const [activeTab, setActiveTab] = useState(DETAILS_TABS[0].value);
   const [recordingInfo, setRecordingInfo] = useState(null);
+
+  const initModalData = {
+    title: "",
+    message: "",
+    name: "",
+    loadingText: "",
+    objectId: "",
+    confirmText: "",
+    ConfirmCallback: null,
+    CloseCallback: null
+  };
+
+  const [modalData, setModalData] = useState(initModalData);
 
   if(!streamSlug) {
     streamSlug = Object.keys(streamStore.streams || {}).find(slug => (
@@ -86,10 +98,12 @@ const StreamDetailsPage = observer(() => {
       disabled: StreamIsActive(streamStore.streams?.[streamSlug]?.status),
       onClick: () => {
         setModalData({
-          title: "Delete Stream",
-          message: "Are you sure you want to delete the stream? This action cannot be undone.",
-          confirmText: "Delete",
+          title: "Delete Stream Confirmation",
+          message: "Are you sure you want to delete the stream?",
+          confirmText: "Delete Stream",
           danger: true,
+          objectId: streamStore.streams?.[streamSlug].objectId,
+          name: streamStore.streams?.[streamSlug].title,
           ConfirmCallback: async () => {
             try {
               await editStore.DeleteStream({objectId: stream.objectId});
@@ -126,8 +140,11 @@ const StreamDetailsPage = observer(() => {
       variant: "outline",
       onClick: () => {
         setModalData({
-          title: "Start Stream",
-          message: "Are you sure you want to start the stream?",
+          title: "Start Stream Confirmation",
+          message: "Are you sure you want to start the stream? Once started, the stream will go live, and any changes may require restarting. Please confirm before proceeding.",
+          objectId: streamStore.streams?.[streamSlug].objectId,
+          name: streamStore.streams?.[streamSlug].title,
+          confirmText: "Start Stream",
           ConfirmCallback: async () => {
             await streamStore.StartStream({slug: streamSlug});
             await LoadEdgeWriteTokenMeta();
@@ -145,8 +162,11 @@ const StreamDetailsPage = observer(() => {
       variant: "outline",
       onClick: () => {
         setModalData({
-          title: "Stop Stream",
-          message: "Are you sure you want to stop the stream?",
+          title: "Stop Stream Confirmation",
+          confirmText: "Stop Stream",
+          message: "Are you sure you want to stop the stream? Once stopped, viewers will be disconnected, and the stream cannot be resumed. You can start a new session later if needed.",
+          objectId: streamStore.streams?.[streamSlug].objectId,
+          name: streamStore.streams?.[streamSlug].title,
           ConfirmCallback: async () => {
             await streamStore.OperateLRO({
               objectId: stream.objectId,
@@ -219,13 +239,9 @@ const StreamDetailsPage = observer(() => {
         }
       </Tabs>
       <ConfirmModal
-        title={modalData.title}
-        message={modalData.message}
-        confirmText={modalData.confirmText}
+        {...modalData}
         show={showModal}
         CloseCallback={close}
-        ConfirmCallback={modalData.ConfirmCallback}
-        danger={modalData.danger}
       />
     </PageContainer>
   );

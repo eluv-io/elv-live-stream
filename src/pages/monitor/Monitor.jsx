@@ -8,6 +8,7 @@ import {SortTable} from "@/utils/helpers";
 import {STATUS_MAP, STATUS_TEXT} from "@/utils/constants";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
+import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 
 const Monitor = observer(() => {
   const [filter, setFilter] = useState("");
@@ -32,7 +33,8 @@ const Monitor = observer(() => {
         <TextInput
           flex={2}
           maw={400}
-          placeholder="Search by name or object ID"
+          placeholder="Search by object name or ID"
+          leftSection={<MagnifyingGlassIcon width="18px" height="18px" />}
           value={filter}
           onChange={event => setFilter(event.target.value)}
         />
