@@ -127,17 +127,19 @@ const theme = createTheme({
           "minWidth": "7rem",
           "minHeight": "35px",
           ...(params.variant === "outline" && {
-            "border-color": "var(--mantine-color-elv-gray-3)"
-          }),
-          "--mantine-color-elv-blue-outline-hover": "var(--mantine-color-elv-gray-5)"
+            "border-color": "var(--mantine-color-elv-gray-3)",
+            ...(params.disabled && {
+              "background-color": "transparent"
+            })
+          })
         },
         label: {
           "fontWeight": "400",
           ...(params.size === "sm" && {
             "fontSize": "calc(0.85rem * var(--mantine-scale)"
           }),
-          ...(params.variant === "outline" && {
-            "color": "black"
+          ...(params.variant === "outline" && !params.disabled && {
+            "color": "var(--mantine-color-elv-black.0)"
           })
         }
       })
