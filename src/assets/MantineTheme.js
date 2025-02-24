@@ -127,9 +127,9 @@ const theme = createTheme({
           "minWidth": "7rem",
           "minHeight": "35px",
           ...(params.variant === "outline" && {
-            "border-color": "var(--mantine-color-elv-gray-3)",
+            "borderColor": "var(--mantine-color-elv-gray-3)",
             ...(params.disabled && {
-              "background-color": "transparent"
+              "backgroundColor": "transparent"
             })
           })
         },
