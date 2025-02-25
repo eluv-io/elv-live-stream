@@ -25,6 +25,7 @@ import StatusText from "@/components/status-text/StatusText.jsx";
 import styles from "./Streams.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
+import {notifications} from "@mantine/notifications";
 
 // const PAGE_SIZE = 25;
 
@@ -164,23 +165,12 @@ const Streams = observer(() => {
                             data: {
                               objectId: record.objectId,
                               name: record.title,
-                              loadingText: `Please send your stream to ${SanitizeUrl({url}) || "the URL you specified"}.`,
-                              ConfirmCallback: async () => {
-                                try {
-                                  await streamStore.ConfigureStream({
-                                    objectId: record.objectId,
-                                    slug: record.slug
-                                  });
-                                } catch(error) {
-                                  // eslint-disable-next-line no-console
-                                  console.error("Configure Modal - Failed to check stream", error);
-                                  throw error;
-                                }
-                              },
-                              CloseCallback: () => modalStore.ResetModal()
+                              loadingText: `Please send your stream to ${SanitizeUrl({url}) || "the URL you specified"}.`
                             },
                             op: "CHECK",
-                            activeMessage: record.status !== STATUS_MAP.INACTIVE
+                            slug: record.slug,
+                            activeMessage: record.status !== STATUS_MAP.INACTIVE,
+                            notifications
                           });
                         }}
                       >
@@ -197,13 +187,11 @@ const Streams = observer(() => {
                           modalStore.SetModal({
                             data: {
                               objectId: record.objectId,
-                              name: record.title,
-                              ConfirmCallback: async () => {
-                                await streamStore.StartStream({slug: record.slug});
-                              },
-                              CloseCallback: () => modalStore.ResetModal()
+                              name: record.title
                             },
-                            op: "START"
+                            op: "START",
+                            slug: record.slug,
+                            notifications
                           });
                         }}
                       >
@@ -220,16 +208,11 @@ const Streams = observer(() => {
                           modalStore.SetModal({
                             data: {
                               objectId: record.objectId,
-                              name: record.title,
-                              ConfirmCallback: async () => {
-                                await streamStore.DeactivateStream({
-                                  slug: record.slug,
-                                  objectId: record.objectId
-                                });
-                              },
-                              CloseCallback: () => modalStore.ResetModal(),
+                              name: record.title
                             },
-                            op: "DEACTIVATE"
+                            op: "DEACTIVATE",
+                            slug: record.slug,
+                            notifications
                           });
                         }}
                       >
@@ -256,17 +239,11 @@ const Streams = observer(() => {
                             modalStore.SetModal({
                               data: {
                                 objectId: record.objectId,
-                                name: record.title,
-                                ConfirmCallback: async () => {
-                                  await streamStore.OperateLRO({
-                                    objectId: record.objectId,
-                                    slug: record.slug,
-                                    operation: "STOP"
-                                  });
-                                },
-                                CloseCallback: () => modalStore.ResetModal()
+                                name: record.title
                               },
-                              op: "STOP"
+                              op: "STOP",
+                              slug: record.slug,
+                              notifications
                             });
                           }}
                         >
@@ -298,13 +275,11 @@ const Streams = observer(() => {
                       modalStore.SetModal({
                         data: {
                           objectId: record.objectId,
-                          name: record.title,
-                          ConfirmCallback: async () => {
-                            await editStore.DeleteStream({objectId: record.objectId});
-                          },
-                          CloseCallback: () => modalStore.ResetModal()
+                          name: record.title
                         },
                         op: "DELETE",
+                        slug: record.slug,
+                        notifications
                       });
                     }}
                   >

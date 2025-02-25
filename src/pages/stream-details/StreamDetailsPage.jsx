@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {streamStore, editStore, dataStore, modalStore} from "@/stores";
+import {streamStore, dataStore, modalStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {Loader, Tabs, Text} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
@@ -86,27 +86,11 @@ const StreamDetailsPage = observer(() => {
           data: {
             objectId: streamStore.streams?.[streamSlug].objectId,
             name: streamStore.streams?.[streamSlug].title,
-            ConfirmCallback: async () => {
-              try {
-                await editStore.DeleteStream({objectId: stream.objectId});
-              } catch(_e) {
-                notifications.show({
-                  title: "Error",
-                  color: "red",
-                  message: "Unable to delete object"
-                });
-              } finally {
-                notifications.show({
-                  title: "Content object deleted",
-                  message: `${stream.objectId} successfully deleted`
-                });
-
-                navigate("/streams");
-              }
-            },
-            CloseCallback: () => modalStore.ResetModal()
           },
-          op: "DELETE"
+          slug: streamSlug,
+          Callback: () => navigate("/streams"),
+          op: "DELETE",
+          notifications
         });
       }
     },
@@ -125,14 +109,12 @@ const StreamDetailsPage = observer(() => {
         modalStore.SetModal({
           data: {
             objectId: streamStore.streams?.[streamSlug].objectId,
-            name: streamStore.streams?.[streamSlug].title,
-            ConfirmCallback: async () => {
-              await streamStore.StartStream({slug: streamSlug});
-              await LoadEdgeWriteTokenMeta();
-            },
-            CloseCallback: () => modalStore.ResetModal()
+            name: streamStore.streams?.[streamSlug].title
           },
-          op: "START"
+          Callback: () => LoadEdgeWriteTokenMeta(),
+          op: "START",
+          slug: stream.slug,
+          notifications
         });
       }
     });
@@ -147,18 +129,11 @@ const StreamDetailsPage = observer(() => {
           data: {
             objectId: streamStore.streams?.[streamSlug].objectId,
             name: streamStore.streams?.[streamSlug].title,
-            ConfirmCallback: async () => {
-              await streamStore.OperateLRO({
-                objectId: stream.objectId,
-                slug: streamSlug,
-                operation: "STOP"
-              });
-
-              DebouncedRefresh();
-            },
-            CloseCallback: () => modalStore.ResetModal()
           },
-          op: "STOP"
+          Callback: () => DebouncedRefresh(),
+          op: "STOP",
+          slug: stream.slug,
+          notifications
         });
       }
     });
