@@ -702,11 +702,24 @@ class StreamStore {
       });
     }
 
+    const audioIndexMeta = [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ];
+
     const audioStreams = this.CreateAudioStreamsConfig({audioData});
     Object.keys(audioStreams || {}).forEach((stream, i) => {
       let audioLadderSpec = {};
       const audioIndex = Object.keys(audioStreams)[i];
       const audio = audioStreams[audioIndex];
+
+      audioIndexMeta[i] = parseInt(Object.keys(audioStreams || {})[i]);
 
       if(!audioData[audioIndex].record) { return; }
 
@@ -743,7 +756,8 @@ class StreamStore {
     return {
       nAudio,
       globalAudioBitrate,
-      audioLadderSpecs
+      audioLadderSpecs,
+      audioIndexMeta
     };
   });
 
@@ -779,7 +793,7 @@ class StreamStore {
       throw Error("Unable to update ladder specs. No profiles were found.");
     }
 
-    if(profile.toLowerCase() !== "default") {
+    if(!!profile && profile.toLowerCase() !== "default") {
       profileData = ladderProfiles.custom.find(item => item.name === profile);
     } else {
       profileData = ladderProfiles.default;
@@ -802,7 +816,7 @@ class StreamStore {
       ladderSpecs.push(videoSpec);
     });
 
-    const {nAudio, globalAudioBitrate, audioLadderSpecs} = yield this.UpdateAudioLadderSpecs({
+    const {nAudio, globalAudioBitrate, audioLadderSpecs, audioIndexMeta} = yield this.UpdateAudioLadderSpecs({
       libraryId,
       objectId,
       ladderSpecs: profileData.ladder_specs,
@@ -829,6 +843,14 @@ class StreamStore {
       writeToken,
       metadataSubtree: "live_recording/recording_config/recording_params/ladder_specs",
       metadata: ladderSpecs
+    });
+
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params/audio_index",
+      metadata: audioIndexMeta
     });
 
     yield this.client.FinalizeContentObject({
@@ -1033,7 +1055,7 @@ class StreamStore {
 
       audioStreams[audioIndex] = {
         recordingBitrate: audio.recording_bitrate || 192000,
-        recordingChannels: audio.recording_channels || 2,
+        recordingChannels: audio.recording_channels || 2
       };
 
       if(audio.playout) {
@@ -1066,11 +1088,19 @@ class StreamStore {
       metadataSubtree: ladderSpecsPath
     });
 
-    const {nAudio, globalAudioBitrate, audioLadderSpecs} = yield this.UpdateAudioLadderSpecs({
+    const filteredAudioData = {...audioData};
+
+    Object.keys(filteredAudioData || {}).forEach(index => {
+      if(!filteredAudioData[index].record) {
+        delete filteredAudioData[index];
+      }
+    });
+
+    const {nAudio, globalAudioBitrate, audioLadderSpecs, audioIndexMeta} = yield this.UpdateAudioLadderSpecs({
       libraryId,
       objectId,
       ladderSpecs: {audio: ladderSpecsMeta},
-      audioData
+      audioData: filteredAudioData
     });
 
     const videoLadderSpecs = ladderSpecsMeta.filter(spec => spec.stream_name.includes("video"));
@@ -1099,6 +1129,13 @@ class StreamStore {
       }
     });
 
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params/audio_index",
+      metadata: audioIndexMeta
+    });
 
     // const audioStreams = this.CreateAudioStreamsConfig({audioData});
     // const audioIndexMeta = [];

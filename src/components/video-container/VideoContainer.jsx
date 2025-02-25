@@ -5,9 +5,65 @@ import {ActionIcon, AspectRatio, Box} from "@mantine/core";
 import {PlayCircleIcon as PlayIcon} from "@/assets/icons/index.js";
 import Video from "@/components/video/Video.jsx";
 import {IconX} from "@tabler/icons-react";
-import classes from "@/components/video-container/VideoContainer.module.css";
+import styles from "./VideoContainer.module.css";
 
-export const VideoContainer = observer(({slug, index, showPreview, allowClose=true}) => {
+const VideoContent = observer(({allowClose, setPlay, slug}) => {
+  return (
+    <>
+      <Box pos="absolute" inset={0} style={{borderRadius: "10px"}}>
+        {
+          allowClose &&
+          <ActionIcon
+            className={styles.closeButton}
+            title="Stop Playback"
+            color="gray.1"
+            variant="transparent"
+            pos="absolute"
+            onClick={() => setPlay(false)}
+          >
+            <IconX color="white" />
+          </ActionIcon>
+        }
+      </Box>
+      <Video
+        objectId={streamStore.streams[slug].objectId}
+        playerOptions={{
+          capLevelToPlayerSize: false,
+          autoplay: true
+        }}
+      />
+    </>
+  );
+});
+
+const PlaceholderContent = observer(({setPlay, showPreview, frameSegmentUrl, status}) => {
+  return (
+    <button
+      role="button"
+      tabIndex={1}
+      onClick={() => setPlay(true)}
+      className={styles.videoPlaceholder}
+    >
+      {
+        status === "running" &&
+        <PlayIcon width={45} height={45} color="white" style={{zIndex: 10}}/>
+      }
+      {
+        (!showPreview || !frameSegmentUrl) ? null :
+          (
+            <video src={frameSegmentUrl} className={styles.videoFrame} controls={false} onContextMenu={e => e.preventDefault()} />
+          )
+      }
+    </button>
+  );
+});
+
+export const VideoContainer = observer(({
+  slug,
+  index,
+  showPreview,
+  allowClose = true
+}) => {
   const [play, setPlay] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
   const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamStore.streamFrameUrls[slug]?.url);
@@ -48,52 +104,24 @@ export const VideoContainer = observer(({slug, index, showPreview, allowClose=tr
   }, [frameKey, frameSegmentUrl]);
 
   return (
-    <div className={classes.videoWrapper}>
-      <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%">
+    <Box className={styles.videoWrapper} style={{borderRadius: "10px"}}>
+      <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%" stlyle={{borderRadius: "10px"}}>
         {
-          !play ?
-            <button
-              role="button"
-              tabIndex={1}
-              onClick={() => setPlay(true)}
-              className="monitor__video-placeholder"
-            >
-              {
-                status === "running" &&
-                <PlayIcon width={45} height={45} color="white" style={{zIndex: 10}} />
-              }
-              {
-                (!showPreview || !frameSegmentUrl) ? null :
-                  <video src={frameSegmentUrl} className="monitor__video-frame" controls={false} onContextMenu={e => e.preventDefault()} />
-              }
-            </button> :
-            <>
-              <Box pos="absolute" inset={0}>
-                {
-                  allowClose &&
-                  <ActionIcon
-                  className={classes.closeButton}
-                  title="Stop Playback"
-                  color="gray.1"
-                  variant="transparent"
-                  pos="absolute"
-                  onClick={() => setPlay(false)}
-                >
-                  <IconX color="white" />
-                </ActionIcon>
-                }
-              </Box>
-              <Video
-                objectId={streamStore.streams[slug].objectId}
-                playerOptions={{
-                  capLevelToPlayerSize: false,
-                  autoplay: true
-                }}
-              />
-            </>
+          play ?
+            <VideoContent
+              setPlay={setPlay}
+              slug={slug}
+              allowClose={allowClose}
+            /> :
+            <PlaceholderContent
+              setPlay={setPlay}
+              status={status}
+              showPreview={showPreview}
+              frameSegmentUrl={frameSegmentUrl}
+            />
         }
       </AspectRatio>
-    </div>
+    </Box>
   );
 });
 

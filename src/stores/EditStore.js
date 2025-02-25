@@ -27,15 +27,18 @@ class EditStore {
   }
 
   InitLiveStreamObject = flow(function * ({
-    basicFormData,
-    advancedData,
-    drmFormData,
-    playoutProfile
+    accessGroup,
+    description,
+    displayTitle,
+    encryption,
+    libraryId,
+    name,
+    permission,
+    playoutProfile,
+    protocol,
+    retention,
+    url
   }) {
-    const {libraryId, url, name, description, displayTitle, accessGroup, permission, protocol} = basicFormData;
-    const {retention} = advancedData;
-    const {encryption} = drmFormData;
-
     const response = yield this.CreateContentObject({
       libraryId,
       permission
@@ -112,17 +115,20 @@ class EditStore {
   });
 
   UpdateLiveStreamObject = flow(function * ({
-    basicFormData,
-    advancedData,
-    drmFormData,
     audioFormData,
     objectId,
-    slug
+    slug,
+    accessGroup,
+    description,
+    displayTitle,
+    encryption,
+    libraryId,
+    name,
+    playoutProfile,
+    protocol,
+    retention,
+    url
   }) {
-    const {libraryId, url, name, description, displayTitle, accessGroup, protocol} = basicFormData;
-    const {retention} = advancedData;
-    const {encryption} = drmFormData;
-
     if(accessGroup) {
       this.AddAccessGroupPermission({
         objectId,
@@ -140,6 +146,7 @@ class EditStore {
     const config = ParseLiveConfigData({
       url,
       encryption,
+      playoutProfile,
       retention,
       referenceUrl: protocol === "custom" ? undefined : url,
       audioFormData
@@ -154,9 +161,10 @@ class EditStore {
       config
     });
 
-    yield streamStore.ConfigureStream({
+    yield streamStore.UpdateStreamAudioSettings({
       objectId,
-      slug
+      slug,
+      audioData: audioFormData
     });
   });
 
@@ -649,7 +657,7 @@ class EditStore {
         });
 
         updateValue.dvrEnabled = dvrEnabled;
-        updateValue.dvrMaxDuration = [undefined, null].includes(dvrMaxDuration) ? undefined : parseInt(dvrMaxDuration);
+        updateValue.dvrMaxDuration = [undefined, null].includes(dvrMaxDuration) ? undefined : (dvrMaxDuration);
         updateValue.dvrStartTime = dvrStartTime ? dvrStartTime.toISOString() : undefined;
       }
     }

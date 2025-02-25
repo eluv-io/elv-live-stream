@@ -1,4 +1,4 @@
-import {Box, Button, Loader, Title} from "@mantine/core";
+import {Box, Button, Group, Loader, Title} from "@mantine/core";
 import TextEditorBox from "@/components/text-editor-box/TextEditorBox.jsx";
 import {useEffect, useState} from "react";
 import {DefaultLadderProfile} from "@/utils/profiles.js";
@@ -8,10 +8,12 @@ import {PlusIcon} from "@/assets/icons/index.js";
 import {rootStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
+import PageContainer from "@/components/page-container/PageContainer.jsx";
+import styles from "./Settings.module.css";
 
 const Settings = observer(() => {
   const [profileFormData, setProfileFormData] = useState(({default: JSON.stringify({}, null, 2), custom: []}));
-  // For displaying values while user potentionally edits name
+  // For displaying values while user potentially edits name
   const [customProfileNames, setCustomProfileNames] = useState([]);
   const [deleteIndex, setDeleteIndex] = useState(-1);
   const [saving, setSaving] = useState(false);
@@ -136,23 +138,21 @@ const Settings = observer(() => {
   if(!rootStore.loaded) { return <Loader />; }
 
   return (
-    <>
-      <div className="page-header monitor__page-header">
-        <div>
-          Settings
-        </div>
-      </div>
+    <PageContainer
+      title="Settings"
+    >
       <Box>
-        <Title order={4}>Playout Profiles</Title>
-        <Button
-          leftSection={<PlusIcon />}
-          variant="white"
-          mt={16}
-          mb={8}
-          onClick={HandleAddCustom}
-        >
-          Add Custom Profile
-        </Button>
+        <Group mb={8} mt={16}>
+          <Title order={4} c="elv-gray.9" size={20}>Playout Profiles</Title>
+          <Button
+            classNames={{root: styles.root}}
+            leftSection={<PlusIcon />}
+            variant="white"
+            onClick={HandleAddCustom}
+          >
+            Add Custom Profile
+          </Button>
+        </Group>
         <TextEditorBox
           columns={[
             {id: "Default", header: "Profile", value: "Default"}
@@ -178,18 +178,18 @@ const Settings = observer(() => {
           ))
         }
       </Box>
-      <button
-        type="button"
-        className="button__primary"
+      <Button
+        variant="filled"
         onClick={HandleSave}
         disabled={saving}
       >
-        {saving ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : "Save"}
-      </button>
+        {saving ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Save"}
+      </Button>
       <ConfirmModal
         title="Delete Profile"
         message="Are you sure you want to delete the profile? This action cannot be undone."
         confirmText="Delete"
+        danger
         show={showModal}
         CloseCallback={() => setShowModal(false)}
         ConfirmCallback={async() => {
@@ -197,7 +197,7 @@ const Settings = observer(() => {
           setShowModal(false);
         }}
       />
-    </>
+    </PageContainer>
   );
 });
 

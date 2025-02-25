@@ -1,18 +1,13 @@
-.navbar {
-  background-color: var(--mantine-color-gray-0);
+.root {
+  justify-content: center;
 
-  /* Prevent modal overlay from being underneath navbar */
-  z-index: 50;
-}
-
-.navLink {
   &:where([data-active]) {
-    background-color: var(--mantine-color-gray-1);
-    color: var(--mantine-color-gray-8);
+    background-color: transparent;
+    color: var(--mantine-color-elv-gray-9);
     font-weight: 700;
   }
 
   &:hover {
-    background-color: var(--mantine-color-gray-1);
+    background-color: var(--mantine-color-elv-gray-4);
   }
 }

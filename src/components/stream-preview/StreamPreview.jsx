@@ -1,13 +1,16 @@
 import {observer} from "mobx-react-lite";
-import {useParams, Link} from "react-router-dom";
-import {IconArrowBackUp} from "@tabler/icons-react";
+import {useParams, useNavigate} from "react-router-dom";
 import {ActionIcon, Loader} from "@mantine/core";
 import {rootStore, streamStore} from "@/stores/index.js";
 import AppFrame from "@/components/app-frame/AppFrame.jsx";
 import styles from "./StreamPreview.module.css";
+import PageContainer from "@/components/page-container/PageContainer.jsx";
+import {IconArrowLeft} from "@tabler/icons-react";
 
 const StreamPreview = observer(() => {
   const {id} = useParams();
+  const navigate = useNavigate();
+
   const streamSlug = Object.keys(streamStore.streams || {}).find(slug => (
     streamStore.streams[slug].objectId === id
   ));
@@ -35,19 +38,25 @@ const StreamPreview = observer(() => {
     libraryId,
     objectId: id,
     action: "display",
-    playerProfile: "live"
+    // playerProfile: "live"
   };
   // eslint-disable-next-line no-undef
   const appUrl = EluvioConfiguration.displayAppUrl;
 
   return (
-    <div className="stream-preview">
-      <div className="page-header">
-        <ActionIcon component={Link} to="/streams" title="Back to Streams">
-          <IconArrowBackUp />
+    <PageContainer
+      title={`Preview ${streamObject.title || streamObject.objectId}`}
+      titleLeftSection={
+        <ActionIcon
+          variant="transparent"
+          c="elv-neutral.4"
+          size="lg"
+          onClick={() => navigate("/streams")}
+        >
+          <IconArrowLeft stroke={3} width={30} height={30} />
         </ActionIcon>
-        Preview { streamObject.display_title || streamObject.title || streamObject.objectId }
-      </div>
+      }
+    >
       <AppFrame
         className={styles.root}
         appUrl={appUrl}
@@ -56,7 +65,7 @@ const StreamPreview = observer(() => {
         onCancel={() => this.setState({completed: true})}
         Reload={() => this.setState({pageVersion: this.state.pageVersion + 1})}
       />
-    </div>
+    </PageContainer>
   );
 });
 

@@ -1,0 +1,10 @@
+.root {
+  align-items: center;
+  background: var(--mantine-color-elv-gray-8);
+  color: var(--mantine-color-elv-gray-0);
+  display: flex;
+  font-weight: 500;
+  justify-content: space-between;
+  padding: 15px 4rem 15px 2rem;
+  width: 100%;
+}

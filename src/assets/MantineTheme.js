@@ -2,16 +2,24 @@ import {createTheme} from "@mantine/core";
 
 const theme = createTheme({
   fontFamily: "Helvetica Neue, Helvetica, sans-serif",
-  // fontFamily: "-apple-system, system-ui, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif",
-  // fontFamily: "Inter, Montserrat, Helvetica Neue, Helvetica, sans-serif",
-  // fontFamilyMonospace: "Monaco, Courier, monospace",
   headings: {
     fontFamily: "Helvetica Neue, Helvetica, sans-serif"
   },
-  // TODO: Change primary color
-  // primaryColor: "elv-violet",
-  // primaryShade: 3,
+  primaryColor: "elv-blue",
+  primaryShade: 5,
   colors: {
+    "elv-blue": [
+      "#ebf3fc", // eluvio color
+      "#d2e1ff",
+      "#a6bff6",
+      "#228BE6", // eluvio color
+      "#3F85E3", // eluvio color
+      "#336be4", // eluvio color
+      "#2361e3",
+      "#1351cb",
+      "#0648b6",
+      "#003ea2"
+    ],
     "elv-violet": [
       "#f9e9ff",
       "#ebcfff",
@@ -23,27 +31,32 @@ const theme = createTheme({
       "#7c00e4",
       "#8f5aff", // eluvio color
       "#5f00b3",
-      "#380C61", // eluvio color
+      "#380c61", // eluvio color
     ],
     "elv-gray": [
       "#f5f5f5",
-      "#eee",
-      "#cdcdcd",
-      "#b2b2b2",
-      "#9a9a9a",
+      "#f0f0f0",
+      "#d7d7d7", // eluvio color
+      "#bdbdbd", // eluvio color
+      "rgba(0,0,0,0.06)", // eluvio color
       "#8b8b8b",
       "#848484",
       "#717171",
-      "#656565",
-      "#3C3C3C" // eluvio color
+      "#4b494e", // eluvio color
+      "#3c3c3c" // eluvio color
+    ],
+    "elv-black": [
+      "#22252a", // eluvio color
+      "#202020", // eluvio color
+      "#1e1e1e" // eluvio color
     ],
     "elv-neutral": [
       "#f8f2fe",
-      "#e8e4ed",
+      "#ecece8", // eluvio color
       "#cdc8d3",
       "#b2aaba", // eluvio color
       "#a9a0b2", // eluvio color
-      "#8b7f97",
+      "#7b7580", // eluvio color
       "#847791",
       "#71667e",
       "#665972",
@@ -100,14 +113,6 @@ const theme = createTheme({
   },
   // Default styles for components that need styles across components
   components: {
-    Tabs: {
-      styles: () => ({
-        // list: {
-        //   "--tab-border-color": "var(--mantine-color-elv-neutral-4)",
-        //   "--tabs-list-border-size": "1px"
-        // }
-      })
-    },
     Anchor: {
       styles: () => ({
         root: {
@@ -117,10 +122,35 @@ const theme = createTheme({
         }
       })
     },
-    Radio: {
-      styles: () => ({
+    Button: {
+      styles: (theme, params) => ({
         root: {
-          "--radio-icon-size": "0.5rem"
+          "borderRadius": "0",
+          "minWidth": "7rem",
+          "minHeight": "35px",
+          ...(params.variant === "outline" && {
+            "borderColor": "var(--mantine-color-elv-gray-3)",
+            ...(params.disabled && {
+              "backgroundColor": "transparent"
+            })
+          })
+        },
+        label: {
+          "fontWeight": "400",
+          ...(params.size === "sm" && {
+            "fontSize": "calc(0.85rem * var(--mantine-scale)"
+          }),
+          ...(params.variant === "outline" && !params.disabled && {
+            "color": "var(--mantine-color-elv-black-0)"
+          })
+        }
+      })
+    },
+    Checkbox: {
+      styles: () => ({
+        input: {
+          "--checkbox-color": "var(--mantine-color-elv-blue-3)",
+          "borderRadius": "0"
         }
       })
     },
@@ -129,13 +159,6 @@ const theme = createTheme({
         root: {
           "--mantine-spacing-xxs": "0.3125rem"
         }
-      })
-    },
-    Button: {
-      styles: () => ({
-        // root: {
-        //   "border": "2px solid var(--mantine-color-elv-violet-outline)"
-        // }
       })
     },
     Modal: {
@@ -149,6 +172,30 @@ const theme = createTheme({
       styles: () => ({
         root: {
           "lgg": "16px"
+        }
+      })
+    },
+    Radio: {
+      styles: () => ({
+        root: {
+          "--radio-icon-size": "0.5rem",
+        },
+        radio: {
+          "--radio-color": "var(--mantine-color-elv-blue-3)"
+        }
+      })
+    },
+    Select: {
+      styles: () => ({
+        input: {
+          "borderRadius": "0"
+        }
+      })
+    },
+    TextInput: {
+      styles: () => ({
+        input: {
+          "borderRadius": "0"
         }
       })
     }
