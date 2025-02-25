@@ -83,6 +83,7 @@ module.exports = {
           "nb",
           "neue",
           "noreferrer",
+          "nowrap",
           "passphrase",
           "pathname",
           "playout",

@@ -70,12 +70,14 @@ const TitleSection = ({title, subtitle, rightSection, leftSection}) => {
         {
           leftSection ? leftSection : null
         }
-        <Title order={3} size={28} c="elv-gray.9">
-          { title }
-        </Title>
-        {
-          rightSection ? rightSection : null
-        }
+        <Group gap={20}>
+          <Title order={3} size={28} c="elv-gray.9">
+            { title }
+          </Title>
+          {
+            rightSection ? rightSection : null
+          }
+        </Group>
       </Group>
       <Box display="block">
         {
