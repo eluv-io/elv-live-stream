@@ -26,8 +26,9 @@ const Video = observer(({
   }
 
   return (
-    <Box w="100%" h="100%" className={className}>
+    <Box w="100%" h="100%" style={{borderRadius: "10px"}} className={className}>
       <div
+        style={{borderRadius: "10px", overflow: "hidden"}}
         ref={element => {
           if(!element || player) { return; }
 

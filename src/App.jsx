@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {BrowserRouter} from "react-router-dom";
-import {rootStore} from "@/stores";
+import {modalStore, rootStore} from "@/stores";
 
 import "@mantine/core/styles.css";
 import "mantine-datatable/styles.css";
@@ -15,6 +15,7 @@ import MantineTheme from "@/assets/MantineTheme";
 import LeftNavigation from "@/components/left-navigation/LeftNavigation.jsx";
 import DataWrapper from "@/components/data-wrapper/DataWrapper.jsx";
 import ErrorBanner from "@/components/error/ErrorBanner";
+import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 
 const App = observer(() => {
   return (
@@ -39,6 +40,9 @@ const App = observer(() => {
                     </Flex>
                   )
               }
+              <ConfirmModal
+                {...modalStore.modalData}
+              />
             </DataWrapper>
           </AppShell.Main>
         </AppShell>

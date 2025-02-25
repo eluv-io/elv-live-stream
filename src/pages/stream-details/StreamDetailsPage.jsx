@@ -1,13 +1,12 @@
 import {useEffect, useState} from "react";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {streamStore, editStore, dataStore} from "@/stores";
+import {streamStore, editStore, dataStore, modalStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {Loader, Tabs, Text} from "@mantine/core";
-import {useDebouncedCallback, useDisclosure} from "@mantine/hooks";
+import {useDebouncedCallback} from "@mantine/hooks";
 import {DETAILS_TABS, STATUS_MAP} from "@/utils/constants";
 import styles from "@/pages/stream-details/StreamDetails.module.css";
-import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {StreamIsActive} from "@/utils/helpers";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {notifications} from "@mantine/notifications";
@@ -16,23 +15,9 @@ const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
   const params = useParams();
   let streamSlug, stream;
-  const [showModal, {open, close}] = useDisclosure(false);
   const [pageVersion, setPageVersion] = useState(0);
   const [activeTab, setActiveTab] = useState(DETAILS_TABS[0].value);
   const [recordingInfo, setRecordingInfo] = useState(null);
-
-  const initModalData = {
-    title: "",
-    message: "",
-    name: "",
-    loadingText: "",
-    objectId: "",
-    confirmText: "",
-    ConfirmCallback: null,
-    CloseCallback: null
-  };
-
-  const [modalData, setModalData] = useState(initModalData);
 
   if(!streamSlug) {
     streamSlug = Object.keys(streamStore.streams || {}).find(slug => (
@@ -97,34 +82,32 @@ const StreamDetailsPage = observer(() => {
       uppercase: true,
       disabled: StreamIsActive(streamStore.streams?.[streamSlug]?.status),
       onClick: () => {
-        setModalData({
-          title: "Delete Stream Confirmation",
-          message: "Are you sure you want to delete the stream?",
-          confirmText: "Delete Stream",
-          danger: true,
-          objectId: streamStore.streams?.[streamSlug].objectId,
-          name: streamStore.streams?.[streamSlug].title,
-          ConfirmCallback: async () => {
-            try {
-              await editStore.DeleteStream({objectId: stream.objectId});
-            } catch(_e) {
-              notifications.show({
-                title: "Error",
-                color: "red",
-                message: "Unable to delete object"
-              });
-            } finally {
-              notifications.show({
-                title: "Content object deleted",
-                message: `${stream.objectId} successfully deleted`
-              });
+        modalStore.SetModal({
+          data: {
+            objectId: streamStore.streams?.[streamSlug].objectId,
+            name: streamStore.streams?.[streamSlug].title,
+            ConfirmCallback: async () => {
+              try {
+                await editStore.DeleteStream({objectId: stream.objectId});
+              } catch(_e) {
+                notifications.show({
+                  title: "Error",
+                  color: "red",
+                  message: "Unable to delete object"
+                });
+              } finally {
+                notifications.show({
+                  title: "Content object deleted",
+                  message: `${stream.objectId} successfully deleted`
+                });
 
-              navigate("/streams");
-            }
-          }
+                navigate("/streams");
+              }
+            },
+            CloseCallback: () => modalStore.ResetModal()
+          },
+          op: "DELETE"
         });
-
-        open();
       }
     },
     {
@@ -139,19 +122,18 @@ const StreamDetailsPage = observer(() => {
       label: "Start",
       variant: "outline",
       onClick: () => {
-        setModalData({
-          title: "Start Stream Confirmation",
-          message: "Are you sure you want to start the stream? Once started, the stream will go live, and any changes may require restarting. Please confirm before proceeding.",
-          objectId: streamStore.streams?.[streamSlug].objectId,
-          name: streamStore.streams?.[streamSlug].title,
-          confirmText: "Start Stream",
-          ConfirmCallback: async () => {
-            await streamStore.StartStream({slug: streamSlug});
-            await LoadEdgeWriteTokenMeta();
-            close();
-          }
+        modalStore.SetModal({
+          data: {
+            objectId: streamStore.streams?.[streamSlug].objectId,
+            name: streamStore.streams?.[streamSlug].title,
+            ConfirmCallback: async () => {
+              await streamStore.StartStream({slug: streamSlug});
+              await LoadEdgeWriteTokenMeta();
+            },
+            CloseCallback: () => modalStore.ResetModal()
+          },
+          op: "START"
         });
-        open();
       }
     });
   }
@@ -161,24 +143,23 @@ const StreamDetailsPage = observer(() => {
       label: "Stop",
       variant: "outline",
       onClick: () => {
-        setModalData({
-          title: "Stop Stream Confirmation",
-          confirmText: "Stop Stream",
-          message: "Are you sure you want to stop the stream? Once stopped, viewers will be disconnected, and the stream cannot be resumed. You can start a new session later if needed.",
-          objectId: streamStore.streams?.[streamSlug].objectId,
-          name: streamStore.streams?.[streamSlug].title,
-          ConfirmCallback: async () => {
-            await streamStore.OperateLRO({
-              objectId: stream.objectId,
-              slug: streamSlug,
-              operation: "STOP"
-            });
-            close();
+        modalStore.SetModal({
+          data: {
+            objectId: streamStore.streams?.[streamSlug].objectId,
+            name: streamStore.streams?.[streamSlug].title,
+            ConfirmCallback: async () => {
+              await streamStore.OperateLRO({
+                objectId: stream.objectId,
+                slug: streamSlug,
+                operation: "STOP"
+              });
 
-            DebouncedRefresh();
-          }
+              DebouncedRefresh();
+            },
+            CloseCallback: () => modalStore.ResetModal()
+          },
+          op: "STOP"
         });
-        open();
       }
     });
   }
@@ -238,11 +219,6 @@ const StreamDetailsPage = observer(() => {
           ))
         }
       </Tabs>
-      <ConfirmModal
-        {...modalData}
-        show={showModal}
-        CloseCallback={close}
-      />
     </PageContainer>
   );
 });
