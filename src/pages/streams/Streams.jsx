@@ -13,7 +13,7 @@ import {
   IconCircleX
 } from "@tabler/icons-react";
 
-import {dataStore, editStore, streamStore} from "@/stores";
+import {dataStore, editStore, modalStore, streamStore} from "@/stores";
 import {SanitizeUrl, SortTable, VideoBitrateReadable, StreamIsActive} from "@/utils/helpers";
 import {STATUS_MAP} from "@/utils/constants";
 import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
@@ -23,7 +23,6 @@ import {DataTable} from "mantine-datatable";
 import {Text, ActionIcon, Group, TextInput, Stack} from "@mantine/core";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import styles from "./Streams.module.css";
-import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 
@@ -35,26 +34,6 @@ const Streams = observer(() => {
   const [debouncedFilter] = useDebouncedValue(filter, 200);
   // const [currentPage, setCurrentPage] = useState(1);
   // const [records, setRecords] = useState([]);
-
-  const initModalData = {
-    showModal: false,
-    title: "",
-    message: "",
-    name: "",
-    loadingText: "",
-    objectId: "",
-    confirmText: "",
-    ConfirmCallback: null,
-    CloseCallback: null,
-    danger: false
-  };
-
-  const ResetModal = () => {
-    setModalData(initModalData);
-  };
-
-  const [modalData, setModalData] = useState(initModalData);
-
 
   // useEffect(() => {
   //   const start = (currentPage - 1) * PAGE_SIZE;
@@ -181,27 +160,27 @@ const Streams = observer(() => {
                             metadataSubtree: "live_recording_config/url"
                           });
 
-                          setModalData({
-                            objectId: record.objectId,
-                            showModal: true,
-                            title: "Check Stream Confirmation",
-                            message: record.status === STATUS_MAP.INACTIVE ? "Are you sure you want to check the stream? This will override your saved configuration." : "Are you sure you want to check the stream?",
-                            name: record.title,
-                            loadingText: `Please send your stream to ${SanitizeUrl({url}) || "the URL you specified"}.`,
-                            confirmText: "Check Stream",
-                            ConfirmCallback: async () => {
-                              try {
-                                await streamStore.ConfigureStream({
-                                  objectId: record.objectId,
-                                  slug: record.slug
-                                });
-                              } catch(error) {
-                                // eslint-disable-next-line no-console
-                                console.error("Configure Modal - Failed to check stream", error);
-                                throw error;
-                              }
+                          modalStore.SetModal({
+                            data: {
+                              objectId: record.objectId,
+                              name: record.title,
+                              loadingText: `Please send your stream to ${SanitizeUrl({url}) || "the URL you specified"}.`,
+                              ConfirmCallback: async () => {
+                                try {
+                                  await streamStore.ConfigureStream({
+                                    objectId: record.objectId,
+                                    slug: record.slug
+                                  });
+                                } catch(error) {
+                                  // eslint-disable-next-line no-console
+                                  console.error("Configure Modal - Failed to check stream", error);
+                                  throw error;
+                                }
+                              },
+                              CloseCallback: () => modalStore.ResetModal()
                             },
-                            CloseCallback: () => ResetModal()
+                            op: "CHECK",
+                            activeMessage: record.status !== STATUS_MAP.INACTIVE
                           });
                         }}
                       >
@@ -215,17 +194,16 @@ const Streams = observer(() => {
                         variant="subtle"
                         color="gray.6"
                         onClick={() => {
-                          setModalData({
-                            objectId: record.objectId,
-                            showModal: true,
-                            title: "Start Stream Confirmation",
-                            message: "Are you sure you want to start the stream? Once started, the stream will go live, and any changes may require restarting. Please confirm before proceeding.",
-                            name: record.title,
-                            confirmText: "Start Stream",
-                            ConfirmCallback: async () => {
-                              await streamStore.StartStream({slug: record.slug});
+                          modalStore.SetModal({
+                            data: {
+                              objectId: record.objectId,
+                              name: record.title,
+                              ConfirmCallback: async () => {
+                                await streamStore.StartStream({slug: record.slug});
+                              },
+                              CloseCallback: () => modalStore.ResetModal()
                             },
-                            CloseCallback: () => ResetModal()
+                            op: "START"
                           });
                         }}
                       >
@@ -239,21 +217,19 @@ const Streams = observer(() => {
                         variant="subtle"
                         color="gray.6"
                         onClick={() => {
-                          setModalData({
-                            objectId: record.objectId,
-                            showModal: true,
-                            title: "Deactivate Stream Confirmation",
-                            message: "Are you sure you want to deactivate the stream? You will lose all recording data.",
-                            name: record.title,
-                            confirmText: "Deactivate Stream",
-                            ConfirmCallback: async () => {
-                              await streamStore.DeactivateStream({
-                                slug: record.slug,
-                                objectId: record.objectId
-                              });
+                          modalStore.SetModal({
+                            data: {
+                              objectId: record.objectId,
+                              name: record.title,
+                              ConfirmCallback: async () => {
+                                await streamStore.DeactivateStream({
+                                  slug: record.slug,
+                                  objectId: record.objectId
+                                });
+                              },
+                              CloseCallback: () => modalStore.ResetModal(),
                             },
-                            CloseCallback: () => ResetModal(),
-                            danger: true
+                            op: "DEACTIVATE"
                           });
                         }}
                       >
@@ -277,21 +253,20 @@ const Streams = observer(() => {
                           variant="subtle"
                           color="gray.6"
                           onClick={() => {
-                            setModalData({
-                              objectId: record.objectId,
-                              showModal: true,
-                              title: "Stop Stream Confirmation",
-                              message: "Are you sure you want to stop the stream? Once stopped, viewers will be disconnected, and the stream cannot be resumed. You can start a new session later if needed.",
-                              name: record.title,
-                              confirmText: "Stop Stream",
-                              ConfirmCallback: async () => {
-                                await streamStore.OperateLRO({
-                                  objectId: record.objectId,
-                                  slug: record.slug,
-                                  operation: "STOP"
-                                });
+                            modalStore.SetModal({
+                              data: {
+                                objectId: record.objectId,
+                                name: record.title,
+                                ConfirmCallback: async () => {
+                                  await streamStore.OperateLRO({
+                                    objectId: record.objectId,
+                                    slug: record.slug,
+                                    operation: "STOP"
+                                  });
+                                },
+                                CloseCallback: () => modalStore.ResetModal()
                               },
-                              CloseCallback: () => ResetModal()
+                              op: "STOP"
                             });
                           }}
                         >
@@ -320,17 +295,16 @@ const Streams = observer(() => {
                     color="gray.6"
                     disabled={StreamIsActive(record.status)}
                     onClick={() => {
-                      setModalData({
-                        objectId: record.objectId,
-                        showModal: true,
-                        title: "Delete Stream Confirmation",
-                        message: "Are you sure you want to delete the stream?",
-                        name: record.title,
-                        ConfirmCallback: async () => {
-                          await editStore.DeleteStream({objectId: record.objectId});
+                      modalStore.SetModal({
+                        data: {
+                          objectId: record.objectId,
+                          name: record.title,
+                          ConfirmCallback: async () => {
+                            await editStore.DeleteStream({objectId: record.objectId});
+                          },
+                          CloseCallback: () => modalStore.ResetModal()
                         },
-                        CloseCallback: () => ResetModal(),
-                        confirmText: "Delete Stream"
+                        op: "DELETE",
                       });
                     }}
                   >
@@ -341,10 +315,6 @@ const Streams = observer(() => {
             }
           }
         ]}
-      />
-      <ConfirmModal
-        show={modalData.showModal}
-        {...modalData}
       />
     </PageContainer>
   );
