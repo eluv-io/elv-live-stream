@@ -58,7 +58,7 @@ const ConfirmModal = observer(({
         }
         {
           loading && loadingText ?
-            <Text>{loadingText}</Text> : null
+            <Text mt={16}>{loadingText}</Text> : null
         }
         {
           !error ? null :

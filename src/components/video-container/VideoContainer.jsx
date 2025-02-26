@@ -36,13 +36,14 @@ const VideoContent = observer(({allowClose, setPlay, slug}) => {
   );
 });
 
-const PlaceholderContent = observer(({setPlay, showPreview, frameSegmentUrl, status}) => {
+const PlaceholderContent = observer(({setPlay, showPreview, frameSegmentUrl, status, playable=true}) => {
   return (
     <button
       role="button"
       tabIndex={1}
       onClick={() => setPlay(true)}
       className={styles.videoPlaceholder}
+      disabled={!playable}
     >
       {
         status === "running" &&
@@ -62,7 +63,8 @@ export const VideoContainer = observer(({
   slug,
   index,
   showPreview,
-  allowClose = true
+  allowClose = true,
+  playable=false
 }) => {
   const [play, setPlay] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
@@ -103,6 +105,13 @@ export const VideoContainer = observer(({
     return () => clearTimeout(updateTimeout);
   }, [frameKey, frameSegmentUrl]);
 
+  useEffect(() => {
+    // If playable status changes and video is playing, stop play
+    if(playable === false && play) {
+      setPlay(false);
+    }
+  }, [playable]);
+
   return (
     <Box className={styles.videoWrapper} style={{borderRadius: "10px"}}>
       <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%" stlyle={{borderRadius: "10px"}}>
@@ -114,6 +123,7 @@ export const VideoContainer = observer(({
               allowClose={allowClose}
             /> :
             <PlaceholderContent
+              playable={playable}
               setPlay={setPlay}
               status={status}
               showPreview={showPreview}

@@ -155,6 +155,7 @@ const GridItem = observer(({stream, index}) => {
         index={index}
         slug={stream.slug}
         showPreview={streamStore.showMonitorPreviews}
+        playable={stream.status === "running"}
       />
       <Flex flex={1} p="0.5rem 0 0.5rem">
         <Flex direction="column" justify="space-between" w="100%">
