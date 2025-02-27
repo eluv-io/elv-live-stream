@@ -158,6 +158,7 @@ const Settings = observer(() => {
             {id: "Default", header: "Profile", value: "Default"}
           ]}
           hideDelete
+          defaultShowEditor
           editorValue={profileFormData.default || {}}
           HandleEditorValueChange={(args) => HandleChange({...args, index: "default"})}
         />

@@ -10,10 +10,10 @@ const theme = createTheme({
   colors: {
     "elv-blue": [
       "#ebf3fc", // eluvio color
-      "#d2e1ff",
+      "#f8f9fd", // eluvio color
       "#a6bff6",
-      "#228BE6", // eluvio color
-      "#3F85E3", // eluvio color
+      "#228be6", // eluvio color
+      "#3f85e3", // eluvio color
       "#336be4", // eluvio color
       "#2361e3",
       "#1351cb",
@@ -41,7 +41,7 @@ const theme = createTheme({
       "rgba(0,0,0,0.06)", // eluvio color
       "#8b8b8b",
       "#848484",
-      "#717171",
+      "#6b6b6b", // eluvio color
       "#4b494e", // eluvio color
       "#3c3c3c" // eluvio color
     ],
@@ -51,7 +51,7 @@ const theme = createTheme({
       "#1e1e1e" // eluvio color
     ],
     "elv-neutral": [
-      "#f8f2fe",
+      "#eeeeee", // eluvio color
       "#ecece8", // eluvio color
       "#cdc8d3",
       "#b2aaba", // eluvio color
@@ -122,6 +122,13 @@ const theme = createTheme({
         }
       })
     },
+    AppShell: {
+      styles: () => ({
+        root: {
+          "--app-shell-border-color": "var(--mantine-color-elv-neutral-0)"
+        }
+      })
+    },
     Button: {
       styles: (theme, params) => ({
         root: {
@@ -172,6 +179,20 @@ const theme = createTheme({
       styles: () => ({
         root: {
           "lgg": "16px"
+        }
+      })
+    },
+    NavLink: {
+      styles: (theme, params) => ({
+        root: {
+          ...(params.active && {
+            "backgroundColor": "var(--mantine-color-elv-blue-1)"
+          })
+        },
+        label: {
+          ...(params.active && {
+            "color": "var(--mantine-color-elv-blue-3)"
+          })
         }
       })
     },

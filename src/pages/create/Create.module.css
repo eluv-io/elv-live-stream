@@ -26,3 +26,15 @@
 .accordionContent {
   padding-left: 0;
 }
+
+.form {
+  width: 80%;
+
+  @media (min-width: 1280px) {
+    width: 72%;
+  }
+
+  @media (min-width: 1728px) {
+    width: 1000px;
+  }
+}

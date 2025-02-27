@@ -20,19 +20,23 @@ const LeftNavigation = () => {
   const location = useLocation();
 
   return (
-    <AppShell.Navbar p="24 14" bg="linear-gradient(90deg, var(--mantine-color-elv-gray-1) 0%, var(--mantine-color-elv-gray-0) 100%)">
+    <AppShell.Navbar p="24 14">
       {
         NAV_LINKS.map(({path, label, icon}) => (
           <NavLink
             key={`navigation-link-${path}`}
-            classNames={{root: styles.root}}
+            classNames={{
+              root: styles.root,
+              label: styles.label,
+              section: styles.section
+          }}
             href="#"
             label={label}
             leftSection={icon}
             onClick={() => navigate(path)}
             title={label}
             active={path === location.pathname}
-            p="8px 8px"
+            // p="8px 8px"
           />
         ))
       }

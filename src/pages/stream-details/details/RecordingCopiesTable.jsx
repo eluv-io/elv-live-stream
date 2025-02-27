@@ -23,8 +23,8 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
     .sort(SortTable({sortStatus}));
 
   return (
-    <Box mb="24px" maw="97%">
-      <Title order={3} c="elv-gray.8">Live Recording Copies</Title>
+    <Box mb="24px" maw="100%">
+      <Title order={3} c="elv-gray.9">Live Recording Copies</Title>
       <DataTable
         idAccessor="_id"
         noRecordsText="No live recording copies found"
@@ -39,7 +39,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
             render: record => (
               <Stack gap={0}>
                 <Text>{record.title}</Text>
-                <Text c="dimmed" fz="xs">{record._id}</Text>
+                <Text c="dimmed" fz={12}>{record._id}</Text>
               </Stack>
             )
           },
@@ -88,7 +88,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
                 <ActionIcon
                   title="Open in Fabric Browser"
                   variant="subtle"
-                  color="gray.6"
+                  color="elv-neutral.4"
                   onClick={() => editStore.client.SendMessage({
                     options: {
                       operation: "OpenLink",
@@ -102,7 +102,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
                 <ActionIcon
                   title="Delete Live Recording Copy"
                   variant="subtle"
-                  color="gray.6"
+                  color="elv-neutral.4"
                   onClick={() => {
                     open();
                     setDeleteId(record._id);

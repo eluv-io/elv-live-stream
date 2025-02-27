@@ -10,7 +10,7 @@ import styles from "./VideoContainer.module.css";
 const VideoContent = observer(({allowClose, setPlay, slug}) => {
   return (
     <>
-      <Box pos="absolute" inset={0} style={{borderRadius: "10px"}}>
+      <Box pos="absolute" inset={0} className={styles.videoContent}>
         {
           allowClose &&
           <ActionIcon
@@ -113,8 +113,8 @@ export const VideoContainer = observer(({
   }, [playable]);
 
   return (
-    <Box className={styles.videoWrapper} style={{borderRadius: "10px"}}>
-      <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%" stlyle={{borderRadius: "10px"}}>
+    <Box className={styles.videoWrapper}>
+      <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%" className={styles.aspectRatio}>
         {
           play ?
             <VideoContent

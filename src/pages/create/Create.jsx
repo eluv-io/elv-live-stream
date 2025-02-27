@@ -374,7 +374,8 @@ const Create = observer(() => {
       title="Create Live Stream"
       className={(dataStore.tenantId && !rootStore.errorMessage) ? "" : styles.disabledContainer}
     >
-      <form onSubmit={form.onSubmit(HandleSubmit)} style={{width: "80%"}}>
+      <form onSubmit={form.onSubmit(HandleSubmit)} className={styles.form}>
+        <Title order={3} c="elv-gray.8" mb={12}>Source</Title>
         <Radio.Group
           name="protocol"
           label="Streaming Protocol"

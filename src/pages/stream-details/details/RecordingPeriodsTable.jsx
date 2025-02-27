@@ -5,7 +5,7 @@ import {streamStore} from "@/stores";
 import {notifications} from "@mantine/notifications";
 import {RECORDING_STATUS_TEXT} from "@/utils/constants";
 import {Button, Flex, Group, Loader, Text, Title} from "@mantine/core";
-import {DateFormat, Pluralize} from "@/utils/helpers";
+import {DateFormat, Pluralize, SortTable} from "@/utils/helpers";
 import {DataTable} from "mantine-datatable";
 import DetailsCopyModal from "@/pages/stream-details/details/CopyToVodModal";
 import {Runtime} from "@/pages/stream-details/details/DetailsPanel";
@@ -25,6 +25,10 @@ const RecordingPeriodsTable = observer(({
   const [vodTitle, setVodTitle] = useState(`${title} VoD`);
   const [vodLibraryId, setVodLibraryId] = useState(libraryId);
   const [vodAccessGroup, setVodAccessGroup] = useState(null);
+  const [sortStatus, setSortStatus] = useState({
+    columnAccessor: "end_time",
+    direction: "asc"
+  });
 
   const HandleCopy = async ({title}) => {
     try {
@@ -112,6 +116,8 @@ const RecordingPeriodsTable = observer(({
       }) : "--";
   };
 
+  records = (records || []).sort(SortTable({sortStatus}));
+
   return (
     <>
       <Group mb={16} w="100%">
@@ -133,10 +139,13 @@ const RecordingPeriodsTable = observer(({
       </Group>
       <DataTable
         mb="4rem"
+        sortStatus={sortStatus}
+        onSortStatusChange={setSortStatus}
         columns={[
           {
             accessor: "start_time",
             title: "Start Time",
+            sortable: true,
             render: record => (
               <Text>
                 {
@@ -149,6 +158,7 @@ const RecordingPeriodsTable = observer(({
           {
             accessor: "end_time",
             title: "End Time",
+            sortable: true,
             render: record => (
               <Text>
                 {

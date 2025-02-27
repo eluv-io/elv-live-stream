@@ -124,10 +124,6 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                 }
               </Text>
             </Box>
-            <RecordingCopiesTable
-              liveRecordingCopies={liveRecordingCopies}
-              DeleteCallback={LoadLiveRecordingCopies}
-            />
           </Flex>
         </Grid.Col>
         <Grid.Col span={4}>
@@ -173,6 +169,12 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
           </Flex>
         </Grid.Col>
       </Grid>
+
+      <RecordingCopiesTable
+        liveRecordingCopies={liveRecordingCopies}
+        DeleteCallback={LoadLiveRecordingCopies}
+      />
+
       <RecordingPeriodsTable
         libraryId={libraryId}
         objectId={params.id}

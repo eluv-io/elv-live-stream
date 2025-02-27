@@ -104,7 +104,7 @@ const StreamDetailsPage = observer(() => {
   if([STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(streamStore.streams?.[streamSlug]?.status)) {
     actions.push({
       label: "Start",
-      variant: "outline",
+      variant: "filled",
       onClick: () => {
         modalStore.SetModal({
           data: {

@@ -26,6 +26,7 @@
   position: absolute;
   top: 0;
   width: 100%;
+  border-radius: 10px;
 }
 
 .videoPlaceholder {
@@ -38,4 +39,12 @@
   position: relative;
   width: 100%;
   background: #000;
+}
+
+.aspectRatio {
+  border-radius: 10px;
+}
+
+.videoContent {
+  border-radius: 10px;
 }

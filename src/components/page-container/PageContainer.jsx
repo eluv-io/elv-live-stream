@@ -71,7 +71,7 @@ const TitleSection = ({title, subtitle, rightSection, leftSection}) => {
           leftSection ? leftSection : null
         }
         <Group gap={20}>
-          <Title order={3} size={28} c="elv-gray.9">
+          <Title order={3} size={22} c="elv-gray.9">
             { title }
           </Title>
           {

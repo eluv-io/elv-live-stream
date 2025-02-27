@@ -23,8 +23,7 @@ const App = observer(() => {
       <BrowserRouter>
         <AppShell
           padding="0"
-          navbar={{width: 160, breakpoint: "sm"}}
-          withBorder={false}
+          navbar={{width: 200, breakpoint: "sm"}}
         >
           <LeftNavigation />
           <AppShell.Main>

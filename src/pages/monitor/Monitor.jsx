@@ -184,7 +184,7 @@ const GridItem = observer(({stream, index}) => {
                 </Text>
               </Button>
             }
-            <Text fw={700} fz={14} truncate="end">
+            <Text fw={700} fz={16} truncate="end">
               { stream.title }
             </Text>
             <OverflowMenu stream={stream} />
