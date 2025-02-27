@@ -189,7 +189,7 @@ const GridItem = observer(({stream, index}) => {
             </Text>
             <OverflowMenu stream={stream} />
           </Group>
-          <Text c="elv-black.1" fz={14} fw={400} mb={2}>
+          <Text c="elv-black.1" fz={14} fw={400} mb={2} truncate="end">
             { stream.objectId || "" }
           </Text>
           <Flex align="flex-end" justify="space-between">
