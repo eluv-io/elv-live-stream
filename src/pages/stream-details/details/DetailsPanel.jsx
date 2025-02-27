@@ -141,6 +141,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                       index={0}
                       slug={slug}
                       showPreview
+                      playable={status.state === STATUS_MAP.RUNNING}
                     /> :
                     <Box bg="gray.3" h="100%" margin="auto" ta="center" style={{borderRadius: "4px"}}>
                       <Text lh="200px">Preview is not available</Text>
