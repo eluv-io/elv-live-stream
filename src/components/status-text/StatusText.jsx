@@ -8,12 +8,14 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
   if(!status) { return null; }
   const SIZE_MAPPINGS = {
     "xs": {
-      size: 6,
-      ml: 14
+      size: 7,
+      ml: 16,
+      fontSize: 14
     },
     "sm": {
       size: 8,
-      ml: 18
+      ml: 18,
+      fontSize: 16
     }
   };
 
@@ -21,7 +23,7 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
     return (
       <Box className={withBorder ? styles.box : ""} title={STATUS_TEXT[status]}>
         <Indicator color={StatusIndicator(status)} position="middle-start" size={SIZE_MAPPINGS[size].size} offset={4}>
-          <Text fz={size} ml={SIZE_MAPPINGS[size].ml}>
+          <Text fz={SIZE_MAPPINGS[size].fontSize} ml={SIZE_MAPPINGS[size].ml}>
             {STATUS_TEXT[status]}
           </Text>
         </Indicator>

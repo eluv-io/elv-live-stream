@@ -28,7 +28,6 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
       <DataTable
         idAccessor="_id"
         noRecordsText="No live recording copies found"
-        minHeight={records ? 150 : 75}
         sortStatus={sortStatus}
         onSortStatusChange={setSortStatus}
         columns={[

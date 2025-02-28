@@ -36,7 +36,6 @@ const LeftNavigation = () => {
             onClick={() => navigate(path)}
             title={label}
             active={path === location.pathname}
-            // p="8px 8px"
           />
         ))
       }
