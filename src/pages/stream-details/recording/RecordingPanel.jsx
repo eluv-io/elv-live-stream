@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
 import {dataStore, editStore, streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Box, Button, Divider, Loader, Select, SimpleGrid, Title} from "@mantine/core";
+import {Box, Button, Divider, Select, SimpleGrid, Title} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
@@ -151,9 +151,10 @@ const RecordingPanel = observer(({
         <Box mt="24px">
           <Button
             type="submit"
+            loading={applyingChanges}
             disabled={applyingChanges || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           >
-            {applyingChanges ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Apply"}
+            Apply
           </Button>
         </Box>
       </form>

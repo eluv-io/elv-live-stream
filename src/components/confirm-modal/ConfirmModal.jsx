@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Box, Button, Flex, Grid, Loader, Modal, Text} from "@mantine/core";
+import {Box, Button, Flex, Grid, Modal, Text} from "@mantine/core";
 
 const ConfirmModal = observer(({
   message,
@@ -74,6 +74,7 @@ const ConfirmModal = observer(({
         <Button
           disabled={loading}
           variant="filled"
+          loading={loading}
           onClick={async () => {
             try {
               setError(undefined);
@@ -89,7 +90,7 @@ const ConfirmModal = observer(({
             }
           }}
         >
-          {loading ? <Loader type="dots" size="xs" color="elv-gray.7" /> : confirmText}
+          { confirmText }
         </Button>
       </Flex>
     </Modal>

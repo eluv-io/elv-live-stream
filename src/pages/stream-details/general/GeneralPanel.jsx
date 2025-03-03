@@ -1,5 +1,5 @@
 import {observer} from "mobx-react-lite";
-import {Box, Button, Divider, Flex, Loader, Select, SimpleGrid, Text, TextInput, Title, Tooltip} from "@mantine/core";
+import {Box, Button, Divider, Flex, Select, SimpleGrid, Text, TextInput, Title, Tooltip} from "@mantine/core";
 import {useEffect, useState} from "react";
 import {dataStore, editStore, rootStore, streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
@@ -210,8 +210,8 @@ const GeneralPanel = observer(({slug}) => {
               />
             </SimpleGrid>
           </Box>
-          <Button type="submit" disabled={applyingChanges}>
-            {applyingChanges ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Save"}
+          <Button type="submit" disabled={applyingChanges} loading={applyingChanges}>
+            Save
           </Button>
         </form>
       </Flex>

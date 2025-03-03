@@ -5,12 +5,13 @@ import {observer} from "mobx-react-lite";
 import {
   Box,
   Button,
-  Checkbox, Divider,
+  Checkbox,
+  Divider,
   FileButton,
   Flex,
   Group,
-  Loader,
-  Select, SimpleGrid,
+  Select,
+  SimpleGrid,
   Text,
   Textarea,
   Title,
@@ -323,8 +324,9 @@ const PlayoutPanel = observer(({
         disabled={applyingChanges}
         variant="filled"
         onClick={HandleSubmit}
+        loading={applyingChanges}
       >
-        {applyingChanges ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Apply"}
+        Apply
       </Button>
     </Box>
   );

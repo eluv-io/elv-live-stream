@@ -114,6 +114,7 @@ const CopyToVodModal = observer(({
         </Button>
         <Button
           disabled={loading || !libraryId || !title}
+          loading={loading}
           onClick={async () => {
             try {
               setError(undefined);
@@ -128,7 +129,7 @@ const CopyToVodModal = observer(({
             }
           }}
         >
-          {loading ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Copy"}
+          Copy
         </Button>
       </Flex>
     </Modal>
