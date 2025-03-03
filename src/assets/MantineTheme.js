@@ -3,7 +3,8 @@ import {createTheme} from "@mantine/core";
 const theme = createTheme({
   fontFamily: "Helvetica Neue, Helvetica, sans-serif",
   headings: {
-    fontFamily: "Helvetica Neue, Helvetica, sans-serif"
+    fontFamily: "Inter, sans-serif"
+    // fontFamily: "Helvetica Neue, Helvetica, sans-serif"
   },
   primaryColor: "elv-blue",
   primaryShade: 5,

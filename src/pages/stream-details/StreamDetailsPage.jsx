@@ -148,6 +148,7 @@ const StreamDetailsPage = observer(() => {
         <StatusText
           status={stream.status}
           quality={streamStore.streams?.[streamSlug]?.quality}
+          size="md"
           withBorder
         />
       }

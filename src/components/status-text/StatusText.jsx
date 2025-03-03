@@ -13,6 +13,11 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
       fontSize: 14
     },
     "sm": {
+      size: 7,
+      ml: 18,
+      fontSize: "0.875rem"
+    },
+    "md": {
       size: 8,
       ml: 18,
       fontSize: 16

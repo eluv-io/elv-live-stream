@@ -140,6 +140,7 @@ const Streams = observer(() => {
               <StatusText
                 status={record.status}
                 quality={record.quality}
+                size="sm"
               />
           },
           {
