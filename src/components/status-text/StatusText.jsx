@@ -10,17 +10,20 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
     "xs": {
       size: 7,
       ml: 16,
-      fontSize: 14
+      fontSize: 14,
+      fontWeight: 400
     },
     "sm": {
       size: 7,
       ml: 18,
-      fontSize: "0.875rem"
+      fontSize: "0.875rem",
+      fontWeight: 400
     },
     "md": {
-      size: 8,
-      ml: 18,
-      fontSize: 16
+      size: 7,
+      ml: 16,
+      fontSize: 14,
+      fontWeight: 500
     }
   };
 
@@ -28,8 +31,13 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
     return (
       <Box className={withBorder ? styles.box : ""} title={STATUS_TEXT[status]}>
         <Indicator color={StatusIndicator(status)} position="middle-start" size={SIZE_MAPPINGS[size].size} offset={4}>
-          <Text fz={SIZE_MAPPINGS[size].fontSize} ml={SIZE_MAPPINGS[size].ml}>
-            {STATUS_TEXT[status]}
+          <Text
+            fz={SIZE_MAPPINGS[size].fontSize}
+            ml={SIZE_MAPPINGS[size].ml}
+            fw={SIZE_MAPPINGS[size].fontWeight}
+            c="elv-gray.9"
+          >
+            { STATUS_TEXT[status] }
           </Text>
         </Indicator>
       </Box>
@@ -40,7 +48,7 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
         <Group gap={0}>
           <IconAlertCircle color="var(--mantine-color-elv-orange-3)" width={15} />
           <Text fz="sm" ml="md">
-            {STATUS_TEXT[status]}
+            { STATUS_TEXT[status] }
           </Text>
         </Group>
       </Box>

@@ -172,7 +172,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                   embedUrl &&
                   <Flex direction="row" justify="center" align="center">
                     <Title order={6} lineClamp={1} maw={300} c="elv-gray.6" className={styles.embedUrl}>{embedUrl}</Title>
-                    <Tooltip label={copied ? "Copied": "Copy"} position="right">
+                    <Tooltip label={copied ? "Copied": "Copy"} position="bottom">
                       <ActionIcon
                         variant="transparent"
                         onClick={() => {
