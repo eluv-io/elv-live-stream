@@ -122,7 +122,7 @@ const RecordingPeriodsTable = observer(({
 
   return (
     <>
-      <Group mb={8} w="100%" align="flex-end">
+      <Group mb={7} w="100%" align="flex-end">
         <DetailsSectionTitle>Recording Periods</DetailsSectionTitle>
         <Flex align="center" ml="auto">
           <Text mr={16}>

@@ -91,8 +91,8 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       <Grid>
         <Grid.Col span={8}>
           <Flex direction="column" className={styles.flexGrow}>
-            <Box mb="24px" maw="80%">
-              <DetailsSectionTitle mb={8}>State</DetailsSectionTitle>
+            <Box mb="30px" maw="80%">
+              <DetailsSectionTitle mb={5}>State</DetailsSectionTitle>
               <DetailRow
                 label="Quality"
                 value={QUALITY_TEXT[status?.quality] || "--"}
@@ -110,8 +110,8 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                 </>
               }
             </Box>
-            <Box mb="24px" maw="70%">
-              <DetailsSectionTitle mb={8}>Recording Info</DetailsSectionTitle>
+            <Box mb="30px" maw="70%">
+              <DetailsSectionTitle mb={5}>Recording Info</DetailsSectionTitle>
               {
                 [
                   {

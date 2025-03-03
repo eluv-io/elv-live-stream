@@ -3,7 +3,7 @@ import styles from "./DetailsCommon.module.css";
 
 export const DetailsSectionTitle = ({mb=0, children}) => {
   return (
-    <Title order={2} c="elv-blue.3" mb={mb}>
+    <Title order={2} c="elv-blue.3" mb={mb} className={styles.detailsSectionTitle}>
       { children }
     </Title>
   );
