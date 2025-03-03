@@ -17,6 +17,14 @@
 }
 
 .searchBar {
-  border-radius: 50px;
   margin: 0;
+  font-size: 14px;
+  color: var(--mantine-color-elv-gray-6);
+}
+
+.tableWrapper {
+  border: 1px solid var(--mantine-color-elv-gray-1);
+  border-radius: 5px;
+  padding: 1px;
+  overflow: hidden;
 }

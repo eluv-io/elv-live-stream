@@ -29,7 +29,7 @@ const TopActions = ({showSearchBar, actions=[]}) => {
   if(!showSearchBar && actions.length === 0) { return null; }
 
   return (
-    <Flex direction="row" align="center" justify="space-between" mb={32}>
+    <Flex direction="row" align="center" justify="space-between" mb={22.5}>
       { showSearchBar && <SearchBar /> }
       {
         actions.length > 0 ?
@@ -66,7 +66,7 @@ const TopActions = ({showSearchBar, actions=[]}) => {
 
 const TitleSection = ({title, subtitle, rightSection, leftSection}) => {
   return (
-    <Flex direction="column" mb={12}>
+    <Flex direction="column" mb={22.5}>
       <Group gap={6}>
         {
           leftSection ? leftSection : null

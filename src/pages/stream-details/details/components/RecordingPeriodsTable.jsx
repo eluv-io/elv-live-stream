@@ -10,7 +10,7 @@ import {DataTable} from "mantine-datatable";
 import DetailsCopyModal from "@/pages/stream-details/details/components/CopyToVodModal.jsx";
 import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
 import {BasicTableRowText, DetailsSectionTitle} from "@/pages/stream-details/common/DetailsCommon.jsx";
-import styles from "./RecordingCopiesTable.module.css";
+import styles from "../../../streams/Streams.module.css";
 
 const RecordingPeriodsTable = observer(({
   records,

@@ -1,9 +1,9 @@
 import {createTheme, rem} from "@mantine/core";
 
 const theme = createTheme({
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "Inter, Helvetica Neue, helvetica, sans-serif",
   headings: {
-    fontFamily: "Inter, sans-serif",
+    fontFamily: "Inter, Helvetica Neue, helvetica, sans-serif",
     sizes: {
       h1: {
         fontSize: rem(22),
@@ -37,7 +37,7 @@ const theme = createTheme({
       "#228be6", // eluvio color
       "#3f85e3", // eluvio color
       "#336be4", // eluvio color
-      "#2361e3",
+      "#1a71cf", // eluvio color
       "#1351cb",
       "#0648b6",
       "#003ea2"
@@ -181,13 +181,6 @@ const theme = createTheme({
         }
       })
     },
-    Group: {
-      styles: () => ({
-        root: {
-          "--mantine-spacing-xxs": rem(5)
-        }
-      })
-    },
     Modal: {
       styles: () => ({
         title: {
@@ -236,7 +229,7 @@ const theme = createTheme({
     TextInput: {
       styles: () => ({
         input: {
-          "borderRadius": "0"
+          "borderRadius": rem(5)
         }
       })
     }

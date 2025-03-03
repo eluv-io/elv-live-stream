@@ -10,7 +10,7 @@ import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import {BasicTableRowText, DetailsSectionTitle} from "@/pages/stream-details/common/DetailsCommon.jsx";
-import styles from "./RecordingCopiesTable.module.css";
+import styles from "../../../streams/Streams.module.css";
 
 const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);

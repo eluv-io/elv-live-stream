@@ -117,8 +117,7 @@ module.exports = {
           "widevine",
           "wm",
           "xc",
-          "xl",
-          "xxs"
+          "xl"
         ]
       }]
   },
