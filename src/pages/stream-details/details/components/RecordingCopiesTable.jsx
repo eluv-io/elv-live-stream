@@ -2,13 +2,14 @@ import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {DataTable} from "mantine-datatable";
 import {ActionIcon, Box, Group, Stack, Text, Title} from "@mantine/core";
-import {DateFormat, SortTable} from "@/utils/helpers";
-import {editStore, streamStore} from "@/stores";
+import {DateFormat, SortTable} from "@/utils/helpers.js";
+import {editStore, streamStore} from "@/stores/index.js";
 import {IconExternalLink, IconTrash} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
+import {BasicTableRowText, DetailsSectionTitle} from "@/pages/stream-details/common/DetailsCommon.jsx";
 
 const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);
@@ -24,12 +25,14 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
 
   return (
     <Box mb="24px" maw="100%">
-      <Title order={3} c="elv-gray.9">Live Recording Copies</Title>
+      <DetailsSectionTitle>Live Recording Copies</DetailsSectionTitle>
       <DataTable
         idAccessor="_id"
         noRecordsText="No live recording copies found"
         sortStatus={sortStatus}
         onSortStatusChange={setSortStatus}
+        withTableBorder
+        highlightOnHover
         columns={[
           {
             accessor: "title",
@@ -37,7 +40,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
             sortable: true,
             render: record => (
               <Stack gap={0}>
-                <Text>{record.title}</Text>
+                <Title order={3} c="elv-gray.9">{record.title}</Title>
                 <Text c="dimmed" fz={12}>{record._id}</Text>
               </Stack>
             )
@@ -46,24 +49,24 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
             accessor: "startTime",
             title: "Start Time",
             render: record => (
-              <Text>
+              <BasicTableRowText>
                 {
                   record.startTime ?
                     DateFormat({time: record.startTime, format: "sec"}) : ""
                 }
-              </Text>
+              </BasicTableRowText>
             )
           },
           {
             accessor: "endTime",
             title: "End Time",
             render: record => (
-              <Text>
+              <BasicTableRowText>
                 {
                   record.endTime ?
                     DateFormat({time: record.endTime, format: "sec"}) : ""
                 }
-              </Text>
+              </BasicTableRowText>
             )
           },
           {
@@ -71,12 +74,12 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
             title: "Date Added",
             sortable: true,
             render: record => (
-              <Text>
+              <BasicTableRowText>
                 {
                   record.create_time ?
                     DateFormat({time: record.create_time, format: "ms"}) : ""
                 }
-              </Text>
+              </BasicTableRowText>
             )
           },
           {
@@ -87,7 +90,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
                 <ActionIcon
                   title="Open in Fabric Browser"
                   variant="subtle"
-                  color="elv-neutral.4"
+                  color="elv-gray.6"
                   onClick={() => editStore.client.SendMessage({
                     options: {
                       operation: "OpenLink",
@@ -101,7 +104,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
                 <ActionIcon
                   title="Delete Live Recording Copy"
                   variant="subtle"
-                  color="elv-neutral.4"
+                  color="elv-gray.6"
                   onClick={() => {
                     open();
                     setDeleteId(record._id);

@@ -35,7 +35,7 @@ const LeftNavigation = () => {
             leftSection={icon}
             onClick={() => navigate(path)}
             title={label}
-            active={path === location.pathname}
+            active={location.pathname.includes(path)}
           />
         ))
       }

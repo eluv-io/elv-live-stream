@@ -3,7 +3,7 @@ import StatusText from "@/components/status-text/StatusText.jsx";
 import {useNavigate, useParams} from "react-router-dom";
 import {streamStore, dataStore, modalStore} from "@/stores";
 import {observer} from "mobx-react-lite";
-import {Loader, Tabs, Text} from "@mantine/core";
+import {Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
 import {DETAILS_TABS, STATUS_MAP} from "@/utils/constants";
 import styles from "@/pages/stream-details/StreamDetails.module.css";
@@ -159,7 +159,7 @@ const StreamDetailsPage = observer(() => {
           {
             DETAILS_TABS.map(tab => (
               <Tabs.Tab value={tab.value} key={`details-tabs-${tab.value}`} className={styles.tab}>
-                <Text fw="400" size="md">{tab.label}</Text>
+                <Title order={3} c="elv-gray.9">{tab.label}</Title>
               </Tabs.Tab>
             ))
           }

@@ -1,0 +1,16 @@
+.borderRadius {
+  border-radius: 16px;
+}
+
+.code {
+  border-left: 4px solid var(--mantine-color-yellow-filled);
+  border-radius: 0;
+}
+
+.flexGrow {
+  flex-grow: 1;
+}
+
+.embedUrl {
+  word-break: break-all;
+}

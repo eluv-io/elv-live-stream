@@ -1,14 +1,15 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useDisclosure} from "@mantine/hooks";
-import {streamStore} from "@/stores";
+import {streamStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
-import {RECORDING_STATUS_TEXT} from "@/utils/constants";
-import {Button, Flex, Group, Loader, Text, Title} from "@mantine/core";
-import {DateFormat, Pluralize, SortTable} from "@/utils/helpers";
+import {RECORDING_STATUS_TEXT} from "@/utils/constants.js";
+import {Button, Flex, Group, Loader, Text} from "@mantine/core";
+import {DateFormat, Pluralize, SortTable} from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
-import DetailsCopyModal from "@/pages/stream-details/details/CopyToVodModal";
-import {Runtime} from "@/pages/stream-details/details/DetailsPanel";
+import DetailsCopyModal from "@/pages/stream-details/details/components/CopyToVodModal.jsx";
+import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
+import {BasicTableRowText, DetailsSectionTitle} from "@/pages/stream-details/common/DetailsCommon.jsx";
 
 const RecordingPeriodsTable = observer(({
   records,
@@ -120,8 +121,8 @@ const RecordingPeriodsTable = observer(({
 
   return (
     <>
-      <Group mb={16} w="100%">
-        <Title order={3} c="elv-gray.9">Recording Periods</Title>
+      <Group mb={8} w="100%">
+        <DetailsSectionTitle>Recording Periods</DetailsSectionTitle>
         <Flex align="center" ml="auto">
           <Text mr={16}>
             {
@@ -131,12 +132,13 @@ const RecordingPeriodsTable = observer(({
           <Button
             disabled={selectedRecords.length === 0 || copyingToVod}
             onClick={open}
-            size="md"
+            size="sm"
           >
             {copyingToVod ? <Loader type="dots" size="xs" color="elv-gray.7" /> : "Copy to VoD"}
           </Button>
         </Flex>
       </Group>
+
       <DataTable
         mb="4rem"
         sortStatus={sortStatus}
@@ -147,12 +149,12 @@ const RecordingPeriodsTable = observer(({
             title: "Start Time",
             sortable: true,
             render: record => (
-              <Text>
+              <BasicTableRowText>
                 {
                   record.start_time ?
                     DateFormat({time: record.start_time, format: "iso"}) : "--"
                 }
-              </Text>
+              </BasicTableRowText>
             )
           },
           {
@@ -160,19 +162,19 @@ const RecordingPeriodsTable = observer(({
             title: "End Time",
             sortable: true,
             render: record => (
-              <Text>
+              <BasicTableRowText>
                 {
                   record.end_time ?
                     DateFormat({time: record.end_time, format: "iso"}) : "--"
                 }
-              </Text>
+              </BasicTableRowText>
             )
           },
           {
             accessor: "runtime",
             title: "Runtime",
             render: record => (
-              <Text>
+              <BasicTableRowText>
                 {
                   record.start_time ?
                     Runtime({
@@ -182,29 +184,29 @@ const RecordingPeriodsTable = observer(({
                       format: "hh:mm:ss"
                     }) : "--"
                 }
-              </Text>
+              </BasicTableRowText>
             )
           },
           {
             accessor: "expiration_time",
             title: "Expiration Time",
             render: record => (
-              <Text>
+              <BasicTableRowText>
                 <ExpirationTime startTime={record?.start_time_epoch_sec} retention={retention} />
-              </Text>
+              </BasicTableRowText>
             )
           },
           {
             accessor: "status",
             title: "Status",
             render: record => (
-              <Text>
+              <BasicTableRowText>
                 {RecordingStatus({
                   item: record,
                   startTime: record.start_time,
                   endTime: record.end_time
                 })}
-              </Text>
+              </BasicTableRowText>
             )
           }
         ]}

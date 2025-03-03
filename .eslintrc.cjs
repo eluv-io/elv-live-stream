@@ -75,6 +75,7 @@ module.exports = {
           "lh",
           "lro",
           "mantine",
+          "mb",
           "mbps",
           "monospace",
           "moz",

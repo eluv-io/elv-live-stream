@@ -1,10 +1,31 @@
-import {createTheme} from "@mantine/core";
+import {createTheme, rem} from "@mantine/core";
 
 const theme = createTheme({
-  fontFamily: "Helvetica Neue, Helvetica, sans-serif",
+  fontFamily: "Inter, sans-serif",
   headings: {
-    fontFamily: "Inter, sans-serif"
-    // fontFamily: "Helvetica Neue, Helvetica, sans-serif"
+    fontFamily: "Inter, sans-serif",
+    sizes: {
+      h1: {
+        fontSize: rem(22),
+        fontWeight: 600
+      },
+      h2: {
+        fontSize: rem(18),
+        fontWeight: 600,
+      },
+      h3: {
+        fontSize: rem(14),
+        fontWeight: 700
+      },
+      h4: {
+        fontSize: rem(14),
+        fontWeight: 500
+      },
+      h6: {
+        fontSize: rem(12),
+        fontWeight: 500
+      }
+    }
   },
   primaryColor: "elv-blue",
   primaryShade: 5,
@@ -41,7 +62,7 @@ const theme = createTheme({
       "#bdbdbd", // eluvio color
       "rgba(0,0,0,0.06)", // eluvio color
       "#8b8b8b",
-      "#848484",
+      "#868e96", // eluvio color
       "#6b6b6b", // eluvio color
       "#4b494e", // eluvio color
       "#3c3c3c" // eluvio color
@@ -144,9 +165,8 @@ const theme = createTheme({
           })
         },
         label: {
-          "fontWeight": "400",
           ...(params.size === "sm" && {
-            "fontSize": "calc(0.85rem * var(--mantine-scale)"
+            // "fontSize": "calc(0.85rem * var(--mantine-scale)"
           }),
           ...(params.variant === "outline" && !params.disabled && {
             "color": "var(--mantine-color-elv-black-0)"

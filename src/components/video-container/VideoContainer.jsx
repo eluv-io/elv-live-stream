@@ -7,10 +7,10 @@ import Video from "@/components/video/Video.jsx";
 import {IconX} from "@tabler/icons-react";
 import styles from "./VideoContainer.module.css";
 
-const VideoContent = observer(({allowClose, setPlay, slug}) => {
+const VideoContent = observer(({allowClose, setPlay, slug, borderRadius}) => {
   return (
     <>
-      <Box pos="absolute" inset={0} className={styles.videoContent}>
+      <Box pos="absolute" inset={0} style={{borderRadius}}>
         {
           allowClose &&
           <ActionIcon
@@ -36,13 +36,21 @@ const VideoContent = observer(({allowClose, setPlay, slug}) => {
   );
 });
 
-const PlaceholderContent = observer(({setPlay, showPreview, frameSegmentUrl, status, playable=true}) => {
+const PlaceholderContent = observer(({
+  setPlay,
+  showPreview,
+  frameSegmentUrl,
+  status,
+  playable=true,
+  borderRadius
+}) => {
   return (
     <button
       role="button"
       tabIndex={1}
       onClick={() => setPlay(true)}
       className={styles.videoPlaceholder}
+      style={{borderRadius}}
       disabled={!playable}
     >
       {
@@ -52,7 +60,7 @@ const PlaceholderContent = observer(({setPlay, showPreview, frameSegmentUrl, sta
       {
         (!showPreview || !frameSegmentUrl) ? null :
           (
-            <video src={frameSegmentUrl} className={styles.videoFrame} controls={false} onContextMenu={e => e.preventDefault()} />
+            <video src={frameSegmentUrl} className={`${styles.videoFrame} ${borderRadius === 16 ? styles.videoFrame16Radius : ""}`} controls={false} onContextMenu={e => e.preventDefault()} />
           )
       }
     </button>
@@ -64,7 +72,8 @@ export const VideoContainer = observer(({
   index,
   showPreview,
   allowClose = true,
-  playable=false
+  playable=false,
+  borderRadius=11
 }) => {
   const [play, setPlay] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
@@ -113,7 +122,7 @@ export const VideoContainer = observer(({
   }, [playable]);
 
   return (
-    <Box className={styles.videoWrapper}>
+    <Box className={styles.videoWrapper} style={{borderRadius}}>
       <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%" className={styles.aspectRatio}>
         {
           play ?
@@ -121,6 +130,7 @@ export const VideoContainer = observer(({
               setPlay={setPlay}
               slug={slug}
               allowClose={allowClose}
+              borderRadius={borderRadius}
             /> :
             <PlaceholderContent
               playable={playable}
@@ -128,6 +138,7 @@ export const VideoContainer = observer(({
               status={status}
               showPreview={showPreview}
               frameSegmentUrl={frameSegmentUrl}
+              borderRadius={borderRadius}
             />
         }
       </AspectRatio>

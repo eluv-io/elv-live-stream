@@ -1,4 +1,4 @@
-import {ActionIcon, Box, Button, Flex, Group, Text, TextInput, Title} from "@mantine/core";
+import {ActionIcon, Box, Button, Flex, Group, TextInput, Title} from "@mantine/core";
 import {useState} from "react";
 import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 import searchBarStyles from "./SearchBar.module.css";
@@ -71,7 +71,7 @@ const TitleSection = ({title, subtitle, rightSection, leftSection}) => {
           leftSection ? leftSection : null
         }
         <Group gap={20}>
-          <Title order={3} size={22} c="elv-gray.9">
+          <Title order={1} c="elv-gray.9">
             { title }
           </Title>
           {
@@ -82,7 +82,7 @@ const TitleSection = ({title, subtitle, rightSection, leftSection}) => {
       <Box display="block">
         {
           subtitle &&
-          <Text size="sm" c="elv-gray.7" mt={6}>{subtitle}</Text>
+          <Title order={6} c="elv-gray.6" mt={0}>{subtitle}</Title>
         }
       </Box>
     </Flex>
