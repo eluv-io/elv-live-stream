@@ -25,7 +25,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
 
   return (
     <Box mb="24px" maw="100%">
-      <DetailsSectionTitle>Live Recording Copies</DetailsSectionTitle>
+      <DetailsSectionTitle mb={6}>Live Recording Copies</DetailsSectionTitle>
       <DataTable
         idAccessor="_id"
         noRecordsText="No live recording copies found"

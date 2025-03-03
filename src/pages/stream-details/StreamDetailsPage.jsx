@@ -73,6 +73,7 @@ const StreamDetailsPage = observer(() => {
     {
       label: "Back",
       variant: "filled",
+      color: "elv-gray.6",
       uppercase: true,
       onClick: () => navigate(-1)
     },
@@ -123,7 +124,7 @@ const StreamDetailsPage = observer(() => {
   if([STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(streamStore.streams?.[streamSlug]?.status)) {
     actions.push({
       label: "Stop",
-      variant: "outline",
+      variant: "filled",
       onClick: () => {
         modalStore.SetModal({
           data: {

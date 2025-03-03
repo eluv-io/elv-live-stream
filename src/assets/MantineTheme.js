@@ -152,14 +152,21 @@ const theme = createTheme({
       })
     },
     Button: {
+      defaultProps: {
+        variant: "filled"
+      },
       styles: (theme, params) => ({
         root: {
-          "borderRadius": "0",
           "minWidth": "7rem",
-          "minHeight": "35px",
+          "--button-radius": rem(5),
+          "--mantine-color-elv-blue-outline": "var(--mantine-color-elv-blue-3)",
+          "--mantine-color-elv-blue-filled": "var(--mantine-color-elv-blue-3)",
+          // Change outline default design
           ...(params.variant === "outline" && {
-            "borderColor": "var(--mantine-color-elv-gray-3)",
+            "borderWidth": "2px",
             ...(params.disabled && {
+              "border": "2px solid var(--mantine-color-elv-gray-6)",
+              "opacity": "50%",
               "backgroundColor": "transparent"
             })
           })
@@ -169,7 +176,7 @@ const theme = createTheme({
             // "fontSize": "calc(0.85rem * var(--mantine-scale)"
           }),
           ...(params.variant === "outline" && !params.disabled && {
-            "color": "var(--mantine-color-elv-black-0)"
+            // "color": "var(--mantine-color-elv-black-0)"
           })
         }
       })
