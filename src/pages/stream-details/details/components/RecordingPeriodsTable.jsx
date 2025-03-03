@@ -9,8 +9,9 @@ import {DateFormat, Pluralize, SortTable} from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
 import DetailsCopyModal from "@/pages/stream-details/details/components/CopyToVodModal.jsx";
 import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
-import {BasicTableRowText, DetailsSectionTitle} from "@/pages/stream-details/common/DetailsCommon.jsx";
+import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "../../../streams/Streams.module.css";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const RecordingPeriodsTable = observer(({
   records,
@@ -123,7 +124,7 @@ const RecordingPeriodsTable = observer(({
   return (
     <>
       <Group mb={7} w="100%" align="flex-end">
-        <DetailsSectionTitle>Recording Periods</DetailsSectionTitle>
+        <SectionTitle>Recording Periods</SectionTitle>
         <Flex align="center" ml="auto">
           <Text mr={16}>
             {

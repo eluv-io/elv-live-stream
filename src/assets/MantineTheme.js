@@ -34,7 +34,7 @@ const theme = createTheme({
       "#ebf3fc", // eluvio color
       "#f8f9fd", // eluvio color
       "#a6bff6",
-      "#228be6", // eluvio color
+      "#4489df", // eluvio color
       "#3f85e3", // eluvio color
       "#336be4", // eluvio color
       "#1a71cf", // eluvio color
@@ -75,7 +75,7 @@ const theme = createTheme({
     "elv-neutral": [
       "#eeeeee", // eluvio color
       "#ecece8", // eluvio color
-      "#cdc8d3",
+      "#c2c6d7", // eluvio color
       "#b2aaba", // eluvio color
       "#a9a0b2", // eluvio color
       "#7b7580", // eluvio color
@@ -188,13 +188,6 @@ const theme = createTheme({
         }
       })
     },
-    Indicator: {
-      styles: () => ({
-        root: {
-          "lgg": rem(16)
-        }
-      })
-    },
     NavLink: {
       styles: (theme, params) => ({
         root: {
@@ -214,8 +207,23 @@ const theme = createTheme({
         root: {
           "--radio-icon-size": rem(8),
         },
+        input: {
+          "&:checked": {
+            "border": "2px solid black"
+          }
+        },
         radio: {
           "--radio-color": "var(--mantine-color-elv-blue-3)"
+        },
+        label: {
+          "fontWeight": 700,
+          "fontSize": rem(14),
+          "color": "var(--mantine-color-elv-gray-9)"
+        },
+        description: {
+          "fontWeight": 500,
+          "fontSize": rem(12),
+          "color": "var(--mantine-color-elv-gray-6)"
         }
       })
     },

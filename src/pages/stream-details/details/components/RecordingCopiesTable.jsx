@@ -9,8 +9,9 @@ import {useDisclosure} from "@mantine/hooks";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
-import {BasicTableRowText, DetailsSectionTitle} from "@/pages/stream-details/common/DetailsCommon.jsx";
+import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "../../../streams/Streams.module.css";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);
@@ -26,7 +27,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
 
   return (
     <Box mb="24px" maw="100%">
-      <DetailsSectionTitle mb={7}>Live Recording Copies</DetailsSectionTitle>
+      <SectionTitle mb={7}>Live Recording Copies</SectionTitle>
       <Box className={styles.tableWrapper}>
         <DataTable
           idAccessor="_id"

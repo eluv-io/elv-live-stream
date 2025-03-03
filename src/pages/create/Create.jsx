@@ -29,6 +29,7 @@ import PageContainer from "@/components/page-container/PageContainer.jsx";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
 import styles from "./Create.module.css";
 import {ValidateTextField} from "@/utils/validators.js";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const Permissions = observer(({form}) => {
   const permissionLevels = rootStore.client.permissionLevels;
@@ -375,10 +376,9 @@ const Create = observer(() => {
       className={(dataStore.tenantId && !rootStore.errorMessage) ? "" : styles.disabledContainer}
     >
       <form onSubmit={form.onSubmit(HandleSubmit)} className={styles.form}>
-        <Title order={3} c="elv-gray.8" mb={12}>Source</Title>
+        <SectionTitle mb={2}>Streaming Protocol</SectionTitle>
         <Radio.Group
           name="protocol"
-          label="Streaming Protocol"
           description="Select a protocol to see available pre-allocated URLs."
           mb={16}
           value={formProtocol}
@@ -389,26 +389,30 @@ const Create = observer(() => {
             form.setFieldValue("url", "");
           }}
         >
-          <Stack mt="xs">
+          <Stack mt={20} gap={18}>
             <Radio
               value="mpegts"
               label="MPEG-TS"
               description="Perfect for low-latency and interactive streams, widely used in live broadcasting applications."
+              classNames={{radio: formProtocol === "mpegts" ? styles.radioSelected : styles.radio}}
             />
             <Radio
               value="rtmp"
               label="RTMP"
               description="Reliable for stable broadcasts, ensuring high-quality video and audio transmission."
+              classNames={{radio: formProtocol === "rtmp" ? styles.radioSelected : styles.radio}}
             />
             <Radio
               value="srt"
               label="SRT"
               description="Secure and adaptive, ideal for streaming over unpredictable networks with error recovery features."
+              classNames={{radio: formProtocol === "srt" ? styles.radioSelected : styles.radio}}
             />
             <Radio
               value="custom"
               label="Custom"
               description="Enter a custom URL."
+              classNames={{radio: formProtocol === "custom" ? styles.radioSelected : styles.radio}}
             />
           </Stack>
         </Radio.Group>

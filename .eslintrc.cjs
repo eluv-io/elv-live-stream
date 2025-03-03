@@ -71,7 +71,6 @@ module.exports = {
           "iten",
           "Kbps",
           "lang",
-          "lgg",
           "lh",
           "lro",
           "mantine",

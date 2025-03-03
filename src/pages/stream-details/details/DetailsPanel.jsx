@@ -11,7 +11,7 @@ import {IconAlertCircle} from "@tabler/icons-react";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import {CopyToClipboard} from "@/utils/helpers";
 import {CopyIcon} from "@/assets/icons";
-import {DetailsSectionTitle} from "@/pages/stream-details/common/DetailsCommon.jsx";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import styles from "./DetailsPanel.module.css";
 
 export const Runtime = ({startTime, endTime, currentTimeMs, format="hh,mm,ss"}) => {
@@ -92,7 +92,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         <Grid.Col span={8}>
           <Flex direction="column" className={styles.flexGrow}>
             <Box mb="30px" maw="80%">
-              <DetailsSectionTitle mb={5}>State</DetailsSectionTitle>
+              <SectionTitle mb={5}>State</SectionTitle>
               <DetailRow
                 label="Quality"
                 value={QUALITY_TEXT[status?.quality] || "--"}
@@ -111,7 +111,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
               }
             </Box>
             <Box mb="30px" maw="70%">
-              <DetailsSectionTitle mb={5}>Recording Info</DetailsSectionTitle>
+              <SectionTitle mb={5}>Recording Info</SectionTitle>
               {
                 [
                   {
