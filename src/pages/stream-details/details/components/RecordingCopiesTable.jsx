@@ -10,6 +10,7 @@ import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import {BasicTableRowText, DetailsSectionTitle} from "@/pages/stream-details/common/DetailsCommon.jsx";
+import styles from "./RecordingCopiesTable.module.css";
 
 const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);
@@ -25,99 +26,100 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
 
   return (
     <Box mb="24px" maw="100%">
-      <DetailsSectionTitle mb={6}>Live Recording Copies</DetailsSectionTitle>
-      <DataTable
-        idAccessor="_id"
-        noRecordsText="No live recording copies found"
-        sortStatus={sortStatus}
-        onSortStatusChange={setSortStatus}
-        withTableBorder
-        highlightOnHover
-        columns={[
-          {
-            accessor: "title",
-            title: "Title",
-            sortable: true,
-            render: record => (
-              <Stack gap={0}>
-                <Title order={3} c="elv-gray.9">{record.title}</Title>
-                <Text c="dimmed" fz={12}>{record._id}</Text>
-              </Stack>
-            )
-          },
-          {
-            accessor: "startTime",
-            title: "Start Time",
-            render: record => (
-              <BasicTableRowText>
-                {
-                  record.startTime ?
-                    DateFormat({time: record.startTime, format: "sec"}) : ""
-                }
-              </BasicTableRowText>
-            )
-          },
-          {
-            accessor: "endTime",
-            title: "End Time",
-            render: record => (
-              <BasicTableRowText>
-                {
-                  record.endTime ?
-                    DateFormat({time: record.endTime, format: "sec"}) : ""
-                }
-              </BasicTableRowText>
-            )
-          },
-          {
-            accessor: "create_time",
-            title: "Date Added",
-            sortable: true,
-            render: record => (
-              <BasicTableRowText>
-                {
-                  record.create_time ?
-                    DateFormat({time: record.create_time, format: "ms"}) : ""
-                }
-              </BasicTableRowText>
-            )
-          },
-          {
-            accessor: "actions",
-            title: "",
-            render: record => (
-              <Group>
-                <ActionIcon
-                  title="Open in Fabric Browser"
-                  variant="subtle"
-                  color="elv-gray.6"
-                  onClick={() => editStore.client.SendMessage({
-                    options: {
-                      operation: "OpenLink",
-                      objectId: record._id
-                    },
-                    noResponse: true
-                  })}
-                >
-                  <IconExternalLink />
-                </ActionIcon>
-                <ActionIcon
-                  title="Delete Live Recording Copy"
-                  variant="subtle"
-                  color="elv-gray.6"
-                  onClick={() => {
-                    open();
-                    setDeleteId(record._id);
-                  }}
-                >
-                  <IconTrash />
-                </ActionIcon>
-              </Group>
-            )
-          }
-        ]}
-        records={records}
-      />
+      <DetailsSectionTitle mb={8}>Live Recording Copies</DetailsSectionTitle>
+      <Box className={styles.tableWrapper}>
+        <DataTable
+          idAccessor="_id"
+          noRecordsText="No live recording copies found"
+          sortStatus={sortStatus}
+          onSortStatusChange={setSortStatus}
+          highlightOnHover
+          columns={[
+            {
+              accessor: "title",
+              title: "Title",
+              sortable: true,
+              render: record => (
+                <Stack gap={0}>
+                  <Title order={3} c="elv-gray.9">{record.title}</Title>
+                  <Text c="dimmed" fz={12}>{record._id}</Text>
+                </Stack>
+              )
+            },
+            {
+              accessor: "startTime",
+              title: "Start Time",
+              render: record => (
+                <BasicTableRowText>
+                  {
+                    record.startTime ?
+                      DateFormat({time: record.startTime, format: "sec"}) : ""
+                  }
+                </BasicTableRowText>
+              )
+            },
+            {
+              accessor: "endTime",
+              title: "End Time",
+              render: record => (
+                <BasicTableRowText>
+                  {
+                    record.endTime ?
+                      DateFormat({time: record.endTime, format: "sec"}) : ""
+                  }
+                </BasicTableRowText>
+              )
+            },
+            {
+              accessor: "create_time",
+              title: "Date Added",
+              sortable: true,
+              render: record => (
+                <BasicTableRowText>
+                  {
+                    record.create_time ?
+                      DateFormat({time: record.create_time, format: "ms"}) : ""
+                  }
+                </BasicTableRowText>
+              )
+            },
+            {
+              accessor: "actions",
+              title: "",
+              render: record => (
+                <Group>
+                  <ActionIcon
+                    title="Open in Fabric Browser"
+                    variant="subtle"
+                    color="elv-gray.6"
+                    onClick={() => editStore.client.SendMessage({
+                      options: {
+                        operation: "OpenLink",
+                        objectId: record._id
+                      },
+                      noResponse: true
+                    })}
+                  >
+                    <IconExternalLink />
+                  </ActionIcon>
+                  <ActionIcon
+                    title="Delete Live Recording Copy"
+                    variant="subtle"
+                    color="elv-gray.6"
+                    onClick={() => {
+                      open();
+                      setDeleteId(record._id);
+                    }}
+                  >
+                    <IconTrash />
+                  </ActionIcon>
+                </Group>
+              )
+            }
+          ]}
+          records={records}
+        />
+      </Box>
       <ConfirmModal
         show={showDeleteModal}
         title="Delete Live Recording Copy"

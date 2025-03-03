@@ -4,12 +4,13 @@ import {useDisclosure} from "@mantine/hooks";
 import {streamStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import {RECORDING_STATUS_TEXT} from "@/utils/constants.js";
-import {Button, Flex, Group, Text} from "@mantine/core";
+import {Box, Button, Flex, Group, Text} from "@mantine/core";
 import {DateFormat, Pluralize, SortTable} from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
 import DetailsCopyModal from "@/pages/stream-details/details/components/CopyToVodModal.jsx";
 import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
 import {BasicTableRowText, DetailsSectionTitle} from "@/pages/stream-details/common/DetailsCommon.jsx";
+import styles from "./RecordingCopiesTable.module.css";
 
 const RecordingPeriodsTable = observer(({
   records,
@@ -121,7 +122,7 @@ const RecordingPeriodsTable = observer(({
 
   return (
     <>
-      <Group mb={6} w="100%" align="flex-end">
+      <Group mb={8} w="100%" align="flex-end">
         <DetailsSectionTitle>Recording Periods</DetailsSectionTitle>
         <Flex align="center" ml="auto">
           <Text mr={16}>
@@ -140,94 +141,95 @@ const RecordingPeriodsTable = observer(({
         </Flex>
       </Group>
 
-      <DataTable
-        mb="4rem"
-        sortStatus={sortStatus}
-        onSortStatusChange={setSortStatus}
-        columns={[
-          {
-            accessor: "start_time",
-            title: "Start Time",
-            sortable: true,
-            render: record => (
-              <BasicTableRowText>
-                {
-                  record.start_time ?
-                    DateFormat({time: record.start_time, format: "iso"}) : "--"
-                }
-              </BasicTableRowText>
-            )
-          },
-          {
-            accessor: "end_time",
-            title: "End Time",
-            sortable: true,
-            render: record => (
-              <BasicTableRowText>
-                {
-                  record.end_time ?
-                    DateFormat({time: record.end_time, format: "iso"}) : "--"
-                }
-              </BasicTableRowText>
-            )
-          },
-          {
-            accessor: "runtime",
-            title: "Runtime",
-            render: record => (
-              <BasicTableRowText>
-                {
-                  record.start_time ?
-                    Runtime({
-                      startTime: new Date(record.start_time).getTime(),
-                      endTime: new Date(record.end_time).getTime(),
-                      currentTimeMs,
-                      format: "hh:mm:ss"
-                    }) : "--"
-                }
-              </BasicTableRowText>
-            )
-          },
-          {
-            accessor: "expiration_time",
-            title: "Expiration Time",
-            render: record => (
-              <BasicTableRowText>
-                <ExpirationTime startTime={record?.start_time_epoch_sec} retention={retention} />
-              </BasicTableRowText>
-            )
-          },
-          {
-            accessor: "status",
-            title: "Status",
-            render: record => (
-              <BasicTableRowText>
-                {RecordingStatus({
-                  item: record,
-                  startTime: record.start_time,
-                  endTime: record.end_time
-                })}
-              </BasicTableRowText>
-            )
-          }
-        ]}
-        minHeight={!records || records.length === 0 ? 150 : 75}
-        noRecordsText="No recording periods found"
-        records={records}
-        fetching={!records}
-        selectedRecords={selectedRecords}
-        onSelectedRecordsChange={setSelectedRecords}
-        isRecordSelectable={(record) => (
-          RecordingStatus({
-            item: record,
-            text: false,
-            startTime: record.start_time,
-            endTime: record.end_time
-          }) === "AVAILABLE"
-        )}
-        withTableBorder
-        highlightOnHover
-      />
+      <Box className={styles.tableWrapper}>
+        <DataTable
+          mb="4rem"
+          sortStatus={sortStatus}
+          onSortStatusChange={setSortStatus}
+          columns={[
+            {
+              accessor: "start_time",
+              title: "Start Time",
+              sortable: true,
+              render: record => (
+                <BasicTableRowText>
+                  {
+                    record.start_time ?
+                      DateFormat({time: record.start_time, format: "iso"}) : "--"
+                  }
+                </BasicTableRowText>
+              )
+            },
+            {
+              accessor: "end_time",
+              title: "End Time",
+              sortable: true,
+              render: record => (
+                <BasicTableRowText>
+                  {
+                    record.end_time ?
+                      DateFormat({time: record.end_time, format: "iso"}) : "--"
+                  }
+                </BasicTableRowText>
+              )
+            },
+            {
+              accessor: "runtime",
+              title: "Runtime",
+              render: record => (
+                <BasicTableRowText>
+                  {
+                    record.start_time ?
+                      Runtime({
+                        startTime: new Date(record.start_time).getTime(),
+                        endTime: new Date(record.end_time).getTime(),
+                        currentTimeMs,
+                        format: "hh:mm:ss"
+                      }) : "--"
+                  }
+                </BasicTableRowText>
+              )
+            },
+            {
+              accessor: "expiration_time",
+              title: "Expiration Time",
+              render: record => (
+                <BasicTableRowText>
+                  <ExpirationTime startTime={record?.start_time_epoch_sec} retention={retention} />
+                </BasicTableRowText>
+              )
+            },
+            {
+              accessor: "status",
+              title: "Status",
+              render: record => (
+                <BasicTableRowText>
+                  {RecordingStatus({
+                    item: record,
+                    startTime: record.start_time,
+                    endTime: record.end_time
+                  })}
+                </BasicTableRowText>
+              )
+            }
+          ]}
+          minHeight={!records || records.length === 0 ? 150 : 75}
+          noRecordsText="No recording periods found"
+          records={records}
+          fetching={!records}
+          selectedRecords={selectedRecords}
+          onSelectedRecordsChange={setSelectedRecords}
+          isRecordSelectable={(record) => (
+            RecordingStatus({
+              item: record,
+              text: false,
+              startTime: record.start_time,
+              endTime: record.end_time
+            }) === "AVAILABLE"
+          )}
+          highlightOnHover
+        />
+      </Box>
       <DetailsCopyModal
         show={showCopyModal}
         close={() => {

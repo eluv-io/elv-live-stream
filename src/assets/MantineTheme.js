@@ -57,7 +57,7 @@ const theme = createTheme({
     ],
     "elv-gray": [
       "#f5f5f5",
-      "#f0f0f0",
+      "#e3e3e3", // eluvio color
       "#d7d7d7", // eluvio color
       "#bdbdbd", // eluvio color
       "rgba(0,0,0,0.06)", // eluvio color
@@ -140,7 +140,7 @@ const theme = createTheme({
         root: {
           "textDecoration": "underline",
           "fontWeight": "700",
-          "fontSize": "0.75rem"
+          "fontSize": rem(12)
         }
       })
     },
@@ -170,14 +170,6 @@ const theme = createTheme({
               "backgroundColor": "transparent"
             })
           })
-        },
-        label: {
-          ...(params.size === "sm" && {
-            // "fontSize": "calc(0.85rem * var(--mantine-scale)"
-          }),
-          ...(params.variant === "outline" && !params.disabled && {
-            // "color": "var(--mantine-color-elv-black-0)"
-          })
         }
       })
     },
@@ -185,28 +177,28 @@ const theme = createTheme({
       styles: () => ({
         input: {
           "--checkbox-color": "var(--mantine-color-elv-blue-3)",
-          "borderRadius": "0"
+          "borderRadius": "2.2px"
         }
       })
     },
     Group: {
       styles: () => ({
         root: {
-          "--mantine-spacing-xxs": "0.3125rem"
+          "--mantine-spacing-xxs": rem(5)
         }
       })
     },
     Modal: {
       styles: () => ({
         title: {
-          "fontSize": "1.25rem"
+          "fontSize": rem(20)
         }
       })
     },
     Indicator: {
       styles: () => ({
         root: {
-          "lgg": "16px"
+          "lgg": rem(16)
         }
       })
     },
@@ -227,7 +219,7 @@ const theme = createTheme({
     Radio: {
       styles: () => ({
         root: {
-          "--radio-icon-size": "0.5rem",
+          "--radio-icon-size": rem(8),
         },
         radio: {
           "--radio-color": "var(--mantine-color-elv-blue-3)"
