@@ -470,18 +470,21 @@ const Create = observer(() => {
           <TextInput
             label="Name"
             name="name"
+            placeholder="Enter stream name"
             withAsterisk
             {...form.getInputProps("name")}
           />
           <TextInput
             label="Display Title"
             name="displayTitle"
+            placeholder="Enter a title"
             {...form.getInputProps("displayTitle")}
           />
         </SimpleGrid>
         <TextInput
           label="Description"
           name="description"
+          placeholder="Enter a description"
           description="Enter a description to provide more details and context."
           mb={29}
           {...form.getInputProps("description")}
