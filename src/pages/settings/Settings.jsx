@@ -16,6 +16,9 @@ const Settings = observer(() => {
   const [profileFormData, setProfileFormData] = useState(({default: JSON.stringify({}, null, 2), custom: []}));
   // For displaying values while user potentially edits name
   const [customProfileNames, setCustomProfileNames] = useState([]);
+  // For tracking profiles that haven't been saved
+  const [draftItems, setDraftItems] = useState({});
+
   const [deleteIndex, setDeleteIndex] = useState(-1);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -70,6 +73,11 @@ const Settings = observer(() => {
       }, null, 2)
     );
 
+    // Add draft item
+    const updatedDraftItems = Object.assign({}, draftItems);
+    updatedDraftItems[updatedCustomItems.length - 1] = true;
+
+    setDraftItems(updatedDraftItems);
     setProfileFormData({
       ...profileFormData,
       custom: updatedCustomItems
@@ -88,10 +96,13 @@ const Settings = observer(() => {
         custom: updatedCustomItems
       };
 
-      await editStore.SaveLadderProfiles({
-        profileData: newData
-      });
+      if(!draftItems[index]) {
+        await editStore.SaveLadderProfiles({
+          profileData: newData
+        });
+      }
 
+      setProfileFormData(newData);
       setCustomProfileNames(updatedCustomItems.map(item => JSON.parse(item).name));
 
       notifications.show({
@@ -133,6 +144,7 @@ const Settings = observer(() => {
       });
     } finally {
       setSaving(false);
+      setDraftItems({});
     }
   };
 
