@@ -226,7 +226,6 @@ const Monitor = observer(() => {
   return (
     <PageContainer
       title="Monitor"
-      mb={16}
     >
       <Flex w="100%" align="center" mb={16}>
         <TextInput

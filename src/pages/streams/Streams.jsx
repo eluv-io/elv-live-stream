@@ -21,7 +21,7 @@ import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import {DataTable} from "mantine-datatable";
 import {notifications} from "@mantine/notifications";
-import {ActionIcon, Group, TextInput, Stack, Title, Box} from "@mantine/core";
+import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button} from "@mantine/core";
 
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -51,23 +51,26 @@ const Streams = observer(() => {
   return (
     <PageContainer
       title="Streams"
-      actions={[
-        {
-          label: "Refresh",
-          variant: "outline",
-          onClick: DebouncedRefresh
-        }
-      ]}
     >
-      <TextInput
-        maw={400}
-        classNames={{input: styles.searchBar}}
-        placeholder="Search by object name or ID"
-        leftSection={<MagnifyingGlassIcon width={15} height={15} />}
-        mb={14}
-        value={filter}
-        onChange={event => setFilter(event.target.value)}
-      />
+      <Flex w="100%" align="center" mb={16}>
+        <TextInput
+          flex={2}
+          maw={400}
+          classNames={{input: styles.searchBar}}
+          placeholder="Search by object name or ID"
+          leftSection={<MagnifyingGlassIcon width={15} height={15} />}
+          mb={14}
+          value={filter}
+          onChange={event => setFilter(event.target.value)}
+        />
+        <Button
+          onClick={DebouncedRefresh}
+          variant="outline"
+          ml="auto"
+        >
+          Refresh
+        </Button>
+      </Flex>
 
       <Box className={styles.tableWrapper}>
         <DataTable
