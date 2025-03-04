@@ -244,6 +244,13 @@ const theme = createTheme({
         }
       })
     },
+    Textarea: {
+      styles: () => ({
+        input: {
+          "--input-color": "var(--mantine-color-elv-gray-9)"
+        }
+      })
+    },
     TextInput: {
       styles: () => ({
         input: {

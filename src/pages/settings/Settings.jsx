@@ -1,4 +1,4 @@
-import {Box, Button, Group, Loader, Title} from "@mantine/core";
+import {Box, Button, Group, Loader, Text} from "@mantine/core";
 import TextEditorBox from "@/components/text-editor-box/TextEditorBox.jsx";
 import {useEffect, useState} from "react";
 import {DefaultLadderProfile} from "@/utils/profiles.js";
@@ -10,6 +10,7 @@ import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Settings.module.css";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const Settings = observer(() => {
   const [profileFormData, setProfileFormData] = useState(({default: JSON.stringify({}, null, 2), custom: []}));
@@ -141,22 +142,26 @@ const Settings = observer(() => {
     <PageContainer
       title="Settings"
     >
-      <Box>
-        <Group mb={8} mt={16}>
-          <Title order={4} c="elv-gray.9" size={20}>Playout Profiles</Title>
+      <Box mt={22}>
+        <Group mb={12} gap={16}>
+          <SectionTitle>Playout Profiles</SectionTitle>
           <Button
-            classNames={{root: styles.root}}
-            leftSection={<PlusIcon />}
+            classNames={{root: styles.root, section: styles.buttonSection}}
+            leftSection={<PlusIcon width={18} height={18} />}
             variant="white"
             onClick={HandleAddCustom}
           >
-            Add Custom Profile
+            <Text fw={500} fz={14} c="elv-blue.2">
+              Add Custom Profile
+            </Text>
           </Button>
         </Group>
+
         <TextEditorBox
           columns={[
-            {id: "Default", header: "Profile", value: "Default"}
+            {id: "Default", value: "Default"}
           ]}
+          header="Profile"
           hideDelete
           defaultShowEditor
           editorValue={profileFormData.default || {}}
@@ -167,8 +172,9 @@ const Settings = observer(() => {
             <TextEditorBox
               key={`custom-${customProfileNames[index]}`}
               columns={[
-                {id: customProfileNames[index], header: "Profile", value: customProfileNames[index]}
+                {id: customProfileNames[index], value: customProfileNames[index]}
               ]}
+              header="Profile"
               editorValue={profile}
               HandleEditorValueChange={(args) => HandleChange({...args, index})}
               HandleDelete={() => {
@@ -184,6 +190,7 @@ const Settings = observer(() => {
         onClick={HandleSave}
         disabled={saving}
         loading={saving}
+        mt={5}
       >
         Save
       </Button>

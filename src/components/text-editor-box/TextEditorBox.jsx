@@ -1,4 +1,4 @@
-import {ActionIcon, Box, Flex, Group, Paper, Text, Textarea} from "@mantine/core";
+import {ActionIcon, Box, Flex, Group, Paper, Textarea, Title} from "@mantine/core";
 import {useState} from "react";
 import {EditIcon, TrashIcon} from "@/assets/icons/index.js";
 
@@ -16,12 +16,14 @@ const EditorField = ({
       autosize
       minRows={5}
       maxRows={15}
+      color="elv-gray.9"
     />
   );
 };
 
 const TextEditorBox = ({
   columns=[],
+  header,
   editorValue,
   defaultShowEditor=false,
   hideDelete=false,
@@ -30,19 +32,20 @@ const TextEditorBox = ({
 }) => {
   const [showEditor, setShowEditor] = useState(defaultShowEditor);
   const width = 700;
-  const marginBottom = 16;
 
   return (
     <Box>
-      <Group w="100%" mb={marginBottom}>
+      <Title order={3} color="elv-gray.9" mb={4}>{ header }</Title>
+      <Group w="100%" mb={7}>
         <Box w={width}>
           <Paper shadow="none" withBorder p="10px 16px">
             <Group>
               {
                 columns.map(column => (
                   <Flex key={column.id} direction="column" mr={48} maw="80%">
-                    <Text c="dimmed" size="xs">{ column.header }</Text>
-                    <Text lh={1.125} truncate="end">{ column.value }</Text>
+                    <Title order={4} lh={1.125} lineClamp={1} c="elv-gray.9">
+                      { column.value }
+                    </Title>
                   </Flex>
                 ))
               }
@@ -50,7 +53,7 @@ const TextEditorBox = ({
                 <ActionIcon
                   size={20}
                   variant="transparent"
-                  color="gray"
+                  color="elv-neutral.4"
                   onClick={() => setShowEditor(prevState => !prevState)}
                 >
                   <EditIcon />
@@ -64,7 +67,7 @@ const TextEditorBox = ({
           <ActionIcon
             size={20}
             variant="transparent"
-            color="gray"
+            color="elv-neutral.4"
             onClick={HandleDelete}
           >
             <TrashIcon />
@@ -72,7 +75,7 @@ const TextEditorBox = ({
         }
       </Group>
 
-      <Box w={width} mb={marginBottom}>
+      <Box w={width} mb={12}>
         <EditorField
           show={showEditor}
           editorValue={editorValue}

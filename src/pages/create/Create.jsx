@@ -395,25 +395,21 @@ const Create = observer(() => {
               value="mpegts"
               label="MPEG-TS"
               description="Perfect for low-latency and interactive streams, widely used in live broadcasting applications."
-              classNames={{radio: formProtocol === "mpegts" ? styles.radioSelected : styles.radio}}
             />
             <Radio
               value="rtmp"
               label="RTMP"
               description="Reliable for stable broadcasts, ensuring high-quality video and audio transmission."
-              classNames={{radio: formProtocol === "rtmp" ? styles.radioSelected : styles.radio}}
             />
             <Radio
               value="srt"
               label="SRT"
               description="Secure and adaptive, ideal for streaming over unpredictable networks with error recovery features."
-              classNames={{radio: formProtocol === "srt" ? styles.radioSelected : styles.radio}}
             />
             <Radio
               value="custom"
               label="Custom"
               description="Enter a custom URL."
-              classNames={{radio: formProtocol === "custom" ? styles.radioSelected : styles.radio}}
             />
           </Stack>
         </Radio.Group>
@@ -426,7 +422,6 @@ const Create = observer(() => {
                   label="URL"
                   name="customUrl"
                   placeholder="Enter a custom URL"
-                  classNames={{input: styles.textInput}}
                   disabled={objectData !== null}
                   value={formCustomUrl}
                   onChange={event => {

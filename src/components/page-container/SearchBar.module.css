@@ -14,10 +14,6 @@
 
   border-radius: 100px;
   padding-inline-start: 44px;
-
-  &::placeholder {
-    color: var(--mantine-color-elv-neutral-3);
-  }
 }
 
 .section {

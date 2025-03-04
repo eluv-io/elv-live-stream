@@ -6,10 +6,4 @@
 
 .textInput {
   border-radius: 8px !important;
-
-  &::placeholder {
-    color: var(--mantine-color-elv-gray-6);
-    font-size: 14px;
-    font-weight: 500;
-  }
 }

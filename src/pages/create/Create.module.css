@@ -41,21 +41,3 @@
     width: 1000px;
   }
 }
-
-.radio {
-  outline: 2px solid var(--mantine-color-elv-neutral-2);
-}
-
-.radioSelected {
-  outline: 2px solid var(--mantine-color-elv-blue-3);
-}
-
-.textInput {
-  color: var(--mantine-color-elv-gray-9);
-
-  &::placeholder {
-    color: var(--mantine-color-elv-gray-6);
-    font-size: 14px;
-    font-weight: 500;
-  }
-}
