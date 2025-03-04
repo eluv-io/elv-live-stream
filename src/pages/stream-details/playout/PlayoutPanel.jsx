@@ -14,7 +14,6 @@ import {
   SimpleGrid,
   Text,
   Textarea,
-  Title,
   Tooltip
 } from "@mantine/core";
 import {notifications} from "@mantine/notifications";
@@ -24,6 +23,7 @@ import {dataStore, editStore, streamStore} from "@/stores";
 import {ENCRYPTION_OPTIONS} from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {CircleInfoIcon} from "@/assets/icons/index.js";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const PlayoutPanel = observer(({
   status,
@@ -129,8 +129,8 @@ const PlayoutPanel = observer(({
 
   return (
     <Box maw="80%">
-      <Title order={3} c="elv-gray.9" mb={8}>Playout</Title>
-      <SimpleGrid cols={2} spacing={150}>
+      <SectionTitle mb={12}>Playout</SectionTitle>
+      <SimpleGrid cols={2} spacing={150} mb={29}>
         <DisabledTooltipWrapper
           tooltipLabel="Playout Ladder configuration is disabled when the stream is running"
           disabled={[STATUS_MAP.RUNNING].includes(status)}
@@ -185,17 +185,17 @@ const PlayoutPanel = observer(({
         </DisabledTooltipWrapper>
       </SimpleGrid>
 
-      <Divider mb={16} mt={16} />
+      <Divider mb={29} />
 
       <DisabledTooltipWrapper tooltipLabel="DVR configuration is disabled while the stream is running" disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}>
-        <Title order={3} c="elv-gray.9" mb={8}>DVR</Title>
+        <SectionTitle mb={12}>DVR</SectionTitle>
 
         <Checkbox
           label="Enable DVR"
           checked={dvrEnabled}
           description="Users can seek back in the live stream."
           onChange={(event) => setDvrEnabled(event.target.checked)}
-          mb={16}
+          mb={12}
         />
         {
           dvrEnabled &&
@@ -230,10 +230,10 @@ const PlayoutPanel = observer(({
         }
       </DisabledTooltipWrapper>
 
-      <Divider mb={16} mt={16} />
+      <Divider mb={29} mt={29} />
 
-      <Box mb={24}>
-        <Title order={3} c="elv-gray.9" mb={8}>Visible Watermark</Title>
+      <Box mb={25}>
+        <SectionTitle mb={12}>Visible Watermark</SectionTitle>
 
         <SimpleGrid cols={2} spacing={150}>
           <Select
