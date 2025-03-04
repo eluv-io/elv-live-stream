@@ -164,9 +164,8 @@ const theme = createTheme({
           "--mantine-color-elv-blue-filled": "var(--mantine-color-elv-blue-3)",
           // Change outline default design
           ...(params.variant === "outline" && {
-            "borderWidth": "2px",
             ...(params.disabled && {
-              "border": "2px solid var(--mantine-color-elv-gray-6)",
+              "border": "1px solid var(--mantine-color-elv-gray-6)",
               "opacity": "50%",
               "backgroundColor": "transparent"
             })
