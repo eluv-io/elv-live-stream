@@ -73,7 +73,6 @@ const Permissions = observer(({form}) => {
           }
         ))
       }
-      mb={16}
       {...form.getInputProps("permission")}
     />
   );
@@ -92,15 +91,14 @@ const AdvancedSettingsPanel = observer(({
   loading
 }) => {
   return (
-    <>
-    <SimpleGrid cols={2} spacing={150}>
+    <Box mt={15}>
+    <SimpleGrid cols={2} spacing={150} mb={20}>
       <Select
         label="Retention"
         description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
         name="retention"
         data={RETENTION_OPTIONS}
         placeholder="Select Retention"
-        mb={16}
         {...form.getInputProps("retention")}
       />
 
@@ -135,12 +133,11 @@ const AdvancedSettingsPanel = observer(({
         name="encryption"
         data={ENCRYPTION_OPTIONS}
         placeholder="Select Encryption"
-        mb={16}
         {...form.getInputProps("encryption")}
       />
     </SimpleGrid>
 
-      <Box mb={16}>
+      <Box mb={29}>
         <Select
           key={ladderProfilesData}
           label="Playout Ladder"
@@ -155,43 +152,47 @@ const AdvancedSettingsPanel = observer(({
         />
       </Box>
 
+      <Divider mb={29} />
+
       {
         !objectProbed &&
         <Alert
           variant="light"
           bg="elv-blue.0"
           mt={24}
-          mb={24}
-          icon={<IconAlertCircle/>}
+          mb={29}
+          icon={<IconAlertCircle height={20} width={20} color="var(--mantine-color-elv-blue-5)" />}
           classNames={{
             wrapper: styles.alertRoot
           }}
         >
           <Flex justify="space-between" align="center">
-            <Text>
-              To apply audio stream settings, object must be probed first.
-            </Text>
+            <Title order={3} fw={500} c="elv-gray.9">
+              To apply audio stream settings, the object must be probed first.
+            </Title>
             <Button
-              variant="subtle"
+              variant="transparent"
               onClick={() => setShowProbeConfirmation(true)}
               disabled={
                 objectData !== null ||
                 DisableProbeButton()
               }
             >
-              Probe
+              <Text fw={500} size={14} c="elv-blue.2">
+                Probe
+              </Text>
             </Button>
           </Flex>
         </Alert>
       }
-      <Title order={3} c="elv-gray.8">Audio</Title>
+      <SectionTitle mb={16}>Audio</SectionTitle>
       <AudioTracksTable
         records={audioTracks}
         audioFormData={audioFormData}
         setAudioFormData={setAudioFormData}
         disabled={!objectProbed}
       />
-    </>
+    </Box>
   );
 });
 
@@ -380,7 +381,7 @@ const Create = observer(() => {
         <Radio.Group
           name="protocol"
           description="Select a protocol to see available pre-allocated URLs."
-          mb={16}
+          mb={29}
           value={formProtocol}
           onChange={(value) => {
             setFormProtocol(value);
@@ -416,64 +417,65 @@ const Create = observer(() => {
             />
           </Stack>
         </Radio.Group>
-        {
-          formProtocol === "custom" ?
-            (
-              <TextInput
-                label="URL"
-                name="customUrl"
-                disabled={objectData !== null}
-                value={formCustomUrl}
-                onChange={event => {
-                  const {value} = event.target;
-                  setFormCustomUrl(value);
-                  form.setFieldValue("customUrl", value);
-                }}
-                error={formProtocol === "custom" ? form.errors.customUrl : null}
-                withAsterisk={formProtocol === "custom"}
-                mb={16}
-              />
-            ) :
-            (
-              <Select
-                key={formProtocol}
-                label="URL"
-                name="url"
-                disabled={objectData !== null}
-                data={urlOptions.map(url => (
-                  {
-                    label: url,
-                    value: url
-                  }
-                ))}
-                placeholder="Select URL"
-                value={formUrl}
-                onChange={(value) => {
-                  setFormUrl(value);
-                  form.setFieldValue("url", value);
-                }}
-                error={formProtocol !== "custom" ? form.errors.url : null}
-                withAsterisk={formProtocol !== "custom"}
-                mb={16}
-              />
-            )
-        }
 
-        <Divider mb={12} />
-        <Title order={4} size={20} fw={600} c="elv-gray.9" mb={12}>General</Title>
+        <SimpleGrid cols={2} spacing={150} mb={29}>
+          {
+            formProtocol === "custom" ?
+              (
+                <TextInput
+                  label="URL"
+                  name="customUrl"
+                  placeholder="Enter a custom URL"
+                  classNames={{input: styles.textInput}}
+                  disabled={objectData !== null}
+                  value={formCustomUrl}
+                  onChange={event => {
+                    const {value} = event.target;
+                    setFormCustomUrl(value);
+                    form.setFieldValue("customUrl", value);
+                  }}
+                  error={formProtocol === "custom" ? form.errors.customUrl : null}
+                  withAsterisk={formProtocol === "custom"}
+                />
+              ) :
+              (
+                <Select
+                  key={formProtocol}
+                  label="URL"
+                  name="url"
+                  disabled={objectData !== null}
+                  data={urlOptions.map(url => (
+                    {
+                      label: url,
+                      value: url
+                    }
+                  ))}
+                  placeholder="Select URL"
+                  value={formUrl}
+                  onChange={(value) => {
+                    setFormUrl(value);
+                    form.setFieldValue("url", value);
+                  }}
+                  error={formProtocol !== "custom" ? form.errors.url : null}
+                  withAsterisk={formProtocol !== "custom"}
+                />
+              )
+          }
+        </SimpleGrid>
 
-        <SimpleGrid cols={2} spacing={150}>
+        <Divider mb={29} />
+        <SectionTitle mb={10}>General</SectionTitle>
+
+        <SimpleGrid cols={2} spacing={150} mb={18}>
           <TextInput
             label="Name"
             name="name"
-            mb={16}
             withAsterisk
             {...form.getInputProps("name")}
           />
           <TextInput
             label="Display Title"
             name="displayTitle"
-            mb={16}
             {...form.getInputProps("displayTitle")}
           />
         </SimpleGrid>
@@ -481,14 +483,14 @@ const Create = observer(() => {
           label="Description"
           name="description"
           description="Enter a description to provide more details and context."
-          mb={16}
+          mb={29}
           {...form.getInputProps("description")}
         />
 
-        <Divider mb={12} />
-        <Title order={4} size={20} fw={600} c="elv-gray.9" mb={12}>Access</Title>
+        <Divider mb={29} />
+        <SectionTitle mb={10}>Access</SectionTitle>
 
-        <SimpleGrid cols={2} spacing={150}>
+        <SimpleGrid cols={2} spacing={150} mb={12}>
           <Select
             label="Access Group"
             name="accessGroup"
@@ -503,7 +505,6 @@ const Create = observer(() => {
               ))
             }
             placeholder="Select Access Group"
-            mb={16}
             {...form.getInputProps("accessGroup")}
           />
 
@@ -527,23 +528,28 @@ const Create = observer(() => {
             ))
           }
           placeholder="Select Library"
-          mb={16}
+          mb={29}
           {...form.getInputProps("libraryId")}
         />
+
+        <Divider mb={29} />
 
         <Accordion
           value={useAdvancedSettings}
           onChange={setUseAdvancedSettings}
-          chevron={<PlusIcon />}
+          chevron={<PlusIcon color="var(--mantine-color-elv-blue-3)" />}
           classNames={{
             item: styles.accordionItem,
             control: styles.accordionControl,
             label: styles.accordionControlLabel,
-            content: styles.accordionContent
+            content: styles.accordionContent,
+            chevron: styles.accordionChevron
         }}
         >
           <Accordion.Item value="advanced-item">
-            <Accordion.Control>Advanced</Accordion.Control>
+            <Accordion.Control>
+              <SectionTitle>Advanced</SectionTitle>
+            </Accordion.Control>
             <Accordion.Panel>
             <AdvancedSettingsPanel
               form={form}
@@ -569,7 +575,7 @@ const Create = observer(() => {
           </Accordion.Item>
         </Accordion>
 
-        <Box mt="2rem" mb="2.5rem">
+        <Box mt={25} mb="2.5rem">
           <Button disabled={isCreating} type="submit" size="sm">
             { isCreating ? "Submitting..." : "Save" }
           </Button>

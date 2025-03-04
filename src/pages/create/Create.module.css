@@ -14,17 +14,20 @@
 .accordionControl {
   width: fit-content;
   gap: 10px;
-  padding-left: 0;
+  padding: 0;
 }
 
 .accordionControlLabel {
-  font-weight: 600;
-  font-size: 20px;
-  color: var(--mantine-color-elv-gray-9);
+  padding: 0;
 }
 
 .accordionContent {
   padding-left: 0;
+}
+
+.accordionChevron {
+  width: 20px;
+  height: 20px;
 }
 
 .form {
@@ -45,4 +48,14 @@
 
 .radioSelected {
   outline: 2px solid var(--mantine-color-elv-blue-3);
+}
+
+.textInput {
+  color: var(--mantine-color-elv-gray-9);
+
+  &::placeholder {
+    color: var(--mantine-color-elv-gray-6);
+    font-size: 14px;
+    font-weight: 500;
+  }
 }

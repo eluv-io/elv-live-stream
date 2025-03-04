@@ -33,7 +33,7 @@ const theme = createTheme({
     "elv-blue": [
       "#ebf3fc", // eluvio color
       "#f8f9fd", // eluvio color
-      "#a6bff6",
+      "#228be6", // eluvio color
       "#4489df", // eluvio color
       "#3f85e3", // eluvio color
       "#336be4", // eluvio color
@@ -181,6 +181,16 @@ const theme = createTheme({
         }
       })
     },
+    InputWrapper: {
+      styles: () => ({
+        label: {
+          "fontWeight": 700,
+          "fontSize": rem(14),
+          "color": "var(--mantine-color-elv-gray-9)",
+          "marginBottom": "2px"
+        }
+      })
+    },
     Modal: {
       styles: () => ({
         title: {
@@ -230,14 +240,14 @@ const theme = createTheme({
     Select: {
       styles: () => ({
         input: {
-          "borderRadius": "0"
+          "borderRadius": rem(6)
         }
       })
     },
     TextInput: {
       styles: () => ({
         input: {
-          "borderRadius": rem(5)
+          "borderRadius": rem(6)
         }
       })
     }

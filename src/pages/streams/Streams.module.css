@@ -19,7 +19,13 @@
 .searchBar {
   margin: 0;
   font-size: 14px;
-  color: var(--mantine-color-elv-gray-6);
+  color: var(--mantine-color-elv-gray-9);
+
+  &::placeholder {
+    color: var(--mantine-color-elv-gray-6);
+    font-size: 14px;
+    font-weight: 500;
+  }
 }
 
 .tableWrapper {
