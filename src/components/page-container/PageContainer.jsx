@@ -1,5 +1,5 @@
-import {ActionIcon, Box, Button, Flex, Group, ScrollArea, TextInput, Title} from "@mantine/core";
-import {useEffect, useState} from "react";
+import {ActionIcon, Box, Button, Flex, Group, TextInput, Title} from "@mantine/core";
+import {useState} from "react";
 import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 import searchBarStyles from "./SearchBar.module.css";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
@@ -95,7 +95,6 @@ const PageContainer = ({
   subtitle,
   className,
   children,
-  width="100%",
   error,
   showSearchBar=false,
   actions=[],
@@ -104,21 +103,12 @@ const PageContainer = ({
   mb=20,
   ...rest
 }) => {
-  const [scrollbarWidth, setScrollbarWidth] = useState(0);
-
-  useEffect(() => {
-    const CalculateScrollbarWidth = () => {
-      const value = window.innerWidth - document.documentElement.clientWidth;
-      setScrollbarWidth(value);
-    };
-
-    CalculateScrollbarWidth();
-    window.addEventListener("resize", CalculateScrollbarWidth);
-
-    return () => window.removeEventListener("resize", CalculateScrollbarWidth);
-  }, []);
   return (
-    <Box pt={24} pl={46} pb={46} w={width} className={className} {...rest}>
+    <Box
+      p="24 46 46" w="calc(100vw - var(--app-shell-navbar-width))"
+      className={className}
+      {...rest}
+    >
       <AlertMessage error={error} />
       <TopActions showSearchBar={showSearchBar} actions={actions} />
       {
@@ -131,11 +121,7 @@ const PageContainer = ({
           mb={mb}
         />
       }
-      <ScrollArea type="hover">
-        <Box pr={`calc(46px - ${scrollbarWidth}px)`}>
-          { children }
-        </Box>
-      </ScrollArea>
+      { children }
     </Box>
   );
 };
