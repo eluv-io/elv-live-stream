@@ -187,7 +187,7 @@ const PlayoutPanel = observer(({
 
       <Divider mb={29} />
 
-      <DisabledTooltipWrapper tooltipLabel="DVR configuration is disabled while the stream is running" disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}>
+      <DisabledTooltipWrapper tooltipLabel="DVR configuration is disabled while the stream is running" disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}>
         <SectionTitle mb={12}>DVR</SectionTitle>
 
         <Checkbox
