@@ -20,7 +20,8 @@ const RecordingPeriodsTable = observer(({
   title,
   CopyCallback,
   currentTimeMs,
-  retention
+  retention,
+  loading
 }) => {
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [copyingToVod, setCopyingToVod] = useState(false);
@@ -147,6 +148,7 @@ const RecordingPeriodsTable = observer(({
           mb="4rem"
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
+          fetching={loading}
           columns={[
             {
               accessor: "start_time",
@@ -217,7 +219,6 @@ const RecordingPeriodsTable = observer(({
           minHeight={!records || records.length === 0 ? 150 : 75}
           noRecordsText="No recording periods found"
           records={records}
-          fetching={!records}
           selectedRecords={selectedRecords}
           onSelectedRecordsChange={setSelectedRecords}
           isRecordSelectable={(record) => (

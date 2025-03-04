@@ -13,7 +13,7 @@ import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx
 import styles from "../../../streams/Streams.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
-const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) => {
+const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loading}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "title",
@@ -35,6 +35,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback}) =>
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
           highlightOnHover
+          fetching={loading}
           columns={[
             {
               accessor: "title",

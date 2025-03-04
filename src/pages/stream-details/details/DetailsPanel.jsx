@@ -51,6 +51,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   const [status, setStatus] = useState(null);
   const [copied, setCopied] = useState(false);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const params = useParams();
   const currentTimeMs = new Date().getTime();
@@ -75,15 +76,20 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   }, [params.id]);
 
   const LoadLiveRecordingCopies = async() => {
-    let liveRecordingCopies = await streamStore.FetchLiveRecordingCopies({
-      objectId: params.id
-    });
+    try {
+      setLoading(true);
+      let liveRecordingCopies = await streamStore.FetchLiveRecordingCopies({
+        objectId: params.id
+      });
 
-    Object.keys(liveRecordingCopies || {}).forEach(id => (
-      liveRecordingCopies[id]["_id"] = id
-    ));
+      Object.keys(liveRecordingCopies || {}).forEach(id => (
+        liveRecordingCopies[id]["_id"] = id
+      ));
 
-    setLiveRecordingCopies(liveRecordingCopies || {});
+      setLiveRecordingCopies(liveRecordingCopies || {});
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -198,6 +204,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       <RecordingCopiesTable
         liveRecordingCopies={liveRecordingCopies}
         DeleteCallback={LoadLiveRecordingCopies}
+        loading={loading}
       />
 
       <RecordingPeriodsTable
@@ -209,6 +216,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         currentTimeMs={currentTimeMs}
         retention={currentRetention}
         status={status}
+        loading={loading}
       />
     </>
   );
