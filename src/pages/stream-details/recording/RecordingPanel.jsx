@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
 import {dataStore, editStore, streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Box, Button, Divider, Select, SimpleGrid, Title} from "@mantine/core";
+import {Box, Button, Divider, Select, SimpleGrid} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
@@ -11,6 +11,7 @@ import {
   RETENTION_OPTIONS, STATUS_MAP
 } from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const RecordingPanel = observer(({
   title,
@@ -89,8 +90,8 @@ const RecordingPanel = observer(({
           disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           tooltipLabel="Retention Period configuration is disabled when the stream is running"
         >
-          <Title order={3} c="elv-gray.9" mb={8}>Retention</Title>
-          <SimpleGrid cols={2} spacing={150}>
+          <SectionTitle mb={8}>Retention</SectionTitle>
+          <SimpleGrid cols={2} spacing={150} mb={29}>
             <Select
               description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
               name="retention"
@@ -98,19 +99,18 @@ const RecordingPanel = observer(({
               placeholder="Select Time Duration"
               value={retention}
               onChange={value => setRetention(value)}
-              mb={16}
             />
           </SimpleGrid>
         </DisabledTooltipWrapper>
 
-        <Divider mb={16} />
+        <Divider mb={29} />
 
         <DisabledTooltipWrapper
           disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           tooltipLabel="Timeout configuration is disabled when the stream is running"
         >
-          <Title order={3} c="elv-gray.9" mb={8}>Timeout</Title>
-          <SimpleGrid cols={2} spacing={150}>
+          <SectionTitle mb={8}>Timeout</SectionTitle>
+          <SimpleGrid cols={2} spacing={150} mb={29}>
             <Select
               label="Connection Timeout"
               description="The stream will remain active and wait for an input feed for this duration."
@@ -119,7 +119,6 @@ const RecordingPanel = observer(({
               placeholder="Select Connection Timeout"
               value={connectionTimeout}
               onChange={(value) => setConnectionTimeout(value)}
-              mb={16}
             />
             <Select
               label="Reconnection Timeout"
@@ -129,18 +128,17 @@ const RecordingPanel = observer(({
               placeholder="Select Reconnection Timeout"
               value={reconnectionTimeout}
               onChange={(event) => setReconnectionTimeout(event.target.value)}
-              mb={16}
             />
           </SimpleGrid>
         </DisabledTooltipWrapper>
 
-        <Divider mb={16} />
+        <Divider mb={29} />
 
         <DisabledTooltipWrapper
           disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           tooltipLabel="Audio Track configuration is disabled when the stream is running"
         >
-          <Title order={3} c="elv-gray.9" mb={8}>Audio Tracks</Title>
+          <SectionTitle mb={16}>Audio</SectionTitle>
           <AudioTracksTable
             records={audioTracks}
             audioFormData={audioFormData}
@@ -148,7 +146,7 @@ const RecordingPanel = observer(({
           />
         </DisabledTooltipWrapper>
 
-        <Box mt="24px">
+        <Box mt={25}>
           <Button
             type="submit"
             loading={applyingChanges}

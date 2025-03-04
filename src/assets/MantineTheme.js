@@ -70,7 +70,8 @@ const theme = createTheme({
     "elv-black": [
       "#22252a", // eluvio color
       "#202020", // eluvio color
-      "#1e1e1e" // eluvio color
+      "#1e1e1e", // eluvio color
+      "#212529" // eluvio color
     ],
     "elv-neutral": [
       "#eeeeee", // eluvio color
@@ -176,7 +177,7 @@ const theme = createTheme({
     Checkbox: {
       styles: () => ({
         input: {
-          "--checkbox-color": "var(--mantine-color-elv-blue-3)",
+          "--checkbox-color": "var(--mantine-color-elv-blue-2)",
           "borderRadius": "2.2px"
         }
       })
@@ -247,6 +248,7 @@ const theme = createTheme({
     TextInput: {
       styles: () => ({
         input: {
+          "--input-color": "var(--mantine-color-elv-gray-9)",
           "borderRadius": rem(6)
         }
       })
