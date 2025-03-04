@@ -1,10 +1,11 @@
 import {observer} from "mobx-react-lite";
-import {Box, Button, Divider, Flex, Select, SimpleGrid, Text, TextInput, Title, Tooltip} from "@mantine/core";
+import {Box, Button, Divider, Flex, Select, SimpleGrid, Text, TextInput, Tooltip} from "@mantine/core";
 import {useEffect, useState} from "react";
 import {dataStore, editStore, rootStore, streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import {CircleInfoIcon} from "@/assets/icons/index.js";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const GeneralPanel = observer(({slug}) => {
   const [formData, setFormData] = useState({
@@ -111,39 +112,40 @@ const GeneralPanel = observer(({slug}) => {
   return (
     <>
       <Flex direction="column" style={{flexGrow: "1"}}>
-        <Title order={3} c="elv-gray.9" mb={8}>General</Title>
+        <SectionTitle mb={12}>General</SectionTitle>
         <form onSubmit={HandleSubmit}>
           <Box mb="24px" maw="80%">
-            <SimpleGrid cols={2} spacing={150}>
+            <SimpleGrid cols={2} spacing={150} mb={18}>
               <TextInput
                 label="Name"
                 name="name"
+                placeholder="Enter stream name"
                 required={true}
                 value={formData.name}
                 onChange={HandleFormChange}
-                mb={16}
               />
               <TextInput
                 label="Display Title"
                 name="displayTitle"
+                placeholder="Enter a title"
                 value={formData.displayTitle}
                 onChange={HandleFormChange}
-                mb={16}
               />
             </SimpleGrid>
             <TextInput
               label="Description"
               name="description"
+              placeholder="Enter a description"
               description="Enter a description to provide more details and context."
               value={formData.description}
               onChange={HandleFormChange}
-              mb={16}
+              mb={29}
             />
 
-            <Divider mb={16} />
+            <Divider mb={29} />
 
-            <Title order={3} c="elv-gray.9" mb={8}>Access</Title>
-            <SimpleGrid cols={2} spacing={150}>
+            <SectionTitle mb={12}>Access</SectionTitle>
+            <SimpleGrid cols={2} spacing={150} mb={25}>
               <Select
                 label="Access Group"
                 description="Access Group responsible for managing your live stream object."
@@ -162,7 +164,6 @@ const GeneralPanel = observer(({slug}) => {
                     target: {name: "accessGroup", value}
                   }
                 )}
-                mb={16}
               />
               <Select
                 label={
@@ -206,7 +207,6 @@ const GeneralPanel = observer(({slug}) => {
                     }
                   ))
                 }
-                mb={16}
               />
             </SimpleGrid>
           </Box>

@@ -143,9 +143,8 @@ const RecordingPeriodsTable = observer(({
         </Flex>
       </Group>
 
-      <Box className={styles.tableWrapper}>
+      <Box className={styles.tableWrapper} mb="4rem">
         <DataTable
-          mb="4rem"
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
           fetching={loading}
@@ -216,7 +215,7 @@ const RecordingPeriodsTable = observer(({
               )
             }
           ]}
-          minHeight={!records || records.length === 0 ? 150 : 75}
+          minHeight={!records || records.length === 0 ? 100 : 75}
           noRecordsText="No recording periods found"
           records={records}
           selectedRecords={selectedRecords}
