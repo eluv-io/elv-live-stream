@@ -1,6 +1,6 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput} from "@mantine/core";
+import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 
 import {dataStore, editStore, modalStore, streamStore} from "@/stores";
@@ -151,16 +151,16 @@ const OverflowMenu = observer(({stream}) => {
 
 const GridItem = observer(({stream, index}) => {
   return (
-    <Flex direction="column">
+    <Flex direction="column" w="100%">
       <VideoContainer
         index={index}
         slug={stream.slug}
         showPreview={streamStore.showMonitorPreviews}
         playable={stream.status === "running"}
       />
-      <Flex flex={1} p="0.5rem 0 0.5rem">
-        <Flex direction="column" justify="space-between" w="100%" gap={0}>
-          <Group mb={5} gap={10} w="100%" wrap="nowrap">
+      <Flex flex={1} p="0.5rem 0 0.5rem" w="100%">
+        <Flex direction="column" w="100%" gap={0}>
+          <Group mb={5} gap={10} w="100%" maw="100%" wrap="nowrap">
             {
               stream.status && [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(stream.status) &&
               <Button
@@ -188,9 +188,9 @@ const GridItem = observer(({stream, index}) => {
                 </Group>
               </Button>
             }
-            <Text fw={700} fz={14} truncate="end" c="elv-gray.9" lh={1}>
+            <Title order={3} lineClamp={1} c="elv-gray.9" lh={1}>
               { stream.title }
-            </Text>
+            </Title>
             <OverflowMenu stream={stream} />
           </Group>
           <Text c="elv-gray.6" fz={12} fw={500} mb={5} truncate="end" lh={1}>
