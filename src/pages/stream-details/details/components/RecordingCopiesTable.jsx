@@ -36,6 +36,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
           onSortStatusChange={setSortStatus}
           highlightOnHover
           fetching={loading}
+          minHeight={(!records || records.length === 0) ? 130 : 75}
           columns={[
             {
               accessor: "title",

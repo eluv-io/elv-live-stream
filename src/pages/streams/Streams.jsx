@@ -76,7 +76,7 @@ const Streams = observer(() => {
         <DataTable
           highlightOnHover
           idAccessor="objectId"
-          minHeight={!records || records.length === 0 ? 150 : 75}
+          minHeight={(!records || records.length === 0) ? 130 : 75}
           fetching={!dataStore.loaded}
           records={records}
           emptyState={

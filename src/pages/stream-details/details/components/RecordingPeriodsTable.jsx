@@ -215,7 +215,7 @@ const RecordingPeriodsTable = observer(({
               )
             }
           ]}
-          minHeight={!records || records.length === 0 ? 100 : 75}
+          minHeight={(!records || records.length === 0) ? 130 : 75}
           noRecordsText="No recording periods found"
           records={records}
           selectedRecords={selectedRecords}

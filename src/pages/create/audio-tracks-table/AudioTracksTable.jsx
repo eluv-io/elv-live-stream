@@ -52,7 +52,7 @@ const AudioTracksTable = observer(({
         classNames={{header: styles.tableHeader}}
         idAccessor="stream_index"
         noRecordsText="No audio tracks found"
-        minHeight={records.length > 0 ? 150 : 200}
+        minHeight={(records.length > 0) ? 150 : 170}
         fetching={!disabled && !audioFormData}
         records={records}
         withColumnBorders
