@@ -8,33 +8,29 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
   if(!status) { return null; }
   const SIZE_MAPPINGS = {
     "xs": {
-      size: 7,
-      ml: 16,
-      fontSize: 14,
-      fontWeight: 400
-    },
-    "sm": {
-      size: 7,
-      ml: 18,
-      fontSize: "0.875rem",
-      fontWeight: 400
+      size: 5,
+      ml: 13
     },
     "md": {
       size: 7,
-      ml: 16,
-      fontSize: 14,
-      fontWeight: 500
+      ml: 16
     }
   };
 
   if(quality === QUALITY_MAP.GOOD || !quality) {
     return (
       <Box className={withBorder ? styles.box : ""} title={STATUS_TEXT[status]}>
-        <Indicator color={StatusIndicator(status)} position="middle-start" size={SIZE_MAPPINGS[size].size} offset={4}>
+        <Indicator
+          color={StatusIndicator(status)}
+          position="middle-start"
+          size={SIZE_MAPPINGS[size].size}
+          offset={4}
+        >
           <Text
-            fz={SIZE_MAPPINGS[size].fontSize}
+            fz={14}
             ml={SIZE_MAPPINGS[size].ml}
-            fw={SIZE_MAPPINGS[size].fontWeight}
+            fw={500}
+            lh={1}
             c="elv-gray.9"
           >
             { STATUS_TEXT[status] }

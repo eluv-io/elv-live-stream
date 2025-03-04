@@ -1,0 +1,13 @@
+.buttonInput {
+  border-radius: 3px;
+}
+
+.buttonSection {
+  &[data-position="left"] {
+    margin-inline-end: 6px;
+  }
+}
+
+.searchBar {
+  border-radius: 5px !important;
+}

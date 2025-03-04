@@ -1,6 +1,6 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput} from "@mantine/core";
+import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 
 import {dataStore, editStore, modalStore, streamStore} from "@/stores";
@@ -21,6 +21,7 @@ import {
 import {STATUS_MAP} from "@/utils/constants.js";
 import {notifications} from "@mantine/notifications";
 import {useNavigate} from "react-router-dom";
+import styles from "./Monitor.module.css";
 
 const OverflowMenu = observer(({stream}) => {
   const clipboard = useClipboard({timeout: 400});
@@ -121,8 +122,8 @@ const OverflowMenu = observer(({stream}) => {
   return (
     <Menu ml="auto" position="bottom-end">
       <Menu.Target>
-        <ActionIcon variant="white" color="elv-black.2">
-          <IconDotsVertical height={20} />
+        <ActionIcon variant="white" color="elv-gray.9" size="xs">
+          <IconDotsVertical height={"100%"} />
         </ActionIcon>
       </Menu.Target>
       <Menu.Dropdown>
@@ -158,15 +159,16 @@ const GridItem = observer(({stream, index}) => {
         playable={stream.status === "running"}
       />
       <Flex flex={1} p="0.5rem 0 0.5rem">
-        <Flex direction="column" justify="space-between" w="100%">
-          <Group mb={6} gap={10} w="100%" wrap="nowrap">
+        <Flex direction="column" justify="space-between" w="100%" gap={0}>
+          <Group mb={5} gap={10} w="100%" wrap="nowrap">
             {
               stream.status && [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(stream.status) &&
               <Button
+                classNames={{root: styles.buttonInput, section: styles.buttonSection}}
                 size="xs"
                 mih="15px"
                 h={25}
-                leftSection={<IconPlayerPlay height={16} width={16} />}
+                leftSection={<IconPlayerPlay height={12} width={12} />}
                 onClick={() => {
                   modalStore.SetModal({
                     data: {
@@ -179,17 +181,19 @@ const GridItem = observer(({stream, index}) => {
                   });
                 }}
               >
-                <Text fz={10}>
-                  Start Stream
-                </Text>
+                <Group gap={5}>
+                  <Text fz={12} fw={600}>
+                    Start Stream
+                  </Text>
+                </Group>
               </Button>
             }
-            <Text fw={700} fz={18} truncate="end">
+            <Text fw={700} fz={14} truncate="end" c="elv-gray.9" lh={1}>
               { stream.title }
             </Text>
             <OverflowMenu stream={stream} />
           </Group>
-          <Text c="elv-black.1" fz={14} fw={400} mb={2} truncate="end">
+          <Text c="elv-gray.6" fz={12} fw={500} mb={5} truncate="end" lh={1}>
             { stream.objectId || "" }
           </Text>
           <Flex align="flex-end" justify="space-between">
@@ -222,11 +226,13 @@ const Monitor = observer(() => {
   return (
     <PageContainer
       title="Monitor"
+      mb={16}
     >
-      <Flex w="100%" align="center" mb="md">
+      <Flex w="100%" align="center" mb={16}>
         <TextInput
           flex={2}
           maw={400}
+          classNames={{input: styles.searchBar}}
           placeholder="Search by object name or ID"
           leftSection={<MagnifyingGlassIcon width="18px" height="18px" />}
           value={filter}
@@ -243,9 +249,9 @@ const Monitor = observer(() => {
       {
         !dataStore.tenantId ? null :
           !streams ?
-            <div style={{maxWidth: "200px"}}>
+            <Box maw={200}>
               <Loader />
-            </div> :
+            </Box> :
             streams.length === 0 ? (debouncedFilter ? "No Matching Streams" : "No Streams Found") :
               <SimpleGrid cols={4} spacing="lg">
                 {
