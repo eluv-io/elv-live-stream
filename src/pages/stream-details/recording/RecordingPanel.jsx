@@ -127,7 +127,7 @@ const RecordingPanel = observer(({
               data={RECONNECTION_TIMEOUT_OPTIONS}
               placeholder="Select Reconnection Timeout"
               value={reconnectionTimeout}
-              onChange={(event) => setReconnectionTimeout(event.target.value)}
+              onChange={(value) => setReconnectionTimeout(value)}
             />
           </SimpleGrid>
         </DisabledTooltipWrapper>

@@ -1103,7 +1103,7 @@ class StreamStore {
       audioData: filteredAudioData
     });
 
-    const videoLadderSpecs = ladderSpecsMeta.filter(spec => spec.stream_name.includes("video"));
+    const videoLadderSpecs = (ladderSpecsMeta || []).filter(spec => spec.stream_name.includes("video"));
 
     const newLadderSpecs = [
       ...videoLadderSpecs,
