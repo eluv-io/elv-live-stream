@@ -150,7 +150,7 @@ const RecordingPanel = observer(({
           <Button
             type="submit"
             loading={applyingChanges}
-            disabled={applyingChanges || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+            disabled={applyingChanges || ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           >
             Apply
           </Button>
