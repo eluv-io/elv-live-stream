@@ -554,17 +554,15 @@ class DataStore {
     }
   });
 
-  EmbedUrl = flow(function * ({
-    objectId
-  }) {
+  EmbedUrl = ({objectId})=> {
     try {
-      return yield this.client.EmbedUrl({objectId, mediaType: "live_video"});
+      return this.client.EmbedUrl({objectId, mediaType: "live_video"});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(error);
       return "";
     }
-  });
+  };
 
   UpdateLadderProfiles = ({profiles}) => {
     this.ladderProfiles = profiles;

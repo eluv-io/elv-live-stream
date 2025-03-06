@@ -18,7 +18,7 @@
     "prepare": "husky install"
   },
   "dependencies": {
-    "@eluvio/elv-client-js": "^4.0.107",
+    "@eluvio/elv-client-js": "^4.0.117",
     "@eluvio/elv-player-js": "^2.0.30",
     "@mantine/core": "7.15.1",
     "@mantine/dates": "7.15.1",
