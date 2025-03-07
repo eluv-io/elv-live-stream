@@ -173,7 +173,6 @@ class DataStore {
           streamMetadata[slug].versionHash = versionHash;
           streamMetadata[slug].libraryId = libraryId;
           streamMetadata[slug].embedUrl = await this.EmbedUrl({objectId});
-          streamMetadata[slug]["_embedUrl"] = await this.EmbedUrl({objectId});
 
           const streamDetails = await this.LoadStreamMetadata({
             objectId,
@@ -555,15 +554,17 @@ class DataStore {
     }
   });
 
-  EmbedUrl = ({objectId})=> {
+  EmbedUrl = flow(function * ({objectId}) {
     try {
-      return this.client.EmbedUrl({objectId, mediaType: "live_video"});
+      const url = yield this.client.EmbedUrl({objectId, mediaType: "live_video"});
+
+      return url;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(error);
       return "";
     }
-  };
+  });
 
   UpdateLadderProfiles = ({profiles}) => {
     this.ladderProfiles = profiles;
