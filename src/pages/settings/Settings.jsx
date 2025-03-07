@@ -123,6 +123,12 @@ const Settings = observer(() => {
 
   const HandleSave = async() => {
     try {
+      // Check for JSON validation errors first
+      [
+        ...profileFormData.default || [],
+        ...profileFormData.custom || []
+      ].forEach(profile => JSON.parse(profile));
+
       setSaving(true);
 
       await editStore.SaveLadderProfiles({

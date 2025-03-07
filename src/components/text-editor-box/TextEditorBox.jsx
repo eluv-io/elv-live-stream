@@ -1,4 +1,4 @@
-import {ActionIcon, Box, Flex, Group, Paper, Textarea, Title} from "@mantine/core";
+import {ActionIcon, Box, Flex, Group, JsonInput, Paper, Title} from "@mantine/core";
 import {useState} from "react";
 import {EditIcon, TrashIcon} from "@/assets/icons/index.js";
 
@@ -10,13 +10,15 @@ const EditorField = ({
   if(!show) { return null; }
 
   return (
-    <Textarea
+    <JsonInput
       value={editorValue}
-      onChange={(event) => HandleChange({value: event.target.value})}
+      onChange={value => HandleChange({value})}
       autosize
       minRows={5}
       maxRows={15}
       color="elv-gray.9"
+      validationError="Invalid JSON"
+      formatOnBlur
     />
   );
 };
