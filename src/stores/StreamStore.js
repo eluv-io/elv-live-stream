@@ -783,7 +783,7 @@ class StreamStore {
       metadataSubtree: "live_recording_config/audio"
     });
 
-    if(!audioData) {
+    if(!audioData || Object.keys(audioData || {}).length === 0) {
       ({audioData} = yield dataStore.LoadStreamProbeData({
         objectId
       }));
