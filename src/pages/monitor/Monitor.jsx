@@ -44,7 +44,7 @@ const OverflowMenu = observer(({stream}) => {
       Icon: <IconCopy {...iconProps} />,
       hide: !stream.embedUrl,
       onClick: () => {
-        clipboard.copy(stream.embedUrl);
+        clipboard.copy(stream._embedUrl);
         notifications.show({title: "Copied embed url", message: ""});
       }
     },

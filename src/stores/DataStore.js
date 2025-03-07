@@ -173,6 +173,7 @@ class DataStore {
           streamMetadata[slug].versionHash = versionHash;
           streamMetadata[slug].libraryId = libraryId;
           streamMetadata[slug].embedUrl = await this.EmbedUrl({objectId});
+          streamMetadata[slug]["_embedUrl"] = await this.EmbedUrl({objectId});
 
           const streamDetails = await this.LoadStreamMetadata({
             objectId,
