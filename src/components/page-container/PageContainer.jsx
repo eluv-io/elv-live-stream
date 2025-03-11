@@ -101,11 +101,12 @@ const PageContainer = ({
   titleRightSection,
   titleLeftSection,
   mb=20,
+  p="24 46 46",
   ...rest
 }) => {
   return (
     <Box
-      p="24 46 46" w="calc(100vw - var(--app-shell-navbar-width))"
+      p={p} w="calc(100vw - var(--app-shell-navbar-width))"
       className={className}
       {...rest}
     >
