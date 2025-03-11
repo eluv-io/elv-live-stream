@@ -74,7 +74,6 @@ const StreamDetailsPage = observer(() => {
       label: "Back",
       variant: "filled",
       color: "elv-gray.6",
-      uppercase: true,
       onClick: () => navigate(-1)
     },
     {

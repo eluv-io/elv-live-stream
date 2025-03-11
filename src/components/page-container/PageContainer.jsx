@@ -67,7 +67,7 @@ const TopActions = ({showSearchBar, actions=[]}) => {
 const TitleSection = ({title, subtitle, rightSection, leftSection, mb}) => {
   return (
     <Flex direction="column" mb={mb}>
-      <Group gap={6}>
+      <Group gap={16}>
         {
           leftSection ? leftSection : null
         }
