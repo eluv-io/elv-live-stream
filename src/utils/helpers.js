@@ -138,15 +138,15 @@ export const SortTable = ({sortStatus, AdditionalCondition}) => {
       return AdditionalCondition(a, b);
     }
 
-    a = a[sortStatus.columnAccessor]?.trim();
-    b = b[sortStatus.columnAccessor]?.trim();
+    a = a[sortStatus.columnAccessor];
+    b = b[sortStatus.columnAccessor];
 
     if(typeof a === "number" && typeof b === "number") {
       a = isNaN(a) ? 0 : a;
       b = isNaN(b) ? 0 : b;
     } else {
-      a = typeof a === "string" ? a.toLowerCase() : a ?? "";
-      b = typeof b === "string" ? b.toLowerCase() : b ?? "";
+      a = typeof a === "string" ? a.trim().toLowerCase() : a ?? "";
+      b = typeof b === "string" ? b.trim().toLowerCase() : b ?? "";
     }
 
     if(a === b) { return 0; }
