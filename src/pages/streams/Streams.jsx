@@ -2,7 +2,7 @@
 
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Link} from "react-router-dom";
+import {Link, useNavigate} from "react-router-dom";
 import {
   IconPlayerPlay,
   IconPlayerStop,
@@ -21,7 +21,7 @@ import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import {DataTable} from "mantine-datatable";
 import {notifications} from "@mantine/notifications";
-import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button} from "@mantine/core";
+import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton} from "@mantine/core";
 
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -33,6 +33,7 @@ const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
+  const navigate = useNavigate();
 
   const DebouncedRefresh = useDebouncedCallback(async() => {
     await dataStore.Initialize(true);
@@ -100,11 +101,11 @@ const Streams = observer(() => {
           columns={[
             { accessor: "title", title: "Name", sortable: true, render: record => (
               <Stack gap={0}>
-                <Link to={`/streams/${record.objectId || record.slug}`} className={styles.tableLink}>
+                <UnstyledButton onClick={() => navigate(`/streams/${record.objectId || record.slug}`)} disabled={!record.objectId} style={{pointerEvents: record.objectId ? "auto" : "none"}}>
                   <Title order={3} lineClamp={1} title={record.title || record.slug}>
                     {record.title || record.slug}
                   </Title>
-                </Link>
+                </UnstyledButton>
                 <Title order={6} c="elv-gray.6">
                   {record.objectId}
                 </Title>
