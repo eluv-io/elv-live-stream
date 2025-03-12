@@ -42,8 +42,8 @@ const Streams = observer(() => {
     .filter(record => {
       return (
         !debouncedFilter ||
-        record.title.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
-        record.objectId.toLowerCase().includes(debouncedFilter.toLowerCase())
+        record.title?.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
+        record.objectId?.toLowerCase().includes(debouncedFilter.toLowerCase())
       );
     })
     .sort(SortTable({sortStatus}));
@@ -234,21 +234,24 @@ const Streams = observer(() => {
                           </ActionIcon>
                         </>
                     }
-                    <ActionIcon
-                      title="Open in Fabric Browser"
-                      variant="subtle"
-                      color="gray.6"
-                      onClick={() => editStore.client.SendMessage({
-                        options: {
-                          operation: "OpenLink",
-                          libraryId: record.libraryId,
-                          objectId: record.objectId
-                        },
-                        noResponse: true
-                      })}
-                    >
-                      <IconExternalLink />
-                    </ActionIcon>
+                    {
+                      !!record.objectId &&
+                      <ActionIcon
+                        title="Open in Fabric Browser"
+                        variant="subtle"
+                        color="gray.6"
+                        onClick={() => editStore.client.SendMessage({
+                          options: {
+                            operation: "OpenLink",
+                            libraryId: record.libraryId,
+                            objectId: record.objectId
+                          },
+                          noResponse: true
+                        })}
+                      >
+                        <IconExternalLink />
+                      </ActionIcon>
+                    }
                     <ActionIcon
                       title="Delete Stream"
                       variant="subtle"
