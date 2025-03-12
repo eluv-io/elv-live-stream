@@ -102,7 +102,6 @@ const Settings = observer(() => {
         });
       }
 
-      setProfileFormData(newData);
       setCustomProfileNames(updatedCustomItems.map(item => JSON.parse(item).name));
 
       notifications.show({
