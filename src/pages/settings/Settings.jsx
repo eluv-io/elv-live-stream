@@ -125,7 +125,7 @@ const Settings = observer(() => {
     try {
       // Check for JSON validation errors first
       [
-        ...profileFormData.default || [],
+        profileFormData.default,
         ...profileFormData.custom || []
       ].forEach(profile => JSON.parse(profile));
 
