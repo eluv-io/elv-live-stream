@@ -21,7 +21,7 @@ import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import {DataTable} from "mantine-datatable";
 import {notifications} from "@mantine/notifications";
-import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton} from "@mantine/core";
+import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton, Text} from "@mantine/core";
 
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -149,7 +149,7 @@ const Streams = observer(() => {
                               data: {
                                 objectId: record.objectId,
                                 name: record.title,
-                                loadingText: `Please send your stream to ${SanitizeUrl({url}) || "the URL you specified"}.`
+                                loadingText: `Please send your stream to ${SanitizeUrl({url, removeQueryParams: ["mode"]}) || "the URL you specified"}.`
                               },
                               op: "CHECK",
                               slug: record.slug,
@@ -192,7 +192,13 @@ const Streams = observer(() => {
                             modalStore.SetModal({
                               data: {
                                 objectId: record.objectId,
-                                name: record.title
+                                name: record.title,
+                                customMessage: (
+                                  <Stack gap={0} mb={8}>
+                                    <Text c="elv-gray.9">Are you sure you want to deactivate the stream?</Text>
+                                    <Text fw={700} c="elv-gray.9">You will lose all recording data. Be sure to save a VoD copy first.</Text>
+                                  </Stack>
+                                )
                               },
                               op: "DEACTIVATE",
                               slug: record.slug,

@@ -4,6 +4,7 @@ import {Box, Button, Flex, Grid, Modal, Text} from "@mantine/core";
 
 const ConfirmModal = observer(({
   message,
+  customMessage,
   title,
   name,
   objectId,
@@ -34,7 +35,12 @@ const ConfirmModal = observer(({
       closeOnClickOutside={false}
     >
       <Box>
-        <Text>{message}</Text>
+        {
+          customMessage ?
+            customMessage : (
+             <Text>{message}</Text>
+            )
+        }
         {
           name && objectId &&
           <Box mt={16}>

@@ -165,7 +165,7 @@ export const DateFormat = ({time, format="sec", options={}}) => {
   return new Date(time).toLocaleString(navigator.language, options);
 };
 
-export const SanitizeUrl = ({url}) => {
+export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
   if(!url) {
     return "";
   }
@@ -173,6 +173,9 @@ export const SanitizeUrl = ({url}) => {
   try {
     const urlObject = new URL(url);
     urlObject.searchParams.delete("passphrase");
+    removeQueryParams.forEach(param => {
+      urlObject.searchParams.delete(param);
+    });
 
     return urlObject.toString();
   } catch(error) {

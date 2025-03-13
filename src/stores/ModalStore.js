@@ -81,7 +81,7 @@ class ModalStore {
     },
     "DEACTIVATE": {
       title: "Deactivate Stream Confirmation",
-      message: "Are you sure you want to deactivate the stream? You will lose all recording data.",
+      message: "Are you sure you want to deactivate the stream?",
       confirmText: "Deactivate Stream",
       Method: ({objectId, slug}) => this.rootStore.streamStore.DeactivateStream({
         objectId,
@@ -178,7 +178,8 @@ class ModalStore {
 
   StreamOpMessaging = ({
     op,
-    activeMessage=true
+    activeMessage=true,
+    customMessage
   }) => {
 
     if(!this.OP_MAP[op]) {
@@ -192,6 +193,7 @@ class ModalStore {
 
     return {
       message: printMessage,
+      customMessage,
       title,
       confirmText
     };
@@ -207,7 +209,11 @@ class ModalStore {
   }) => {
     this.modalData = {
       ...this.modalData,
-      ...this.StreamOpMessaging({op, activeMessage}),
+      ...this.StreamOpMessaging({
+        op,
+        activeMessage,
+        customMessage: data.customMessage
+      }),
       ...data,
       ConfirmCallback: () => this.HandleStreamAction({
         objectId: data.objectId,
