@@ -414,7 +414,7 @@ const Create = observer(() => {
           </Stack>
         </Radio.Group>
 
-        <SimpleGrid cols={2} spacing={150} mb={29}>
+        <Box w={460} mb={29}>
           {
             formProtocol === "custom" ?
               (
@@ -456,7 +456,7 @@ const Create = observer(() => {
                 />
               )
           }
-        </SimpleGrid>
+        </Box>
 
         <Divider mb={29} />
         <SectionTitle mb={10}>General</SectionTitle>
