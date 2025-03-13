@@ -149,7 +149,18 @@ const Streams = observer(() => {
                               data: {
                                 objectId: record.objectId,
                                 name: record.title,
-                                loadingText: `Please send your stream to ${SanitizeUrl({url, removeQueryParams: ["mode"]}) || "the URL you specified"}.`
+                                loadingText: (
+                                  <Stack mt={16} gap={5}>
+                                    <Text>
+                                      Please send your stream to:
+                                    </Text>
+                                    <Text>
+                                      {
+                                        SanitizeUrl({url, removeQueryParams: ["mode"]}) || "the URL you specified"
+                                      }
+                                    </Text>
+                                  </Stack>
+                                )
                               },
                               op: "CHECK",
                               slug: record.slug,

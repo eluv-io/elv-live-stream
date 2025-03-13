@@ -30,6 +30,7 @@ import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable
 import styles from "./Create.module.css";
 import {ValidateTextField} from "@/utils/validators.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import {SanitizeUrl} from "@/utils/helpers.js";
 
 const Permissions = observer(({form}) => {
   const permissionLevels = rootStore.client.permissionLevels;
@@ -585,7 +586,18 @@ const Create = observer(() => {
         CloseCallback={() => setShowProbeConfirmation(false)}
         title="Create and Probe Stream"
         message="Are you sure you want to probe the stream? This will also create the content object."
-        loadingText={`Please send your stream to ${(formProtocol === "custom" ? formCustomUrl : formUrl) || "the URL you specified"}.`}
+        loadingText={
+        <Stack mt={16} gap={5}>
+          <Text>
+            Please send your stream to:
+          </Text>
+          <Text>
+            {
+              SanitizeUrl({url: (formProtocol === "custom" ? formCustomUrl : formUrl), removeQueryParams: ["mode"]}) || "the URL you specified"
+            }
+          </Text>
+        </Stack>
+      }
         ConfirmCallback={async () => {
           try {
             await HandleProbeConfirm();
