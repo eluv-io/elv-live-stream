@@ -28,7 +28,7 @@ const ConfirmModal = observer(({
       opened={show}
       onClose={CloseCallback}
       title={title}
-      padding="32px"
+      padding="24px"
       radius="6px"
       size="lg"
       centered

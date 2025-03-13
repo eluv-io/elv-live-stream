@@ -194,7 +194,9 @@ const theme = createTheme({
     Modal: {
       styles: () => ({
         title: {
-          "fontSize": rem(20)
+          "fontSize": rem(22),
+          "fontWeight": 600,
+          "color": "var(--mantine-color-elv-gray-9)"
         }
       })
     },
