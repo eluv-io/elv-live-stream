@@ -1180,6 +1180,12 @@ class StreamStore {
           currentAudioSetting.bitrate = stream.bit_rate;
           currentAudioSetting.codec = stream.codec_name;
           currentAudioSetting.recording_channels = stream.channels;
+
+          // Special case to handle a single audio stream. If
+          // record = false, the video won't start
+          if(probeAudioStreams.length === 1) {
+            currentAudioSetting.record = true;
+          }
         } else {
         // Audio index doesn't exist. Add to spec
           audioConfig[stream.stream_index] = {
