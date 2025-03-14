@@ -114,6 +114,7 @@ class EditStore {
     };
   });
 
+  // Update audio settings for streams that have been created and probed
   UpdateLiveStreamObject = flow(function * ({
     audioFormData,
     objectId,

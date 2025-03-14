@@ -48,7 +48,8 @@ class StreamStore {
   ConfigureStream = flow(function * ({
     objectId,
     slug,
-    probeMetadata
+    probeMetadata,
+    syncAudioToProbe=true
   }) {
     try {
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -158,6 +159,10 @@ class StreamStore {
             format: drmOption?.format.join(",")
           });
         }
+      }
+
+      if(syncAudioToProbe) {
+        yield this.SyncAudioToProbe({libraryId, objectId});
       }
 
       // Update stream link in site after stream configuration
@@ -1137,21 +1142,6 @@ class StreamStore {
       metadata: audioIndexMeta
     });
 
-    // const audioStreams = this.CreateAudioStreamsConfig({audioData});
-    // const audioIndexMeta = [];
-    //
-    // for(let i =0; i < Object.keys(audioStreams).length; i ++) {
-    //   audioIndexMeta[i] = parseInt(Object.keys(audioStreams || {})[i]);
-    // }
-    //
-    // yield this.client.ReplaceMetadata({
-    //   libraryId,
-    //   objectId,
-    //   writeToken,
-    //   metadataSubtree: "live_recording/recording_config/recording_params/xc_params/audio_index",
-    //   metadata: audioIndexMeta
-    // });
-
     yield this.client.FinalizeContentObject({
       libraryId,
       objectId,
@@ -1159,6 +1149,67 @@ class StreamStore {
       commitMessage: "Update audio settings",
       awaitCommitConfirmation: true
     });
+  });
+
+  SyncAudioToProbe = flow(function * ({libraryId, objectId}) {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const liveRecordingMetadata = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording_config",
+        select: [
+          "probe_info/streams",
+          "audio"
+        ]
+      });
+
+      const audioConfig = liveRecordingMetadata?.audio;
+      const probeAudioStreams = (liveRecordingMetadata?.probe_info?.streams || [])
+        .filter(stream => stream.codec_type === "audio");
+      const audioIndexes = probeAudioStreams.map(stream => stream.stream_index);
+
+      probeAudioStreams.forEach(stream => {
+        const currentAudioSetting = audioConfig[stream.stream_index];
+
+        // Corresponding audio setting exists for that index
+        if(currentAudioSetting) {
+          currentAudioSetting.bitrate = stream.bit_rate;
+          currentAudioSetting.codec = stream.codec_name;
+          currentAudioSetting.recording_channels = stream.channels;
+        } else {
+        // Audio index doesn't exist. Add to spec
+          audioConfig[stream.stream_index] = {
+            bitrate: stream.bit_rate,
+            codec: stream.codec_name,
+            default: false,
+            playout: true,
+            playout_label: "",
+            record: true,
+            recording_bitrate: 192000,
+            recording_channels: stream.channels
+          };
+        }
+
+        // Delete audio specs that do not exist in probe
+        const audioToDelete = [];
+        Object.keys(audioConfig || {}).forEach(index => {
+          if(!audioIndexes.includes(parseInt(index))) {
+            audioToDelete.push(index);
+          }
+        });
+
+        audioToDelete.forEach(index => delete audioConfig[index]);
+      });
+
+      yield this.UpdateStreamAudioSettings({objectId, audioData: audioConfig});
+    } catch(error) {
+       
+      console.error("Unable to sync audio settings to probe data", error);
+    }
   });
 }
 
