@@ -1,4 +1,4 @@
-import {Box, Group, Indicator, Text, Title} from "@mantine/core";
+import {Box, Group, Indicator, Text} from "@mantine/core";
 import {StatusIndicator} from "@/utils/helpers.js";
 import styles from "./StatusText.module.css";
 import {QUALITY_MAP, STATUS_TEXT} from "@/utils/constants.js";
@@ -40,12 +40,12 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
     );
   } else {
     return (
-      <Box className={withBorder ? styles.box : ""}>
-        <Group gap={0}>
-          <IconAlertCircle color="var(--mantine-color-elv-orange-3)" width={15} />
-          <Title order={4}>
+      <Box className={withBorder ? styles.box : ""} ml="-3px">
+        <Group gap={5}>
+          <IconAlertCircle color="var(--mantine-color-elv-orange-3)" width={14} />
+          <Text fz={14} fw={500} c="elv-gray.9" lh={1}>
             { STATUS_TEXT[status] }
-          </Title>
+          </Text>
         </Group>
       </Box>
     );
