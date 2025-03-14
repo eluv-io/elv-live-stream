@@ -1187,7 +1187,7 @@ class StreamStore {
             codec: stream.codec_name,
             default: false,
             playout: true,
-            playout_label: "",
+            playout_label: `Audio ${stream.stream_index}`,
             record: true,
             recording_bitrate: 192000,
             recording_channels: stream.channels
@@ -1207,7 +1207,7 @@ class StreamStore {
 
       yield this.UpdateStreamAudioSettings({objectId, audioData: audioConfig});
     } catch(error) {
-       
+
       console.error("Unable to sync audio settings to probe data", error);
     }
   });
