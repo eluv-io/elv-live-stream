@@ -207,7 +207,7 @@ const Streams = observer(() => {
                                 customMessage: (
                                   <Stack gap={0} mb={8}>
                                     <Text c="elv-gray.9">Are you sure you want to deactivate the stream?</Text>
-                                    <Text fw={700} c="elv-gray.9">You will lose all recording data. Be sure to save a VoD copy first.</Text>
+                                    <Text fw={700} c="elv-gray.9">You will lose all recording media. Be sure to save a VoD copy first.</Text>
                                   </Stack>
                                 )
                               },
