@@ -140,7 +140,29 @@ class StreamStore {
 
       customSettings["audio"] = liveRecordingConfig.audio ? liveRecordingConfig.audio : undefined;
 
-      yield this.client.StreamConfig({name: objectId, customSettings, probeMetadata});
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId
+      });
+
+      yield this.client.StreamConfig({
+        name: objectId,
+        writeToken,
+        finalize: false,
+        customSettings,
+        probeMetadata
+      });
+
+      if(syncAudioToProbe) {
+        yield this.SyncAudioToProbe({libraryId, objectId, writeToken, finalize: false});
+      }
+
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Apply live stream configuration"
+      });
 
       if((liveRecordingConfig?.drm_type || "").includes("drm")) {
         const drmOption = liveRecordingConfig?.drm_type ? ENCRYPTION_OPTIONS.find(option => option.value === liveRecordingConfig.drm_type) : null;
@@ -159,10 +181,6 @@ class StreamStore {
             format: drmOption?.format.join(",")
           });
         }
-      }
-
-      if(syncAudioToProbe) {
-        yield this.SyncAudioToProbe({libraryId, objectId});
       }
 
       // Update stream link in site after stream configuration
@@ -1071,12 +1089,15 @@ class StreamStore {
     return audioStreams;
   };
 
-  UpdateStreamAudioSettings = flow(function * ({objectId, audioData}) {
+  UpdateStreamAudioSettings = flow(function * ({objectId, writeToken, finalize=true, audioData}) {
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    const {writeToken} = yield this.client.EditContentObject({
-      libraryId,
-      objectId
-    });
+
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId
+      }));
+    }
 
     yield this.client.ReplaceMetadata({
       libraryId,
@@ -1142,16 +1163,18 @@ class StreamStore {
       metadata: audioIndexMeta
     });
 
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Update audio settings",
-      awaitCommitConfirmation: true
-    });
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Update audio settings",
+        awaitCommitConfirmation: true
+      });
+    }
   });
 
-  SyncAudioToProbe = flow(function * ({libraryId, objectId}) {
+  SyncAudioToProbe = flow(function * ({libraryId, objectId, writeToken, finalize=true}) {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -1211,7 +1234,12 @@ class StreamStore {
         audioToDelete.forEach(index => delete audioConfig[index]);
       });
 
-      yield this.UpdateStreamAudioSettings({objectId, audioData: audioConfig});
+      yield this.UpdateStreamAudioSettings({
+        objectId,
+        audioData: audioConfig,
+        writeToken,
+        finalize
+      });
     } catch(error) {
 
       console.error("Unable to sync audio settings to probe data", error);
