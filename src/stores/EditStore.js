@@ -545,6 +545,7 @@ class EditStore {
     libraryId,
     objectId,
     writeToken,
+    finalize=true,
     slug,
     retention,
     connectionTimeout,
@@ -663,6 +664,65 @@ class EditStore {
       }
     }
 
+    if(finalize && Object.keys(updateValue || {}).length > 0) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Update recording config",
+        awaitCommitConfirmation: true
+      });
+    }
+
+    streamStore.UpdateStream({
+      key: slug,
+      value: updateValue
+    });
+
+    return {
+      writeToken
+    };
+  });
+
+  UpdateRecordingConfig = flow(function * ({
+    libraryId,
+    objectId,
+    slug,
+    writeToken,
+    audioFormData,
+    configFormData
+  }) {
+    if(!libraryId) {
+      libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    }
+
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId
+      }));
+    }
+
+    const {retention, connectionTimeout, reconnectionTimeout} = configFormData;
+
+    yield this.rootStore.streamStore.UpdateStreamAudioSettings({
+      objectId,
+      writeToken,
+      slug,
+      audioData: audioFormData,
+      finalize: false
+    });
+
+    this.UpdateConfigMetadata({
+      objectId,
+      slug,
+      retention,
+      connectionTimeout,
+      reconnectionTimeout,
+      writeToken,
+      finalize: false
+    });
+
     yield this.client.FinalizeContentObject({
       libraryId,
       objectId,
@@ -670,13 +730,7 @@ class EditStore {
       commitMessage: "Update recording config",
       awaitCommitConfirmation: true
     });
-
-    streamStore.UpdateStream({
-      key: slug,
-      value: updateValue
-    });
   });
-
 
   SaveLadderProfiles = flow(function * ({profileData}) {
     try {

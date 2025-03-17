@@ -1,6 +1,5 @@
 // Force strict mode so mutations are only allowed within actions.
 import {configure, flow, makeAutoObservable, runInAction} from "mobx";
-import {streamStore} from "./index";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 
 configure({
@@ -48,7 +47,7 @@ class DataStore {
       yield this.LoadLadderProfiles();
       yield this.LoadStreams();
       this.loaded = true;
-      yield streamStore.AllStreamsStatus(reload);
+      yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
       this.loaded = true;
     }
@@ -133,7 +132,7 @@ class DataStore {
   });
 
   LoadStreams = flow(function * () {
-    streamStore.UpdateStreams({});
+    this.rootStore.streamStore.UpdateStreams({});
     let streamMetadata;
     try {
       const siteMetadata = yield this.client.ContentObjectMetadata({
@@ -149,7 +148,7 @@ class DataStore {
 
       streamMetadata = siteMetadata?.public?.asset_metadata?.live_streams || {};
     } catch(error) {
-      streamStore.UpdateStreams({streams: {}});
+      this.rootStore.streamStore.UpdateStreams({streams: {}});
       this.rootStore.SetErrorMessage("Error: Unable to load streams");
       // eslint-disable-next-line no-console
       console.error(error);
@@ -189,7 +188,7 @@ class DataStore {
       }
     );
 
-    streamStore.UpdateStreams({streams: streamMetadata});
+    this.rootStore.streamStore.UpdateStreams({streams: streamMetadata});
   });
 
   LoadLibraries = flow(function * () {
@@ -362,7 +361,7 @@ class DataStore {
         ]
       });
 
-      streamStore.UpdateStream({
+      this.rootStore.streamStore.UpdateStream({
         key: slug,
         value: {
           title: streamMeta?.name || streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
@@ -473,6 +472,44 @@ class DataStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to load metadata with edge write token", error);
+      return {};
+    }
+  });
+
+  LoadRecordingConfigData = flow(function * ({
+    libraryId,
+    objectId
+  }) {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const streamMeta = yield this.client.ContentObjectMetadata({
+        objectId,
+        libraryId,
+        select: [
+          "live_recording/recording_config/recording_params/xc_params/connection_timeout",
+          "live_recording/recording_config/recording_params/reconnect_timeout",
+          "live_recording_config/part_ttl",
+        ]
+      });
+
+      const {audioStreams, audioData} = yield this.LoadStreamProbeData({
+        libraryId,
+        objectId
+      });
+
+      return {
+        audioStreams,
+        audioData,
+        retention: streamMeta?.live_recording_config?.part_ttl,
+        connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
+        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout
+      };
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load recording config data", error);
       return {};
     }
   });

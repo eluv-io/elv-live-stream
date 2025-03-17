@@ -1,9 +1,9 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
-import {dataStore, editStore, streamStore} from "@/stores";
+import {dataStore, editStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Box, Button, Divider, Select, SimpleGrid} from "@mantine/core";
+import {Box, Button, Divider, Loader, Select, SimpleGrid} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
@@ -16,26 +16,45 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 const RecordingPanel = observer(({
   title,
   slug,
-  status,
-  currentRetention,
-  currentConnectionTimeout,
-  currentReconnectionTimeout
+  status
 }) => {
   const params = useParams();
   const [audioTracks, setAudioTracks] = useState([]);
   const [audioFormData, setAudioFormData] = useState(null);
-  const [retention, setRetention] = useState(currentRetention);
-  const [connectionTimeout, setConnectionTimeout] = useState(currentConnectionTimeout === undefined ? "600" : CONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(currentConnectionTimeout) ? currentConnectionTimeout : undefined);
-  const [reconnectionTimeout, setReconnectionTimeout] = useState(RECONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(currentReconnectionTimeout) ? currentReconnectionTimeout : undefined);
+  const [retention, setRetention] = useState("");
+  const [connectionTimeout, setConnectionTimeout] = useState("");
+  const [reconnectionTimeout, setReconnectionTimeout] = useState("");
   const [applyingChanges, setApplyingChanges] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const LoadConfigData = async () => {
-    const {audioStreams, audioData} = await dataStore.LoadStreamProbeData({
-      objectId: params.id
-    });
+    try {
+      setLoading(true);
 
-    setAudioTracks(audioStreams);
-    setAudioFormData(audioData);
+      let {
+        audioStreams,
+        audioData,
+        retention: retentionMeta,
+        connectionTimeout: connectionTimeoutMeta,
+        reconnectionTimeout: reconnectionTimeoutMeta
+      } = await dataStore.LoadRecordingConfigData({objectId: params.id});
+
+      retentionMeta = retentionMeta ? retentionMeta.toString() : null;
+      connectionTimeoutMeta = connectionTimeoutMeta ? connectionTimeoutMeta.toString() : null;
+      reconnectionTimeoutMeta =reconnectionTimeoutMeta ? reconnectionTimeoutMeta.toString() : null;
+
+      setAudioTracks(audioStreams);
+      setAudioFormData(audioData);
+      setRetention(retentionMeta);
+      setConnectionTimeout(
+        connectionTimeoutMeta === null ? "600" : CONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(connectionTimeoutMeta) ? connectionTimeoutMeta : null
+      );
+      setReconnectionTimeout(
+        RECONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(reconnectionTimeoutMeta) ? reconnectionTimeoutMeta : null
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -49,19 +68,34 @@ const RecordingPanel = observer(({
     try {
       setApplyingChanges(true);
 
-      await streamStore.UpdateStreamAudioSettings({
+      await editStore.UpdateRecordingConfig({
         objectId: params.id,
         slug,
-        audioData: audioFormData
+        audioFormData,
+        configFormData: {
+          retention: retention ? parseInt(retention) : null,
+          connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
+          reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null
+        }
       });
 
-      await editStore.UpdateConfigMetadata({
-        objectId: params.id,
-        slug,
-        retention: retention ? parseInt(retention) : null,
-        connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
-        reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null
-      });
+      // const {writeToken} = await editStore.UpdateConfigMetadata({
+      //   objectId: params.id,
+      //   slug,
+      //   retention: retention ? parseInt(retention) : null,
+      //   connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
+      //   reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null,
+      //   finalize: false
+      // });
+      // console.log('write token', writeToken)
+      //
+      // await streamStore.UpdateStreamAudioSettings({
+      //   objectId: params.id,
+      //   writeToken,
+      //   finalize: true,
+      //   slug,
+      //   audioData: audioFormData
+      // });
 
       await LoadConfigData();
 
@@ -82,6 +116,8 @@ const RecordingPanel = observer(({
       setApplyingChanges(false);
     }
   };
+
+  if(loading) { return <Loader />; }
 
   return (
     <Box maw="80%" mb={24}>
