@@ -154,7 +154,12 @@ class StreamStore {
       });
 
       if(syncAudioToProbe) {
-        yield this.SyncAudioToProbe({libraryId, objectId, writeToken, finalize: false});
+        yield this.SyncAudioToProbe({
+          libraryId,
+          objectId,
+          writeToken,
+          finalize: false
+        });
       }
 
       yield this.client.FinalizeContentObject({
@@ -712,7 +717,13 @@ class StreamStore {
     }
   });
 
-  UpdateAudioLadderSpecs = flow(function * ({objectId, libraryId, ladderSpecs, audioData}) {
+  UpdateAudioLadderSpecs = flow(function * ({
+    objectId,
+    libraryId,
+    writeToken,
+    ladderSpecs,
+    audioData
+  }) {
     let globalAudioBitrate = 0;
     let nAudio = 0;
     const audioLadderSpecs = [];
@@ -721,6 +732,7 @@ class StreamStore {
       audioData = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
+        writeToken,
         metadataSubtree: "live_recording_config/audio"
       });
     }
@@ -1111,6 +1123,7 @@ class StreamStore {
     const ladderSpecsMeta = yield this.client.ContentObjectMetadata({
       libraryId,
       objectId,
+      writeToken,
       metadataSubtree: ladderSpecsPath
     });
 
@@ -1125,6 +1138,7 @@ class StreamStore {
     const {nAudio, globalAudioBitrate, audioLadderSpecs, audioIndexMeta} = yield this.UpdateAudioLadderSpecs({
       libraryId,
       objectId,
+      writeToken,
       ladderSpecs: {audio: ladderSpecsMeta},
       audioData: filteredAudioData
     });
@@ -1183,6 +1197,7 @@ class StreamStore {
       const liveRecordingMetadata = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
+        writeToken,
         metadataSubtree: "live_recording_config",
         select: [
           "probe_info/streams",
@@ -1190,7 +1205,7 @@ class StreamStore {
         ]
       });
 
-      const audioConfig = liveRecordingMetadata?.audio;
+      const audioConfig = liveRecordingMetadata?.audio || {};
       const probeAudioStreams = (liveRecordingMetadata?.probe_info?.streams || [])
         .filter(stream => stream.codec_type === "audio");
       const audioIndexes = probeAudioStreams.map(stream => stream.stream_index);
