@@ -53,7 +53,8 @@ const StreamPreview = observer(() => {
         Back
       </Button>
       }
-      p="24 0 24 46"
+      p="24 0 0 46"
+      h="100vh"
     >
       <AppFrame
         className={styles.root}

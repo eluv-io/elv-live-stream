@@ -33,6 +33,7 @@ module.exports = {
       {
         "lang": "en_US",
         "skipWords": [
+          "100vh",
           "100vw",
           "24zm40",
           "8zm",
