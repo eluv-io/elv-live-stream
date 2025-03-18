@@ -1,0 +1,9 @@
+.tableHeader {
+  th {
+    color: var(--mantine-color-elv-black-3);
+  }
+}
+
+.textInput {
+  border-radius: 8px !important;
+}

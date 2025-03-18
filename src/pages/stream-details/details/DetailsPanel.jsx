@@ -1,16 +1,18 @@
 import {useEffect, useState} from "react";
-import {Box, Code, Flex, Grid, Skeleton, Stack, Text} from "@mantine/core";
+import {ActionIcon, Box, Code, Flex, Grid, Group, Skeleton, Stack, Text, Title, Tooltip} from "@mantine/core";
 import {streamStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
 import {DateFormat, FormatTime} from "@/utils/helpers";
 import {STATUS_MAP, QUALITY_TEXT, RETENTION_TEXT} from "@/utils/constants";
-import RecordingPeriodsTable from "@/pages/stream-details/details/RecordingPeriodsTable";
-import RecordingCopiesTable from "@/pages/stream-details/details/RecordingCopiesTable";
-import {IconAlertCircle, IconCheck} from "@tabler/icons-react";
+import RecordingPeriodsTable from "@/pages/stream-details/details/components/RecordingPeriodsTable.jsx";
+import RecordingCopiesTable from "@/pages/stream-details/details/components/RecordingCopiesTable.jsx";
+import {IconAlertCircle} from "@tabler/icons-react";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import {CopyToClipboard} from "@/utils/helpers";
-import {ClipboardIcon} from "@/assets/icons";
+import {CopyIcon} from "@/assets/icons";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import styles from "./DetailsPanel.module.css";
 
 export const Runtime = ({startTime, endTime, currentTimeMs, format="hh,mm,ss"}) => {
   let time;
@@ -31,11 +33,25 @@ export const Runtime = ({startTime, endTime, currentTimeMs, format="hh,mm,ss"}) 
   return time;
 };
 
+const DetailRow = ({label, value}) => {
+  return (
+    <Group key={`detail-${label}`} gap={4}>
+      <Text fz={14}>
+        { label }:
+      </Text>
+      <Text fz={14}>
+        { value }
+      </Text>
+    </Group>
+  );
+};
+
 const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, slug, embedUrl}) => {
   const [frameSegmentUrl, setFrameSegmentUrl] = useState("");
   const [status, setStatus] = useState(null);
   const [copied, setCopied] = useState(false);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const params = useParams();
   const currentTimeMs = new Date().getTime();
@@ -60,111 +76,123 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   }, [params.id]);
 
   const LoadLiveRecordingCopies = async() => {
-    let liveRecordingCopies = await streamStore.FetchLiveRecordingCopies({
-      objectId: params.id
-    });
+    try {
+      setLoading(true);
+      let liveRecordingCopies = await streamStore.FetchLiveRecordingCopies({
+        objectId: params.id
+      });
 
-    Object.keys(liveRecordingCopies || {}).forEach(id => (
-      liveRecordingCopies[id]["_id"] = id
-    ));
+      Object.keys(liveRecordingCopies || {}).forEach(id => (
+        liveRecordingCopies[id]["_id"] = id
+      ));
 
-    setLiveRecordingCopies(liveRecordingCopies || {});
+      setLiveRecordingCopies(liveRecordingCopies || {});
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <>
       <Grid>
         <Grid.Col span={8}>
-          <Flex direction="column" style={{flexGrow: "1"}}>
-            <Box mb="24px" maw="70%">
-              <div className="form__section-header">State</div>
-              <Text>Quality: {QUALITY_TEXT[status?.quality] || "--"}</Text>
+          <Flex direction="column" className={styles.flexGrow}>
+            <Box mb="30px" maw="80%">
+              <SectionTitle mb={5}>State</SectionTitle>
+              <DetailRow
+                label="Quality"
+                value={QUALITY_TEXT[status?.quality] || "--"}
+              />
               {
                 status?.warnings &&
                 <>
                   <Box mt={16}>
-                    <Code block icon={<IconAlertCircle />} color="rgba(250, 176, 5, 0.07)" style={{borderLeft: "4px solid var(--mantine-color-yellow-filled)", borderRadius: 0}}>
+                    <Code block icon={<IconAlertCircle />} color="rgba(250, 176, 5, 0.07)" className={styles.code}>
                       {(status?.warnings || []).map(item => (
-                        <Text key={`warning-${item}`}>{item}</Text>
+                        <Text key={`warning-${item}`} fz={14}>{item}</Text>
                       ))}
                     </Code>
                   </Box>
                 </>
               }
             </Box>
-            <Box mb="24px" maw="70%">
-              <div className="form__section-header">Recording Info</div>
-              <Text>
-                Created: {
-                  recordingInfo?._recordingStartTime ?
-                    DateFormat({
-                      time: recordingInfo?._recordingStartTime,
-                      format: "sec"
+            <Box mb="30px" maw="70%">
+              <SectionTitle mb={5}>Recording Info</SectionTitle>
+              {
+                [
+                  {
+                    label: "Created",
+                    value: recordingInfo?._recordingStartTime ?
+                      DateFormat({
+                        time: recordingInfo?._recordingStartTime,
+                        format: "sec"
+                      }) : "--"
+                  },
+                  {
+                    label: "Retention",
+                    value: currentRetention ? RETENTION_TEXT[currentRetention] : "--"
+                  },
+                  {
+                    label: "Current Period Started",
+                    value: status?.recording_period?.start_time_epoch_sec ?
+                      DateFormat({
+                        time: status?.recording_period?.start_time_epoch_sec,
+                        format: "sec"
+                      }) : "--"
+                  },
+                  {
+                    label: "Current Period Runtime",
+                    value: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({
+                      startTime: status?.recording_period?.start_time_epoch_sec * 1000,
+                      currentTimeMs
                     }) : "--"
-                }
-              </Text>
-              <Text>
-                Retention: { currentRetention ? RETENTION_TEXT[currentRetention] : "--" }
-              </Text>
-              <Text>
-                Current Period Started: {
-                  status?.recording_period?.start_time_epoch_sec ?
-                    DateFormat({
-                      time: status?.recording_period?.start_time_epoch_sec,
-                      format: "sec"
-                    }) : "--"
-                }
-              </Text>
-              <Text>
-                Current Period Runtime: {
-                  [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({
-                    startTime: status?.recording_period?.start_time_epoch_sec * 1000,
-                    currentTimeMs
-                  }) : "--"
-                }
-              </Text>
+                  }
+                ].map(({label, value}) => (
+                  <DetailRow key={`detail-${label}`} label={label} value={value} />
+                ))
+              }
             </Box>
-            <RecordingCopiesTable
-              liveRecordingCopies={liveRecordingCopies}
-              DeleteCallback={LoadLiveRecordingCopies}
-            />
           </Flex>
         </Grid.Col>
         <Grid.Col span={4}>
           <Flex>
             <Stack gap={0}>
-              <div className="form__section-header">Preview</div>
-              <Skeleton visible={frameSegmentUrl === undefined || !status} height={200} width={350}>
+              <Title order={3} c="elv-gray.9" mb={4}>Preview</Title>
+              <Skeleton visible={frameSegmentUrl === undefined || !status} height={200} width={350} radius={16}>
                 {
                   (status?.state === STATUS_MAP.RUNNING && frameSegmentUrl) ?
                     <VideoContainer
                       index={0}
                       slug={slug}
                       showPreview
+                      playable={status.state === STATUS_MAP.RUNNING}
+                      borderRadius={16}
                     /> :
-                    <Box bg="gray.3" h="100%" margin="auto" ta="center" style={{borderRadius: "4px"}}>
-                      <Text lh="200px">Preview is not available</Text>
+                    <Box bg="gray.3" h="100%" margin="auto" ta="center" className={styles.borderRadius}>
+                      <Title order={6} lh="200px" c="elv-gray.9">Preview is not available</Title>
                     </Box>
                 }
               </Skeleton>
-              <Skeleton visible={!status} mt={16}>
+              <Skeleton visible={!status} mt={4} radius={16}>
                 {
                   embedUrl &&
                   <Flex direction="row" justify="center" align="center">
-                    <Text size="xs" truncate="end" maw={300} ta="center">{embedUrl}</Text>
-                    <button type="button" onClick={() => {
-                      CopyToClipboard({text: embedUrl});
-                      setCopied(true);
+                    <Title order={6} lineClamp={1} maw={300} c="elv-gray.6" className={styles.embedUrl}>{embedUrl}</Title>
+                    <Tooltip label={copied ? "Copied": "Copy"} position="bottom">
+                      <ActionIcon
+                        variant="transparent"
+                        onClick={() => {
+                          CopyToClipboard({text: embedUrl});
+                          setCopied(true);
 
-                      setTimeout(() => {
-                        setCopied(false);
-                      }, [3000]);
-                    }}>
-                      {
-                        copied ?
-                          <IconCheck height={16} width={16}/> : <ClipboardIcon/>
-                      }
-                    </button>
+                          setTimeout(() => {
+                            setCopied(false);
+                          }, [3000]);
+                        }}
+                      >
+                        <CopyIcon color="var(--mantine-color-elv-neutral-5)" />
+                      </ActionIcon>
+                    </Tooltip>
                   </Flex>
                 }
               </Skeleton>
@@ -172,7 +200,13 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
           </Flex>
         </Grid.Col>
       </Grid>
-      <div className="form__section-header">Recording Periods</div>
+
+      <RecordingCopiesTable
+        liveRecordingCopies={liveRecordingCopies}
+        DeleteCallback={LoadLiveRecordingCopies}
+        loading={loading}
+      />
+
       <RecordingPeriodsTable
         libraryId={libraryId}
         objectId={params.id}
@@ -182,6 +216,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         currentTimeMs={currentTimeMs}
         retention={currentRetention}
         status={status}
+        loading={loading}
       />
     </>
   );

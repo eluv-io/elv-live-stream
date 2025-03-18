@@ -130,7 +130,7 @@ const AppFrame = observer(({
     return () => {
       // App might have set custom node(s), ensure state is reset when unmounting
       rootStore.client.ResetRegion();
-    }
+    };
   }, []);
 
   const AppUrl = () => {

@@ -1,17 +1,47 @@
-import {createTheme} from "@mantine/core";
+import {createTheme, rem} from "@mantine/core";
 
 const theme = createTheme({
-  fontFamily: "Helvetica Neue, Helvetica, sans-serif",
-  // fontFamily: "-apple-system, system-ui, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif",
-  // fontFamily: "Inter, Montserrat, Helvetica Neue, Helvetica, sans-serif",
-  // fontFamilyMonospace: "Monaco, Courier, monospace",
+  fontFamily: "Inter, Helvetica Neue, helvetica, sans-serif",
   headings: {
-    fontFamily: "Helvetica Neue, Helvetica, sans-serif"
+    fontFamily: "Inter, Helvetica Neue, helvetica, sans-serif",
+    sizes: {
+      h1: {
+        fontSize: rem(22),
+        fontWeight: 600
+      },
+      h2: {
+        fontSize: rem(18),
+        fontWeight: 600,
+      },
+      h3: {
+        fontSize: rem(14),
+        fontWeight: 700
+      },
+      h4: {
+        fontSize: rem(14),
+        fontWeight: 500
+      },
+      h6: {
+        fontSize: rem(12),
+        fontWeight: 500
+      }
+    }
   },
-  // TODO: Change primary color
-  // primaryColor: "elv-violet",
-  // primaryShade: 3,
+  primaryColor: "elv-blue",
+  primaryShade: 5,
   colors: {
+    "elv-blue": [
+      "#ebf3fc", // eluvio color
+      "#f8f9fd", // eluvio color
+      "#228be6", // eluvio color
+      "#4489df", // eluvio color
+      "#3f85e3", // eluvio color
+      "#336be4", // eluvio color
+      "#1a71cf", // eluvio color
+      "#1351cb",
+      "#0648b6",
+      "#003ea2"
+    ],
     "elv-violet": [
       "#f9e9ff",
       "#ebcfff",
@@ -23,27 +53,33 @@ const theme = createTheme({
       "#7c00e4",
       "#8f5aff", // eluvio color
       "#5f00b3",
-      "#380C61", // eluvio color
+      "#380c61", // eluvio color
     ],
     "elv-gray": [
       "#f5f5f5",
-      "#eee",
-      "#cdcdcd",
-      "#b2b2b2",
-      "#9a9a9a",
+      "#e3e3e3", // eluvio color
+      "#d7d7d7", // eluvio color
+      "#bdbdbd", // eluvio color
+      "rgba(0,0,0,0.06)", // eluvio color
       "#8b8b8b",
-      "#848484",
-      "#717171",
-      "#656565",
-      "#3C3C3C" // eluvio color
+      "#868e96", // eluvio color
+      "#6b6b6b", // eluvio color
+      "#4b494e", // eluvio color
+      "#3c3c3c" // eluvio color
+    ],
+    "elv-black": [
+      "#22252a", // eluvio color
+      "#202020", // eluvio color
+      "#1e1e1e", // eluvio color
+      "#212529" // eluvio color
     ],
     "elv-neutral": [
-      "#f8f2fe",
-      "#e8e4ed",
-      "#cdc8d3",
+      "#eeeeee", // eluvio color
+      "#ecece8", // eluvio color
+      "#c2c6d7", // eluvio color
       "#b2aaba", // eluvio color
       "#a9a0b2", // eluvio color
-      "#8b7f97",
+      "#7b7580", // eluvio color
       "#847791",
       "#71667e",
       "#665972",
@@ -100,55 +136,128 @@ const theme = createTheme({
   },
   // Default styles for components that need styles across components
   components: {
-    Tabs: {
-      styles: () => ({
-        // list: {
-        //   "--tab-border-color": "var(--mantine-color-elv-neutral-4)",
-        //   "--tabs-list-border-size": "1px"
-        // }
-      })
-    },
     Anchor: {
       styles: () => ({
         root: {
           "textDecoration": "underline",
           "fontWeight": "700",
-          "fontSize": "0.75rem"
+          "fontSize": rem(12)
+        }
+      })
+    },
+    AppShell: {
+      styles: () => ({
+        root: {
+          "--app-shell-border-color": "var(--mantine-color-elv-neutral-0)"
+        }
+      })
+    },
+    Button: {
+      defaultProps: {
+        variant: "filled"
+      },
+      styles: (theme, params) => ({
+        root: {
+          "minWidth": "7rem",
+          "--button-radius": rem(5),
+          "--mantine-color-elv-blue-outline": "var(--mantine-color-elv-blue-3)",
+          "--mantine-color-elv-blue-filled": "var(--mantine-color-elv-blue-3)",
+          // Change outline default design
+          ...(params.variant === "outline" && {
+            ...(params.disabled && {
+              "border": "1px solid var(--mantine-color-elv-gray-6)",
+              "opacity": "50%",
+              "backgroundColor": "transparent"
+            })
+          })
+        }
+      })
+    },
+    Checkbox: {
+      styles: () => ({
+        input: {
+          "--checkbox-color": "var(--mantine-color-elv-blue-2)",
+          "borderRadius": "2.2px"
+        }
+      })
+    },
+    InputWrapper: {
+      styles: () => ({
+        label: {
+          "fontWeight": 700,
+          "fontSize": rem(14),
+          "color": "var(--mantine-color-elv-gray-9)",
+          "marginBottom": "2px"
+        }
+      })
+    },
+    Modal: {
+      styles: () => ({
+        title: {
+          "fontSize": rem(22),
+          "fontWeight": 600,
+          "color": "var(--mantine-color-elv-gray-9)"
+        }
+      })
+    },
+    NavLink: {
+      styles: (theme, params) => ({
+        root: {
+          ...(params.active && {
+            "backgroundColor": "var(--mantine-color-elv-blue-1)"
+          })
+        },
+        label: {
+          ...(params.active && {
+            "color": "var(--mantine-color-elv-blue-3)"
+          })
         }
       })
     },
     Radio: {
       styles: () => ({
         root: {
-          "--radio-icon-size": "0.5rem"
+          "--radio-icon-size": rem(8),
+        },
+        input: {
+          "&:checked": {
+            "border": "2px solid black"
+          }
+        },
+        radio: {
+          "--radio-color": "var(--mantine-color-elv-blue-3)"
+        },
+        label: {
+          "fontWeight": 700,
+          "fontSize": rem(14),
+          "color": "var(--mantine-color-elv-gray-9)"
+        },
+        description: {
+          "fontWeight": 500,
+          "fontSize": rem(12),
+          "color": "var(--mantine-color-elv-gray-6)"
         }
       })
     },
-    Group: {
+    Select: {
       styles: () => ({
-        root: {
-          "--mantine-spacing-xxs": "0.3125rem"
+        input: {
+          "borderRadius": rem(6)
         }
       })
     },
-    Button: {
+    Textarea: {
       styles: () => ({
-        // root: {
-        //   "border": "2px solid var(--mantine-color-elv-violet-outline)"
-        // }
-      })
-    },
-    Modal: {
-      styles: () => ({
-        title: {
-          "fontSize": "1.25rem"
+        input: {
+          "--input-color": "var(--mantine-color-elv-gray-9)"
         }
       })
     },
-    Indicator: {
+    TextInput: {
       styles: () => ({
-        root: {
-          "lgg": "16px"
+        input: {
+          "--input-color": "var(--mantine-color-elv-gray-9)",
+          "borderRadius": rem(6)
         }
       })
     }

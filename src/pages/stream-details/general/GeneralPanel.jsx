@@ -1,10 +1,11 @@
 import {observer} from "mobx-react-lite";
-import {Box, Flex, Loader, Text} from "@mantine/core";
+import {Box, Button, Divider, Flex, Select, SimpleGrid, Text, TextInput, Tooltip} from "@mantine/core";
 import {useEffect, useState} from "react";
 import {dataStore, editStore, rootStore, streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Select, TextInput} from "@/components/Inputs.jsx";
 import {notifications} from "@mantine/notifications";
+import {CircleInfoIcon} from "@/assets/icons/index.js";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const GeneralPanel = observer(({slug}) => {
   const [formData, setFormData] = useState({
@@ -111,79 +112,107 @@ const GeneralPanel = observer(({slug}) => {
   return (
     <>
       <Flex direction="column" style={{flexGrow: "1"}}>
-        <form className="form" onSubmit={HandleSubmit}>
-          <Box mb="24px" maw="70%">
-            <TextInput
-              label="Name"
-              formName="name"
-              required={true}
-              value={formData.name}
-              onChange={HandleFormChange}
-            />
-            <TextInput
-              label="Display Title"
-              formName="displayTitle"
-              value={formData.displayTitle}
-              onChange={HandleFormChange}
-            />
+        <SectionTitle mb={12}>General</SectionTitle>
+        <form onSubmit={HandleSubmit}>
+          <Box mb="24px" maw="80%">
+            <SimpleGrid cols={2} spacing={150} mb={18}>
+              <TextInput
+                label="Name"
+                name="name"
+                placeholder="Enter stream name"
+                required={true}
+                value={formData.name}
+                onChange={HandleFormChange}
+              />
+              <TextInput
+                label="Display Title"
+                name="displayTitle"
+                placeholder="Enter a title"
+                value={formData.displayTitle}
+                onChange={HandleFormChange}
+              />
+            </SimpleGrid>
             <TextInput
               label="Description"
-              formName="description"
+              name="description"
+              placeholder="Enter a description"
+              description="Enter a description to provide more details and context."
               value={formData.description}
               onChange={HandleFormChange}
+              mb={29}
             />
-            <Select
-              label="Access Group"
-              labelDescription="This is the Access Group that will manage your live stream object."
-              formName="accessGroup"
-              options={
-                Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
-                  {
-                    label: accessGroupName,
-                    value: dataStore.accessGroups[accessGroupName]?.address
+
+            <Divider mb={29} />
+
+            <SectionTitle mb={12}>Access</SectionTitle>
+            <SimpleGrid cols={2} spacing={150} mb={25}>
+              <Select
+                label="Access Group"
+                description="Access Group responsible for managing your live stream object."
+                name="accessGroup"
+                data={
+                  Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
+                    {
+                      label: accessGroupName,
+                      value: dataStore.accessGroups[accessGroupName]?.address
+                    }
+                  ))
+                }
+                value={formData.accessGroup}
+                placeholder="Select Access Group"
+                onChange={(value) => HandleFormChange({
+                    target: {name: "accessGroup", value}
                   }
-                ))
-              }
-              value={formData.accessGroup}
-              defaultOption={{
-                value: "",
-                label: "Select Access Group"
-              }}
-              onChange={HandleFormChange}
-            />
-            <Select
-              label="Permission"
-              labelDescription="Set a permission level."
-              formName="permission"
-              tooltip={
-                Object.values(rootStore.client.permissionLevels).map(({short, description}) =>
-                  <Flex
-                    key={`permission-info-${short}`}
-                    gap="1rem"
-                    lh={1.25}
-                    pb={5}
-                    maw={500}
-                  >
-                    <Flex flex="0 0 25%">{ short }:</Flex>
-                    <Text fz="sm">{ description }</Text>
+                )}
+              />
+              <Select
+                label={
+                  <Flex align="center" gap={6}>
+                    Permission
+                    <Tooltip
+                      multiline
+                      w={460}
+                      label={
+                        Object.values(rootStore.client.permissionLevels).map(({short, description}) =>
+                          <Flex
+                            key={`permission-info-${short}`}
+                            gap="1rem"
+                            lh={1.25}
+                            pb={5}
+                          >
+                            <Flex flex="0 0 25%">{ short }:</Flex>
+                            <Text fz="sm">{ description }</Text>
+                          </Flex>
+                        )
+                      }
+                    >
+                      <Flex w={16}>
+                        <CircleInfoIcon color="var(--mantine-color-elv-gray-8)" />
+                      </Flex>
+                    </Tooltip>
                   </Flex>
-                )
-              }
-              value={formData.permission}
-              onChange={HandleFormChange}
-              options={
-                Object.keys(rootStore.client.permissionLevels || {}).map(permissionName => (
-                  {
-                    label: rootStore.client.permissionLevels[permissionName].short,
-                    value: permissionName
-                  }
-                ))
-              }
-            />
+                }
+                description="Stream permission level."
+                name="permission"
+                placeholder="Select Permission"
+                value={formData.permission}
+                onChange={(value) => HandleFormChange({
+                  target: {name: "permission", value}}
+                )}
+                data={
+                  Object.keys(rootStore.client.permissionLevels || {}).map(permissionName => (
+                    {
+                      label: rootStore.client.permissionLevels[permissionName].short,
+                      value: permissionName
+                    }
+                  ))
+                }
+              />
+            </SimpleGrid>
           </Box>
-          <button type="submit" className="button__primary" disabled={applyingChanges}>
-            {applyingChanges ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : "Save"}
-          </button>
+          <Button type="submit" disabled={applyingChanges} loading={applyingChanges}>
+            Save
+          </Button>
         </form>
       </Flex>
     </>

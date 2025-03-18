@@ -1,0 +1,11 @@
+.root {
+  color: var(--mantine-color-elv-blue-4);
+  padding: 0;
+  height: fit-content;
+}
+
+.buttonSection {
+  &[data-position="left"] {
+    margin-inline-end: 8px;
+  }
+}

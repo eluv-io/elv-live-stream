@@ -5,9 +5,76 @@ import {ActionIcon, AspectRatio, Box} from "@mantine/core";
 import {PlayCircleIcon as PlayIcon} from "@/assets/icons/index.js";
 import Video from "@/components/video/Video.jsx";
 import {IconX} from "@tabler/icons-react";
-import classes from "@/components/video-container/VideoContainer.module.css";
+import styles from "./VideoContainer.module.css";
 
-export const VideoContainer = observer(({slug, index, showPreview, allowClose=true}) => {
+const VideoContent = observer(({allowClose, setPlay, slug, borderRadius}) => {
+  return (
+    <>
+      <Box pos="absolute" inset={0} style={{borderRadius}}>
+        {
+          allowClose &&
+          <ActionIcon
+            className={styles.closeButton}
+            title="Stop Playback"
+            color="gray.1"
+            variant="transparent"
+            pos="absolute"
+            onClick={() => setPlay(false)}
+          >
+            <IconX color="white" />
+          </ActionIcon>
+        }
+      </Box>
+      <Video
+        objectId={streamStore.streams[slug].objectId}
+        playerOptions={{
+          capLevelToPlayerSize: false,
+          autoplay: true
+        }}
+      />
+    </>
+  );
+});
+
+const PlaceholderContent = observer(({
+  setPlay,
+  showPreview,
+  frameSegmentUrl,
+  status,
+  playable=true,
+  borderRadius
+}) => {
+  return (
+    <button
+      role="button"
+      tabIndex={1}
+      onClick={() => setPlay(true)}
+      className={styles.videoPlaceholder}
+      style={{borderRadius}}
+      disabled={!playable}
+    >
+      {
+        status === "running" &&
+        <PlayIcon width={45} height={45} color="white" style={{zIndex: 10}}/>
+      }
+      {
+        (!showPreview || !frameSegmentUrl) ? null :
+          (
+            <video src={frameSegmentUrl} className={`${styles.videoFrame} ${borderRadius === 16 ? styles.videoFrame16Radius : ""}`} controls={false} onContextMenu={e => e.preventDefault()} />
+          )
+      }
+    </button>
+  );
+});
+
+export const VideoContainer = observer(({
+  slug,
+  index,
+  showPreview,
+  allowClose = true,
+  playable=false,
+  borderRadius=11
+}) => {
   const [play, setPlay] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
   const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamStore.streamFrameUrls[slug]?.url);
@@ -47,53 +114,35 @@ export const VideoContainer = observer(({slug, index, showPreview, allowClose=tr
     return () => clearTimeout(updateTimeout);
   }, [frameKey, frameSegmentUrl]);
 
+  useEffect(() => {
+    // If playable status changes and video is playing, stop play
+    if(playable === false && play) {
+      setPlay(false);
+    }
+  }, [playable]);
+
   return (
-    <div className={classes.videoWrapper}>
-      <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%">
+    <Box className={styles.videoWrapper} style={{borderRadius}}>
+      <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%" className={styles.aspectRatio}>
         {
-          !play ?
-            <button
-              role="button"
-              tabIndex={1}
-              onClick={() => setPlay(true)}
-              className="monitor__video-placeholder"
-            >
-              {
-                status === "running" &&
-                <PlayIcon width={45} height={45} color="white" style={{zIndex: 10}} />
-              }
-              {
-                (!showPreview || !frameSegmentUrl) ? null :
-                  <video src={frameSegmentUrl} className="monitor__video-frame" controls={false} onContextMenu={e => e.preventDefault()} />
-              }
-            </button> :
-            <>
-              <Box pos="absolute" inset={0}>
-                {
-                  allowClose &&
-                  <ActionIcon
-                  className={classes.closeButton}
-                  title="Stop Playback"
-                  color="gray.1"
-                  variant="transparent"
-                  pos="absolute"
-                  onClick={() => setPlay(false)}
-                >
-                  <IconX color="white" />
-                </ActionIcon>
-                }
-              </Box>
-              <Video
-                objectId={streamStore.streams[slug].objectId}
-                playerOptions={{
-                  capLevelToPlayerSize: false,
-                  autoplay: true
-                }}
-              />
-            </>
+          play ?
+            <VideoContent
+              setPlay={setPlay}
+              slug={slug}
+              allowClose={allowClose}
+              borderRadius={borderRadius}
+            /> :
+            <PlaceholderContent
+              playable={playable}
+              setPlay={setPlay}
+              status={status}
+              showPreview={showPreview}
+              frameSegmentUrl={frameSegmentUrl}
+              borderRadius={borderRadius}
+            />
         }
       </AspectRatio>
-    </div>
+    </Box>
   );
 });
 

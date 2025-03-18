@@ -1,9 +1,13 @@
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Checkbox, Text, TextInput} from "@mantine/core";
+import {ActionIcon, Box, Checkbox, TextInput} from "@mantine/core";
 import {DataTable} from "mantine-datatable";
 import {AudioBitrateReadable} from "@/utils/helpers.js";
 import {AudioCodec} from "@/utils/constants.js";
 import {IconCircleCheck, IconCircleCheckFilled} from "@tabler/icons-react";
+import styles from "./AudioTracksTable.module.css";
+import tableStyles from "../../streams/Streams.module.css";
+import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
+
 
 const AudioTracksTable = observer(({
   records,
@@ -43,179 +47,167 @@ const AudioTracksTable = observer(({
   };
 
   return (
-    <DataTable
-      idAccessor="stream_index"
-      noRecordsText="No audio tracks found"
-      minHeight={records.length > 0 ? 150 : 200}
-      fetching={!disabled && !audioFormData}
-      records={records}
-      withColumnBorders
-      groups={[
-        {
-          id: "input",
-          title: "Input",
-          style: {fontStyle: "italic", fontSize: "1.125rem"},
-          columns: [
-            {
-              accessor: "stream_index",
-              title: "Index",
-              render: item => (
-                <Text>{ item.stream_index }</Text>
-              )
-            },
-            {
-              accessor: "codec_name",
-              title: "Codec",
-              render: item => (
-                <Text>
-                  { AudioCodec(item.codec_name) }</Text>
-              )
-            },
-            {
-              accessor: "bit_rate",
-              title: "Bitrate",
-              render: item => (
-                <Text>{ AudioBitrateReadable(item.bit_rate) }</Text>
-              )
-            }
-          ]
-        },
-        {
-          id: "output",
-          title: "Output",
-          style: {fontStyle: "italic", fontSize: "1.125rem"},
-          columns: [
-            {
-              accessor: "playout_label",
-              title: "Label",
-              render: item => {
-                return (
-                  <TextInput
-                    value={audioFormData[item.stream_index].playout_label}
+    <Box className={tableStyles.tableWrapper}>
+      <DataTable
+        classNames={{header: styles.tableHeader}}
+        idAccessor="stream_index"
+        noRecordsText="No audio tracks found"
+        minHeight={(records.length > 0) ? 150 : 170}
+        fetching={!disabled && !audioFormData}
+        records={records}
+        withColumnBorders
+        groups={[
+          {
+            id: "input",
+            title: "Input",
+            style: {fontWeight: 700, fontSize: "14px", lineHeight: "21px", color: "var(--mantine-color-elv-black-3)"},
+            columns: [
+              {
+                accessor: "stream_index",
+                title: "Index",
+                render: item => (
+                  <BasicTableRowText>{ item.stream_index }</BasicTableRowText>
+                )
+              },
+              {
+                accessor: "codec_name",
+                title: "Codec",
+                render: item => (
+                  <BasicTableRowText>
+                    { AudioCodec(item.codec_name) }</BasicTableRowText>
+                )
+              },
+              {
+                accessor: "bit_rate",
+                title: "Bitrate",
+                render: item => (
+                  <BasicTableRowText>{ AudioBitrateReadable(item.bit_rate) }</BasicTableRowText>
+                )
+              }
+            ]
+          },
+          {
+            id: "output",
+            title: "Output",
+            style: {fontWeight: 700, fontSize: "14px", lineHeight: "21px", color: "var(--mantine-color-elv-black-3)"},
+            columns: [
+              {
+                accessor: "playout_label",
+                title: "Label",
+                render: item => {
+                  return (
+                    <TextInput
+                      classNames={{input: styles.textInput}}
+                      value={audioFormData[item.stream_index].playout_label}
+                      placeholder="Enter a label"
+                      disabled={disabled}
+                      required={audioFormData[item.stream_index].record}
+                      onInvalid={e => e.target.setCustomValidity("Label cannot be empty when enabling Playout")}
+                      onInput={e => e.target.setCustomValidity("")}
+                      onChange={(event) => {
+                        HandleFormChange({
+                          index: item.stream_index,
+                          key: "playout_label",
+                          value: event.target.value
+                        });
+                      }}
+                    />
+                  );
+                }
+              },
+              {
+                accessor: "language",
+                title: "Language",
+                render: item => {
+                  return (
+                    <TextInput
+                      classNames={{input: styles.textInput}}
+                      value={audioFormData[item.stream_index].lang}
+                      placeholder="Enter a language"
+                      disabled={disabled}
+                      onChange={(event) => {
+                        HandleFormChange({
+                          index: item.stream_index,
+                          key: "lang",
+                          value: event.target.value
+                        });
+                      }}
+                    />
+                  );
+                }
+              },
+              {
+                accessor: "action_default",
+                title: "Default",
+                width: 75,
+                render: item => (
+                  <ActionIcon
+                    variant="subtle"
+                    color="var(--mantine-color-elv-blue-2)"
+                    onClick={() => {
+                      HandleToggleDefault({index: item.stream_index, value: !audioFormData[item.stream_index].default});
+                    }}
+                    disabled={!audioFormData[item.stream_index].record || !audioFormData[item.stream_index].playout || disabled}
+                  >
+                    {
+                      audioFormData[item.stream_index].default ?
+                      <IconCircleCheckFilled /> :
+                      <IconCircleCheck color="var(--mantine-color-elv-gray-5)" />
+                    }
+                  </ActionIcon>
+                )
+              },
+              {
+                accessor: "action_record",
+                title: "Record",
+                width: 75,
+                render: item => (
+                  <Checkbox
+                    checked={audioFormData[item.stream_index].record}
                     disabled={disabled}
-                    required={audioFormData[item.stream_index].record}
-                    onInvalid={e => e.target.setCustomValidity("Label cannot be empty when enabling Playout")}
-                    onInput={e => e.target.setCustomValidity("")}
                     onChange={(event) => {
+                      const value = event.target.checked;
                       HandleFormChange({
                         index: item.stream_index,
-                        key: "playout_label",
-                        value: event.target.value
+                        key: "record",
+                        value
                       });
-                    }}
-                  />
-                );
-              }
-            },
-            {
-              accessor: "language",
-              title: "Language",
-              render: item => {
-                return (
-                  <TextInput
-                    value={audioFormData[item.stream_index].lang}
-                    disabled={disabled}
-                    onChange={(event) => {
-                      HandleFormChange({
-                        index: item.stream_index,
-                        key: "lang",
-                        value: event.target.value
-                      });
-                    }}
-                  />
-                );
-              }
-            },
-            // {
-            //   accessor: "output_bitrate",
-            //   title: "Bitrate",
-            //   render: item => (
-            //     <Select
-            //       label=""
-            //       style={{minWidth: "125px"}}
-            //       options={RECORDING_BITRATE_OPTIONS}
-            //       disabled={disabled}
-            //       onChange={(event) => {
-            //         HandleFormChange({
-            //           index: item.stream_index,
-            //           key: "recording_bitrate",
-            //           value: parseInt(event.target.value)
-            //         });
-            //       }}
-            //       value={audioFormData[item.stream_index].recording_bitrate}
-            //     />
-            //   )
-            // },
-            {
-              accessor: "action_default",
-              title: "Default",
-              width: 75,
-              render: item => (
-                <ActionIcon
-                  variant="subtle"
-                  onClick={() => {
-                    HandleToggleDefault({index: item.stream_index, value: !audioFormData[item.stream_index].default});
-                  }}
-                  disabled={!audioFormData[item.stream_index].record || !audioFormData[item.stream_index].playout || disabled}
-                >
-                  {
-                    audioFormData[item.stream_index].default ?
-                    <IconCircleCheckFilled /> :
-                    <IconCircleCheck color="var(--mantine-color-elv-gray-5)" />
-                  }
-                </ActionIcon>
-              )
-            },
-            {
-              accessor: "action_record",
-              title: "Record",
-              width: 75,
-              render: item => (
-                <Checkbox
-                  checked={audioFormData[item.stream_index].record}
-                  disabled={disabled}
-                  onChange={(event) => {
-                    const value = event.target.checked;
-                    HandleFormChange({
-                      index: item.stream_index,
-                      key: "record",
-                      value
-                    });
 
-                    // Make sure playout is set to false when record is false
-                    if(!value) {
+                      // Make sure playout is set to false when record is false
+                      if(!value) {
+                        HandleFormChange({
+                          index: item.stream_index,
+                          key: "playout",
+                          value: false
+                        });
+                      }
+                    }}
+                  />
+                )
+              },
+              {
+                accessor: "action_playout",
+                title: "Playout",
+                width: 75,
+                render: item => (
+                  <Checkbox
+                    checked={audioFormData[item.stream_index].playout}
+                    onChange={(event) => {
                       HandleFormChange({
                         index: item.stream_index,
                         key: "playout",
-                        value: false
+                        value: event.target.checked
                       });
-                    }
-                  }}
-                />
-              )
-            },
-            {
-              accessor: "action_playout",
-              title: "Playout",
-              width: 75,
-              render: item => (
-                <Checkbox
-                  checked={audioFormData[item.stream_index].playout}
-                  onChange={(event) => {
-                    HandleFormChange({
-                      index: item.stream_index,
-                      key: "playout",
-                      value: event.target.checked
-                    });
-                  }}
-                  disabled={!audioFormData[item.stream_index].record || disabled}
-                />
-              )
-            }
-          ]
-        }
-      ]}
-    />
+                    }}
+                    disabled={!audioFormData[item.stream_index].record || disabled}
+                  />
+                )
+              }
+            ]
+          }
+        ]}
+      />
+    </Box>
   );
 });
 

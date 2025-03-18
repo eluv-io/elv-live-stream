@@ -1,54 +1,92 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Flex, Loader, Modal, Text} from "@mantine/core";
+import {Box, Button, Flex, Grid, Modal, Text} from "@mantine/core";
 
 const ConfirmModal = observer(({
   message,
+  customMessage,
   title,
+  name,
+  objectId,
   ConfirmCallback,
   CloseCallback,
   show,
   loadingText,
   cancelText="Cancel",
-  confirmText="Confirm"
+  confirmText="Confirm",
+  // danger=false
 }) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState();
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setError(null);
+  }, [show]);
 
   return (
     <Modal
       opened={show}
       onClose={CloseCallback}
       title={title}
-      padding="32px"
+      padding="24px"
       radius="6px"
       size="lg"
       centered
+      closeOnClickOutside={false}
     >
-      <Text>{message}</Text>
-      {
-        loading && loadingText ?
-          <Text>{loadingText}</Text> : null
-      }
-      {
-        !error ? null :
-          <div className="modal__error">
-            Error: { error }
-          </div>
-      }
-      <Flex direction="row" align="center" className="modal__actions">
-        <button type="button" className="button__secondary" onClick={CloseCallback}>
+      <Box>
+        {
+          customMessage ?
+            customMessage : (
+             <Text>{message}</Text>
+            )
+        }
+        {
+          name && objectId &&
+          <Box mt={16}>
+            <Grid gutter={2}>
+              <Grid.Col span={3}>
+                <Text>Stream Name:</Text>
+              </Grid.Col>
+              <Grid.Col span={9}>
+                <Text c="elv-gray.9" fw={700}>{ name || "" }</Text>
+              </Grid.Col>
+            </Grid>
+            <Grid>
+              <Grid.Col span={3}>
+                <Text>Stream ID:</Text>
+              </Grid.Col>
+              <Grid.Col span={9}>
+                <Text>{ objectId || "" }</Text>
+              </Grid.Col>
+            </Grid>
+          </Box>
+        }
+        {
+          loading && loadingText ?
+            loadingText : null
+        }
+        {
+          !error ? null :
+            <div className="modal__error">
+              Error: { error }
+            </div>
+        }
+      </Box>
+      <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
+        <Button type="button" variant="outline" onClick={CloseCallback} mr="0.5rem">
           {cancelText}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
           disabled={loading}
-          className="button__primary"
+          variant="filled"
+          loading={loading}
           onClick={async () => {
             try {
               setError(undefined);
               setLoading(true);
               await ConfirmCallback();
+              CloseCallback();
             } catch(error) {
               // eslint-disable-next-line no-console
               console.error(error);
@@ -58,8 +96,8 @@ const ConfirmModal = observer(({
             }
           }}
         >
-          {loading ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : confirmText}
-        </button>
+          { confirmText }
+        </Button>
       </Flex>
     </Modal>
   );

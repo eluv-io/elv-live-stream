@@ -1,4 +1,4 @@
-import {Box, Button, Loader, Title} from "@mantine/core";
+import {Box, Button, Group, Loader, Text} from "@mantine/core";
 import TextEditorBox from "@/components/text-editor-box/TextEditorBox.jsx";
 import {useEffect, useState} from "react";
 import {DefaultLadderProfile} from "@/utils/profiles.js";
@@ -8,11 +8,17 @@ import {PlusIcon} from "@/assets/icons/index.js";
 import {rootStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
+import PageContainer from "@/components/page-container/PageContainer.jsx";
+import styles from "./Settings.module.css";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const Settings = observer(() => {
   const [profileFormData, setProfileFormData] = useState(({default: JSON.stringify({}, null, 2), custom: []}));
-  // For displaying values while user potentionally edits name
+  // For displaying values while user potentially edits name
   const [customProfileNames, setCustomProfileNames] = useState([]);
+  // For tracking profiles that haven't been saved
+  const [draftItems, setDraftItems] = useState({});
+
   const [deleteIndex, setDeleteIndex] = useState(-1);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -67,6 +73,11 @@ const Settings = observer(() => {
       }, null, 2)
     );
 
+    // Add draft item
+    const updatedDraftItems = Object.assign({}, draftItems);
+    updatedDraftItems[updatedCustomItems.length - 1] = true;
+
+    setDraftItems(updatedDraftItems);
     setProfileFormData({
       ...profileFormData,
       custom: updatedCustomItems
@@ -85,9 +96,11 @@ const Settings = observer(() => {
         custom: updatedCustomItems
       };
 
-      await editStore.SaveLadderProfiles({
-        profileData: newData
-      });
+      if(!draftItems[index]) {
+        await editStore.SaveLadderProfiles({
+          profileData: newData
+        });
+      }
 
       setCustomProfileNames(updatedCustomItems.map(item => JSON.parse(item).name));
 
@@ -109,6 +122,12 @@ const Settings = observer(() => {
 
   const HandleSave = async() => {
     try {
+      // Check for JSON validation errors first
+      [
+        profileFormData.default,
+        ...profileFormData.custom || []
+      ].forEach(profile => JSON.parse(profile));
+
       setSaving(true);
 
       await editStore.SaveLadderProfiles({
@@ -130,34 +149,38 @@ const Settings = observer(() => {
       });
     } finally {
       setSaving(false);
+      setDraftItems({});
     }
   };
 
   if(!rootStore.loaded) { return <Loader />; }
 
   return (
-    <>
-      <div className="page-header monitor__page-header">
-        <div>
-          Settings
-        </div>
-      </div>
-      <Box>
-        <Title order={4}>Playout Profiles</Title>
-        <Button
-          leftSection={<PlusIcon />}
-          variant="white"
-          mt={16}
-          mb={8}
-          onClick={HandleAddCustom}
-        >
-          Add Custom Profile
-        </Button>
+    <PageContainer
+      title="Settings"
+    >
+      <Box mt={22}>
+        <Group mb={12} gap={16}>
+          <SectionTitle>Playout Profiles</SectionTitle>
+          <Button
+            classNames={{root: styles.root, section: styles.buttonSection}}
+            leftSection={<PlusIcon width={18} height={18} />}
+            variant="white"
+            onClick={HandleAddCustom}
+          >
+            <Text fw={500} fz={14} c="elv-blue.2">
+              Add Custom Profile
+            </Text>
+          </Button>
+        </Group>
+
         <TextEditorBox
           columns={[
-            {id: "Default", header: "Profile", value: "Default"}
+            {id: "Default", value: "Default"}
           ]}
+          header="Profile"
           hideDelete
+          defaultShowEditor
           editorValue={profileFormData.default || {}}
           HandleEditorValueChange={(args) => HandleChange({...args, index: "default"})}
         />
@@ -166,8 +189,9 @@ const Settings = observer(() => {
             <TextEditorBox
               key={`custom-${customProfileNames[index]}`}
               columns={[
-                {id: customProfileNames[index], header: "Profile", value: customProfileNames[index]}
+                {id: customProfileNames[index], value: customProfileNames[index]}
               ]}
+              header="Profile"
               editorValue={profile}
               HandleEditorValueChange={(args) => HandleChange({...args, index})}
               HandleDelete={() => {
@@ -178,18 +202,20 @@ const Settings = observer(() => {
           ))
         }
       </Box>
-      <button
-        type="button"
-        className="button__primary"
+      <Button
+        variant="filled"
         onClick={HandleSave}
         disabled={saving}
+        loading={saving}
+        mt={5}
       >
-        {saving ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : "Save"}
-      </button>
+        Save
+      </Button>
       <ConfirmModal
         title="Delete Profile"
         message="Are you sure you want to delete the profile? This action cannot be undone."
         confirmText="Delete"
+        danger
         show={showModal}
         CloseCallback={() => setShowModal(false)}
         ConfirmCallback={async() => {
@@ -197,7 +223,7 @@ const Settings = observer(() => {
           setShowModal(false);
         }}
       />
-    </>
+    </PageContainer>
   );
 });
 

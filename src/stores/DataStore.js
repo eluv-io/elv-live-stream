@@ -1,6 +1,5 @@
 // Force strict mode so mutations are only allowed within actions.
 import {configure, flow, makeAutoObservable, runInAction} from "mobx";
-import {streamStore} from "./index";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 
 configure({
@@ -10,6 +9,7 @@ configure({
 // Store for loading all the initial data
 class DataStore {
   rootStore;
+  loaded = false;
   tenantId;
   libraries;
   accessGroups;
@@ -33,18 +33,24 @@ class DataStore {
   }
 
   Initialize = flow(function * (reload=false) {
-    const tenantContractId = yield this.LoadTenantInfo();
-    if(!this.siteId) {
-      this.siteId = yield this.LoadTenantData({tenantContractId});
-    }
+    this.loaded = false;
+    try {
+      const tenantContractId = yield this.LoadTenantInfo();
+      if(!this.siteId) {
+        this.siteId = yield this.LoadTenantData({tenantContractId});
+      }
 
-    if(!this.siteLibraryId) {
-      this.siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
-    }
+      if(!this.siteLibraryId) {
+        this.siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
+      }
 
-    yield this.LoadLadderProfiles();
-    yield this.LoadStreams();
-    yield streamStore.AllStreamsStatus(reload);
+      yield this.LoadLadderProfiles();
+      yield this.LoadStreams();
+      this.loaded = true;
+      yield this.rootStore.streamStore.AllStreamsStatus(reload);
+    } catch(error) {
+      this.loaded = true;
+    }
   });
 
   LoadTenantInfo = flow(function * () {
@@ -126,7 +132,7 @@ class DataStore {
   });
 
   LoadStreams = flow(function * () {
-    streamStore.UpdateStreams({});
+    this.rootStore.streamStore.UpdateStreams({});
     let streamMetadata;
     try {
       const siteMetadata = yield this.client.ContentObjectMetadata({
@@ -142,7 +148,7 @@ class DataStore {
 
       streamMetadata = siteMetadata?.public?.asset_metadata?.live_streams || {};
     } catch(error) {
-      streamStore.UpdateStreams({streams: {}});
+      this.rootStore.streamStore.UpdateStreams({streams: {}});
       this.rootStore.SetErrorMessage("Error: Unable to load streams");
       // eslint-disable-next-line no-console
       console.error(error);
@@ -165,7 +171,6 @@ class DataStore {
           streamMetadata[slug].objectId = objectId;
           streamMetadata[slug].versionHash = versionHash;
           streamMetadata[slug].libraryId = libraryId;
-          streamMetadata[slug].title = stream.title || stream.display_title;
           streamMetadata[slug].embedUrl = await this.EmbedUrl({objectId});
 
           const streamDetails = await this.LoadStreamMetadata({
@@ -183,7 +188,7 @@ class DataStore {
       }
     );
 
-    streamStore.UpdateStreams({streams: streamMetadata});
+    this.rootStore.streamStore.UpdateStreams({streams: streamMetadata});
   });
 
   LoadLibraries = flow(function * () {
@@ -304,23 +309,27 @@ class DataStore {
       const simpleWatermark = streamMeta?.live_recording?.playout_config?.simple_watermark;
       const imageWatermark = streamMeta?.live_recording?.playout_config?.image_watermark;
       const forensicWatermark = streamMeta?.live_recording?.playout_config?.forensic_watermark;
+      const connectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
+      const reconnectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
+      const partTtl = streamMeta?.live_recording_config?.part_ttl;
+      const dvrMaxDuration = streamMeta?.live_recording?.playout_config?.dvr_max_duration;
 
       return {
         codecName: videoStream?.codec_name,
-        connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
+        connectionTimeout: connectionTimeout ? connectionTimeout.toString() : null,
         description: streamMeta?.public?.description,
         display_title: streamMeta?.public?.asset_metadata?.display_title,
         drm: streamMeta?.live_recording_config?.drm_type,
         dvrEnabled: streamMeta?.live_recording?.playout_config?.dvr_enabled,
         dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
-        dvrMaxDuration: streamMeta?.live_recording?.playout_config?.dvr_max_duration,
+        dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
         forensicWatermark,
         format: probeType,
         imageWatermark,
         originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
-        partTtl: streamMeta?.live_recording_config?.part_ttl,
+        partTtl: partTtl ? partTtl.toString() : null,
         playoutLadderProfile: streamMeta?.live_recording_config?.playout_ladder_profile,
-        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,
+        reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
         referenceUrl: streamMeta?.live_recording_config?.reference_url,
         simpleWatermark,
         title: streamMeta?.public?.name,
@@ -352,10 +361,10 @@ class DataStore {
         ]
       });
 
-      streamStore.UpdateStream({
+      this.rootStore.streamStore.UpdateStream({
         key: slug,
         value: {
-          title: streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
+          title: streamMeta?.name || streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
           description: streamMeta.description,
           display_title: streamMeta.asset_metadata?.display_title
         }
@@ -467,6 +476,44 @@ class DataStore {
     }
   });
 
+  LoadRecordingConfigData = flow(function * ({
+    libraryId,
+    objectId
+  }) {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const streamMeta = yield this.client.ContentObjectMetadata({
+        objectId,
+        libraryId,
+        select: [
+          "live_recording/recording_config/recording_params/xc_params/connection_timeout",
+          "live_recording/recording_config/recording_params/reconnect_timeout",
+          "live_recording_config/part_ttl",
+        ]
+      });
+
+      const {audioStreams, audioData} = yield this.LoadStreamProbeData({
+        libraryId,
+        objectId
+      });
+
+      return {
+        audioStreams,
+        audioData,
+        retention: streamMeta?.live_recording_config?.part_ttl,
+        connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
+        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout
+      };
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load recording config data", error);
+      return {};
+    }
+  });
+
   LoadStreamProbeData = flow(function * ({
     objectId,
     libraryId
@@ -544,11 +591,11 @@ class DataStore {
     }
   });
 
-  EmbedUrl = flow(function * ({
-    objectId
-  }) {
+  EmbedUrl = flow(function * ({objectId}) {
     try {
-      return yield this.client.EmbedUrl({objectId, mediaType: "live_video"});
+      const url = yield this.client.EmbedUrl({objectId, mediaType: "live_video"});
+
+      return url;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(error);

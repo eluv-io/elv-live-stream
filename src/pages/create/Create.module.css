@@ -1,3 +1,43 @@
 .alertRoot {
   align-items: center;
 }
+
+.disabledContainer {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.accordionItem {
+  border-bottom: none;
+}
+
+.accordionControl {
+  width: fit-content;
+  gap: 10px;
+  padding: 0;
+}
+
+.accordionControlLabel {
+  padding: 0;
+}
+
+.accordionContent {
+  padding-left: 0;
+}
+
+.accordionChevron {
+  width: 20px;
+  height: 20px;
+}
+
+.form {
+  width: 80%;
+
+  @media (min-width: 1280px) {
+    width: 72%;
+  }
+
+  @media (min-width: 1728px) {
+    width: 1000px;
+  }
+}

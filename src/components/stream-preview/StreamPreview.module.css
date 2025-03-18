@@ -1,5 +1,6 @@
 .root {
-  border: 1px solid var(--mantine-color-elv-gray-4);
+  border: none;
   height: calc(100vh - 150px);
   width: 100%;
+  margin: -0.75rem 0 0 -1.5rem;
 }

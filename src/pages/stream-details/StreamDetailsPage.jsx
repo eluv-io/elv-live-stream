@@ -1,21 +1,20 @@
 import {useEffect, useState} from "react";
-import PageHeader from "@/components/header/PageHeader";
+import StatusText from "@/components/status-text/StatusText.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {streamStore, editStore, dataStore} from "@/stores";
+import {streamStore, dataStore, modalStore} from "@/stores";
 import {observer} from "mobx-react-lite";
-import {Loader, Tabs, Text} from "@mantine/core";
-import {useDebouncedCallback, useDisclosure} from "@mantine/hooks";
+import {Loader, Tabs, Title} from "@mantine/core";
+import {useDebouncedCallback} from "@mantine/hooks";
 import {DETAILS_TABS, STATUS_MAP} from "@/utils/constants";
-import classes from "@/pages/stream-details/StreamDetails.module.css";
-import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
+import styles from "@/pages/stream-details/StreamDetails.module.css";
 import {StreamIsActive} from "@/utils/helpers";
+import PageContainer from "@/components/page-container/PageContainer.jsx";
+import {notifications} from "@mantine/notifications";
 
 const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
   const params = useParams();
   let streamSlug, stream;
-  const [showModal, {open, close}] = useDisclosure(false);
-  const [modalData, setModalData] = useState({});
   const [pageVersion, setPageVersion] = useState(0);
   const [activeTab, setActiveTab] = useState(DETAILS_TABS[0].value);
   const [recordingInfo, setRecordingInfo] = useState(null);
@@ -74,7 +73,7 @@ const StreamDetailsPage = observer(() => {
     {
       label: "Back",
       variant: "filled",
-      uppercase: true,
+      color: "elv-gray.6",
       onClick: () => navigate(-1)
     },
     {
@@ -83,13 +82,16 @@ const StreamDetailsPage = observer(() => {
       uppercase: true,
       disabled: StreamIsActive(streamStore.streams?.[streamSlug]?.status),
       onClick: () => {
-        setModalData({
-          title: "Delete Stream",
-          message: "Are you sure you want to delete the stream? This action cannot be undone.",
-          confirmText: "Delete",
-          ConfirmCallback: async () => await editStore.DeleteStream({objectId: stream.objectId})
+        modalStore.SetModal({
+          data: {
+            objectId: streamStore.streams?.[streamSlug].objectId,
+            name: streamStore.streams?.[streamSlug].title,
+          },
+          slug: streamSlug,
+          Callback: () => navigate("/streams"),
+          op: "DELETE",
+          notifications
         });
-        open();
       }
     },
     {
@@ -102,18 +104,18 @@ const StreamDetailsPage = observer(() => {
   if([STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(streamStore.streams?.[streamSlug]?.status)) {
     actions.push({
       label: "Start",
-      variant: "outline",
+      variant: "filled",
       onClick: () => {
-        setModalData({
-          title: "Start Stream",
-          message: "Are you sure you want to start the stream?",
-          ConfirmCallback: async () => {
-            await streamStore.StartStream({slug: streamSlug});
-            await LoadEdgeWriteTokenMeta();
-            close();
-          }
+        modalStore.SetModal({
+          data: {
+            objectId: streamStore.streams?.[streamSlug].objectId,
+            name: streamStore.streams?.[streamSlug].title
+          },
+          Callback: () => LoadEdgeWriteTokenMeta(),
+          op: "START",
+          slug: stream.slug,
+          notifications
         });
-        open();
       }
     });
   }
@@ -121,42 +123,43 @@ const StreamDetailsPage = observer(() => {
   if([STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(streamStore.streams?.[streamSlug]?.status)) {
     actions.push({
       label: "Stop",
-      variant: "outline",
+      variant: "filled",
       onClick: () => {
-        setModalData({
-          title: "Stop Stream",
-          message: "Are you sure you want to stop the stream?",
-          ConfirmCallback: async () => {
-            await streamStore.OperateLRO({
-              objectId: stream.objectId,
-              slug: streamSlug,
-              operation: "STOP"
-            });
-            close();
-
-            DebouncedRefresh();
-          }
+        modalStore.SetModal({
+          data: {
+            objectId: streamStore.streams?.[streamSlug].objectId,
+            name: streamStore.streams?.[streamSlug].title,
+          },
+          Callback: () => DebouncedRefresh(),
+          op: "STOP",
+          slug: stream.slug,
+          notifications
         });
-        open();
       }
     });
   }
 
   return (
-    <div key={`stream-details-${pageVersion}`}>
-      <PageHeader
-        title={`Edit ${streamStore.streams?.[streamSlug]?.display_title || streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
-        subtitle={stream.objectId}
-        status={stream.status}
-        quality={streamStore.streams?.[streamSlug]?.quality}
-        actions={actions}
-      />
-      <Tabs className={classes.root} value={activeTab} onChange={setActiveTab}>
-        <Tabs.List className={classes.list}>
+    <PageContainer
+      key={`stream-details-${pageVersion}`}
+      title={`Edit ${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
+      subtitle={stream.objectId}
+      titleRightSection={
+        <StatusText
+          status={stream.status}
+          quality={streamStore.streams?.[streamSlug]?.quality}
+          size="md"
+          withBorder
+        />
+      }
+      actions={actions}
+    >
+      <Tabs className={styles.root} value={activeTab} onChange={setActiveTab}>
+        <Tabs.List className={styles.list}>
           {
             DETAILS_TABS.map(tab => (
-              <Tabs.Tab value={tab.value} key={`details-tabs-${tab.value}`} className={classes.tab}>
-                <Text fw="400" size="md">{tab.label}</Text>
+              <Tabs.Tab value={tab.value} key={`details-tabs-${tab.value}`} className={styles.tab}>
+                <Title order={3} c="elv-gray.9">{tab.label}</Title>
               </Tabs.Tab>
             ))
           }
@@ -192,15 +195,7 @@ const StreamDetailsPage = observer(() => {
           ))
         }
       </Tabs>
-      <ConfirmModal
-        title={modalData.title}
-        message={modalData.message}
-        confirmText={modalData.confirmText}
-        show={showModal}
-        CloseCallback={close}
-        ConfirmCallback={modalData.ConfirmCallback}
-      />
-    </div>
+    </PageContainer>
   );
 });
 

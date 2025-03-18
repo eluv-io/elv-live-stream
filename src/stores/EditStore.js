@@ -27,15 +27,18 @@ class EditStore {
   }
 
   InitLiveStreamObject = flow(function * ({
-    basicFormData,
-    advancedData,
-    drmFormData,
-    playoutProfile
+    accessGroup,
+    description,
+    displayTitle,
+    encryption,
+    libraryId,
+    name,
+    permission,
+    playoutProfile,
+    protocol,
+    retention,
+    url
   }) {
-    const {libraryId, url, name, description, displayTitle, accessGroup, permission, protocol} = basicFormData;
-    const {retention} = advancedData;
-    const {encryption} = drmFormData;
-
     const response = yield this.CreateContentObject({
       libraryId,
       permission
@@ -111,18 +114,22 @@ class EditStore {
     };
   });
 
+  // Update audio settings for streams that have been created and probed
   UpdateLiveStreamObject = flow(function * ({
-    basicFormData,
-    advancedData,
-    drmFormData,
     audioFormData,
     objectId,
-    slug
+    slug,
+    accessGroup,
+    description,
+    displayTitle,
+    encryption,
+    libraryId,
+    name,
+    playoutProfile,
+    protocol,
+    retention,
+    url
   }) {
-    const {libraryId, url, name, description, displayTitle, accessGroup, protocol} = basicFormData;
-    const {retention} = advancedData;
-    const {encryption} = drmFormData;
-
     if(accessGroup) {
       this.AddAccessGroupPermission({
         objectId,
@@ -140,6 +147,7 @@ class EditStore {
     const config = ParseLiveConfigData({
       url,
       encryption,
+      playoutProfile,
       retention,
       referenceUrl: protocol === "custom" ? undefined : url,
       audioFormData
@@ -154,9 +162,10 @@ class EditStore {
       config
     });
 
-    yield streamStore.ConfigureStream({
+    yield streamStore.UpdateStreamAudioSettings({
       objectId,
-      slug
+      slug,
+      audioData: audioFormData
     });
   });
 
@@ -536,6 +545,7 @@ class EditStore {
     libraryId,
     objectId,
     writeToken,
+    finalize=true,
     slug,
     retention,
     connectionTimeout,
@@ -649,10 +659,69 @@ class EditStore {
         });
 
         updateValue.dvrEnabled = dvrEnabled;
-        updateValue.dvrMaxDuration = [undefined, null].includes(dvrMaxDuration) ? undefined : parseInt(dvrMaxDuration);
+        updateValue.dvrMaxDuration = [undefined, null].includes(dvrMaxDuration) ? undefined : (dvrMaxDuration);
         updateValue.dvrStartTime = dvrStartTime ? dvrStartTime.toISOString() : undefined;
       }
     }
+
+    if(finalize && Object.keys(updateValue || {}).length > 0) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Update recording config",
+        awaitCommitConfirmation: true
+      });
+    }
+
+    streamStore.UpdateStream({
+      key: slug,
+      value: updateValue
+    });
+
+    return {
+      writeToken
+    };
+  });
+
+  UpdateRecordingConfig = flow(function * ({
+    libraryId,
+    objectId,
+    slug,
+    writeToken,
+    audioFormData,
+    configFormData
+  }) {
+    if(!libraryId) {
+      libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    }
+
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId
+      }));
+    }
+
+    const {retention, connectionTimeout, reconnectionTimeout} = configFormData;
+
+    yield this.rootStore.streamStore.UpdateStreamAudioSettings({
+      objectId,
+      writeToken,
+      slug,
+      audioData: audioFormData,
+      finalize: false
+    });
+
+    this.UpdateConfigMetadata({
+      objectId,
+      slug,
+      retention,
+      connectionTimeout,
+      reconnectionTimeout,
+      writeToken,
+      finalize: false
+    });
 
     yield this.client.FinalizeContentObject({
       libraryId,
@@ -661,13 +730,7 @@ class EditStore {
       commitMessage: "Update recording config",
       awaitCommitConfirmation: true
     });
-
-    streamStore.UpdateStream({
-      key: slug,
-      value: updateValue
-    });
   });
-
 
   SaveLadderProfiles = flow(function * ({profileData}) {
     try {

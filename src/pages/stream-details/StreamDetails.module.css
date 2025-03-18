@@ -1,23 +1,3 @@
-.root {
-  /* margin-top: 20px; */
-}
-
 .list {
   margin-bottom: 22px;
-}
-
-.tab {
-  /* border-width: 0 0 5px; */
-
-  &:first-child {
-    /* Align left-most tab with title and content */
-
-    /* padding-left: 0; */
-  }
-
-  /* &[aria-selected="false"] { */
-
-  /*  color: var(--mantine-color-elv-neutral-4); */
-
-  /* } */
 }

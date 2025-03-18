@@ -1,41 +1,60 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
-import {dataStore, editStore, streamStore} from "@/stores";
+import {dataStore, editStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Box, Loader} from "@mantine/core";
+import {Box, Button, Divider, Loader, Select, SimpleGrid} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
-import {Select} from "@/components/Inputs.jsx";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
   RECONNECTION_TIMEOUT_OPTIONS,
   RETENTION_OPTIONS, STATUS_MAP
 } from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
+import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 
 const RecordingPanel = observer(({
   title,
   slug,
-  status,
-  currentRetention,
-  currentConnectionTimeout,
-  currentReconnectionTimeout
+  status
 }) => {
   const params = useParams();
   const [audioTracks, setAudioTracks] = useState([]);
   const [audioFormData, setAudioFormData] = useState(null);
-  const [retention, setRetention] = useState(currentRetention);
-  const [connectionTimeout, setConnectionTimeout] = useState(currentConnectionTimeout === undefined ? 600 : CONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(currentConnectionTimeout) ? currentConnectionTimeout : undefined);
-  const [reconnectionTimeout, setReconnectionTimeout] = useState(RECONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(currentReconnectionTimeout) ? currentReconnectionTimeout : undefined);
+  const [retention, setRetention] = useState("");
+  const [connectionTimeout, setConnectionTimeout] = useState("");
+  const [reconnectionTimeout, setReconnectionTimeout] = useState("");
   const [applyingChanges, setApplyingChanges] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const LoadConfigData = async () => {
-    const {audioStreams, audioData} = await dataStore.LoadStreamProbeData({
-      objectId: params.id
-    });
+    try {
+      setLoading(true);
 
-    setAudioTracks(audioStreams);
-    setAudioFormData(audioData);
+      let {
+        audioStreams,
+        audioData,
+        retention: retentionMeta,
+        connectionTimeout: connectionTimeoutMeta,
+        reconnectionTimeout: reconnectionTimeoutMeta
+      } = await dataStore.LoadRecordingConfigData({objectId: params.id});
+
+      retentionMeta = retentionMeta ? retentionMeta.toString() : null;
+      connectionTimeoutMeta = connectionTimeoutMeta ? connectionTimeoutMeta.toString() : null;
+      reconnectionTimeoutMeta =reconnectionTimeoutMeta ? reconnectionTimeoutMeta.toString() : null;
+
+      setAudioTracks(audioStreams);
+      setAudioFormData(audioData);
+      setRetention(retentionMeta);
+      setConnectionTimeout(
+        connectionTimeoutMeta === null ? "600" : CONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(connectionTimeoutMeta) ? connectionTimeoutMeta : null
+      );
+      setReconnectionTimeout(
+        RECONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(reconnectionTimeoutMeta) ? reconnectionTimeoutMeta : null
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -49,19 +68,34 @@ const RecordingPanel = observer(({
     try {
       setApplyingChanges(true);
 
-      await streamStore.UpdateStreamAudioSettings({
+      await editStore.UpdateRecordingConfig({
         objectId: params.id,
         slug,
-        audioData: audioFormData
+        audioFormData,
+        configFormData: {
+          retention: retention ? parseInt(retention) : null,
+          connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
+          reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null
+        }
       });
 
-      await editStore.UpdateConfigMetadata({
-        objectId: params.id,
-        slug,
-        retention,
-        connectionTimeout,
-        reconnectionTimeout
-      });
+      // const {writeToken} = await editStore.UpdateConfigMetadata({
+      //   objectId: params.id,
+      //   slug,
+      //   retention: retention ? parseInt(retention) : null,
+      //   connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
+      //   reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null,
+      //   finalize: false
+      // });
+      // console.log('write token', writeToken)
+      //
+      // await streamStore.UpdateStreamAudioSettings({
+      //   objectId: params.id,
+      //   writeToken,
+      //   finalize: true,
+      //   slug,
+      //   audioData: audioFormData
+      // });
 
       await LoadConfigData();
 
@@ -83,61 +117,64 @@ const RecordingPanel = observer(({
     }
   };
 
+  if(loading) { return <Loader />; }
+
   return (
-    <Box w="700px" mb={24}>
-      <form onSubmit={HandleSubmit} className="form">
+    <Box maw="80%" mb={24}>
+      <form onSubmit={HandleSubmit}>
         <DisabledTooltipWrapper
-          disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+          disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           tooltipLabel="Retention Period configuration is disabled when the stream is running"
         >
-          <div className="form__section-header">Retention Period</div>
-          <Select
-            labelDescription="Select a retention period for how long stream parts will exist until they are removed from the fabric."
-            formName="retention"
-            options={RETENTION_OPTIONS}
-            value={retention}
-            onChange={event => setRetention(event.target.value)}
-          />
+          <SectionTitle mb={8}>Retention</SectionTitle>
+          <SimpleGrid cols={2} spacing={150} mb={29}>
+            <Select
+              description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
+              name="retention"
+              data={RETENTION_OPTIONS}
+              placeholder="Select Time Duration"
+              value={retention}
+              onChange={value => setRetention(value)}
+            />
+          </SimpleGrid>
         </DisabledTooltipWrapper>
 
+        <Divider mb={29} />
+
         <DisabledTooltipWrapper
-          disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+          disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           tooltipLabel="Timeout configuration is disabled when the stream is running"
         >
-          <div className="form__section-header">Timeout</div>
-          <Select
-            label="Connection Timeout"
-            labelDescription="The stream will remain active and wait for an input feed for this duration."
-            formName="connectionTimeout"
-            options={CONNECTION_TIMEOUT_OPTIONS}
-            style={{width: "100%"}}
-            defaultOption={{
-              value: "",
-              label: "Select Time Duration"
-            }}
-            value={connectionTimeout}
-            onChange={(event) => setConnectionTimeout(event.target.value)}
-          />
-          <Select
-            label="Reconnection Timeout"
-            labelDescription="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
-            formName="reconnectionTimeout"
-            options={RECONNECTION_TIMEOUT_OPTIONS}
-            style={{width: "100%"}}
-            defaultOption={{
-              value: "",
-              label: "Select Time Duration"
-            }}
-            value={reconnectionTimeout}
-            onChange={(event) => setReconnectionTimeout(event.target.value)}
-          />
+          <SectionTitle mb={8}>Timeout</SectionTitle>
+          <SimpleGrid cols={2} spacing={150} mb={29}>
+            <Select
+              label="Connection Timeout"
+              description="The stream will remain active and wait for an input feed for this duration."
+              name="connectionTimeout"
+              data={CONNECTION_TIMEOUT_OPTIONS}
+              placeholder="Select Connection Timeout"
+              value={connectionTimeout}
+              onChange={(value) => setConnectionTimeout(value)}
+            />
+            <Select
+              label="Reconnection Timeout"
+              description="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
+              name="reconnectionTimeout"
+              data={RECONNECTION_TIMEOUT_OPTIONS}
+              placeholder="Select Reconnection Timeout"
+              value={reconnectionTimeout}
+              onChange={(value) => setReconnectionTimeout(value)}
+            />
+          </SimpleGrid>
         </DisabledTooltipWrapper>
 
+        <Divider mb={29} />
+
         <DisabledTooltipWrapper
-          disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+          disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           tooltipLabel="Audio Track configuration is disabled when the stream is running"
         >
-          <div className="form__section-header">Audio Tracks</div>
+          <SectionTitle mb={16}>Audio</SectionTitle>
           <AudioTracksTable
             records={audioTracks}
             audioFormData={audioFormData}
@@ -145,14 +182,14 @@ const RecordingPanel = observer(({
           />
         </DisabledTooltipWrapper>
 
-        <Box mt="24px">
-          <button
+        <Box mt={25}>
+          <Button
             type="submit"
-            className="button__primary"
-            disabled={applyingChanges || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+            loading={applyingChanges}
+            disabled={applyingChanges || ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           >
-            {applyingChanges ? <Loader type="dots" size="xs" style={{margin: "0 auto"}} /> : "Apply"}
-          </button>
+            Apply
+          </Button>
         </Box>
       </form>
     </Box>

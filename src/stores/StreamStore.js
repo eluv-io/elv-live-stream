@@ -48,7 +48,8 @@ class StreamStore {
   ConfigureStream = flow(function * ({
     objectId,
     slug,
-    probeMetadata
+    probeMetadata,
+    syncAudioToProbe=true
   }) {
     try {
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -139,7 +140,34 @@ class StreamStore {
 
       customSettings["audio"] = liveRecordingConfig.audio ? liveRecordingConfig.audio : undefined;
 
-      yield this.client.StreamConfig({name: objectId, customSettings, probeMetadata});
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId
+      });
+
+      yield this.client.StreamConfig({
+        name: objectId,
+        writeToken,
+        finalize: false,
+        customSettings,
+        probeMetadata
+      });
+
+      if(syncAudioToProbe) {
+        yield this.SyncAudioToProbe({
+          libraryId,
+          objectId,
+          writeToken,
+          finalize: false
+        });
+      }
+
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Apply live stream configuration"
+      });
 
       if((liveRecordingConfig?.drm_type || "").includes("drm")) {
         const drmOption = liveRecordingConfig?.drm_type ? ENCRYPTION_OPTIONS.find(option => option.value === liveRecordingConfig.drm_type) : null;
@@ -689,7 +717,13 @@ class StreamStore {
     }
   });
 
-  UpdateAudioLadderSpecs = flow(function * ({objectId, libraryId, ladderSpecs, audioData}) {
+  UpdateAudioLadderSpecs = flow(function * ({
+    objectId,
+    libraryId,
+    writeToken,
+    ladderSpecs,
+    audioData
+  }) {
     let globalAudioBitrate = 0;
     let nAudio = 0;
     const audioLadderSpecs = [];
@@ -698,15 +732,29 @@ class StreamStore {
       audioData = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
+        writeToken,
         metadataSubtree: "live_recording_config/audio"
       });
     }
+
+    const audioIndexMeta = [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ];
 
     const audioStreams = this.CreateAudioStreamsConfig({audioData});
     Object.keys(audioStreams || {}).forEach((stream, i) => {
       let audioLadderSpec = {};
       const audioIndex = Object.keys(audioStreams)[i];
       const audio = audioStreams[audioIndex];
+
+      audioIndexMeta[i] = parseInt(Object.keys(audioStreams || {})[i]);
 
       if(!audioData[audioIndex].record) { return; }
 
@@ -743,7 +791,8 @@ class StreamStore {
     return {
       nAudio,
       globalAudioBitrate,
-      audioLadderSpecs
+      audioLadderSpecs,
+      audioIndexMeta
     };
   });
 
@@ -769,7 +818,7 @@ class StreamStore {
       metadataSubtree: "live_recording_config/audio"
     });
 
-    if(!audioData) {
+    if(!audioData || Object.keys(audioData || {}).length === 0) {
       ({audioData} = yield dataStore.LoadStreamProbeData({
         objectId
       }));
@@ -779,7 +828,7 @@ class StreamStore {
       throw Error("Unable to update ladder specs. No profiles were found.");
     }
 
-    if(profile.toLowerCase() !== "default") {
+    if(!!profile && profile.toLowerCase() !== "default") {
       profileData = ladderProfiles.custom.find(item => item.name === profile);
     } else {
       profileData = ladderProfiles.default;
@@ -802,7 +851,7 @@ class StreamStore {
       ladderSpecs.push(videoSpec);
     });
 
-    const {nAudio, globalAudioBitrate, audioLadderSpecs} = yield this.UpdateAudioLadderSpecs({
+    const {nAudio, globalAudioBitrate, audioLadderSpecs, audioIndexMeta} = yield this.UpdateAudioLadderSpecs({
       libraryId,
       objectId,
       ladderSpecs: profileData.ladder_specs,
@@ -829,6 +878,14 @@ class StreamStore {
       writeToken,
       metadataSubtree: "live_recording/recording_config/recording_params/ladder_specs",
       metadata: ladderSpecs
+    });
+
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params/audio_index",
+      metadata: audioIndexMeta
     });
 
     yield this.client.FinalizeContentObject({
@@ -1033,7 +1090,7 @@ class StreamStore {
 
       audioStreams[audioIndex] = {
         recordingBitrate: audio.recording_bitrate || 192000,
-        recordingChannels: audio.recording_channels || 2,
+        recordingChannels: audio.recording_channels || 2
       };
 
       if(audio.playout) {
@@ -1044,12 +1101,15 @@ class StreamStore {
     return audioStreams;
   };
 
-  UpdateStreamAudioSettings = flow(function * ({objectId, audioData}) {
+  UpdateStreamAudioSettings = flow(function * ({objectId, writeToken, finalize=true, audioData}) {
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    const {writeToken} = yield this.client.EditContentObject({
-      libraryId,
-      objectId
-    });
+
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId
+      }));
+    }
 
     yield this.client.ReplaceMetadata({
       libraryId,
@@ -1063,17 +1123,27 @@ class StreamStore {
     const ladderSpecsMeta = yield this.client.ContentObjectMetadata({
       libraryId,
       objectId,
+      writeToken,
       metadataSubtree: ladderSpecsPath
     });
 
-    const {nAudio, globalAudioBitrate, audioLadderSpecs} = yield this.UpdateAudioLadderSpecs({
-      libraryId,
-      objectId,
-      ladderSpecs: {audio: ladderSpecsMeta},
-      audioData
+    const filteredAudioData = {...audioData};
+
+    Object.keys(filteredAudioData || {}).forEach(index => {
+      if(!filteredAudioData[index].record) {
+        delete filteredAudioData[index];
+      }
     });
 
-    const videoLadderSpecs = ladderSpecsMeta.filter(spec => spec.stream_name.includes("video"));
+    const {nAudio, globalAudioBitrate, audioLadderSpecs, audioIndexMeta} = yield this.UpdateAudioLadderSpecs({
+      libraryId,
+      objectId,
+      writeToken,
+      ladderSpecs: {audio: ladderSpecsMeta},
+      audioData: filteredAudioData
+    });
+
+    const videoLadderSpecs = (ladderSpecsMeta || []).filter(spec => spec.stream_name.includes("video"));
 
     const newLadderSpecs = [
       ...videoLadderSpecs,
@@ -1099,29 +1169,96 @@ class StreamStore {
       }
     });
 
-
-    // const audioStreams = this.CreateAudioStreamsConfig({audioData});
-    // const audioIndexMeta = [];
-    //
-    // for(let i =0; i < Object.keys(audioStreams).length; i ++) {
-    //   audioIndexMeta[i] = parseInt(Object.keys(audioStreams || {})[i]);
-    // }
-    //
-    // yield this.client.ReplaceMetadata({
-    //   libraryId,
-    //   objectId,
-    //   writeToken,
-    //   metadataSubtree: "live_recording/recording_config/recording_params/xc_params/audio_index",
-    //   metadata: audioIndexMeta
-    // });
-
-    yield this.client.FinalizeContentObject({
+    yield this.client.ReplaceMetadata({
       libraryId,
       objectId,
       writeToken,
-      commitMessage: "Update audio settings",
-      awaitCommitConfirmation: true
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params/audio_index",
+      metadata: audioIndexMeta
     });
+
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Update audio settings",
+        awaitCommitConfirmation: true
+      });
+    }
+  });
+
+  SyncAudioToProbe = flow(function * ({libraryId, objectId, writeToken, finalize=true}) {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const liveRecordingMetadata = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording_config",
+        select: [
+          "probe_info/streams",
+          "audio"
+        ]
+      });
+
+      const audioConfig = liveRecordingMetadata?.audio || {};
+      const probeAudioStreams = (liveRecordingMetadata?.probe_info?.streams || [])
+        .filter(stream => stream.codec_type === "audio");
+      const audioIndexes = probeAudioStreams.map(stream => stream.stream_index);
+
+      probeAudioStreams.forEach(stream => {
+        const currentAudioSetting = audioConfig[stream.stream_index];
+
+        // Corresponding audio setting exists for that index
+        if(currentAudioSetting) {
+          currentAudioSetting.bitrate = stream.bit_rate;
+          currentAudioSetting.codec = stream.codec_name;
+          currentAudioSetting.recording_channels = stream.channels;
+
+          // Special case to handle a single audio stream. If
+          // record = false, the video won't start
+          if(probeAudioStreams.length === 1) {
+            currentAudioSetting.record = true;
+          }
+        } else {
+        // Audio index doesn't exist. Add to spec
+          audioConfig[stream.stream_index] = {
+            bitrate: stream.bit_rate,
+            codec: stream.codec_name,
+            default: false,
+            playout: true,
+            playout_label: `Audio ${stream.stream_index}`,
+            record: true,
+            recording_bitrate: 192000,
+            recording_channels: stream.channels
+          };
+        }
+
+        // Delete audio specs that do not exist in probe
+        const audioToDelete = [];
+        Object.keys(audioConfig || {}).forEach(index => {
+          if(!audioIndexes.includes(parseInt(index))) {
+            audioToDelete.push(index);
+          }
+        });
+
+        audioToDelete.forEach(index => delete audioConfig[index]);
+      });
+
+      yield this.UpdateStreamAudioSettings({
+        objectId,
+        audioData: audioConfig,
+        writeToken,
+        finalize
+      });
+    } catch(error) {
+
+      console.error("Unable to sync audio settings to probe data", error);
+    }
   });
 }
 
