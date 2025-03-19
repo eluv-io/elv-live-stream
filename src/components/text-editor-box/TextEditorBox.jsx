@@ -1,4 +1,4 @@
-import {ActionIcon, Box, Flex, Group, JsonInput, Paper, Title} from "@mantine/core";
+import {ActionIcon, Box, Flex, Group, JsonInput, Paper, Text, Title} from "@mantine/core";
 import {useState} from "react";
 import {EditIcon, TrashIcon} from "@/assets/icons/index.js";
 
@@ -45,9 +45,9 @@ const TextEditorBox = ({
               {
                 columns.map(column => (
                   <Flex key={column.id} direction="column" mr={48} maw="80%">
-                    <Title order={4} lh={1.125} lineClamp={1} c="elv-gray.9">
+                    <Text lh={1.125} fw={500} fz={14} truncate="end" c="elv-gray.9" w="100%">
                       { column.value }
-                    </Title>
+                    </Text>
                   </Flex>
                 ))
               }
