@@ -69,7 +69,7 @@ const ConfirmModal = observer(({
         }
         {
           !error ? null :
-            <AlertMessage error={{message: error}} mt={16} />
+            <AlertMessage error={{message: error}} mt={16} onClick={() => setError(null)} />
         }
       </Box>
       <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
