@@ -1,7 +1,7 @@
 import {useRef, useEffect} from "react";
 import {Alert, Box} from "@mantine/core";
 
-const AlertMessage = ({error}) => {
+const AlertMessage = ({error, ...props}) => {
   const errorRef = useRef(null);
 
   useEffect(() => {
@@ -15,7 +15,7 @@ const AlertMessage = ({error}) => {
   const {title, message} = error;
 
   return (
-    <Box ref={errorRef} mb={16}>
+    <Box ref={errorRef} mb={16} {...props}>
       <Alert
         variant="light"
         color="elv-red.4"

@@ -317,10 +317,15 @@ class StreamStore {
         op: OP_MAP[operation]
       });
 
+      if(response?.error) {
+        throw new Error(response.error);
+      }
+
       this.UpdateStream({key: slug, value: { status: response.state }});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(`Unable to ${OP_MAP[operation]} LRO.`, error);
+      throw error;
     }
   });
 

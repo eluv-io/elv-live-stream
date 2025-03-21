@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {Box, Button, Flex, Grid, Modal, Text} from "@mantine/core";
+import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
 
 const ConfirmModal = observer(({
   message,
@@ -68,9 +69,7 @@ const ConfirmModal = observer(({
         }
         {
           !error ? null :
-            <div className="modal__error">
-              Error: { error }
-            </div>
+            <AlertMessage error={{message: error}} mt={16} />
         }
       </Box>
       <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">

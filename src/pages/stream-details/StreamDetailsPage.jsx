@@ -74,7 +74,7 @@ const StreamDetailsPage = observer(() => {
       label: "Back",
       variant: "filled",
       color: "elv-gray.6",
-      onClick: () => navigate(-1)
+      onClick: () => navigate("/streams")
     },
     {
       label: "Delete",
