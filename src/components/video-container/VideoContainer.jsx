@@ -60,7 +60,16 @@ const PlaceholderContent = observer(({
       {
         (!showPreview || !frameSegmentUrl) ? null :
           (
-            <video src={frameSegmentUrl} className={`${styles.videoFrame} ${borderRadius === 16 ? styles.videoFrame16Radius : ""}`} controls={false} onContextMenu={e => e.preventDefault()} />
+            <video
+              src={frameSegmentUrl}
+              className={`${styles.videoFrame} ${borderRadius === 16 ? styles.videoFrame16Radius : ""}`}
+              controls={false}
+              onContextMenu={e => e.preventDefault()}
+              onError={event => {
+                // eslint-disable-next-line no-console
+                console.log("Failed to load frame segment URL", event?.target?.error || event);
+              }}
+            />
           )
       }
     </button>
