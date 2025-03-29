@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {ActionIcon, Box, Code, Flex, Grid, Group, Skeleton, Stack, Text, Title, Tooltip} from "@mantine/core";
-import {streamStore} from "@/stores";
+import {dataStore, streamStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
 import {DateFormat, FormatTime} from "@/utils/helpers";
@@ -46,12 +46,13 @@ const DetailRow = ({label, value}) => {
   );
 };
 
-const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, slug, embedUrl}) => {
+const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, slug}) => {
   const [frameSegmentUrl, setFrameSegmentUrl] = useState("");
   const [status, setStatus] = useState(null);
   const [copied, setCopied] = useState(false);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
+  const [embedUrl, setEmbedUrl] = useState(null);
 
   const params = useParams();
   const currentTimeMs = new Date().getTime();
@@ -71,8 +72,14 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       setFrameSegmentUrl(frameUrl || "");
     };
 
+    const LoadEmbedUrl = async() => {
+      const url = await dataStore.EmbedUrl({objectId: params.id});
+      setEmbedUrl(url);
+    };
+
     LoadLiveRecordingCopies();
     LoadStatus();
+    LoadEmbedUrl();
   }, [params.id]);
 
   const LoadLiveRecordingCopies = async() => {
