@@ -3,7 +3,7 @@ import styles from "./DetailsCommon.module.css";
 
 export const BasicTableRowText = ({children}) => {
   return (
-    <Title order={4} c="elv-gray.9" className={styles.tableRowText}>
+    <Title order={4} c="elv-gray.9" className={styles.tableRowText} lineClamp={1}>
       { children }
     </Title>
   );
