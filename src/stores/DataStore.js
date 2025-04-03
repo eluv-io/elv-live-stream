@@ -603,6 +603,41 @@ class DataStore {
     }
   });
 
+  SrtPlayoutUrl = flow(function * ({objectId, originUrl}){
+    try {
+      // Used to extract hostname
+      const originUrlObject = new URL(originUrl);
+
+      if(!originUrlObject) {
+        // eslint-disable-next-line no-console
+        console.error(`Invalid origin url: ${originUrl}`);
+        return "";
+      }
+
+      let token = "";
+      const url = new URL(`srt://${originUrlObject.hostname}:11080`);
+
+      const permission = yield this.client.Permission({
+        objectId
+      });
+
+      if(["owner", "editable", "viewable"].includes(permission)) {
+        token = yield this.client.CreateSignedToken({
+          objectId,
+          duration: 86400000
+        });
+      }
+
+      url.searchParams.set("streamid", `live-ts.${objectId}${token ? `.${token}` : ""}`);
+
+      return url.toString();
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(error);
+      return "";
+    }
+  });
+
   UpdateLadderProfiles = ({profiles}) => {
     this.ladderProfiles = profiles;
   };

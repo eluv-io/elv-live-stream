@@ -100,7 +100,7 @@ const Streams = observer(() => {
           onSortStatusChange={setSortStatus}
           columns={[
             { accessor: "title", title: "Name", sortable: true, render: record => (
-              <Stack gap={0}>
+              <Stack gap={0} maw="80%">
                 <UnstyledButton onClick={() => navigate(`/streams/${record.objectId || record.slug}`)} disabled={!record.objectId} style={{pointerEvents: record.objectId ? "auto" : "none"}}>
                   <Title order={3} lineClamp={1} title={record.title || record.slug}>
                     {record.title || record.slug}
@@ -111,10 +111,26 @@ const Streams = observer(() => {
                 </Title>
               </Stack>
             )},
-            { accessor: "originUrl", title: "URL", render: record => <BasicTableRowText title={SanitizeUrl({url: record.originUrl})}>{SanitizeUrl({url: record.originUrl})}</BasicTableRowText> },
+            {
+              accessor: "originUrl",
+              title: "URL",
+              render: record => (
+                <BasicTableRowText title={SanitizeUrl({url: record.originUrl})} lineClamp={1}>
+                  {SanitizeUrl({url: record.originUrl})}
+                </BasicTableRowText>
+              )
+            },
             { accessor: "format", title: "Format", render: record => <BasicTableRowText>{FORMAT_TEXT[record.format]}</BasicTableRowText> },
             { accessor: "video", title: "Video", render: record => <BasicTableRowText>{CODEC_TEXT[record.codecName]} {VideoBitrateReadable(record.videoBitrate)}</BasicTableRowText> },
-            { accessor: "audioStreams", title: "Audio", render: record => <BasicTableRowText>{record.audioStreamCount ? `${record.audioStreamCount} ${record.audioStreamCount > 1 ? "streams" : "stream"}` : ""}</BasicTableRowText> },
+            {
+              accessor: "audioStreams",
+              title: "Audio",
+              render: record => (
+                <BasicTableRowText miw="100%" textWrap="nowrap">
+                  {record.audioStreamCount ? `${record.audioStreamCount} ${record.audioStreamCount > 1 ? "streams" : "stream"}` : ""}
+                </BasicTableRowText>
+              )
+            },
             {
               accessor: "status",
               title: "Status",
@@ -131,7 +147,7 @@ const Streams = observer(() => {
               title: "",
               render: record => {
                 return (
-                  <Group gap={7} justify="right">
+                  <Group gap={7} justify="right" wrap="nowrap">
                     {
                       ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status) ? null :
                         <ActionIcon
