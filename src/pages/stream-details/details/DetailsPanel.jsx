@@ -45,7 +45,7 @@ const DetailRow = ({label, value}) => {
   );
 };
 
-const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, slug, url}) => {
+const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, slug, url, egressEnabled}) => {
   const [frameSegmentUrl, setFrameSegmentUrl] = useState("");
   const [status, setStatus] = useState(null);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
@@ -193,11 +193,11 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                     </Box>
                 }
               </Skeleton>
-              <Group gap={6} justify="space-between">
+              <Group gap={6} justify="center">
                 {
                   [
                     {label: "Copy Embeddable URL", value: embedUrl, hidden: !embedUrl, id: "embeddable-url-link"},
-                    {label: "Copy SRT URL", value: srtUrl, hidden: !srtUrl, id: "srt-url-link"}
+                    {label: "Copy SRT URL", value: srtUrl, hidden: !egressEnabled, id: "srt-url-link"}
                   ]
                     .filter(item => !item.hidden)
                     .map(item => (

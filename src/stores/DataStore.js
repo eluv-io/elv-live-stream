@@ -265,6 +265,7 @@ class DataStore {
         select: [
           "live_recording_config/probe_info/format/filename",
           "live_recording_config/probe_info/streams",
+          "live_recording_config/srt_egress_enabled",
           "live_recording/recording_config/recording_params/origin_url",
           "live_recording/playout_config/simple_watermark",
           "live_recording/playout_config/image_watermark",
@@ -323,6 +324,7 @@ class DataStore {
         dvrEnabled: streamMeta?.live_recording?.playout_config?.dvr_enabled,
         dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
         dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
+        egressEnabled: streamMeta?.live_recording_config?.srt_egress_enabled,
         forensicWatermark,
         format: probeType,
         imageWatermark,
@@ -603,6 +605,7 @@ class DataStore {
     }
   });
 
+  // TODO: Move this to client-js
   SrtPlayoutUrl = flow(function * ({objectId, originUrl}){
     try {
       // Used to extract hostname
@@ -626,6 +629,9 @@ class DataStore {
           objectId,
           duration: 86400000
         });
+      } else {
+        const spaceId = { qspace_id: this.rootStore.contentSpaceId };
+        token = this.client.utils.B64(JSON.stringify(spaceId));
       }
 
       url.searchParams.set("streamid", `live-ts.${objectId}${token ? `.${token}` : ""}`);
