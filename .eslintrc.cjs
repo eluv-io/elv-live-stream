@@ -93,6 +93,7 @@ module.exports = {
           "playready",
           "popups",
           "qfab",
+          "qspace",
           "reconnection",
           "resize",
           "roboto",
