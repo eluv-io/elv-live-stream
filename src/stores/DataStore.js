@@ -265,6 +265,7 @@ class DataStore {
         select: [
           "live_recording_config/probe_info/format/filename",
           "live_recording_config/probe_info/streams",
+          "live_recording_config/srt_egress_enabled",
           "live_recording/recording_config/recording_params/origin_url",
           "live_recording/playout_config/simple_watermark",
           "live_recording/playout_config/image_watermark",
@@ -323,6 +324,7 @@ class DataStore {
         dvrEnabled: streamMeta?.live_recording?.playout_config?.dvr_enabled,
         dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
         dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
+        egressEnabled: streamMeta?.live_recording_config?.srt_egress_enabled,
         forensicWatermark,
         format: probeType,
         imageWatermark,
@@ -596,6 +598,45 @@ class DataStore {
       const url = yield this.client.EmbedUrl({objectId, mediaType: "live_video"});
 
       return url;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(error);
+      return "";
+    }
+  });
+
+  // TODO: Move this to client-js
+  SrtPlayoutUrl = flow(function * ({objectId, originUrl}){
+    try {
+      // Used to extract hostname
+      const originUrlObject = new URL(originUrl);
+
+      if(!originUrlObject) {
+        // eslint-disable-next-line no-console
+        console.error(`Invalid origin url: ${originUrl}`);
+        return "";
+      }
+
+      let token = "";
+      const url = new URL(`srt://${originUrlObject.hostname}:11080`);
+
+      const permission = yield this.client.Permission({
+        objectId
+      });
+
+      if(["owner", "editable", "viewable"].includes(permission)) {
+        token = yield this.client.CreateSignedToken({
+          objectId,
+          duration: 86400000
+        });
+      } else {
+        const spaceId = { qspace_id: this.rootStore.contentSpaceId };
+        token = this.client.utils.B64(JSON.stringify(spaceId));
+      }
+
+      url.searchParams.set("streamid", `live-ts.${objectId}${token ? `.${token}` : ""}`);
+
+      return url.toString();
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(error);

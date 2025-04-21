@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import {ActionIcon, Box, Code, Flex, Grid, Group, Skeleton, Stack, Text, Title, Tooltip} from "@mantine/core";
+import {Box, Button, Code, Flex, Grid, Group, Skeleton, Stack, Text, Title, Tooltip} from "@mantine/core";
 import {dataStore, streamStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
@@ -7,12 +7,11 @@ import {DateFormat, FormatTime} from "@/utils/helpers";
 import {STATUS_MAP, QUALITY_TEXT, RETENTION_TEXT} from "@/utils/constants";
 import RecordingPeriodsTable from "@/pages/stream-details/details/components/RecordingPeriodsTable.jsx";
 import RecordingCopiesTable from "@/pages/stream-details/details/components/RecordingCopiesTable.jsx";
-import {IconAlertCircle} from "@tabler/icons-react";
+import {IconAlertCircle, IconLink} from "@tabler/icons-react";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
-import {CopyToClipboard} from "@/utils/helpers";
-import {CopyIcon} from "@/assets/icons";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import styles from "./DetailsPanel.module.css";
+import {useClipboard} from "@mantine/hooks";
 
 export const Runtime = ({startTime, endTime, currentTimeMs, format="hh,mm,ss"}) => {
   let time;
@@ -46,15 +45,16 @@ const DetailRow = ({label, value}) => {
   );
 };
 
-const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, slug}) => {
+const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, slug, url, egressEnabled}) => {
   const [frameSegmentUrl, setFrameSegmentUrl] = useState("");
   const [status, setStatus] = useState(null);
-  const [copied, setCopied] = useState(false);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
   const [embedUrl, setEmbedUrl] = useState(null);
+  const [srtUrl, setSrtUrl] = useState(null);
 
   const params = useParams();
+  const clipboard = useClipboard({timeout: 2000});
   const currentTimeMs = new Date().getTime();
 
   useEffect(() => {
@@ -77,9 +77,22 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       setEmbedUrl(url);
     };
 
+    const LoadSrtPlayoutUrl = async() => {
+      const srtUrlString = await dataStore.SrtPlayoutUrl({
+        objectId: params.id,
+        originUrl: url
+      });
+
+      setSrtUrl(srtUrlString);
+    };
+
     LoadLiveRecordingCopies();
     LoadStatus();
     LoadEmbedUrl();
+
+    if(url.includes("srt")) {
+      LoadSrtPlayoutUrl();
+    }
   }, [params.id]);
 
   const LoadLiveRecordingCopies = async() => {
@@ -180,29 +193,35 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                     </Box>
                 }
               </Skeleton>
-              <Skeleton visible={!status} mt={4} radius={16}>
+              <Group gap={6} justify="center">
                 {
-                  embedUrl &&
-                  <Flex direction="row" justify="center" align="center">
-                    <Title order={6} lineClamp={1} maw={300} c="elv-gray.6" className={styles.embedUrl}>{embedUrl}</Title>
-                    <Tooltip label={copied ? "Copied": "Copy"} position="bottom">
-                      <ActionIcon
-                        variant="transparent"
-                        onClick={() => {
-                          CopyToClipboard({text: embedUrl});
-                          setCopied(true);
-
-                          setTimeout(() => {
-                            setCopied(false);
-                          }, [3000]);
-                        }}
+                  [
+                    {label: "Copy Embeddable URL", value: embedUrl, hidden: !embedUrl, id: "embeddable-url-link"},
+                    {label: "Copy SRT URL", value: srtUrl, hidden: !egressEnabled, id: "srt-url-link"}
+                  ]
+                    .filter(item => !item.hidden)
+                    .map(item => (
+                      <Tooltip
+                        key={item.id}
+                        label={clipboard.copied ? "Copied" : "Copy"}
+                        position="bottom"
                       >
-                        <CopyIcon color="var(--mantine-color-elv-neutral-5)" />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Flex>
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          color="elv-gray.5"
+                          mt={8}
+                          onClick={() => clipboard.copy(item.value)}
+                          leftSection={<IconLink color="var(--mantine-color-elv-gray-8)" />}
+                        >
+                          <Text c="elv-gray.8" fz={12} fw={500}>
+                            { item.label }
+                          </Text>
+                        </Button>
+                      </Tooltip>
+                    ))
                 }
-              </Skeleton>
+              </Group>
             </Stack>
           </Flex>
         </Grid.Col>

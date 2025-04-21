@@ -178,6 +178,7 @@ const StreamDetailsPage = observer(() => {
                   forensicWatermark={stream.forensicWatermark}
                   title={stream.title}
                   embedUrl={stream.embedUrl}
+                  egressEnabled={stream.egressEnabled}
                   url={stream.originUrl}
                   recordingInfo={recordingInfo}
                   currentRetention={stream.partTtl}
