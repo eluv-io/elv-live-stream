@@ -101,7 +101,7 @@ const RecordingPeriodsTable = observer(({
   const IsWithinRetentionPeriod = ({startTime}) => {
     const currentTimeMs = new Date().getTime();
     const startTimeMs = new Date(startTime).getTime();
-    const retentionMs = retention * 1000;
+    const retentionMs = parseInt(retention || "") * 1000;
 
     if(typeof startTimeMs !== "number") { return false; }
 
@@ -111,7 +111,7 @@ const RecordingPeriodsTable = observer(({
   const ExpirationTime = ({startTime, retention}) => {
     if(!startTime) { return "--"; }
 
-    const expirationTimeMs = (startTime * 1000) + (retention * 1000);
+    const expirationTimeMs = (startTime * 1000) + (parseInt(retention || "") * 1000);
 
     return expirationTimeMs ?
       DateFormat({
@@ -186,7 +186,13 @@ const RecordingPeriodsTable = observer(({
                         startTime: new Date(record.start_time).getTime(),
                         endTime: new Date(record.end_time).getTime(),
                         currentTimeMs,
-                        format: "hh:mm:ss"
+                        format: "hh:mm:ss",
+                        active: RecordingStatus({
+                          item: record,
+                          text: false,
+                          startTime: record.start_time,
+                          endTime: record.end_time
+                        }) !== "EXPIRED"
                       }) : "--"
                   }
                 </BasicTableRowText>

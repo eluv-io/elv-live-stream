@@ -78,7 +78,6 @@ export const FormatTime = ({milliseconds, iso, format="hh,mm,ss"}) => {
 
   const hours = new Fraction(milliseconds, 1000)
     .div(3600)
-    .mod(24)
     .floor(0)
     .toString();
   const minutes = new Fraction(milliseconds, 1000)

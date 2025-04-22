@@ -13,10 +13,18 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import styles from "./DetailsPanel.module.css";
 import {useClipboard} from "@mantine/hooks";
 
-export const Runtime = ({startTime, endTime, currentTimeMs, format="hh,mm,ss"}) => {
+export const Runtime = ({
+  startTime,
+  endTime,
+  currentTimeMs,
+  format="hh,mm,ss",
+  active
+}) => {
   let time;
 
-  if(!endTime) {
+  if(!endTime && !active) {
+    return "--";
+  } else if(!endTime) {
     endTime = currentTimeMs;
   }
 
