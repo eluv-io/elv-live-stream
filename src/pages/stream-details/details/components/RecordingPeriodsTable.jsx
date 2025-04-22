@@ -186,7 +186,13 @@ const RecordingPeriodsTable = observer(({
                         startTime: new Date(record.start_time).getTime(),
                         endTime: new Date(record.end_time).getTime(),
                         currentTimeMs,
-                        format: "hh:mm:ss"
+                        format: "hh:mm:ss",
+                        active: RecordingStatus({
+                          item: record,
+                          text: false,
+                          startTime: record.start_time,
+                          endTime: record.end_time
+                        }) !== "EXPIRED"
                       }) : "--"
                   }
                 </BasicTableRowText>
