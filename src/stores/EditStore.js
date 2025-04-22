@@ -801,6 +801,11 @@ class EditStore {
       commitMessage: "Delete live stream"
     });
 
+    yield this.client.DeleteContentObject({
+      libraryId: yield this.client.ContentObjectLibraryId({objectId}),
+      objectId
+    });
+
     delete streams[slug];
     streamStore.UpdateStreams({streams});
   });
