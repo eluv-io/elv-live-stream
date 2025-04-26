@@ -713,7 +713,7 @@ class EditStore {
       finalize: false
     });
 
-    this.UpdateConfigMetadata({
+    yield this.UpdateConfigMetadata({
       objectId,
       slug,
       retention,
