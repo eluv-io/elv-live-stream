@@ -301,6 +301,7 @@ class EditStore {
     objectId,
     writeToken,
     name,
+    url,
     description,
     displayTitle
   }) {
@@ -325,6 +326,27 @@ class EditStore {
       if(name) {
         metadata.public["name"] = name;
         metadata.public.asset_metadata["title"] = name;
+      }
+
+      if(url) {
+        yield this.client.ReplaceMetadata({
+          libraryId,
+          objectId,
+          writeToken,
+          metadataSubtree: "live_recording/recording_config/recording_params/origin_url",
+          metadata: url
+        });
+
+        yield this.client.MergeMetadata({
+          libraryId,
+          objectId,
+          writeToken,
+          metadataSubtree: "live_recording_config",
+          metadata: {
+            reference_url: url,
+            url
+          }
+        });
       }
 
       if(description) {

@@ -1,5 +1,5 @@
 import {observer} from "mobx-react-lite";
-import {Box, Button, Divider, Flex, Select, SimpleGrid, Text, TextInput, Tooltip} from "@mantine/core";
+import {Box, Button, Divider, Flex, Loader, Select, SimpleGrid, Text, TextInput, Tooltip} from "@mantine/core";
 import {useEffect, useState} from "react";
 import {dataStore, editStore, rootStore, streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
@@ -13,35 +13,43 @@ const GeneralPanel = observer(({slug}) => {
     description: "",
     displayTitle: "",
     accessGroup: "",
-    permission: ""
+    permission: "",
+    url: ""
   });
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [currentSettings, setCurrentSettings] = useState({
     accessGroup: "",
     permission: ""
   });
+  const [loading, setLoading] = useState(false);
 
   const params = useParams();
 
   useEffect(() => {
     const LoadDetails = async() => {
-      await dataStore.LoadDetails({objectId: params.id, slug});
-      const stream = streamStore.streams[slug];
-      const currentPermission = await dataStore.LoadPermission({objectId: params.id});
-      const accessGroupPermission = await dataStore.LoadAccessGroupPermissions({objectId: params.id});
+      try {
+        setLoading(true);
+        await dataStore.LoadDetails({objectId: params.id, slug});
+        const stream = streamStore.streams[slug];
+        const currentPermission = await dataStore.LoadPermission({objectId: params.id});
+        const accessGroupPermission = await dataStore.LoadAccessGroupPermissions({objectId: params.id});
 
-      setFormData({
-        name: stream.title || "",
-        description: stream.description || "",
-        displayTitle: stream.display_title || "",
-        permission: currentPermission || "",
-        accessGroup: accessGroupPermission || ""
-      });
+        setFormData({
+          name: stream.title || "",
+          description: stream.description || "",
+          displayTitle: stream.display_title || "",
+          permission: currentPermission || "",
+          accessGroup: accessGroupPermission || "",
+          url: stream.originUrl || ""
+        });
 
-      setCurrentSettings({
-        permission: currentPermission || "",
-        accessGroup: accessGroupPermission || ""
-      });
+        setCurrentSettings({
+          permission: currentPermission || "",
+          accessGroup: accessGroupPermission || ""
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     const LoadAccessGroups = async() => {
@@ -72,6 +80,7 @@ const GeneralPanel = observer(({slug}) => {
       await editStore.UpdateDetailMetadata({
         objectId: params.id,
         name: formData.name,
+        url: formData.url,
         description: formData.description,
         displayTitle: formData.displayTitle
       });
@@ -109,12 +118,24 @@ const GeneralPanel = observer(({slug}) => {
     }
   };
 
+  if(loading) { return <Loader />; }
+
   return (
     <>
       <Flex direction="column" style={{flexGrow: "1"}}>
         <SectionTitle mb={12}>General</SectionTitle>
         <form onSubmit={HandleSubmit}>
           <Box mb="24px" maw="80%">
+            <SimpleGrid cols={1} spacing={150} mb={18}>
+              <TextInput
+                label="URL"
+                name="url"
+                placeholder="Enter a URL"
+                required={true}
+                value={formData.url}
+                onChange={HandleFormChange}
+              />
+            </SimpleGrid>
             <SimpleGrid cols={2} spacing={150} mb={18}>
               <TextInput
                 label="Name"
@@ -210,7 +231,7 @@ const GeneralPanel = observer(({slug}) => {
               />
             </SimpleGrid>
           </Box>
-          <Button type="submit" disabled={applyingChanges} loading={applyingChanges}>
+          <Button type="submit" disabled={!formData.name || !formData.url || applyingChanges} loading={applyingChanges}>
             Save
           </Button>
         </form>

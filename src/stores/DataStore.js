@@ -363,12 +363,19 @@ class DataStore {
         ]
       });
 
+      const urlMeta = yield this.client.ContentObjectMetadata({
+        objectId,
+        libraryId,
+        metadataSubtree: "live_recording_config/reference_url"
+      });
+
       this.rootStore.streamStore.UpdateStream({
         key: slug,
         value: {
           title: streamMeta?.name || streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
           description: streamMeta.description,
-          display_title: streamMeta.asset_metadata?.display_title
+          display_title: streamMeta.asset_metadata?.display_title,
+          originUrl: urlMeta
         }
       });
     } catch(error) {
