@@ -1,5 +1,5 @@
 // Force strict mode so mutations are only allowed within actions.
-import {configure, flow, makeAutoObservable, runInAction} from "mobx";
+import {configure, flow, makeAutoObservable, runInAction, toJS} from "mobx";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 
 configure({
@@ -19,6 +19,7 @@ class DataStore {
   siteLibraryId;
   liveStreamUrls;
   ladderProfiles;
+  srtUrlsByStream;
 
   constructor(rootStore) {
     makeAutoObservable(this);
@@ -501,6 +502,7 @@ class DataStore {
           "live_recording/recording_config/recording_params/xc_params/connection_timeout",
           "live_recording/recording_config/recording_params/reconnect_timeout",
           "live_recording_config/part_ttl",
+          "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
         ]
       });
 
@@ -514,7 +516,8 @@ class DataStore {
         audioData,
         retention: streamMeta?.live_recording_config?.part_ttl,
         connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
-        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout
+        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,
+        copyMpegTs: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.copy_mpegts
       };
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -600,6 +603,16 @@ class DataStore {
     }
   });
 
+  LoadSrtPlayoutUrls = flow(function * () {
+    const srtUrls = yield this.client.ContentObjectMetadata({
+      libraryId: yield this.client.ContentObjectLibraryId({objectId: this.siteId}),
+      objectId: this.siteId,
+      metadataSubtree: "srt_playout_info"
+    });
+
+    this.srtUrlsByStream = srtUrls || {};
+  });
+
   EmbedUrl = flow(function * ({objectId}) {
     try {
       const url = yield this.client.EmbedUrl({objectId, mediaType: "live_video"});
@@ -613,31 +626,53 @@ class DataStore {
   });
 
   // TODO: Move this to client-js
-  SrtPlayoutUrl = flow(function * ({objectId, originUrl}){
+  SrtPlayoutUrl = flow(function * ({objectId, originUrl, tokenData=null}){
     try {
-      // Used to extract hostname
-      const originUrlObject = new URL(originUrl);
-
-      if(!originUrlObject) {
-        // eslint-disable-next-line no-console
-        console.error(`Invalid origin url: ${originUrl}`);
-        return "";
-      }
-
-      let token = "";
-      const url = new URL(`srt://${originUrlObject.hostname}:11080`);
-
+      let token = "", url;
       const permission = yield this.client.Permission({
         objectId
       });
+      const spaceId = { qspace_id: this.rootStore.contentSpaceId };
 
       if(["owner", "editable", "viewable"].includes(permission)) {
-        token = yield this.client.CreateSignedToken({
-          objectId,
-          duration: 86400000
-        });
+        // Used to extract hostname
+        const originUrlObject = new URL(originUrl);
+
+        if(!originUrlObject) {
+          // eslint-disable-next-line no-console
+          console.error(`Invalid origin url: ${originUrl}`);
+          return "";
+        }
+        url = new URL(`srt://${originUrlObject.hostname}:11080`);
+
+        if(tokenData) {
+          const {issueTime, expirationTime, label, useSecure, region} = tokenData;
+
+          const nodes = yield this.client.UseRegion({region});
+          const urlObject = new URL(nodes.fabricURIs[0]);
+          yield this.client.ResetRegion();
+
+          url = new URL(`srt://${urlObject.hostname}:11080`);
+          if(useSecure) {
+            token = yield this.client.CreateSignedToken({
+              issueTime,
+              expirationTime,
+              context: {
+                usr: {
+                  label
+                }
+              }
+            });
+          } else {
+            // TODO: For unsecure signature, b58 encode JSON and use as token
+          }
+        } else {
+          token = yield this.client.CreateSignedToken({
+            objectId,
+            duration: 86400000
+          });
+        }
       } else {
-        const spaceId = { qspace_id: this.rootStore.contentSpaceId };
         token = this.client.utils.B64(JSON.stringify(spaceId));
       }
 
@@ -658,6 +693,49 @@ class DataStore {
   UpdateStreamUrls = ({urls}) => {
     this.liveStreamUrls = urls;
   };
+
+  UpdateSrtUrls({objectId, url, region}) {
+    const urlsByStream = this.srtUrlsByStream[objectId];
+    const newValue = {url, region};
+
+    if(urlsByStream) {
+      urlsByStream.srt_urls = [
+        ...urlsByStream?.srt_urls || [],
+        newValue
+      ];
+    } else {
+      this.srtUrlsByStream[objectId] = {
+        srt_urls: [newValue]
+      };
+    }
+  }
+
+  UpdateSiteObject = flow(function * ({objectId, url, region}) {
+    if(!this.siteId) { return; }
+
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId: this.siteId
+    });
+
+    this.UpdateSrtUrls({objectId, url, region});
+
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      metadataSubtree: `/srt_playout_info/${objectId}/srt_urls`,
+      metadata: toJS(this.srtUrlsByStream[objectId]?.srt_urls || [])
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      commitMessage: "Update srt url"
+    });
+  });
 }
 
 export default DataStore;

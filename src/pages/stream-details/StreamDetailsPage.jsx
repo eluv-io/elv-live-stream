@@ -190,6 +190,7 @@ const StreamDetailsPage = observer(() => {
                   currentPlayoutProfile={stream.playoutLadderProfile}
                   libraryId={stream.libraryId}
                   currentWatermarkType={stream.watermarkType}
+                  PageVersionCallback={setPageVersion}
                 /> : <Loader />
               }
             </Tabs.Panel>

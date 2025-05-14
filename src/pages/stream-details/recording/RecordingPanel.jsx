@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
 import {dataStore, editStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Box, Button, Divider, Loader, Select, SimpleGrid} from "@mantine/core";
+import {Box, Button, Checkbox, Divider, Loader, Select, SimpleGrid} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
@@ -16,7 +16,8 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 const RecordingPanel = observer(({
   title,
   slug,
-  status
+  status,
+  PageVersionCallback
 }) => {
   const params = useParams();
   const [audioTracks, setAudioTracks] = useState([]);
@@ -24,6 +25,8 @@ const RecordingPanel = observer(({
   const [retention, setRetention] = useState("");
   const [connectionTimeout, setConnectionTimeout] = useState("");
   const [reconnectionTimeout, setReconnectionTimeout] = useState("");
+  const [copyMpegTs, setCopyMpegTs] = useState(false);
+
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +39,8 @@ const RecordingPanel = observer(({
         audioData,
         retention: retentionMeta,
         connectionTimeout: connectionTimeoutMeta,
-        reconnectionTimeout: reconnectionTimeoutMeta
+        reconnectionTimeout: reconnectionTimeoutMeta,
+        copyMpegTs: copyMpegTsMeta
       } = await dataStore.LoadRecordingConfigData({objectId: params.id});
 
       retentionMeta = retentionMeta ? retentionMeta.toString() : null;
@@ -52,6 +56,7 @@ const RecordingPanel = observer(({
       setReconnectionTimeout(
         RECONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(reconnectionTimeoutMeta) ? reconnectionTimeoutMeta : null
       );
+      setCopyMpegTs(copyMpegTsMeta === undefined ? false : copyMpegTsMeta);
     } finally {
       setLoading(false);
     }
@@ -76,6 +81,9 @@ const RecordingPanel = observer(({
           retention: retention ? parseInt(retention) : null,
           connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
           reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null
+        },
+        tsFormData: {
+          copyMpegTs
         }
       });
 
@@ -98,6 +106,8 @@ const RecordingPanel = observer(({
       // });
 
       await LoadConfigData();
+
+      PageVersionCallback(prev => prev + 1);
 
       notifications.show({
         title: `${title || params.id} updated`,
@@ -168,6 +178,15 @@ const RecordingPanel = observer(({
           </SimpleGrid>
         </DisabledTooltipWrapper>
 
+        <SectionTitle mb={8}>Transport Stream</SectionTitle>
+        <SimpleGrid cols={2} spacing={150} mb={29}>
+          <Checkbox
+            label="Record Transport Stream Source"
+            checked={copyMpegTs}
+            onChange={(event) => setCopyMpegTs(event.target.checked)}
+            mb={12}
+          />
+        </SimpleGrid>
         <Divider mb={29} />
 
         <DisabledTooltipWrapper

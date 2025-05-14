@@ -2,7 +2,7 @@ import GeneralPanel from "@/pages/stream-details/general/GeneralPanel";
 import PlayoutPanel from "@/pages/stream-details/playout/PlayoutPanel";
 import RecordingPanel from "@/pages/stream-details/recording/RecordingPanel";
 import DetailsPanel from "@/pages/stream-details/details/DetailsPanel";
-import TransportStream from "@/pages/stream-details/transport-stream/TransportStream.jsx";
+import TransportStreamPanel from "@/pages/stream-details/transport-stream/TransportStreamPanel.jsx";
 
 export const STATUS_MAP = {
   UNCONFIGURED: "unconfigured",
@@ -21,7 +21,7 @@ export const DETAILS_TABS = [
   {label: "General Config", value: "general", Component: GeneralPanel},
   {label: "Recording Config", value: "recording", Component: RecordingPanel},
   {label: "Playout Config", value: "playout", Component: PlayoutPanel},
-  {label: "Transport Stream Distribution", value: "tsDistribution", Component: TransportStream}
+  {label: "Transport Stream Distribution", value: "tsDistribution", Component: TransportStreamPanel}
 ];
 
 export const DEFAULT_WATERMARK_TEXT = {
@@ -169,3 +169,16 @@ export const RETENTION_TEXT = {
   604800: "1 Week",
   2635200: "1 Month"
 };
+
+export const FABRIC_NODE_REGIONS = [
+  {value: "na-east-north", label: "NA Northeast"},
+  {value: "na-east-south", label: "NA Southeast"},
+  {value: "na-west-north", label: "NA Northwest"},
+  {value: "na-west-south", label: "NA Southwest"},
+  {value: "eu-east-north", label: "EU Northeast"},
+  {value: "eu-east-south", label: "EU Southeast"},
+  {value: "eu-west-north", label: "EU Northwest"},
+  {value: "eu-west-south", label: "EU Southwest"},
+  {value: "as-east", label: "AS East"},
+  {value: "au-east", label: "AU East"},
+];

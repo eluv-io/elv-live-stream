@@ -576,7 +576,8 @@ class EditStore {
     dvrEnabled,
     dvrStartTime,
     dvrMaxDuration,
-    playoutProfile
+    playoutProfile,
+    copyMpegTs
   }){
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -643,6 +644,16 @@ class EditStore {
       });
 
       updateValue.reconnectionTimeout = parseInt(reconnectionTimeout);
+    }
+
+    if(copyMpegTs !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/copy_mpegts",
+        metadata: copyMpegTs
+      });
     }
 
     if(!skipDvrSection) {
@@ -712,7 +723,8 @@ class EditStore {
     slug,
     writeToken,
     audioFormData,
-    configFormData
+    configFormData,
+    tsFormData
   }) {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -726,6 +738,8 @@ class EditStore {
     }
 
     const {retention, connectionTimeout, reconnectionTimeout} = configFormData;
+
+    const {copyMpegTs} = tsFormData;
 
     yield this.rootStore.streamStore.UpdateStreamAudioSettings({
       objectId,
@@ -741,6 +755,7 @@ class EditStore {
       retention,
       connectionTimeout,
       reconnectionTimeout,
+      copyMpegTs,
       writeToken,
       finalize: false
     });
