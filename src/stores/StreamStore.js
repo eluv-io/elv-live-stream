@@ -76,7 +76,8 @@ class StreamStore {
         metadataSubtree: "live_recording/recording_config",
         select: [
           "recording_params/xc_params/connection_timeout",
-          "recording_params/reconnect_timeout"
+          "recording_params/reconnect_timeout",
+          "recording_params/xc_params/copy_mpegts"
         ]
       });
 
@@ -103,6 +104,10 @@ class StreamStore {
 
       if(recordingConfig?.recording_params?.reconnect_timeout) {
         customSettings["reconnect_timeout"] = recordingConfig.recording_params.reconnect_timeout;
+      }
+
+      if(Object.hasOwn(recordingConfig?.recording_params?.xc_params || {}, "copy_mpegts")) {
+        customSettings["copy_mpegts"] = recordingConfig.recording_params.xc_params.copy_mpegts;
       }
 
       if(liveRecordingConfig.playout_ladder_profile) {
