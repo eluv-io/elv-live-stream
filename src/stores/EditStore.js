@@ -303,9 +303,12 @@ class EditStore {
     name,
     url,
     description,
-    displayTitle
+    displayTitle,
+    slug
   }) {
     try {
+      const updateValue = {};
+
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
@@ -326,6 +329,7 @@ class EditStore {
       if(name) {
         metadata.public["name"] = name;
         metadata.public.asset_metadata["title"] = name;
+        updateValue["title"] = name;
       }
 
       if(url) {
@@ -364,13 +368,20 @@ class EditStore {
         metadata
       });
 
-      return this.client.FinalizeContentObject({
+      const response = this.client.FinalizeContentObject({
         libraryId,
         objectId,
         writeToken,
         commitMessage: "Update metadata",
         awaitCommitConfirmation: true
       });
+
+      streamStore.UpdateStream({
+        key: slug,
+        value: updateValue
+      });
+
+      return response;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to update metadata", error);

@@ -377,7 +377,7 @@ class DataStore {
       this.rootStore.streamStore.UpdateStream({
         key: slug,
         value: {
-          title: streamMeta?.name || streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
+          title: streamMeta?.name,
           description: streamMeta.description,
           display_title: streamMeta.asset_metadata?.display_title,
           originUrl: urlMeta?.live_recording?.recording_config?.recording_params?.origin_url || urlMeta?.live_recording_config?.url

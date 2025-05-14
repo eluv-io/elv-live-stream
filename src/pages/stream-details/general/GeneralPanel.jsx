@@ -82,7 +82,8 @@ const GeneralPanel = observer(({slug}) => {
         name: formData.name,
         url: formData.url,
         description: formData.description,
-        displayTitle: formData.displayTitle
+        displayTitle: formData.displayTitle,
+        slug
       });
 
       if(currentSettings.permission !== formData.permission) {
