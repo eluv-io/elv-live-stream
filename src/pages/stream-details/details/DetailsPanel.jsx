@@ -98,7 +98,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
     LoadStatus();
     LoadEmbedUrl();
 
-    if(url.includes("srt")) {
+    if((url || "").includes("srt")) {
       LoadSrtPlayoutUrl();
     }
   }, [params.id]);

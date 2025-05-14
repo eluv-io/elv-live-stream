@@ -676,6 +676,8 @@ class DataStore {
         token = this.client.utils.B64(JSON.stringify(spaceId));
       }
 
+      if(!url) { return ""; }
+
       url.searchParams.set("streamid", `live-ts.${objectId}${token ? `.${token}` : ""}`);
 
       return url.toString();
