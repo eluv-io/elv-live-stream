@@ -21,8 +21,8 @@ const GeneralPanel = observer(({slug}) => {
     accessGroup: "",
     permission: ""
   });
-  const [loading, setLoading] = useState(false);
 
+  const [loading, setLoading] = useState(false);
   const params = useParams();
 
   useEffect(() => {

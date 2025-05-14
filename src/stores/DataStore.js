@@ -367,7 +367,11 @@ class DataStore {
       const urlMeta = yield this.client.ContentObjectMetadata({
         objectId,
         libraryId,
-        metadataSubtree: "live_recording_config/reference_url"
+        metadataSubtree: "/",
+        select: [
+          "live_recording_config/url",
+          "live_recording/recording_config/recording_params/origin_url"
+        ]
       });
 
       this.rootStore.streamStore.UpdateStream({
@@ -376,7 +380,7 @@ class DataStore {
           title: streamMeta?.name || streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
           description: streamMeta.description,
           display_title: streamMeta.asset_metadata?.display_title,
-          originUrl: urlMeta
+          originUrl: urlMeta?.live_recording?.recording_config?.recording_params?.origin_url || urlMeta?.live_recording_config?.url
         }
       });
     } catch(error) {
