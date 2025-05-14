@@ -87,24 +87,6 @@ const RecordingPanel = observer(({
         }
       });
 
-      // const {writeToken} = await editStore.UpdateConfigMetadata({
-      //   objectId: params.id,
-      //   slug,
-      //   retention: retention ? parseInt(retention) : null,
-      //   connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
-      //   reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null,
-      //   finalize: false
-      // });
-      // console.log('write token', writeToken)
-      //
-      // await streamStore.UpdateStreamAudioSettings({
-      //   objectId: params.id,
-      //   writeToken,
-      //   finalize: true,
-      //   slug,
-      //   audioData: audioFormData
-      // });
-
       await LoadConfigData();
 
       PageVersionCallback(prev => prev + 1);
