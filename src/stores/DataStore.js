@@ -718,6 +718,41 @@ class DataStore {
     }
   }
 
+  DeleteSrtUrl = flow(function * ({objectId, region}) {
+    const urlsByStream = this.srtUrlsByStream[objectId];
+    const newSrtUrls = [];
+
+    urlsByStream.srt_urls.forEach(urlObj => {
+      if(urlObj.region !== region) {
+        newSrtUrls.push(urlObj);
+      }
+    });
+
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId: this.siteId
+    });
+
+
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      metadataSubtree: `/srt_playout_info/${objectId}/srt_urls`,
+      metadata: newSrtUrls
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      commitMessage: "Delete srt url"
+    });
+
+    this.srtUrlsByStream[objectId].srt_urls = newSrtUrls;
+  });
+
   UpdateSiteObject = flow(function * ({objectId, url, region, label}) {
     if(!this.siteId) { return; }
 

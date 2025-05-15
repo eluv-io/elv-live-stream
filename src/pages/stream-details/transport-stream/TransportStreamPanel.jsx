@@ -1,5 +1,18 @@
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Box, Button, Loader, Select, Stack, Table, Text, TextInput, Tooltip} from "@mantine/core";
+import {
+  ActionIcon,
+  Box,
+  Button,
+  Grid,
+  Group,
+  Loader,
+  Select,
+  Stack,
+  Table,
+  Text,
+  TextInput,
+  Tooltip
+} from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {useClipboard} from "@mantine/hooks";
@@ -11,6 +24,8 @@ import {DatePickerInput} from "@mantine/dates";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
+import {TrashIcon} from "@/assets/icons/index.js";
+import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 
 const SrtGenerate = observer(({objectId, originUrl}) => {
   const form = useForm(({
@@ -131,7 +146,7 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
   );
 });
 
-const QuickLinks = observer(({links}) => {
+const QuickLinks = observer(({links, setModalData}) => {
   const clipboard = useClipboard();
 
   return (
@@ -145,7 +160,7 @@ const QuickLinks = observer(({links}) => {
       </Table.Thead>
       <Table.Tbody>
         {
-          links.map(({label, region, value}) => (
+          links.map(({label, region, regionValue, value}) => (
             <Table.Tr key={`srt-link-${value}`}>
               <Table.Td>
                 <Stack gap={2}>
@@ -166,19 +181,40 @@ const QuickLinks = observer(({links}) => {
                 </Text>
               </Table.Td>
               <Table.Td>
-                <Tooltip
-                  label={clipboard.copied ? "Copied" : "Copy"}
-                  position="bottom"
-                >
-                  <ActionIcon
-                    size="xs"
-                    variant="transparent"
-                    color="elv-gray.5"
-                    onClick={() => clipboard.copy(value)}
-                  >
-                    <IconLink color="var(--mantine-color-elv-gray-8)" />
-                  </ActionIcon>
-                </Tooltip>
+                <Group>
+                  {
+                    [
+                      {
+                        id: "copy-action",
+                        label: clipboard.copied ? "Copied" : "Copy",
+                        HandleClick: () => clipboard.copy(value),
+                        Icon: <IconLink color="var(--mantine-color-elv-gray-8)" />
+                      },
+                      {
+                        id: "delete-action",
+                        label: "Delete",
+                        HandleClick: () => setModalData(prevState => ({...prevState, show: true, regionLabel: region, regionValue, url: value, label})),
+                        Icon: <TrashIcon color="var(--mantine-color-elv-gray-8)" />,
+                        disabled: label.includes("Anonymous")
+                      }
+                    ].map(action => (
+                      <Tooltip
+                        label={action.label}
+                        position="bottom"
+                        key={action.id}
+                      >
+                        <ActionIcon
+                          size="xs"
+                          variant="transparent"
+                          color="elv-gray.5"
+                          onClick={action.HandleClick}
+                        >
+                          { action.Icon }
+                        </ActionIcon>
+                      </Tooltip>
+                    ))
+                  }
+                </Group>
               </Table.Td>
             </Table.Tr>
           ))
@@ -191,9 +227,18 @@ const QuickLinks = observer(({links}) => {
 const TransportStreamPanel = observer(({url}) => {
   const params = useParams();
 
+  const initModalData = {
+    show: false,
+    url: "",
+    regionLabel: "",
+    regionValue: "",
+    label: ""
+  };
+
   const [loading, setLoading] = useState(false);
   const [srtUrl, setSrtUrl] = useState(null);
   const [copyMpegTs, setCopyMpegTs] = useState(false);
+  const [modalData, setModalData] = useState(initModalData);
 
   useEffect(() => {
     const LoadSrtPlayoutUrl = async() => {
@@ -236,7 +281,8 @@ const TransportStreamPanel = observer(({url}) => {
       return ({
         value: item.url,
         label: decoded?.payload?.ctx?.usr?.label || item.label || "",
-        region: regionLabel
+        region: regionLabel,
+        regionValue: item.region
       });
     });
 
@@ -253,6 +299,7 @@ const TransportStreamPanel = observer(({url}) => {
           links={
             [{label: "Anonymous Access", value: srtUrl}, ...srtUrls]
           }
+          setModalData={setModalData}
         />
 
         <SectionTitle mb={8}>Generate SRT URL</SectionTitle>
@@ -261,6 +308,43 @@ const TransportStreamPanel = observer(({url}) => {
           objectId={params.id}
         />
       </DisabledTooltipWrapper>
+      <ConfirmModal
+        show={modalData.show}
+        confirmText="Delete"
+        CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
+        ConfirmCallback={() => dataStore.DeleteSrtUrl({
+          objectId: params.id,
+          region: modalData.regionValue
+        })}
+        title="Delete SRT Link"
+        customMessage={
+          <Stack>
+            <Text>Are you sure you want to delete the link?</Text>
+            <Grid>
+              <Grid.Col span={3}>
+                <Text>Label:</Text>
+              </Grid.Col>
+              <Grid.Col span={9}>
+                <Text truncate="end">{ modalData.label || "" }</Text>
+              </Grid.Col>
+
+              <Grid.Col span={3}>
+                <Text>Region:</Text>
+              </Grid.Col>
+              <Grid.Col span={9}>
+                <Text>{ modalData.regionLabel || "" }</Text>
+              </Grid.Col>
+
+              <Grid.Col span={3}>
+                <Text>Stream URL:</Text>
+              </Grid.Col>
+              <Grid.Col span={9}>
+                <Text style={{wordBreak: "break-all"}}>{ modalData.url || "" }</Text>
+              </Grid.Col>
+            </Grid>
+          </Stack>
+        }
+      />
     </Box>
   );
 });
