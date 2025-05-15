@@ -1,5 +1,5 @@
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Box, Button, Checkbox, Loader, Select, Table, Text, TextInput, Tooltip} from "@mantine/core";
+import {ActionIcon, Box, Button, Checkbox, Loader, Select, Stack, Table, Text, TextInput, Tooltip} from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {useClipboard} from "@mantine/hooks";
@@ -139,7 +139,6 @@ const QuickLinks = observer(({links}) => {
       <Table.Thead>
         <Table.Tr>
           <Table.Th>Label</Table.Th>
-          <Table.Th>Region</Table.Th>
           <Table.Th>URL</Table.Th>
           <Table.Th></Table.Th>
         </Table.Tr>
@@ -149,14 +148,17 @@ const QuickLinks = observer(({links}) => {
           links.map(({label, region, value}) => (
             <Table.Tr key={`srt-link-${value}`}>
               <Table.Td>
-                <Text fz={14} c="elv-gray.9">
-                  { label || "--" }
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                <Text fz={14} c="elv-gray.9">
-                  { region || "--" }
-                </Text>
+                <Stack gap={2}>
+                  <Text fz={14} c="elv-gray.9">
+                    { label || "--" }
+                  </Text>
+                  {
+                    region &&
+                    <Text fz={12} c="elv-gray.8">
+                      { region }
+                    </Text>
+                  }
+                </Stack>
               </Table.Td>
               <Table.Td>
                 <Text lineClamp={1} miw={300} maw={700} fz={14} c="elv-gray.9" style={{wordBreak: "break-all"}}>
