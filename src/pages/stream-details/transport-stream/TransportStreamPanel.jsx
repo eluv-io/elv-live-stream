@@ -230,9 +230,12 @@ const TransportStreamPanel = observer(({url}) => {
     .map(item => {
       const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === item.region)?.label || "";
 
+      const token = item.url?.match(/aessjc[a-zA-Z0-9]+/);
+      const decoded = token ? dataStore.client.utils.DecodeSignedToken(token[0]) : {};
+
       return ({
         value: item.url,
-        label: item.label,
+        label: decoded?.payload?.ctx?.usr?.label || item.label || "",
         region: regionLabel
       });
     });
