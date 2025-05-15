@@ -208,6 +208,7 @@ const QuickLinks = observer(({links, setModalData}) => {
                           variant="transparent"
                           color="elv-gray.5"
                           onClick={action.HandleClick}
+                          disabled={action.disabled}
                         >
                           { action.Icon }
                         </ActionIcon>
