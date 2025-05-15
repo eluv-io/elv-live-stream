@@ -633,22 +633,11 @@ class DataStore {
   SrtPlayoutUrl = flow(function * ({objectId, originUrl, tokenData=null}){
     try {
       let token = "", url;
-      const permission = yield this.client.Permission({
-        objectId
-      });
-      const spaceId = { qspace_id: this.rootStore.contentSpaceId };
+      // const permission = yield this.client.Permission({
+      //   objectId
+      // });
 
-      if(["owner", "editable", "viewable"].includes(permission)) {
-        // Used to extract hostname
-        const originUrlObject = new URL(originUrl);
-
-        if(!originUrlObject) {
-          // eslint-disable-next-line no-console
-          console.error(`Invalid origin url: ${originUrl}`);
-          return "";
-        }
-        url = new URL(`srt://${originUrlObject.hostname}:11080`);
-
+      // if(["owner", "editable", "viewable"].includes(permission)) {
         if(tokenData) {
           const {issueTime, expirationTime, label, useSecure, region} = tokenData;
 
@@ -671,14 +660,28 @@ class DataStore {
             // TODO: For unsecure signature, b58 encode JSON and use as token
           }
         } else {
+          // Used to extract hostname
+          const originUrlObject = new URL(originUrl);
+
+          if(!originUrlObject) {
+            // eslint-disable-next-line no-console
+            console.error(`Invalid origin url: ${originUrl}`);
+            return "";
+          }
+
+          url = new URL(`srt://${originUrlObject.hostname}:11080`);
+
           token = yield this.client.CreateSignedToken({
             objectId,
             duration: 86400000
           });
         }
-      } else {
-        token = this.client.utils.B64(JSON.stringify(spaceId));
-      }
+      // }
+      // else {
+      //   const spaceId = { qspace_id: this.rootStore.contentSpaceId };
+      //
+      //   token = this.client.utils.B64(JSON.stringify(spaceId));
+      // }
 
       if(!url) { return ""; }
 
