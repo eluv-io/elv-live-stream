@@ -632,56 +632,55 @@ class DataStore {
   // TODO: Move this to client-js
   SrtPlayoutUrl = flow(function * ({objectId, originUrl, tokenData=null}){
     try {
-      let token = "", url;
-      // const permission = yield this.client.Permission({
-      //   objectId
-      // });
+      let token = "", url, port;
+      const networkName = this.rootStore.networkInfo?.name || "";
 
-      // if(["owner", "editable", "viewable"].includes(permission)) {
-        if(tokenData) {
-          const {issueTime, expirationTime, label, useSecure, region} = tokenData;
+      if(networkName.includes("main")) {
+        port = 11080;
+      } else if(networkName.includes("demo")) {
+        port = 11090;
+      } else if(networkName.includes("test")) {
+        port = 11091;
+      }
 
-          const nodes = yield this.client.UseRegion({region});
-          const urlObject = new URL(nodes.fabricURIs[0]);
-          yield this.client.ResetRegion();
+      if(tokenData) {
+        const {issueTime, expirationTime, label, useSecure, region} = tokenData;
 
-          url = new URL(`srt://${urlObject.hostname}:11080`);
-          if(useSecure) {
-            token = yield this.client.CreateSignedToken({
-              issueTime,
-              expirationTime,
-              context: {
-                usr: {
-                  label
-                }
-              }
-            });
-          } else {
-            // TODO: For unsecure signature, b58 encode JSON and use as token
-          }
-        } else {
-          // Used to extract hostname
-          const originUrlObject = new URL(originUrl);
+        const nodes = yield this.client.UseRegion({region});
+        const urlObject = new URL(nodes.fabricURIs[0]);
+        yield this.client.ResetRegion();
 
-          if(!originUrlObject) {
-            // eslint-disable-next-line no-console
-            console.error(`Invalid origin url: ${originUrl}`);
-            return "";
-          }
-
-          url = new URL(`srt://${originUrlObject.hostname}:11080`);
-
+        url = new URL(`srt://${urlObject.hostname}:${port}`);
+        if(useSecure) {
           token = yield this.client.CreateSignedToken({
-            objectId,
-            duration: 86400000
+            issueTime,
+            expirationTime,
+            context: {
+              usr: {
+                label
+              }
+            }
           });
+        } else {
+          // TODO: For unsecure signature, b58 encode JSON and use as token
         }
-      // }
-      // else {
-      //   const spaceId = { qspace_id: this.rootStore.contentSpaceId };
-      //
-      //   token = this.client.utils.B64(JSON.stringify(spaceId));
-      // }
+      } else {
+        // Used to extract hostname
+        const originUrlObject = new URL(originUrl);
+
+        if(!originUrlObject) {
+          // eslint-disable-next-line no-console
+          console.error(`Invalid origin url: ${originUrl}`);
+          return "";
+        }
+
+        url = new URL(`srt://${originUrlObject.hostname}:${port}`);
+
+        token = yield this.client.CreateSignedToken({
+          objectId,
+          duration: 86400000
+        });
+      }
 
       if(!url) { return ""; }
 
