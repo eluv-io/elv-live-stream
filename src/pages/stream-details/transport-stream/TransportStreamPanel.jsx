@@ -1,5 +1,5 @@
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Box, Button, Checkbox, Loader, Select, Stack, Table, Text, TextInput, Tooltip} from "@mantine/core";
+import {ActionIcon, Box, Button, Loader, Select, Stack, Table, Text, TextInput, Tooltip} from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {useClipboard} from "@mantine/hooks";
@@ -72,7 +72,7 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
         <Table.Tr>
           <Table.Th>Region</Table.Th>
           <Table.Th>Label</Table.Th>
-          <Table.Th>Secure Signature</Table.Th>
+          {/*<Table.Th>Secure Signature</Table.Th>*/}
           <Table.Th>Time Range</Table.Th>
           <Table.Th></Table.Th>
         </Table.Tr>
@@ -103,12 +103,12 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
             {...form.getInputProps("label")}
           />
         </Table.Td>
-        <Table.Td>
-          <Checkbox
-            value={form.key("useSecure")}
-            {...form.getInputProps("useSecure", {type: "checkbox"})}
-          />
-        </Table.Td>
+        {/*<Table.Td>*/}
+        {/*  <Checkbox*/}
+        {/*    value={form.key("useSecure")}*/}
+        {/*    {...form.getInputProps("useSecure", {type: "checkbox"})}*/}
+        {/*  />*/}
+        {/*</Table.Td>*/}
         <Table.Td>
           <DatePickerInput
             key={form.values.dates?.map((d) => d?.toISOString()).join("-")}

@@ -109,6 +109,7 @@ module.exports = {
           "streamid",
           "stringified",
           "subtree",
+          "td",
           "textarea",
           "tooltip",
           "ttl",
