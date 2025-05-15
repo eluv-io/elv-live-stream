@@ -159,7 +159,7 @@ const QuickLinks = observer(({links}) => {
                 </Text>
               </Table.Td>
               <Table.Td>
-                <Text lineClamp={1} miw={300} maw={700} fz={14} c="elv-gray.9">
+                <Text lineClamp={1} miw={300} maw={700} fz={14} c="elv-gray.9" style={{wordBreak: "break-all"}}>
                   { value }
                 </Text>
               </Table.Td>
