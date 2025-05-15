@@ -1,5 +1,5 @@
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Box, Button, Checkbox, Group, Loader, Select, Table, Text, TextInput, Tooltip} from "@mantine/core";
+import {ActionIcon, Box, Button, Checkbox, Loader, Select, Table, Text, TextInput, Tooltip} from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {useClipboard} from "@mantine/hooks";
@@ -44,7 +44,7 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
         }
       });
 
-      await dataStore.UpdateSiteObject({objectId, url, region});
+      await dataStore.UpdateSiteObject({objectId, url, region, label});
 
       notifications.show({
         title: "New link created",
@@ -135,28 +135,54 @@ const QuickLinks = observer(({links}) => {
   const clipboard = useClipboard();
 
   return (
-    <Box mb={29}>
-      {
-        links.map(({label, value}) => (
-          <Group gap={6} key={`srt-url-${value}`}>
-            <Text fz={14}>{ label }</Text>
-            <Tooltip
-              label={clipboard.copied ? "Copied" : "Copy"}
-              position="bottom"
-            >
-              <ActionIcon
-                size="xs"
-                variant="transparent"
-                color="elv-gray.5"
-                onClick={() => clipboard.copy(value)}
-              >
-                <IconLink color="var(--mantine-color-elv-gray-8)" />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
-        ))
-      }
-    </Box>
+    <Table mb={29}>
+      <Table.Thead>
+        <Table.Tr>
+          <Table.Th>Label</Table.Th>
+          <Table.Th>Region</Table.Th>
+          <Table.Th>URL</Table.Th>
+          <Table.Th></Table.Th>
+        </Table.Tr>
+      </Table.Thead>
+      <Table.Tbody>
+        {
+          links.map(({label, region, value}) => (
+            <Table.Tr key={`srt-link-${value}`}>
+              <Table.Td>
+                <Text fz={14} c="elv-gray.9">
+                  { label || "--" }
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Text fz={14} c="elv-gray.9">
+                  { region || "--" }
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Text lineClamp={1} miw={300} maw={700} fz={14} c="elv-gray.9">
+                  { value }
+                </Text>
+              </Table.Td>
+              <Table.Td>
+                <Tooltip
+                  label={clipboard.copied ? "Copied" : "Copy"}
+                  position="bottom"
+                >
+                  <ActionIcon
+                    size="xs"
+                    variant="transparent"
+                    color="elv-gray.5"
+                    onClick={() => clipboard.copy(value)}
+                  >
+                    <IconLink color="var(--mantine-color-elv-gray-8)" />
+                  </ActionIcon>
+                </Tooltip>
+              </Table.Td>
+            </Table.Tr>
+          ))
+        }
+      </Table.Tbody>
+    </Table>
   );
 });
 
@@ -200,11 +226,12 @@ const TransportStreamPanel = observer(({url}) => {
 
   const srtUrls = (dataStore.srtUrlsByStream?.[params.id]?.srt_urls || [])
     .map(item => {
-      const label = FABRIC_NODE_REGIONS.find(data => data.value === item.region)?.label || "";
+      const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === item.region)?.label || "";
 
       return ({
         value: item.url,
-        label
+        label: item.label,
+        region: regionLabel
       });
     });
 

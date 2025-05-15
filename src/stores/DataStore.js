@@ -700,9 +700,9 @@ class DataStore {
     this.liveStreamUrls = urls;
   };
 
-  UpdateSrtUrls({objectId, url, region}) {
+  UpdateSrtUrls({objectId, url, region, label}) {
     const urlsByStream = this.srtUrlsByStream[objectId];
-    const newValue = {url, region};
+    const newValue = {url, region, label};
 
     if(urlsByStream) {
       urlsByStream.srt_urls = [
@@ -716,7 +716,7 @@ class DataStore {
     }
   }
 
-  UpdateSiteObject = flow(function * ({objectId, url, region}) {
+  UpdateSiteObject = flow(function * ({objectId, url, region, label}) {
     if(!this.siteId) { return; }
 
     const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
@@ -725,7 +725,7 @@ class DataStore {
       objectId: this.siteId
     });
 
-    this.UpdateSrtUrls({objectId, url, region});
+    this.UpdateSrtUrls({objectId, url, region, label});
 
     yield this.client.ReplaceMetadata({
       libraryId,
