@@ -724,7 +724,7 @@ class DataStore {
 
     urlsByStream.srt_urls.forEach(urlObj => {
       if(urlObj.region !== region) {
-        newSrtUrls.push(urlObj);
+        newSrtUrls.push(toJS(urlObj));
       }
     });
 
