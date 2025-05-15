@@ -21,7 +21,7 @@ export const DETAILS_TABS = [
   {label: "General Config", value: "general", Component: GeneralPanel},
   {label: "Recording Config", value: "recording", Component: RecordingPanel},
   {label: "Playout Config", value: "playout", Component: PlayoutPanel},
-  {label: "Transport Stream Distribution", value: "tsDistribution", Component: TransportStreamPanel}
+  {label: "Transport Stream Distribution", value: "tsDistribution", Component: TransportStreamPanel, HideTab: (stream) => stream.originUrl?.includes("rtmp")}
 ];
 
 export const DEFAULT_WATERMARK_TEXT = {

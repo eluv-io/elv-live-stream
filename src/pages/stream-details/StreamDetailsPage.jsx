@@ -157,7 +157,9 @@ const StreamDetailsPage = observer(() => {
       <Tabs className={styles.root} value={activeTab} onChange={setActiveTab}>
         <Tabs.List className={styles.list}>
           {
-            DETAILS_TABS.map(tab => (
+            DETAILS_TABS
+              .filter(tab => tab.HideTab ? !tab.HideTab(stream) : tab)
+              .map(tab => (
               <Tabs.Tab value={tab.value} key={`details-tabs-${tab.value}`} className={styles.tab}>
                 <Title order={3} c="elv-gray.9">{tab.label}</Title>
               </Tabs.Tab>

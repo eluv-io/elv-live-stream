@@ -17,7 +17,8 @@ const RecordingPanel = observer(({
   title,
   slug,
   status,
-  PageVersionCallback
+  PageVersionCallback,
+  url
 }) => {
   const params = useParams();
   const [audioTracks, setAudioTracks] = useState([]);
@@ -160,21 +161,24 @@ const RecordingPanel = observer(({
           </SimpleGrid>
         </DisabledTooltipWrapper>
 
-        <DisabledTooltipWrapper
-          disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
-          tooltipLabel="Transport Stream configuration is disabled when the stream is running"
-        >
-          <SectionTitle mb={8}>Transport Stream</SectionTitle>
-          <SimpleGrid cols={2} spacing={150} mb={29}>
-            <Checkbox
-              label="Record Transport Stream Source"
-              checked={copyMpegTs}
-              onChange={(event) => setCopyMpegTs(event.target.checked)}
-              mb={12}
-            />
-          </SimpleGrid>
-          <Divider mb={29} />
-        </DisabledTooltipWrapper>
+        {
+          !(url || "").includes("rtmp") &&
+          <DisabledTooltipWrapper
+            disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+            tooltipLabel="Transport Stream configuration is disabled when the stream is running"
+          >
+            <SectionTitle mb={8}>Transport Stream</SectionTitle>
+            <SimpleGrid cols={2} spacing={150} mb={29}>
+              <Checkbox
+                label="Record Transport Stream Source"
+                checked={copyMpegTs}
+                onChange={(event) => setCopyMpegTs(event.target.checked)}
+                mb={12}
+              />
+            </SimpleGrid>
+            <Divider mb={29} />
+          </DisabledTooltipWrapper>
+        }
 
         <DisabledTooltipWrapper
           disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
