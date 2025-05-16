@@ -8,7 +8,6 @@ import {
   Loader,
   Select,
   Stack,
-  Table,
   Text,
   TextInput,
   Title,
@@ -85,67 +84,82 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
 
   return (
     <form onSubmit={form.onSubmit(HandleSubmit)}>
-      <Table>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>Region</Table.Th>
-          <Table.Th>Label</Table.Th>
-          {/*<Table.Th>Secure Signature</Table.Th>*/}
-          <Table.Th>Time Range</Table.Th>
-          <Table.Th></Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-      <Table.Tr>
-        <Table.Td>
-          <Select
-            key={form.key("region")}
-            data={
-              FABRIC_NODE_REGIONS.filter(item => {
-                const activeRegions = (dataStore.srtUrlsByStream?.[objectId]?.srt_urls || []).map(urlObj => urlObj.region);
-                const isDisabled = activeRegions.includes(item.value);
+      <Box className={styles.tableWrapper} mb={29}>
+        <DataTable
+          classNames={{header: styles.tableHeader}}
+          records={[form]}
+          withColumnBorders
+          columns={[
+            {
+              accessor: "region",
+              title: "Region",
+              titleClassName: "no-border-end",
+              render: () => (
+                <Select
+                  key={form.key("region")}
+                  data={
+                    FABRIC_NODE_REGIONS.filter(item => {
+                      const activeRegions = (dataStore.srtUrlsByStream?.[objectId]?.srt_urls || []).map(urlObj => urlObj.region);
+                      const isDisabled = activeRegions.includes(item.value);
 
-                if(!isDisabled) {
-                  return item;
-                }
-              })
+                      if(!isDisabled) {
+                        return item;
+                      }
+                    })
+                  }
+                  placeholder="Select Region"
+                  size="sm"
+                  {...form.getInputProps("region")}
+                />
+              )
+            },
+            {
+              accessor: "label",
+              title: "Label",
+              titleClassName: "no-border-end",
+              render: () => (
+                <TextInput
+                  key={form.key("label")}
+                  {...form.getInputProps("label")}
+                />
+              )
+            },
+            // {
+            //   accessor: "useSecure",
+            //   render: () => (
+            //     <Checkbox
+            //       value={form.key("useSecure")}
+            //       {...form.getInputProps("useSecure", {type: "checkbox"})}
+            //     />
+            //   )
+            // }
+            {
+              accessor: "dates",
+              title: "Time Range",
+              titleClassName: "no-border-end",
+              render: () => (
+                <DatePickerInput
+                  key={form.values.dates?.map((d) => d?.toISOString()).join("-")}
+                  type="range"
+                  placeholder="Select issue and expiration dates"
+                  value={dates}
+                  onChange={(value) => setDates(value)}
+                  size="sm"
+                  minDate={new Date()}
+                  miw={275}
+                  clearable
+                />
+              )
+            },
+            {
+              accessor: "actions",
+              textAlign: "center",
+              title: "",
+              render: () => <Button type="submit" loading={isSubmitting}>Generate</Button>
             }
-            placeholder="Select Region"
-            size="sm"
-            {...form.getInputProps("region")}
-          />
-        </Table.Td>
-        <Table.Td>
-          <TextInput
-            key={form.key("label")}
-            {...form.getInputProps("label")}
-          />
-        </Table.Td>
-        {/*<Table.Td>*/}
-        {/*  <Checkbox*/}
-        {/*    value={form.key("useSecure")}*/}
-        {/*    {...form.getInputProps("useSecure", {type: "checkbox"})}*/}
-        {/*  />*/}
-        {/*</Table.Td>*/}
-        <Table.Td>
-          <DatePickerInput
-            key={form.values.dates?.map((d) => d?.toISOString()).join("-")}
-            type="range"
-            placeholder="Select issue and expiration dates"
-            value={dates}
-            onChange={(value) => setDates(value)}
-            size="sm"
-            minDate={new Date()}
-            w={275}
-            clearable
-          />
-        </Table.Td>
-        <Table.Td>
-          <Button type="submit" loading={isSubmitting}>Generate</Button>
-        </Table.Td>
-      </Table.Tr>
-      </Table.Tbody>
-      </Table>
+          ]}
+        />
+      </Box>
     </form>
   );
 });

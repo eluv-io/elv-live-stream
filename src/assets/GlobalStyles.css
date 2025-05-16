@@ -9,3 +9,7 @@
 .mantine-Radio-radio {
   outline-color: var(--mantine-color-elv-neutral-2);
 }
+
+.mantine-Table-th.no-border-end {
+  border-inline-end: none;
+}
