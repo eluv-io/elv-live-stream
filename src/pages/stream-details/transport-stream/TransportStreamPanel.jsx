@@ -53,8 +53,8 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
         objectId,
         originUrl,
         tokenData: {
-          expirationTime: dates[1],
-          issueTime: dates[0],
+          expirationTime: dates[1] ? dates[1].getTime() : null,
+          issueTime: dates[0] ? dates[0].getTime() : null,
           label,
           useSecure,
           region
@@ -283,23 +283,26 @@ const TransportStreamPanel = observer(({url}) => {
     };
 
     const LoadConfigData = async() => {
+      let {
+        copyMpegTs: copyMpegTsMeta
+      } = await dataStore.LoadRecordingConfigData({objectId: params.id});
+      await dataStore.LoadSrtPlayoutUrls();
+
+      setCopyMpegTs(copyMpegTsMeta);
+    };
+
+    const LoadData = async() => {
       try {
         setLoading(true);
-        let {
-          copyMpegTs: copyMpegTsMeta
-        } = await dataStore.LoadRecordingConfigData({objectId: params.id});
-        await dataStore.LoadSrtPlayoutUrls();
-
-        setCopyMpegTs(copyMpegTsMeta);
+        await LoadSrtPlayoutUrl();
+        await LoadConfigData();
       } finally {
         setLoading(false);
       }
     };
 
-
     if(params.id) {
-      LoadSrtPlayoutUrl();
-      LoadConfigData();
+      LoadData();
     }
   }, [params.id]);
 

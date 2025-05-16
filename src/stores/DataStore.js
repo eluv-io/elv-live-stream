@@ -653,6 +653,7 @@ class DataStore {
         url = new URL(`srt://${urlObject.hostname}:${port}`);
         if(useSecure) {
           token = yield this.client.CreateSignedToken({
+            objectId,
             issueTime,
             expirationTime,
             context: {
