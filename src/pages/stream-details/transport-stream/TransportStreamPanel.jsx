@@ -11,7 +11,8 @@ import {
   Table,
   Text,
   TextInput,
-  Tooltip
+  Title,
+  Tooltip,
 } from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
@@ -26,6 +27,8 @@ import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import {TrashIcon} from "@/assets/icons/index.js";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
+import {DataTable} from "mantine-datatable";
+import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 
 const SrtGenerate = observer(({objectId, originUrl}) => {
   const form = useForm(({
@@ -134,6 +137,7 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
             size="sm"
             minDate={new Date()}
             w={275}
+            clearable
           />
         </Table.Td>
         <Table.Td>
@@ -148,80 +152,93 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
 
 const QuickLinks = observer(({links, setModalData}) => {
   const clipboard = useClipboard();
-
   return (
-    <Table mb={29}>
-      <Table.Thead>
-        <Table.Tr>
-          <Table.Th>Label</Table.Th>
-          <Table.Th>URL</Table.Th>
-          <Table.Th></Table.Th>
-        </Table.Tr>
-      </Table.Thead>
-      <Table.Tbody>
-        {
-          links.map(({label, region, regionValue, value}) => (
-            <Table.Tr key={`srt-link-${value}`}>
-              <Table.Td>
-                <Stack gap={2}>
-                  <Text fz={14} c="elv-gray.9">
-                    { label || "--" }
-                  </Text>
-                  {
-                    region &&
-                    <Text fz={12} c="elv-gray.8">
-                      { region }
-                    </Text>
-                  }
-                </Stack>
-              </Table.Td>
-              <Table.Td>
-                <Text lineClamp={1} miw={300} maw={700} fz={14} c="elv-gray.9" style={{wordBreak: "break-all"}}>
-                  { value }
-                </Text>
-              </Table.Td>
-              <Table.Td>
-                <Group>
-                  {
-                    [
-                      {
-                        id: "copy-action",
-                        label: clipboard.copied ? "Copied" : "Copy",
-                        HandleClick: () => clipboard.copy(value),
-                        Icon: <IconLink color="var(--mantine-color-elv-gray-8)" />
-                      },
-                      {
-                        id: "delete-action",
-                        label: "Delete",
-                        HandleClick: () => setModalData(prevState => ({...prevState, show: true, regionLabel: region, regionValue, url: value, label})),
-                        Icon: <TrashIcon color="var(--mantine-color-elv-gray-8)" />,
-                        disabled: label.includes("Anonymous")
-                      }
-                    ].map(action => (
-                      <Tooltip
-                        label={action.label}
-                        position="bottom"
-                        key={action.id}
+    <Box className={styles.tableWrapper} mb={29}>
+      <DataTable
+        classNames={{header: styles.tableHeader}}
+        records={links}
+        columns={[
+          {
+            accessor: "label",
+            title: "Label",
+            render: (record) => (
+              <Stack gap={0} maw="80%">
+                <Title
+                  order={4}
+                  lineClamp={1}
+                  title={record.label}
+                  miw={175}
+                  c="elv-gray.9"
+                >
+                  {record.label}
+                </Title>
+                <Title order={6} c="elv-gray.6">
+                  {record.region}
+                </Title>
+              </Stack>
+            )
+          },
+          {
+            accessor: "value",
+            title: "URL",
+            render: (record) => (
+              <Title
+                order={4}
+                lineClamp={1}
+                truncate="end"
+                title={record.value}
+                miw={300}
+                maw={500}
+                c="elv-gray.9"
+              >
+                {record.value}
+              </Title>
+            )
+          },
+          {
+            accessor: "actions",
+            title: "",
+            render: (record) => (
+              <Group wrap="nowrap" gap={8}>
+                {
+                  [
+                    {
+                      id: "copy-action",
+                      label: clipboard.copied ? "Copied" : "Copy",
+                      HandleClick: () => clipboard.copy(record.value),
+                      Icon: <IconLink color="var(--mantine-color-elv-gray-7)" height={16} />
+                    },
+                    {
+                      id: "delete-action",
+                      label: "Delete",
+                      HandleClick: () => setModalData(prevState => ({...prevState, show: true, regionLabel: record.region, regionValue: record.regionValue, url: record.value, label: record.label})),
+                      Icon: <TrashIcon color="var(--mantine-color-elv-gray-7)" height={16} />,
+                      disabled: record.label.includes("Anonymous")
+                    }
+                  ].map(action => (
+                    <Tooltip
+                      label={action.label}
+                      position="bottom"
+                      key={action.id}
+                    >
+                      <ActionIcon
+                        size="xs"
+                        variant="transparent"
+                        color="elv-gray.5"
+                        onClick={action.HandleClick}
+                        disabled={action.disabled}
                       >
-                        <ActionIcon
-                          size="xs"
-                          variant="transparent"
-                          color="elv-gray.5"
-                          onClick={action.HandleClick}
-                          disabled={action.disabled}
-                        >
-                          { action.Icon }
-                        </ActionIcon>
-                      </Tooltip>
-                    ))
-                  }
-                </Group>
-              </Table.Td>
-            </Table.Tr>
-          ))
-        }
-      </Table.Tbody>
-    </Table>
+                        { action.Icon }
+                      </ActionIcon>
+                    </Tooltip>
+                  ))
+                }
+              </Group>
+            )
+          }
+        ]}
+      />
+    </Box>
   );
 });
 
