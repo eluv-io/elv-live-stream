@@ -28,7 +28,7 @@ import {CalendarMonthIcon, LinkIcon, TrashIcon} from "@/assets/icons/index.js";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {DataTable} from "mantine-datatable";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
-import {CheckExpiration} from "@/utils/helpers.js";
+import {CheckExpiration, SortTable} from "@/utils/helpers.js";
 
 const SrtGenerate = observer(({objectId, originUrl}) => {
   const form = useForm(({
@@ -172,16 +172,25 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
 });
 
 const QuickLinks = observer(({links, setModalData}) => {
+  const [sortStatus, setSortStatus] = useState({
+    columnAccessor: "label",
+    direction: "asc"
+  });
   const clipboard = useClipboard();
+  const records = links.sort(SortTable({sortStatus}));
+
   return (
     <Box className={styles.tableWrapper} mb={29}>
       <DataTable
         classNames={{header: styles.tableHeader}}
-        records={links}
+        records={records}
+        sortStatus={sortStatus}
+        onSortStatusChange={setSortStatus}
         columns={[
           {
             accessor: "label",
             title: "Label",
+            sortable: true,
             render: (record) => (
               <Title
                 order={4}
@@ -197,6 +206,7 @@ const QuickLinks = observer(({links, setModalData}) => {
           {
             accessor: "region",
             title: "Region",
+            sortable: true,
             render: (record) => (
               <Title
                 order={4}
