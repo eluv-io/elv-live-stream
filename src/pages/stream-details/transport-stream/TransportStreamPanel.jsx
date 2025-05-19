@@ -45,6 +45,8 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
 
   const HandleSubmit = async(values) => {
     try {
+      const currentDate = new Date();
+      const futureDate = new Date(currentDate.getFullYear() + 100, currentDate.getMonth(), currentDate.getDate());
       setIsSubmitting(true);
 
       const {label, useSecure, region} = values;
@@ -53,8 +55,8 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
         objectId,
         originUrl,
         tokenData: {
-          expirationTime: dates[1] ? dates[1].getTime() : null,
-          issueTime: dates[0] ? dates[0].getTime() : null,
+          expirationTime: dates[1] ? dates[1].getTime() : (futureDate.getTime()),
+          issueTime: dates[0] ? dates[0].getTime() : currentDate.getTime(),
           label,
           useSecure,
           region
