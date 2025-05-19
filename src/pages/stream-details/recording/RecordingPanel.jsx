@@ -39,12 +39,13 @@ const RecordingPanel = observer(({
         audioStreams,
         audioData,
         retention: retentionMeta,
+        persistent: persistentMeta,
         connectionTimeout: connectionTimeoutMeta,
         reconnectionTimeout: reconnectionTimeoutMeta,
         copyMpegTs: copyMpegTsMeta
       } = await dataStore.LoadRecordingConfigData({objectId: params.id});
 
-      retentionMeta = retentionMeta ? retentionMeta.toString() : null;
+      retentionMeta = persistentMeta ? "indefinite" : retentionMeta ? retentionMeta.toString() : null;
       connectionTimeoutMeta = connectionTimeoutMeta ? connectionTimeoutMeta.toString() : null;
       reconnectionTimeoutMeta =reconnectionTimeoutMeta ? reconnectionTimeoutMeta.toString() : null;
 
@@ -74,12 +75,24 @@ const RecordingPanel = observer(({
     try {
       setApplyingChanges(true);
 
+      let retentionData = null;
+      let persistent = false;
+
+      if(retention) {
+        if(retention === "indefinite") {
+          persistent = true;
+        } else {
+          retentionData = parseInt(retention);
+        }
+      }
+
       await editStore.UpdateRecordingConfig({
         objectId: params.id,
         slug,
         audioFormData,
         configFormData: {
-          retention: retention ? parseInt(retention) : null,
+          retention: retentionData,
+          persistent,
           connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
           reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null
         },

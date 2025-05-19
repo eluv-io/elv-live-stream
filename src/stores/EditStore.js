@@ -37,6 +37,7 @@ class EditStore {
     playoutProfile,
     protocol,
     retention,
+    persistent,
     url
   }) {
     const response = yield this.CreateContentObject({
@@ -58,6 +59,7 @@ class EditStore {
       encryption,
       playoutProfile,
       retention,
+      persistent,
       referenceUrl: protocol === "custom" ? undefined : url
     });
 
@@ -128,6 +130,7 @@ class EditStore {
     playoutProfile,
     protocol,
     retention,
+    persistent,
     url
   }) {
     if(accessGroup) {
@@ -149,6 +152,7 @@ class EditStore {
       encryption,
       playoutProfile,
       retention,
+      persistent,
       referenceUrl: protocol === "custom" ? undefined : url,
       audioFormData
     });
@@ -581,6 +585,7 @@ class EditStore {
     finalize=true,
     slug,
     retention,
+    persistent,
     connectionTimeout,
     reconnectionTimeout,
     skipDvrSection=false,
@@ -620,6 +625,16 @@ class EditStore {
       });
 
       updateValue.partTtl = parseInt(retention);
+    }
+
+    if(persistent !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/persistent",
+        metadata: persistent
+      });
     }
 
     if(playoutProfile !== undefined) {
@@ -748,7 +763,7 @@ class EditStore {
       }));
     }
 
-    const {retention, connectionTimeout, reconnectionTimeout} = configFormData;
+    const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
 
     const {copyMpegTs} = tsFormData;
 
@@ -764,6 +779,7 @@ class EditStore {
       objectId,
       slug,
       retention,
+      persistent,
       connectionTimeout,
       reconnectionTimeout,
       copyMpegTs,

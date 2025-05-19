@@ -506,6 +506,7 @@ class DataStore {
           "live_recording/recording_config/recording_params/xc_params/connection_timeout",
           "live_recording/recording_config/recording_params/reconnect_timeout",
           "live_recording_config/part_ttl",
+          "live_recording/recording_config/recording_params/persistent",
           "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
         ]
       });
@@ -518,6 +519,7 @@ class DataStore {
       return {
         audioStreams,
         audioData,
+        persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
         retention: streamMeta?.live_recording_config?.part_ttl,
         connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
         reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,

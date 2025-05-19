@@ -63,6 +63,7 @@ class StreamStore {
           "output/audio/bitrate",
           "output/audio/channel_layout",
           "part_ttl",
+          "persistent",
           "drm",
           "drm_type",
           "audio",
@@ -96,6 +97,10 @@ class StreamStore {
 
       if(liveRecordingConfig.part_ttl) {
         customSettings["part_ttl"] = liveRecordingConfig.part_ttl;
+      }
+
+      if(Object.hasOwn(liveRecordingConfig, "persistent")) {
+        customSettings["persistent"] = liveRecordingConfig.persistent;
       }
 
       if(recordingConfig?.recording_params?.xc_params?.connection_timeout) {

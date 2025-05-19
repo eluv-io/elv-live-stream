@@ -83,7 +83,8 @@ export const RETENTION_OPTIONS = [
   {label: "6 Hours", value: "21600"}, // 60 * 60 * 6 = 21600
   {label: "1 Day", value: "86400"}, // 60 * 60 * 24 = 86400 seconds
   {label: "1 Week", value: "604800"}, // 60 * 60 * 24 * 7 = 604800 seconds
-  {label: "1 Month", value: "2635200"} // 60 * 60 * 24 * 30.5 = 2635200 seconds
+  {label: "1 Month", value: "2635200"}, // 60 * 60 * 24 * 30.5 = 2635200 seconds
+  {label: "Indefinitely", value: "indefinite"}
 ];
 
 export const DVR_DURATION_OPTIONS = [
