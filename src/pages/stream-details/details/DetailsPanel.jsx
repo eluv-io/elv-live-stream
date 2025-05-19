@@ -54,13 +54,12 @@ const DetailRow = ({label, value}) => {
   );
 };
 
-const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug, url, egressEnabled}) => {
+const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug}) => {
   const [frameSegmentUrl, setFrameSegmentUrl] = useState("");
   const [status, setStatus] = useState(null);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
   const [embedUrl, setEmbedUrl] = useState(null);
-  const [srtUrl, setSrtUrl] = useState(null);
 
   const params = useParams();
   const clipboard = useClipboard({timeout: 2000});
@@ -86,22 +85,9 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       setEmbedUrl(url);
     };
 
-    const LoadSrtPlayoutUrl = async() => {
-      const srtUrlString = await dataStore.SrtPlayoutUrl({
-        objectId: params.id,
-        originUrl: url
-      });
-
-      setSrtUrl(srtUrlString);
-    };
-
     LoadLiveRecordingCopies();
     LoadStatus();
     LoadEmbedUrl();
-
-    if((url || "").includes("srt")) {
-      LoadSrtPlayoutUrl();
-    }
   }, [params.id]);
 
   const LoadLiveRecordingCopies = async() => {
@@ -206,7 +192,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                 {
                   [
                     {label: "Copy Embeddable URL", value: embedUrl, hidden: !embedUrl, id: "embeddable-url-link"},
-                    {label: "Copy SRT URL", value: srtUrl, hidden: !egressEnabled, id: "srt-url-link"}
+                    // {label: "Copy SRT URL", value: srtUrl, hidden: !egressEnabled, id: "srt-url-link"}
                   ]
                     .filter(item => !item.hidden)
                     .map(item => (
