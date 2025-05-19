@@ -1,3 +1,4 @@
+import CalendarMonthIcon from "@/assets/icons/CalendarMonthIcon.jsx";
 import CircleInfoIcon from "@/assets/icons/CircleInfoIcon.jsx";
 import ClipboardIcon from "@/assets/icons/ClipboardIcon.jsx";
 import CopyIcon from "@/assets/icons/CopyIcon.jsx";
@@ -14,6 +15,7 @@ import TrashIcon from "@/assets/icons/TrashIcon.jsx";
 import VideoPlusIcon from "@/assets/icons/VideoPlusIcon.jsx";
 
 export {
+  CalendarMonthIcon,
   CircleInfoIcon,
   ClipboardIcon,
   CopyIcon,

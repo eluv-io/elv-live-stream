@@ -72,6 +72,7 @@ module.exports = {
           "flexbox",
           "helvetica",
           "hls",
+          "iat",
           "ilib",
           "iq",
           "iten",

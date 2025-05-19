@@ -229,3 +229,15 @@ export const CopyToClipboard = ({text}) => {
       }
     });
 };
+
+export const CheckExpiration = (date) => {
+  if(typeof date !== "number") { return false; }
+
+  const today = new Date();
+  const inputDate = new Date(date);
+
+  inputDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  return inputDate < today;
+};

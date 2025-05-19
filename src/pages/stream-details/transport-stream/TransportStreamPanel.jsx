@@ -16,7 +16,7 @@ import {
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {useClipboard} from "@mantine/hooks";
-import {IconLink} from "@tabler/icons-react";
+import {IconLink, IconSelector} from "@tabler/icons-react";
 import {dataStore} from "@/stores/index.js";
 import {useEffect, useState} from "react";
 import {useParams} from "react-router-dom";
@@ -24,10 +24,11 @@ import {DatePickerInput} from "@mantine/dates";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
-import {TrashIcon} from "@/assets/icons/index.js";
+import {CalendarMonthIcon, TrashIcon} from "@/assets/icons/index.js";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {DataTable} from "mantine-datatable";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
+import {CheckExpiration} from "@/utils/helpers.js";
 
 const SrtGenerate = observer(({objectId, originUrl}) => {
   const form = useForm(({
@@ -91,7 +92,20 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
           classNames={{header: styles.tableHeader}}
           records={[form]}
           withColumnBorders
+          minHeight={75}
           columns={[
+            {
+              accessor: "label",
+              title: "Label",
+              titleClassName: "no-border-end",
+              placeholder: "Enter a Label",
+              render: () => (
+                <TextInput
+                  key={form.key("label")}
+                  {...form.getInputProps("label")}
+                />
+              )
+            },
             {
               accessor: "region",
               title: "Region",
@@ -115,17 +129,6 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
                 />
               )
             },
-            {
-              accessor: "label",
-              title: "Label",
-              titleClassName: "no-border-end",
-              render: () => (
-                <TextInput
-                  key={form.key("label")}
-                  {...form.getInputProps("label")}
-                />
-              )
-            },
             // {
             //   accessor: "useSecure",
             //   render: () => (
@@ -143,13 +146,15 @@ const SrtGenerate = observer(({objectId, originUrl}) => {
                 <DatePickerInput
                   key={form.values.dates?.map((d) => d?.toISOString()).join("-")}
                   type="range"
-                  placeholder="Select issue and expiration dates"
+                  placeholder="Select Issue and Expiration Dates"
                   value={dates}
                   onChange={(value) => setDates(value)}
                   size="sm"
                   minDate={new Date()}
                   miw={275}
                   clearable
+                  leftSection={<CalendarMonthIcon />}
+                  rightSection={<IconSelector height={16} />}
                 />
               )
             },
@@ -178,20 +183,67 @@ const QuickLinks = observer(({links, setModalData}) => {
             accessor: "label",
             title: "Label",
             render: (record) => (
-              <Stack gap={0} maw="80%">
-                <Title
-                  order={4}
-                  lineClamp={1}
-                  title={record.label}
-                  miw={175}
-                  c="elv-gray.9"
-                >
-                  {record.label}
-                </Title>
-                <Title order={6} c="elv-gray.6">
-                  {record.region}
-                </Title>
-              </Stack>
+              <Title
+                order={4}
+                lineClamp={1}
+                title={record.label}
+                miw={175}
+                c="elv-gray.9"
+              >
+                {record.label || "--"}
+              </Title>
+            )
+          },
+          {
+            accessor: "region",
+            title: "Region",
+            render: (record) => (
+              <Title
+                order={4}
+                lineClamp={1}
+                title={record.region}
+                miw={175}
+                c="elv-gray.9"
+              >
+                {record.region || "--"}
+              </Title>
+            )
+          },
+          {
+            accessor: "dates",
+            title: "Time Range",
+            render: (record) => (
+              <Title
+                order={4}
+                lineClamp={1}
+                miw={175}
+                c="elv-gray.9"
+                fs={record.expired ? "italic" : ""}
+              >
+                <Group wrap="nowrap" gap={4}>
+                  {
+                    (record.issueTime && record.expireTime) ?
+                      (
+                        <>
+                          {
+                            `${new Date(record.issueTime).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric"
+                            })} - ${new Date(record.expireTime).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric"
+                            })}`
+                          }
+                          {
+                            record.expired ? <Text c="elv-red.4">expired</Text> : ""
+                          }
+                        </>
+                      ) : "--"
+                  }
+                </Group>
+              </Title>
             )
           },
           {
@@ -202,9 +254,9 @@ const QuickLinks = observer(({links, setModalData}) => {
                 order={4}
                 lineClamp={1}
                 truncate="end"
-                title={record.value}
-                miw={300}
-                maw={500}
+                title={record.value || "--"}
+                miw={100}
+                maw={350}
                 c="elv-gray.9"
               >
                 {record.value}
@@ -222,13 +274,13 @@ const QuickLinks = observer(({links, setModalData}) => {
                       id: "copy-action",
                       label: clipboard.copied ? "Copied" : "Copy",
                       HandleClick: () => clipboard.copy(record.value),
-                      Icon: <IconLink color="var(--mantine-color-elv-gray-7)" height={16} />
+                      Icon: <IconLink color="var(--mantine-color-elv-gray-7)" height={22} width={22} />
                     },
                     {
                       id: "delete-action",
                       label: "Delete",
                       HandleClick: () => setModalData(prevState => ({...prevState, show: true, regionLabel: record.region, regionValue: record.regionValue, url: record.value, label: record.label})),
-                      Icon: <TrashIcon color="var(--mantine-color-elv-gray-7)" height={16} />,
+                      Icon: <TrashIcon color="var(--mantine-color-elv-gray-7)" height={22} width={22} />,
                       disabled: record.label.includes("Anonymous")
                     }
                   ].map(action => (
@@ -238,7 +290,7 @@ const QuickLinks = observer(({links, setModalData}) => {
                       key={action.id}
                     >
                       <ActionIcon
-                        size="xs"
+                        // size="xs"
                         variant="transparent"
                         color="elv-gray.5"
                         onClick={action.HandleClick}
@@ -319,7 +371,10 @@ const TransportStreamPanel = observer(({url}) => {
         value: item.url,
         label: decoded?.payload?.ctx?.usr?.label || item.label || "",
         region: regionLabel,
-        regionValue: item.region
+        regionValue: item.region,
+        issueTime: decoded?.payload?.iat,
+        expireTime: decoded?.payload?.exp,
+        expired: CheckExpiration(decoded?.payload?.exp)
       });
     });
 
@@ -339,7 +394,7 @@ const TransportStreamPanel = observer(({url}) => {
           setModalData={setModalData}
         />
 
-        <SectionTitle mb={8}>Generate SRT URL</SectionTitle>
+        <SectionTitle mb={8}>Generate New SRT URL</SectionTitle>
         <SrtGenerate
           originUrl={url}
           objectId={params.id}
