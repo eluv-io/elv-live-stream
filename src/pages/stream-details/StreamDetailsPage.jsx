@@ -184,6 +184,7 @@ const StreamDetailsPage = observer(() => {
                   url={stream.originUrl}
                   recordingInfo={recordingInfo}
                   currentRetention={stream.partTtl}
+                  currentPersistent={stream.persistent}
                   currentConnectionTimeout={stream.connectionTimeout}
                   currentReconnectionTimeout={stream.reconnectionTimeout}
                   currentDvrEnabled={stream.dvrEnabled}

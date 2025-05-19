@@ -5,6 +5,7 @@ import CopyIcon from "@/assets/icons/CopyIcon.jsx";
 import EditIcon from "@/assets/icons/EditIcon.jsx";
 import ExternalLinkIcon from "@/assets/icons/ExternalLinkIcon.jsx";
 import GearIcon from "@/assets/icons/GearIcon.jsx";
+import LinkIcon from "@/assets/icons/LinkIcon.jsx";
 import MagnifyingGlassIcon from "@/assets/icons/MagnifyingGlassIcon.jsx";
 import MediaIcon from "@/assets/icons/MediaIcon.jsx";
 import PlayCircleIcon from "@/assets/icons/PlayCircleIcon.jsx";
@@ -22,6 +23,7 @@ export {
   EditIcon,
   ExternalLinkIcon,
   GearIcon,
+  LinkIcon,
   MagnifyingGlassIcon,
   MediaIcon,
   PlayCircleIcon,

@@ -16,7 +16,7 @@ import {
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {useClipboard} from "@mantine/hooks";
-import {IconLink, IconSelector} from "@tabler/icons-react";
+import {IconSelector} from "@tabler/icons-react";
 import {dataStore} from "@/stores/index.js";
 import {useEffect, useState} from "react";
 import {useParams} from "react-router-dom";
@@ -24,7 +24,7 @@ import {DatePickerInput} from "@mantine/dates";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
-import {CalendarMonthIcon, TrashIcon} from "@/assets/icons/index.js";
+import {CalendarMonthIcon, LinkIcon, TrashIcon} from "@/assets/icons/index.js";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {DataTable} from "mantine-datatable";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
@@ -274,7 +274,7 @@ const QuickLinks = observer(({links, setModalData}) => {
                       id: "copy-action",
                       label: clipboard.copied ? "Copied" : "Copy",
                       HandleClick: () => clipboard.copy(record.value),
-                      Icon: <IconLink color="var(--mantine-color-elv-gray-7)" height={22} width={22} />
+                      Icon: <LinkIcon color="var(--mantine-color-elv-gray-7)" height={22} width={22} />
                     },
                     {
                       id: "delete-action",

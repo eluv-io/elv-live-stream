@@ -21,6 +21,7 @@ const RecordingPeriodsTable = observer(({
   CopyCallback,
   currentTimeMs,
   retention,
+  persistent,
   loading
 }) => {
   const [selectedRecords, setSelectedRecords] = useState([]);
@@ -101,6 +102,9 @@ const RecordingPeriodsTable = observer(({
   const IsWithinRetentionPeriod = ({startTime}) => {
     const currentTimeMs = new Date().getTime();
     const startTimeMs = new Date(startTime).getTime();
+
+    if(persistent) { return true; }
+
     const retentionMs = parseInt(retention || "") * 1000;
 
     if(typeof startTimeMs !== "number") { return false; }
@@ -108,10 +112,12 @@ const RecordingPeriodsTable = observer(({
     return (currentTimeMs - startTimeMs) < retentionMs;
   };
 
-  const ExpirationTime = ({startTime, retention}) => {
+  const ExpirationTime = ({startTime, retention, persistent}) => {
     if(!startTime) { return "--"; }
 
-    const expirationTimeMs = (startTime * 1000) + (parseInt(retention || "") * 1000);
+    const retentionTime = persistent ? 0 : (parseInt(retention || "") * 1000);
+
+    const expirationTimeMs = (startTime * 1000) + retentionTime;
 
     return expirationTimeMs ?
       DateFormat({
@@ -203,7 +209,7 @@ const RecordingPeriodsTable = observer(({
               title: "Expiration Time",
               render: record => (
                 <BasicTableRowText>
-                  <ExpirationTime startTime={record?.start_time_epoch_sec} retention={retention} />
+                  <ExpirationTime startTime={record?.start_time_epoch_sec} retention={retention} persistent={persistent} />
                 </BasicTableRowText>
               )
             },
