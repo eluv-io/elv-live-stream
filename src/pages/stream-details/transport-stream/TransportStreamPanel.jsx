@@ -96,16 +96,17 @@ const TransportStreamPanel = observer(({url}) => {
         <SectionTitle mb={8}>Quick Links</SectionTitle>
         <QuickLinks
           objectId={params.id}
+          setModalData={setModalData}
+        />
+
+        <SectionTitle mb={8}>Saved Links</SectionTitle>
+        <SavedLinks
+          originUrl={url}
+          objectId={params.id}
           links={
             [{label: "Anonymous Access", value: srtUrl}, ...srtUrls]
           }
           setModalData={setModalData}
-        />
-
-        <SectionTitle mb={8}>Generate New SRT URL</SectionTitle>
-        <SavedLinks
-          originUrl={url}
-          objectId={params.id}
         />
       </DisabledTooltipWrapper>
       <ConfirmModal

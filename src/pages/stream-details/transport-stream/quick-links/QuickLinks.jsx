@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import {useClipboard} from "@mantine/hooks";
 import {SortTable} from "@/utils/helpers.js";
-import {ActionIcon, Box, Button, Group, Select, SimpleGrid, Text, Title, Tooltip} from "@mantine/core";
+import {ActionIcon, Box, Button, Group, Select, SimpleGrid, Title, Tooltip} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
 import {LinkIcon, TrashIcon} from "@/assets/icons/index.js";
@@ -10,7 +10,7 @@ import {useForm} from "@mantine/form";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {dataStore} from "@/stores/index.js";
 
-const QuickLinks = observer(({links, setModalData, objectId}) => {
+const QuickLinks = observer(({links=[], setModalData, objectId}) => {
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "label",
     direction: "asc"
@@ -25,8 +25,6 @@ const QuickLinks = observer(({links, setModalData, objectId}) => {
     }
   });
 
-  const records = links.sort(SortTable({sortStatus}));
-
   const HandleGenerate = () => {
     try {
       setIsSubmitting(true);
@@ -35,11 +33,14 @@ const QuickLinks = observer(({links, setModalData, objectId}) => {
     }
   };
 
+  const records = links.sort(SortTable({sortStatus}));
+
   return (
     <>
       <form onSubmit={form.onSubmit(HandleGenerate)}>
         <SimpleGrid cols={2} spacing={150} mb={10}>
           <Box className={styles.tableWrapper}>
+            {/* Form table to generate links */}
             <DataTable
               classNames={{header: styles.tableHeader}}
               records={[form]}
@@ -79,29 +80,15 @@ const QuickLinks = observer(({links, setModalData, objectId}) => {
         </SimpleGrid>
       </form>
       <Box className={styles.tableWrapper} mb={29}>
+        {/* Table to display links */}
         <DataTable
           classNames={{header: styles.tableHeader}}
           idAccessor="label"
           records={records || []}
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
+          minHeight={150}
           columns={[
-            {
-              accessor: "label",
-              title: "Label",
-              sortable: true,
-              render: (record) => (
-                <Title
-                  order={4}
-                  lineClamp={1}
-                  title={record.label}
-                  miw={175}
-                  c="elv-gray.9"
-                >
-                  {record.label || "--"}
-                </Title>
-              )
-            },
             {
               accessor: "region",
               title: "Region",
@@ -115,43 +102,6 @@ const QuickLinks = observer(({links, setModalData, objectId}) => {
                   c="elv-gray.9"
                 >
                   {record.region || "--"}
-                </Title>
-              )
-            },
-            {
-              accessor: "dates",
-              title: "Time Range",
-              render: (record) => (
-                <Title
-                  order={4}
-                  lineClamp={1}
-                  miw={175}
-                  c="elv-gray.9"
-                  fs={record.expired ? "italic" : ""}
-                >
-                  <Group wrap="nowrap" gap={4}>
-                    {
-                      (record.issueTime && record.expireTime) ?
-                        (
-                          <>
-                            {
-                              `${new Date(record.issueTime).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric"
-                              })} - ${new Date(record.expireTime).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric"
-                              })}`
-                            }
-                            {
-                              record.expired ? <Text c="elv-red.4">expired</Text> : ""
-                            }
-                          </>
-                        ) : "--"
-                    }
-                  </Group>
                 </Title>
               )
             },
