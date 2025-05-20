@@ -233,37 +233,37 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
               accessor: "dates",
               title: "Time Range",
               render: (record) => (
-                <Title
-                  order={4}
-                  lineClamp={1}
-                  miw={175}
-                  c="elv-gray.9"
-                  fs={record.expired ? "italic" : ""}
-                >
-                  <Group wrap="nowrap" gap={4}>
-                    {
-                      (record.issueTime && record.expireTime) ?
-                        (
-                          <>
-                            {
-                              `${new Date(record.issueTime).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric"
-                              })} - ${new Date(record.expireTime).toLocaleDateString("en-US", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric"
-                              })}`
-                            }
-                            {
-                              record.expired ? <Text c="elv-red.4">expired</Text> : ""
-                            }
-                          </>
-                        ) : "--"
-                    }
-                  </Group>
-                </Title>
+                <Group wrap="nowrap" gap={4}>
+                  <Title
+                    order={4}
+                    lineClamp={1}
+                    miw={175}
+                    c="elv-gray.9"
+                    fs={record.expired ? "italic" : ""}
+                  >
+                      {
+                        (record.issueTime && record.expireTime) ?
+                          (
+                            <>
+                              {
+                                `${new Date(record.issueTime).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric"
+                                })} - ${new Date(record.expireTime).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric"
+                                })}`
+                              }
+                            </>
+                          ) : "--"
+                      }
+                  </Title>
+                  {
+                    record.expired ? <Text c="elv-red.4" fz={14}>expired</Text> : ""
+                  }
+                </Group>
               )
             },
             {
