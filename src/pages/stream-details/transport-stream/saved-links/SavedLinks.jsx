@@ -6,7 +6,7 @@ import {ActionIcon, Box, Button, Group, Select, Text, TextInput, Title, Tooltip}
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
-import {DatePickerInput} from "@mantine/dates";
+import {DateTimePicker} from "@mantine/dates";
 import {CalendarMonthIcon, LinkIcon, TrashIcon} from "@/assets/icons/index.js";
 import {IconSelector} from "@tabler/icons-react";
 import {useState} from "react";
@@ -20,11 +20,13 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
       region: "",
       label: "",
       useSecure: true,
-      dates: [null, null] // controlled
+      startDate: new Date(), // controlled
+      endDate: null // controlled
     }
   });
 
-  const [dates, setDates] = useState([null, null]);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "label",
@@ -45,8 +47,8 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
         objectId,
         originUrl,
         tokenData: {
-          expirationTime: dates[1] ? dates[1].getTime() : (futureDate.getTime()),
-          issueTime: dates[0] ? dates[0].getTime() : currentDate.getTime(),
+          expirationTime: endDate ? endDate.getTime() : (futureDate.getTime()),
+          issueTime: startDate ? startDate.getTime() : currentDate.getTime(),
           label,
           useSecure,
           region
@@ -117,6 +119,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
                     }
                     placeholder="Select Region"
                     size="sm"
+                    clearable
                     {...form.getInputProps("region")}
                   />
                 )
@@ -135,19 +138,31 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
                 title: "Time Range",
                 titleClassName: "no-border-end",
                 render: () => (
-                  <DatePickerInput
-                    key={form.values.dates?.map((d) => d?.toISOString()).join("-")}
-                    type="range"
-                    placeholder="Select Issue and Expiration Dates"
-                    value={dates}
-                    onChange={(value) => setDates(value)}
-                    size="sm"
-                    minDate={new Date()}
-                    miw={275}
-                    clearable
-                    leftSection={<CalendarMonthIcon />}
-                    rightSection={<IconSelector height={16} />}
-                  />
+                  <Group>
+                    <DateTimePicker
+                      value={startDate}
+                      onChange={setStartDate}
+                      valueFormat="MM/DD/YY HH:mm A"
+                      size="sm"
+                      minDate={new Date()}
+                      defaultValue={new Date()}
+                      miw={175}
+                      clearable
+                      placeholder="Start"
+                      leftSection={<CalendarMonthIcon />}
+                      rightSection={startDate ? null : <IconSelector height={16} />}
+                    />
+                    <DateTimePicker
+                      value={endDate}
+                      onChange={setEndDate}
+                      size="sm"
+                      miw={175}
+                      clearable
+                      placeholder="End"
+                      leftSection={<CalendarMonthIcon />}
+                      rightSection={endDate ? null : <IconSelector height={16} />}
+                    />
+                  </Group>
                 )
               },
               {

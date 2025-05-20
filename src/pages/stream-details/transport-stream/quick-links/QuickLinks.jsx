@@ -47,7 +47,7 @@ const QuickLinks = observer(({links=[], setModalData, objectId}) => {
               columns={[
                 {
                   accessor: "region",
-                  title: "Region",
+                  title: "Add New Link",
                   titleClassName: "no-border-end",
                   render: () => (
                     <Select
@@ -64,6 +64,7 @@ const QuickLinks = observer(({links=[], setModalData, objectId}) => {
                       }
                       placeholder="Select Region"
                       size="sm"
+                      clearable
                       {...form.getInputProps("region")}
                     />
                   )
