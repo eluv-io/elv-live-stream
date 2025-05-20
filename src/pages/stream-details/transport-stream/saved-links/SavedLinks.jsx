@@ -149,6 +149,11 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
                       miw={175}
                       clearable
                       placeholder="Start"
+                      timePickerProps={{
+                        withDropdown: true,
+                        popoverProps: { withinPortal: false },
+                        format: "12h",
+                      }}
                       leftSection={<CalendarMonthIcon />}
                       rightSection={startDate ? null : <IconSelector height={16} />}
                     />
@@ -159,6 +164,11 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
                       miw={175}
                       clearable
                       placeholder="End"
+                      timePickerProps={{
+                        withDropdown: true,
+                        popoverProps: { withinPortal: false },
+                        format: "12h",
+                      }}
                       leftSection={<CalendarMonthIcon />}
                       rightSection={endDate ? null : <IconSelector height={16} />}
                     />
