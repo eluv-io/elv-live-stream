@@ -89,6 +89,7 @@ const QuickLinks = observer(({links=[], setModalData, objectId}) => {
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
           minHeight={150}
+          noRecordsText="No quick links found"
           columns={[
             {
               accessor: "region",

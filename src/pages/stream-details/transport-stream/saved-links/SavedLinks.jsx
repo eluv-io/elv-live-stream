@@ -37,8 +37,8 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
 
   const HandleSubmit = async(values) => {
     try {
-      const currentDate = new Date();
-      const futureDate = new Date(currentDate.getFullYear() + 100, currentDate.getMonth(), currentDate.getDate());
+      const issueTime = startDate ? new Date(startDate) : new Date();
+      const futureDate = new Date(issueTime.getTime() + 14 * 24 * 60 * 60 * 1000); // Add 2 weeks
       setIsSubmitting(true);
 
       const {label, useSecure, region} = values;
@@ -47,8 +47,8 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
         objectId,
         originUrl,
         tokenData: {
-          expirationTime: endDate ? endDate.getTime() : (futureDate.getTime()),
-          issueTime: startDate ? startDate.getTime() : currentDate.getTime(),
+          expirationTime: endDate ? new Date(endDate).getTime() : (futureDate.getTime()),
+          issueTime: issueTime.getTime(),
           label,
           useSecure,
           region
@@ -59,8 +59,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
 
       notifications.show({
         title: "New link created",
-        message: `Link for ${region} successfully created`,
-        autoClose: false
+        message: `Link for ${region} successfully created`
       });
 
       // Reset region since one link per region is allowed
@@ -87,15 +86,16 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
             classNames={{header: styles.tableHeader}}
             records={[form]}
             minHeight={75}
+            withColumnBorders
             columns={[
               {
                 accessor: "label",
                 title: "Label",
                 titleClassName: "no-border-end",
-                placeholder: "Enter a Label",
                 render: () => (
                   <TextInput
                     key={form.key("label")}
+                    placeholder="Enter a Label"
                     {...form.getInputProps("label")}
                   />
                 )
@@ -142,11 +142,11 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
                     <DateTimePicker
                       value={startDate}
                       onChange={setStartDate}
-                      valueFormat="MM/DD/YY HH:mm A"
+                      valueFormat="MMM DD, YYYY HH:mm A"
                       size="sm"
                       minDate={new Date()}
                       defaultValue={new Date()}
-                      miw={175}
+                      miw={220}
                       clearable
                       placeholder="Start"
                       timePickerProps={{
@@ -160,8 +160,9 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
                     <DateTimePicker
                       value={endDate}
                       onChange={setEndDate}
+                      valueFormat="MMM DD, YYYY hh:mm A"
                       size="sm"
-                      miw={175}
+                      miw={220}
                       clearable
                       placeholder="End"
                       timePickerProps={{
@@ -194,6 +195,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
           minHeight={150}
+          noRecordsText="No saved links found"
           columns={[
             {
               accessor: "label",

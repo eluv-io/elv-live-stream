@@ -29,20 +29,10 @@ const TransportStreamPanel = observer(({url}) => {
   };
 
   const [loading, setLoading] = useState(false);
-  const [srtUrl, setSrtUrl] = useState(null);
   const [copyMpegTs, setCopyMpegTs] = useState(false);
   const [modalData, setModalData] = useState(initModalData);
 
   useEffect(() => {
-    const LoadSrtPlayoutUrl = async() => {
-      const srtUrlString = await dataStore.SrtPlayoutUrl({
-        objectId: params.id,
-        originUrl: url
-      });
-
-      setSrtUrl(srtUrlString);
-    };
-
     const LoadConfigData = async() => {
       let {
         copyMpegTs: copyMpegTsMeta
@@ -55,7 +45,6 @@ const TransportStreamPanel = observer(({url}) => {
     const LoadData = async() => {
       try {
         setLoading(true);
-        await LoadSrtPlayoutUrl();
         await LoadConfigData();
       } finally {
         setLoading(false);
@@ -103,9 +92,7 @@ const TransportStreamPanel = observer(({url}) => {
         <SavedLinks
           originUrl={url}
           objectId={params.id}
-          links={
-            [{label: "Anonymous Access", value: srtUrl}, ...srtUrls]
-          }
+          links={srtUrls}
           setModalData={setModalData}
         />
       </DisabledTooltipWrapper>
