@@ -1,9 +1,10 @@
 import {Box, Button, Flex, Modal, Select, Text} from "@mantine/core";
 import CreateSavedLink from "@/pages/stream-details/transport-stream/common/CreateSavedLink.jsx";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
+import {dataStore} from "@/stores/index.js";
 
 const EditLinkModal = ({
   show,
@@ -15,7 +16,18 @@ const EditLinkModal = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [fabricNode, setFabricNode] = useState(null);
+  const [fabricNode, setFabricNode] = useState("");
+  const [nodes, setNodes] = useState([]);
+
+  const nodeData = [
+    {label: "Automatic", value: ""},
+    ...nodes.map(node => ({label: node, value: node}))
+  ];
+
+  useEffect(() => {
+    dataStore.LoadNodes()
+      .then(nodes => setNodes(nodes.fabricURIs || []));
+  }, []);
 
   return (
     <Modal
@@ -50,10 +62,10 @@ const EditLinkModal = ({
             {
               accessor: "node",
               title: "Fabric Node",
-              width: 300,
+              width: 400,
               render: () => (
                 <Select
-                  data={[]}
+                  data={nodeData}
                   placeholder="Select Node"
                   value={fabricNode}
                   onChange={setFabricNode}

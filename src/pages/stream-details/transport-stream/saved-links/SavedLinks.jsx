@@ -85,7 +85,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
               accessor: "dates",
               title: "Time Range",
               render: (record) => (
-                <Group wrap="nowrap" gap={4}>
+                <Group wrap="nowrap" gap={4} align="flex-end">
                   <Title
                     order={4}
                     lineClamp={1}
@@ -113,7 +113,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
                       }
                   </Title>
                   {
-                    record.expired ? <Text c="elv-red.4" fz={14}>expired</Text> : ""
+                    record.expired ? <Text c="elv-red.4" fz={14} fs="italic">expired</Text> : ""
                   }
                 </Group>
               )
@@ -180,7 +180,6 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
                         key={action.id}
                       >
                         <ActionIcon
-                          // size="xs"
                           variant="transparent"
                           color="elv-gray.5"
                           onClick={action.HandleClick}

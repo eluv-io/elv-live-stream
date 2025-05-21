@@ -784,6 +784,10 @@ class DataStore {
       commitMessage: "Update srt url"
     });
   });
+
+  LoadNodes() {
+    return this.client.Nodes();
+  }
 }
 
 export default DataStore;
