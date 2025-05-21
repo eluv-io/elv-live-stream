@@ -1,191 +1,43 @@
 import {observer} from "mobx-react-lite";
-import {useForm} from "@mantine/form";
-import {dataStore} from "@/stores/index.js";
-import {notifications} from "@mantine/notifications";
-import {ActionIcon, Box, Button, Group, Select, Text, TextInput, Title, Tooltip} from "@mantine/core";
+import {ActionIcon, Box, Group, Text, Title, Tooltip} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
-import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
-import {DateTimePicker} from "@mantine/dates";
-import {CalendarMonthIcon, LinkIcon, TrashIcon} from "@/assets/icons/index.js";
-import {IconSelector} from "@tabler/icons-react";
+import {LinkIcon, PencilIcon, TrashIcon} from "@/assets/icons/index.js";
 import {useState} from "react";
 import {SortTable} from "@/utils/helpers.js";
 import {useClipboard} from "@mantine/hooks";
+import CreateSavedLink from "@/pages/stream-details/transport-stream/common/CreateSavedLink.jsx";
+import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 
-const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
-  const form = useForm({
-    mode: "uncontrolled",
-    initialValues: {
-      region: "",
-      label: "",
-      useSecure: true,
-      startDate: new Date(), // controlled
-      endDate: null // controlled
-    }
-  });
-
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}) => {
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "label",
     direction: "asc"
   });
 
-  const clipboard = useClipboard();
-
-  const HandleSubmit = async(values) => {
-    try {
-      const issueTime = startDate ? new Date(startDate) : new Date();
-      const futureDate = new Date(issueTime.getTime() + 14 * 24 * 60 * 60 * 1000); // Add 2 weeks
-      setIsSubmitting(true);
-
-      const {label, useSecure, region} = values;
-
-      const url = await dataStore.SrtPlayoutUrl({
-        objectId,
-        originUrl,
-        tokenData: {
-          expirationTime: endDate ? new Date(endDate).getTime() : (futureDate.getTime()),
-          issueTime: issueTime.getTime(),
-          label,
-          useSecure,
-          region
-        }
-      });
-
-      await dataStore.UpdateSiteObject({objectId, url, region, label});
-
-      notifications.show({
-        title: "New link created",
-        message: `Link for ${region} successfully created`
-      });
-
-      // Reset region since one link per region is allowed
-      form.setFieldValue("region", "");
-    } catch(_e) {
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: "Unable to create link"
-      });
-    } finally {
-      setIsSubmitting(false);
+  const initModalData = {
+    show: false,
+    url: "",
+    initialValues: {
+      label: "",
+      region: "",
+      startDate: null,
+      endDate: null
     }
   };
+
+  const [modalData, setModalData] = useState(initModalData);
+
+  const clipboard = useClipboard();
 
   const records = links.sort(SortTable({sortStatus}));
 
   return (
     <>
-      <form onSubmit={form.onSubmit(HandleSubmit)}>
-        <Box className={styles.tableWrapper} mb={29}>
-          {/* Form table to generate links */}
-          <DataTable
-            classNames={{header: styles.tableHeader}}
-            records={[form]}
-            minHeight={75}
-            withColumnBorders
-            columns={[
-              {
-                accessor: "label",
-                title: "Label",
-                titleClassName: "no-border-end",
-                render: () => (
-                  <TextInput
-                    key={form.key("label")}
-                    placeholder="Enter a Label"
-                    {...form.getInputProps("label")}
-                  />
-                )
-              },
-              {
-                accessor: "region",
-                title: "Region",
-                titleClassName: "no-border-end",
-                render: () => (
-                  <Select
-                    key={form.key("region")}
-                    data={
-                      FABRIC_NODE_REGIONS.filter(item => {
-                        const activeRegions = (dataStore.srtUrlsByStream?.[objectId]?.srt_urls || []).map(urlObj => urlObj.region);
-                        const isDisabled = activeRegions.includes(item.value);
-
-                        if(!isDisabled) {
-                          return item;
-                        }
-                      })
-                    }
-                    placeholder="Select Region"
-                    size="sm"
-                    clearable
-                    {...form.getInputProps("region")}
-                  />
-                )
-              },
-              // {
-              //   accessor: "useSecure",
-              //   render: () => (
-              //     <Checkbox
-              //       value={form.key("useSecure")}
-              //       {...form.getInputProps("useSecure", {type: "checkbox"})}
-              //     />
-              //   )
-              // }
-              {
-                accessor: "dates",
-                title: "Time Range",
-                titleClassName: "no-border-end",
-                render: () => (
-                  <Group>
-                    <DateTimePicker
-                      value={startDate}
-                      onChange={setStartDate}
-                      valueFormat="MMM DD, YYYY HH:mm A"
-                      size="sm"
-                      minDate={new Date()}
-                      defaultValue={new Date()}
-                      miw={220}
-                      clearable
-                      placeholder="Start"
-                      timePickerProps={{
-                        withDropdown: true,
-                        popoverProps: { withinPortal: false },
-                        format: "12h",
-                      }}
-                      leftSection={<CalendarMonthIcon />}
-                      rightSection={startDate ? null : <IconSelector height={16} />}
-                    />
-                    <DateTimePicker
-                      value={endDate}
-                      onChange={setEndDate}
-                      valueFormat="MMM DD, YYYY hh:mm A"
-                      size="sm"
-                      miw={220}
-                      clearable
-                      placeholder="End"
-                      timePickerProps={{
-                        withDropdown: true,
-                        popoverProps: { withinPortal: false },
-                        format: "12h",
-                      }}
-                      leftSection={<CalendarMonthIcon />}
-                      rightSection={endDate ? null : <IconSelector height={16} />}
-                    />
-                  </Group>
-                )
-              },
-              {
-                accessor: "actions",
-                textAlign: "center",
-                title: "",
-                render: () => <Button type="submit" loading={isSubmitting}>Generate</Button>
-              }
-            ]}
-          />
-        </Box>
-      </form>
+      <CreateSavedLink
+        objectId={objectId}
+        originUrl={originUrl}
+      />
       <Box className={styles.tableWrapper} mb={29}>
         {/* Table to display links */}
         <DataTable
@@ -242,15 +94,15 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
                     fs={record.expired ? "italic" : ""}
                   >
                       {
-                        (record.issueTime && record.expireTime) ?
+                        (record.startDate && record.endDate) ?
                           (
                             <>
                               {
-                                `${new Date(record.issueTime).toLocaleDateString("en-US", {
+                                `${new Date(record.startDate).toLocaleDateString("en-US", {
                                   year: "numeric",
                                   month: "long",
                                   day: "numeric"
-                                })} - ${new Date(record.expireTime).toLocaleDateString("en-US", {
+                                })} - ${new Date(record.endDate).toLocaleDateString("en-US", {
                                   year: "numeric",
                                   month: "long",
                                   day: "numeric"
@@ -291,16 +143,34 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
                   {
                     [
                       {
+                        id: "edit-action",
+                        label: "Edit",
+                        HandleClick: () => {
+                          setModalData(prevState => ({
+                            ...prevState,
+                            show: true,
+                            url: record.value,
+                            initialValues: {
+                              region: record.regionValue,
+                              label: record.label,
+                              startDate: record.startDate,
+                              endDate: record.endDate
+                            }
+                          }));
+                        },
+                        Icon: <PencilIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
+                      },
+                      {
                         id: "copy-action",
                         label: clipboard.copied ? "Copied" : "Copy",
                         HandleClick: () => clipboard.copy(record.value),
-                        Icon: <LinkIcon color="var(--mantine-color-elv-gray-7)" height={22} width={22} />
+                        Icon: <LinkIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
                       },
                       {
                         id: "delete-action",
                         label: "Delete",
-                        HandleClick: () => setModalData(prevState => ({...prevState, show: true, regionLabel: record.region, regionValue: record.regionValue, url: record.value, label: record.label})),
-                        Icon: <TrashIcon color="var(--mantine-color-elv-gray-7)" height={22} width={22} />,
+                        HandleClick: () => setDeleteModalData(prevState => ({...prevState, show: true, regionLabel: record.region, regionValue: record.regionValue, url: record.value, label: record.label})),
+                        Icon: <TrashIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />,
                         disabled: record.label.includes("Anonymous")
                       }
                     ].map(action => (
@@ -327,6 +197,14 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setModalData}) => {
           ]}
         />
       </Box>
+
+      <EditLinkModal
+        show={modalData.show}
+        CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
+        objectId={objectId}
+        originUrl={modalData.url}
+        initialValues={modalData.initialValues}
+      />
     </>
   );
 });

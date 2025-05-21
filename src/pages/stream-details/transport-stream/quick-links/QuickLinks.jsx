@@ -4,17 +4,18 @@ import {SortTable} from "@/utils/helpers.js";
 import {ActionIcon, Box, Button, Group, Select, SimpleGrid, Title, Tooltip} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
-import {LinkIcon, TrashIcon} from "@/assets/icons/index.js";
+import {LinkIcon, PencilIcon, TrashIcon} from "@/assets/icons/index.js";
 import {useState} from "react";
 import {useForm} from "@mantine/form";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {dataStore} from "@/stores/index.js";
 
-const QuickLinks = observer(({links=[], setModalData, objectId}) => {
+const QuickLinks = observer(({links=[], setDeleteModalData, objectId}) => {
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "label",
     direction: "asc"
   });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const clipboard = useClipboard();
 
@@ -132,16 +133,29 @@ const QuickLinks = observer(({links=[], setModalData, objectId}) => {
                   {
                     [
                       {
+                        id: "edit-action",
+                        label: "Edit",
+                        HandleClick: () => {},
+                        Icon: <PencilIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
+                      },
+                      {
                         id: "copy-action",
                         label: clipboard.copied ? "Copied" : "Copy",
                         HandleClick: () => clipboard.copy(record.value),
-                        Icon: <LinkIcon color="var(--mantine-color-elv-gray-7)" height={22} width={22} />
+                        Icon: <LinkIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
                       },
                       {
                         id: "delete-action",
                         label: "Delete",
-                        HandleClick: () => setModalData(prevState => ({...prevState, show: true, regionLabel: record.region, regionValue: record.regionValue, url: record.value, label: record.label})),
-                        Icon: <TrashIcon color="var(--mantine-color-elv-gray-7)" height={22} width={22} />,
+                        HandleClick: () => setDeleteModalData(prevState => ({
+                          ...prevState,
+                          show: true,
+                          regionLabel: record.region,
+                          regionValue: record.regionValue,
+                          url: record.value,
+                          label: record.label
+                        })),
+                        Icon: <TrashIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />,
                         disabled: record.label.includes("Anonymous")
                       }
                     ].map(action => (
@@ -151,7 +165,6 @@ const QuickLinks = observer(({links=[], setModalData, objectId}) => {
                         key={action.id}
                       >
                         <ActionIcon
-                          // size="xs"
                           variant="transparent"
                           color="elv-gray.5"
                           onClick={action.HandleClick}

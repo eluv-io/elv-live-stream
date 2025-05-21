@@ -68,8 +68,8 @@ const TransportStreamPanel = observer(({url}) => {
         label: decoded?.payload?.ctx?.usr?.label || item.label || "",
         region: regionLabel,
         regionValue: item.region,
-        issueTime: decoded?.payload?.iat,
-        expireTime: decoded?.payload?.exp,
+        startDate: decoded?.payload?.iat,
+        endDate: decoded?.payload?.exp,
         expired: CheckExpiration(decoded?.payload?.exp)
       });
     });
@@ -85,7 +85,8 @@ const TransportStreamPanel = observer(({url}) => {
         <SectionTitle mb={8}>Quick Links</SectionTitle>
         <QuickLinks
           objectId={params.id}
-          setModalData={setModalData}
+          setDeleteModalData={setModalData}
+          originUrl={url}
         />
 
         <SectionTitle mb={8}>Saved Links</SectionTitle>
@@ -93,7 +94,7 @@ const TransportStreamPanel = observer(({url}) => {
           originUrl={url}
           objectId={params.id}
           links={srtUrls}
-          setModalData={setModalData}
+          setDeleteModalData={setModalData}
         />
       </DisabledTooltipWrapper>
       <ConfirmModal
