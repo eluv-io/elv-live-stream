@@ -785,9 +785,16 @@ class DataStore {
     });
   });
 
-  LoadNodes() {
-    return this.client.Nodes();
-  }
+  LoadNodes = flow(function * ({region}) {
+    yield this.client.UseRegion({region});
+    const nodes = this.client.Nodes();
+
+    if(region) {
+      yield this.client.ResetRegion();
+    }
+
+    return nodes;
+  });
 }
 
 export default DataStore;

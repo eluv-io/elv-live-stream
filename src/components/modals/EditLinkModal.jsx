@@ -1,10 +1,7 @@
-import {Box, Button, Flex, Modal, Select, Text} from "@mantine/core";
+import {Box, Button, Flex, Modal} from "@mantine/core";
 import CreateSavedLink from "@/pages/stream-details/transport-stream/common/CreateSavedLink.jsx";
-import {useEffect, useState} from "react";
-import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
-import {DataTable} from "mantine-datatable";
+import {useState} from "react";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
-import {dataStore} from "@/stores/index.js";
 
 const EditLinkModal = ({
   show,
@@ -16,18 +13,6 @@ const EditLinkModal = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [fabricNode, setFabricNode] = useState("");
-  const [nodes, setNodes] = useState([]);
-
-  const nodeData = [
-    {label: "Automatic", value: ""},
-    ...nodes.map(node => ({label: node, value: node}))
-  ];
-
-  useEffect(() => {
-    dataStore.LoadNodes()
-      .then(nodes => setNodes(nodes.fabricURIs || []));
-  }, []);
 
   return (
     <Modal
@@ -43,39 +28,8 @@ const EditLinkModal = ({
         showGenerateButton={false}
         initialValues={initialValues}
         hideActiveRegions={false}
+        showNodeConfig
       />
-      <Box className={styles.tableWrapper} mb={29}>
-        {/* Form table to generate links */}
-        <DataTable
-          classNames={{header: styles.tableHeader}}
-          records={[
-            {id: "node-form-row", url: originUrl, node: fabricNode}
-          ]}
-          minHeight={75}
-          withColumnBorders
-          columns={[
-            {
-              accessor: "url",
-              title: "URL",
-              render: () => <Text truncate="end" maw={700}>{originUrl}</Text>
-            },
-            {
-              accessor: "node",
-              title: "Fabric Node",
-              width: 400,
-              render: () => (
-                <Select
-                  data={nodeData}
-                  placeholder="Select Node"
-                  value={fabricNode}
-                  onChange={setFabricNode}
-                />
-              )
-            }
-          ]}
-        />
-      </Box>
-
       {
         !error ? null :
           <Box>

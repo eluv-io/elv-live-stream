@@ -1,4 +1,4 @@
-import {Box, Button, Group, Select, TextInput} from "@mantine/core";
+import {Box, Button, Group, Select, Text, TextInput} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
@@ -8,14 +8,59 @@ import {CalendarMonthIcon} from "@/assets/icons/index.js";
 import {IconSelector} from "@tabler/icons-react";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
-import {useState} from "react";
+import {useEffect, useState} from "react";
+
+const NodeForm = ({
+  show,
+  originUrl,
+  fabricNode,
+  setFabricNode,
+  nodeData
+}) => {
+  if(!show) { return null; }
+
+  return (
+    <Box className={styles.tableWrapper} mb={29}>
+      {/* Form table to generate links */}
+      <DataTable
+        classNames={{header: styles.tableHeader}}
+        records={[
+          {id: "node-form-row", url: originUrl, node: fabricNode}
+        ]}
+        minHeight={75}
+        withColumnBorders
+        columns={[
+          {
+            accessor: "url",
+            title: "URL",
+            render: () => <Text truncate="end" maw={700}>{originUrl}</Text>
+          },
+          {
+            accessor: "node",
+            title: "Fabric Node",
+            width: 400,
+            render: () => (
+              <Select
+                data={nodeData}
+                placeholder="Select Node"
+                value={fabricNode}
+                onChange={setFabricNode}
+              />
+            )
+          }
+        ]}
+      />
+    </Box>
+  );
+};
 
 const CreateSavedLink = ({
   objectId,
   originUrl,
   showGenerateButton=true,
   hideActiveRegions=true,
-  initialValues={}
+  initialValues={},
+  showNodeConfig=false
 }) => {
   const initialStartDate = initialValues.startDate ? new Date(initialValues.startDate) : new Date();
   const initialEndDate = initialValues.endDate ? new Date(initialValues.endDate) : null;
@@ -34,6 +79,22 @@ const CreateSavedLink = ({
   const [startDate, setStartDate] = useState(initialStartDate);
   const [endDate, setEndDate] = useState(initialEndDate);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [fabricNode, setFabricNode] = useState("");
+  const [nodes, setNodes] = useState([]);
+
+  useEffect(() => {
+    dataStore.LoadNodes({region: initialValues.region})
+      .then(nodes => setNodes(nodes.fabricURIs || []));
+  }, []);
+
+  form.watch("region", ({value}) => {
+    dataStore.LoadNodes({region: value})
+      .then(nodes => {
+        const fabricNodes = [...new Set(nodes.fabricURIs || [])];
+        setNodes(fabricNodes);
+      });
+  });
 
   const HandleSubmit = async(values) => {
     try {
@@ -178,18 +239,30 @@ const CreateSavedLink = ({
   }
 
   return (
-    <form onSubmit={form.onSubmit(HandleSubmit)}>
-      <Box className={styles.tableWrapper} mb={29}>
-        {/* Form table to generate links */}
-        <DataTable
-          classNames={{header: styles.tableHeader}}
-          records={[form]}
-          minHeight={75}
-          withColumnBorders
-          columns={columns}
-        />
-      </Box>
-    </form>
+    <>
+      <form onSubmit={form.onSubmit(HandleSubmit)}>
+        <Box className={styles.tableWrapper} mb={29}>
+          {/* Form table to generate links */}
+          <DataTable
+            classNames={{header: styles.tableHeader}}
+            records={[form]}
+            minHeight={75}
+            withColumnBorders
+            columns={columns}
+          />
+        </Box>
+      </form>
+      <NodeForm
+        show={showNodeConfig}
+        originUrl={originUrl}
+        nodeData={[
+          {label: "Automatic", value: ""},
+          ...nodes.map(node => ({label: node, value: node}))
+        ]}
+        fabricNode={fabricNode}
+        setFabricNode={setFabricNode}
+      />
+    </>
   );
 };
 
