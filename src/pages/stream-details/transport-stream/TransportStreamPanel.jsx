@@ -56,23 +56,28 @@ const TransportStreamPanel = observer(({url}) => {
     }
   }, [params.id]);
 
-  const srtUrls = (dataStore.srtUrlsByStream?.[params.id]?.srt_urls || [])
-    .map(item => {
-      const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === item.region)?.label || "";
+  const DetailLink = (item) => {
+    const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === item.region)?.label || "";
 
-      const token = item.url?.match(/aessjc[a-zA-Z0-9]+/);
-      const decoded = token ? dataStore.client.utils.DecodeSignedToken(token[0]) : {};
+    const token = item.url?.match(/aessjc[a-zA-Z0-9]+/);
+    const decoded = token ? dataStore.client.utils.DecodeSignedToken(token[0]) : {};
 
-      return ({
-        value: item.url,
-        label: decoded?.payload?.ctx?.usr?.label || item.label || "",
-        region: regionLabel,
-        regionValue: item.region,
-        startDate: decoded?.payload?.iat,
-        endDate: decoded?.payload?.exp,
-        expired: CheckExpiration(decoded?.payload?.exp)
-      });
+    return ({
+      value: item.url,
+      label: decoded?.payload?.ctx?.usr?.label || item.label || "",
+      region: regionLabel,
+      regionValue: item.region,
+      startDate: decoded?.payload?.iat,
+      endDate: decoded?.payload?.exp,
+      expired: CheckExpiration(decoded?.payload?.exp)
     });
+  };
+
+  const srtUrls = (dataStore.srtUrlsByStream?.[params.id]?.srt_urls || [])
+    .map(DetailLink);
+
+  const quickLinks = (dataStore.srtUrlsByStream?.[params.id]?.quick_links || [])
+    .map(DetailLink);
 
   if(loading) { return <Loader />; }
 
@@ -87,6 +92,7 @@ const TransportStreamPanel = observer(({url}) => {
           objectId={params.id}
           setDeleteModalData={setModalData}
           originUrl={url}
+          links={quickLinks}
         />
 
         <SectionTitle mb={8}>Saved Links</SectionTitle>

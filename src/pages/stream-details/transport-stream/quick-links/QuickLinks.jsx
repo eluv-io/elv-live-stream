@@ -4,13 +4,14 @@ import {SortTable} from "@/utils/helpers.js";
 import {ActionIcon, Box, Button, Group, Select, SimpleGrid, Title, Tooltip} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
-import {LinkIcon, PencilIcon, TrashIcon} from "@/assets/icons/index.js";
+import {LinkIcon, PencilIcon} from "@/assets/icons/index.js";
 import {useState} from "react";
 import {useForm} from "@mantine/form";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {dataStore} from "@/stores/index.js";
+import {notifications} from "@mantine/notifications";
 
-const QuickLinks = observer(({links=[], setDeleteModalData, objectId}) => {
+const QuickLinks = observer(({links=[], objectId}) => {
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "label",
     direction: "asc"
@@ -26,9 +27,34 @@ const QuickLinks = observer(({links=[], setDeleteModalData, objectId}) => {
     }
   });
 
-  const HandleGenerate = () => {
+  const HandleGenerate = async(values) => {
     try {
       setIsSubmitting(true);
+
+      const {region} = values;
+
+      const url = await dataStore.SrtPlayoutUrl({
+        objectId,
+        quickLink: true,
+        tokenData: {region}
+      });
+
+      await dataStore.UpdateSiteQuickLinks({
+        objectId,
+        url,
+        region
+      });
+
+      notifications.show({
+        title: "New link created",
+        message: `Link for ${region} successfully created`
+      });
+    } catch(_e) {
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: "Unable to create link"
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -55,7 +81,7 @@ const QuickLinks = observer(({links=[], setDeleteModalData, objectId}) => {
                       key={form.key("region")}
                       data={
                         FABRIC_NODE_REGIONS.filter(item => {
-                          const activeRegions = (dataStore.srtUrlsByStream?.[objectId]?.srt_urls || []).map(urlObj => urlObj.region);
+                          const activeRegions = (dataStore.srtUrlsByStream?.[objectId]?.quick_links || []).map(urlObj => urlObj.region);
                           const isDisabled = activeRegions.includes(item.value);
 
                           if(!isDisabled) {
@@ -89,7 +115,7 @@ const QuickLinks = observer(({links=[], setDeleteModalData, objectId}) => {
           records={records || []}
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
-          minHeight={150}
+          minHeight={records?.length > 0 ? 75 : 150}
           noRecordsText="No quick links found"
           columns={[
             {
@@ -143,20 +169,6 @@ const QuickLinks = observer(({links=[], setDeleteModalData, objectId}) => {
                         label: clipboard.copied ? "Copied" : "Copy",
                         HandleClick: () => clipboard.copy(record.value),
                         Icon: <LinkIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
-                      },
-                      {
-                        id: "delete-action",
-                        label: "Delete",
-                        HandleClick: () => setDeleteModalData(prevState => ({
-                          ...prevState,
-                          show: true,
-                          regionLabel: record.region,
-                          regionValue: record.regionValue,
-                          url: record.value,
-                          label: record.label
-                        })),
-                        Icon: <TrashIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />,
-                        disabled: record.label.includes("Anonymous")
                       }
                     ].map(action => (
                       <Tooltip

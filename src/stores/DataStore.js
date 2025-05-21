@@ -634,7 +634,7 @@ class DataStore {
   });
 
   // TODO: Move this to client-js
-  SrtPlayoutUrl = flow(function * ({objectId, originUrl, fabricNode, tokenData=null}){
+  SrtPlayoutUrl = flow(function * ({objectId, originUrl, fabricNode, tokenData=null, quickLink=false}){
     try {
       let token = "", url, port;
       const networkName = this.rootStore.networkInfo?.name || "";
@@ -647,7 +647,23 @@ class DataStore {
         port = 11091;
       }
 
-      if(tokenData) {
+      if(quickLink) {
+        const permission = yield this.client.Permission({objectId});
+        const nodes = yield this.client.UseRegion({region: tokenData.region});
+        let urlObject = new URL(nodes.fabricURIs[0]);
+        yield this.client.ResetRegion();
+
+        if(permission === "public") {
+          token = "";
+        } else {
+          token = yield this.client.CreateSignedToken({
+            objectId,
+            duration: 14 * 24 * 60 * 60 * 1000 // 2 weeks
+          });
+        }
+
+        url = new URL(`srt://${urlObject.hostname}:${port}`);
+      } else if(tokenData) {
         const {issueTime, expirationTime, label, useSecure, region} = tokenData;
         let urlObject;
 
@@ -730,7 +746,32 @@ class DataStore {
       ];
     } else {
       this.srtUrlsByStream[objectId] = {
+        ...this.srtUrlsByStream[objectId],
         srt_urls: [newValue]
+      };
+    }
+  }
+
+  UpdateSrtQuickLinks({objectId, newData={}, removeData={}}) {
+    const urlsByStream = this.srtUrlsByStream[objectId];
+    let quickLinks;
+
+    if(removeData?.url) {
+      quickLinks = urlsByStream?.quick_links.filter(el => removeData.url !== el.url);
+    }
+
+    const {url, region} = newData;
+    const newValue = {url, region};
+
+    if(urlsByStream) {
+      urlsByStream.quick_links = [
+        ...quickLinks || [],
+        newValue
+      ];
+    } else {
+      this.srtUrlsByStream[objectId] = {
+        ...this.srtUrlsByStream[objectId],
+        quick_links: [newValue]
       };
     }
   }
@@ -806,6 +847,45 @@ class DataStore {
       objectId: this.siteId,
       writeToken,
       commitMessage: "Update srt url"
+    });
+  });
+
+  UpdateSiteQuickLinks = flow(function * ({
+    objectId,
+    url,
+    region,
+    removeData={}
+  }) {
+    if(!this.siteId) { return; }
+
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId: this.siteId
+    });
+
+    this.UpdateSrtQuickLinks({
+      objectId,
+      newData: {
+        url,
+        region
+      },
+      removeData
+    });
+
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      metadataSubtree: `/srt_playout_info/${objectId}/quick_links`,
+      metadata: toJS(this.srtUrlsByStream[objectId]?.quick_links || [])
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      commitMessage: "Update srt quick link"
     });
   });
 
