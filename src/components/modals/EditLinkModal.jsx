@@ -1,11 +1,11 @@
 import {Box, Button, Flex, Modal} from "@mantine/core";
 import CreateSavedLink from "@/pages/stream-details/transport-stream/common/CreateSavedLink.jsx";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
-import {useForm} from "@mantine/form";
 import {dataStore} from "@/stores/index.js";
+import {observer} from "mobx-react-lite";
 
-const EditLinkModal = ({
+const EditLinkModal = observer(({
   show,
   originUrl,
   objectId,
@@ -16,33 +16,37 @@ const EditLinkModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const [formData, setFormData] = useState({});
   const [nodes, setNodes] = useState([]);
-  const [fabricNode, setFabricNode] = useState("");
 
   const initialStartDate = initialValues.startDate ? new Date(initialValues.startDate) : new Date();
   const initialEndDate = initialValues.endDate ? new Date(initialValues.endDate) : null;
 
-  const [startDate, setStartDate] = useState(initialStartDate);
-  const [endDate, setEndDate] = useState(initialEndDate);
-
-  const parentForm = useForm({
-    mode: "uncontrolled",
-    initialValues: {
-      region: initialValues.region,
-      label: initialValues.label,
+  useEffect(() => {
+    setFormData({
+      region: initialValues.region ?? "",
+      label: initialValues.label ?? "",
       useSecure: true,
-      startDate: initialStartDate, // controlled
-      endDate: initialEndDate // controlled
-    }
-  });
+      startDate: initialStartDate ?? null,
+      endDate: initialEndDate ?? null,
+      fabricNode: ""
+    });
+  }, [initialValues]);
 
-  parentForm.watch("region", ({value}) => {
-    dataStore.LoadNodes({region: value})
+  useEffect(() => {
+    dataStore.LoadNodes({region: formData.region})
       .then(nodes => {
         const fabricNodes = [...new Set(nodes.fabricURIs || [])];
         setNodes(fabricNodes);
       });
-  });
+  }, [formData.region]);
+
+  const HandleChange = ({key, value}) => {
+    setFormData(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
 
   const nodeData = [
     {label: "Automatic", value: ""},
@@ -61,17 +65,11 @@ const EditLinkModal = ({
         objectId={objectId}
         originUrl={originUrl}
         showGenerateButton={false}
-        initialValues={initialValues}
         hideActiveRegions={false}
-        form={parentForm}
-        showNodeConfig
+        formData={formData}
+        HandleFormChange={HandleChange}
         nodeData={nodeData}
-        startDate={startDate}
-        endDate={endDate}
-        setStartDate={setStartDate}
-        setEndDate={setEndDate}
-        fabricNode={fabricNode}
-        setFabricNode={setFabricNode}
+        showNodeConfig
       />
       {
         !error ? null :
@@ -105,6 +103,6 @@ const EditLinkModal = ({
       </Flex>
     </Modal>
   );
-};
+});
 
 export default EditLinkModal;

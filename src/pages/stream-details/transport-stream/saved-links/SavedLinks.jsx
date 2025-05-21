@@ -8,7 +8,7 @@ import {SortTable} from "@/utils/helpers.js";
 import {useClipboard} from "@mantine/hooks";
 import CreateSavedLink from "@/pages/stream-details/transport-stream/common/CreateSavedLink.jsx";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
-import {useForm} from "@mantine/form";
+import {dataStore} from "@/stores/index.js";
 
 const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}) => {
   const [sortStatus, setSortStatus] = useState({
@@ -27,22 +27,46 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
     }
   };
 
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(null);
-
-  const parentForm = useForm({
-    mode: "uncontrolled",
-    initialValues: {
-      region: "",
-      label: "",
-      useSecure: true,
-      startDate: new Date(), // controlled
-      endDate: null // controlled
-    }
+  const [formData, setFormData] = useState({
+    region: "",
+    label: "",
+    useSecure: true,
+    startDate: new Date(),
+    endDate: null
   });
 
   const [modalData, setModalData] = useState(initModalData);
   const clipboard = useClipboard();
+
+  const HandleFormChange = ({key, value}) => {
+    setFormData(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const HandleGenerateLink = async() => {
+    const {label, useSecure, region, startDate, endDate} = formData;
+    const issueTime = startDate ? new Date(startDate) : new Date();
+    const futureDate = new Date(issueTime.getTime() + 14 * 24 * 60 * 60 * 1000); // Add 2 weeks
+
+    const url = await dataStore.SrtPlayoutUrl({
+      objectId,
+      originUrl,
+      tokenData: {
+        expirationTime: endDate ? new Date(endDate).getTime() : (futureDate.getTime()),
+        issueTime: issueTime.getTime(),
+        label,
+        useSecure,
+        region
+      }
+    });
+
+    await dataStore.UpdateSiteObject({objectId, url, region, label});
+
+    // Reset region since one link per region is allowed
+    HandleFormChange({key: "region", value: ""});
+  };
 
   const records = links.sort(SortTable({sortStatus}));
 
@@ -51,11 +75,9 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
       <CreateSavedLink
         objectId={objectId}
         originUrl={originUrl}
-        form={parentForm}
-        startDate={startDate}
-        setStartDate={setStartDate}
-        endDate={endDate}
-        setEndDate={setEndDate}
+        HandleGenerateLink={HandleGenerateLink}
+        HandleFormChange={HandleFormChange}
+        formData={formData}
       />
       <Box className={styles.tableWrapper} mb={29}>
         {/* Table to display links */}

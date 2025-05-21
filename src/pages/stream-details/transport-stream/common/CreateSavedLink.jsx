@@ -1,4 +1,4 @@
-import {Box, Button, Group, Loader, Select, Text, TextInput} from "@mantine/core";
+import {Box, Button, Group, Select, Text, TextInput} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
@@ -6,52 +6,8 @@ import {dataStore} from "@/stores/index.js";
 import {DateTimePicker} from "@mantine/dates";
 import {CalendarMonthIcon} from "@/assets/icons/index.js";
 import {IconSelector} from "@tabler/icons-react";
-import {notifications} from "@mantine/notifications";
 import {useState} from "react";
-
-const NodeForm = ({
-  show,
-  originUrl,
-  fabricNode,
-  setFabricNode,
-  nodeData
-}) => {
-  if(!show) { return null; }
-
-  return (
-    <Box className={styles.tableWrapper} mb={29}>
-      {/* Form table to generate links */}
-      <DataTable
-        classNames={{header: styles.tableHeader}}
-        records={[
-          {id: "node-form-row", url: originUrl, node: fabricNode}
-        ]}
-        minHeight={75}
-        withColumnBorders
-        columns={[
-          {
-            accessor: "url",
-            title: "URL",
-            render: () => <Text truncate="end" maw={700}>{originUrl}</Text>
-          },
-          {
-            accessor: "node",
-            title: "Fabric Node",
-            width: 400,
-            render: () => (
-              <Select
-                data={nodeData}
-                placeholder="Select Node"
-                value={fabricNode}
-                onChange={setFabricNode}
-              />
-            )
-          }
-        ]}
-      />
-    </Box>
-  );
-};
+import {notifications} from "@mantine/notifications";
 
 const CreateSavedLink = ({
   objectId,
@@ -60,45 +16,21 @@ const CreateSavedLink = ({
   hideActiveRegions=true,
   showNodeConfig=false,
   nodeData=[],
-  form,
-  startDate,
-  endDate,
-  setStartDate,
-  setEndDate,
-  fabricNode,
-  setFabricNode
+  formData={},
+  HandleFormChange,
+  HandleGenerateLink
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const HandleSubmit = async(values) => {
+  const HandleSubmit = async() => {
     try {
-      const issueTime = startDate ? new Date(startDate) : new Date();
-      const futureDate = new Date(issueTime.getTime() + 14 * 24 * 60 * 60 * 1000); // Add 2 weeks
       setIsSubmitting(true);
-
-      const {label, useSecure, region} = values;
-
-      const url = await dataStore.SrtPlayoutUrl({
-        objectId,
-        originUrl,
-        tokenData: {
-          expirationTime: endDate ? new Date(endDate).getTime() : (futureDate.getTime()),
-          issueTime: issueTime.getTime(),
-          label,
-          useSecure,
-          region
-        }
-      });
-
-      await dataStore.UpdateSiteObject({objectId, url, region, label});
+      await HandleGenerateLink();
 
       notifications.show({
         title: "New link created",
-        message: `Link for ${region} successfully created`
+        message: `Link for ${formData.region} successfully created`
       });
-
-      // Reset region since one link per region is allowed
-      form.setFieldValue("region", "");
     } catch(_e) {
       notifications.show({
         title: "Error",
@@ -117,9 +49,9 @@ const CreateSavedLink = ({
       titleClassName: "no-border-end",
       render: () => (
         <TextInput
-          key={form.key("label")}
           placeholder="Enter a Label"
-          {...form.getInputProps("label")}
+          value={formData.label}
+          onChange={(event) => HandleFormChange({key: "label", value: event.target.value})}
         />
       )
     },
@@ -129,7 +61,6 @@ const CreateSavedLink = ({
       titleClassName: "no-border-end",
       render: () => (
         <Select
-          key={form.key("region")}
           data={
             FABRIC_NODE_REGIONS.filter(item => {
               if(!hideActiveRegions) { return item; }
@@ -145,7 +76,8 @@ const CreateSavedLink = ({
           placeholder="Select Region"
           size="sm"
           clearable
-          {...form.getInputProps("region")}
+          value={formData.region}
+          onChange={(value) => HandleFormChange({key: "region", value})}
         />
       )
     },
@@ -165,8 +97,9 @@ const CreateSavedLink = ({
       render: () => (
         <Group>
           <DateTimePicker
-            value={startDate}
-            onChange={setStartDate}
+            value={formData.startDate}
+            onChange={(value) => HandleFormChange({key: "startDate", value})}
+            name="startDate"
             valueFormat="MMM DD, YYYY HH:mm A"
             size="sm"
             minDate={new Date()}
@@ -179,13 +112,14 @@ const CreateSavedLink = ({
               format: "12h",
             }}
             leftSection={<CalendarMonthIcon/>}
-            rightSection={startDate ? null : <IconSelector height={16}/>}
+            rightSection={formData.startDate ? null : <IconSelector height={16}/>}
           />
           <DateTimePicker
-            value={endDate}
-            onChange={setEndDate}
+            value={formData.endDate}
+            onChange={(value) => HandleFormChange({key: "endDate", value})}
+            name="endDate"
             valueFormat="MMM DD, YYYY hh:mm A"
-            minDate={startDate}
+            minDate={formData.startDate}
             size="sm"
             miw={220}
             clearable
@@ -196,7 +130,7 @@ const CreateSavedLink = ({
               format: "12h",
             }}
             leftSection={<CalendarMonthIcon/>}
-            rightSection={endDate ? null : <IconSelector height={16}/>}
+            rightSection={formData.endDate ? null : <IconSelector height={16}/>}
           />
         </Group>
       )
@@ -208,33 +142,59 @@ const CreateSavedLink = ({
       accessor: "actions",
       textAlign: "center",
       title: "",
-      render: () => <Button type="submit" loading={isSubmitting}>Generate</Button>
+      render: () => <Button type="button" loading={isSubmitting} onClick={HandleSubmit}>Generate</Button>
     });
   }
 
-  if(!form) { return <Loader />; }
-
   return (
     <>
-      <form onSubmit={form.onSubmit(HandleSubmit)}>
+      <Box className={styles.tableWrapper} mb={29}>
+        {/* Form table to generate links */}
+        <DataTable
+          classNames={{header: styles.tableHeader}}
+          records={[
+            {id: "link-form-row", ...formData}
+          ]}
+          minHeight={75}
+          withColumnBorders
+          columns={columns}
+        />
+      </Box>
+
+      {/* Node form */}
+      {
+        showNodeConfig &&
         <Box className={styles.tableWrapper} mb={29}>
-          {/* Form table to generate links */}
           <DataTable
             classNames={{header: styles.tableHeader}}
-            records={[form]}
+            records={[
+              {id: "node-form-row", url: originUrl, node: formData.fabricNode}
+            ]}
             minHeight={75}
             withColumnBorders
-            columns={columns}
+            columns={[
+              {
+                accessor: "url",
+                title: "URL",
+                render: () => <Text truncate="end" maw={700}>{originUrl}</Text>
+              },
+              {
+                accessor: "node",
+                title: "Fabric Node",
+                width: 400,
+                render: () => (
+                  <Select
+                    data={nodeData}
+                    placeholder="Select Node"
+                    value={formData.fabricNode}
+                    onChange={(value) => HandleFormChange({key: "fabricNode", value})}
+                  />
+                )
+              }
+            ]}
           />
         </Box>
-      </form>
-      <NodeForm
-        show={showNodeConfig}
-        originUrl={originUrl}
-        nodeData={nodeData}
-        fabricNode={fabricNode}
-        setFabricNode={setFabricNode}
-      />
+      }
     </>
   );
 };
