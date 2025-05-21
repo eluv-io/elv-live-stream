@@ -8,6 +8,7 @@ import {SortTable} from "@/utils/helpers.js";
 import {useClipboard} from "@mantine/hooks";
 import CreateSavedLink from "@/pages/stream-details/transport-stream/common/CreateSavedLink.jsx";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
+import {useForm} from "@mantine/form";
 
 const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}) => {
   const [sortStatus, setSortStatus] = useState({
@@ -26,8 +27,21 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
     }
   };
 
-  const [modalData, setModalData] = useState(initModalData);
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(null);
 
+  const parentForm = useForm({
+    mode: "uncontrolled",
+    initialValues: {
+      region: "",
+      label: "",
+      useSecure: true,
+      startDate: new Date(), // controlled
+      endDate: null // controlled
+    }
+  });
+
+  const [modalData, setModalData] = useState(initModalData);
   const clipboard = useClipboard();
 
   const records = links.sort(SortTable({sortStatus}));
@@ -37,6 +51,11 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
       <CreateSavedLink
         objectId={objectId}
         originUrl={originUrl}
+        form={parentForm}
+        startDate={startDate}
+        setStartDate={setStartDate}
+        endDate={endDate}
+        setEndDate={setEndDate}
       />
       <Box className={styles.tableWrapper} mb={29}>
         {/* Table to display links */}

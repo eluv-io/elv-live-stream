@@ -1,4 +1,4 @@
-import {Box, Button, Group, Select, Text, TextInput} from "@mantine/core";
+import {Box, Button, Group, Loader, Select, Text, TextInput} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
@@ -6,9 +6,8 @@ import {dataStore} from "@/stores/index.js";
 import {DateTimePicker} from "@mantine/dates";
 import {CalendarMonthIcon} from "@/assets/icons/index.js";
 import {IconSelector} from "@tabler/icons-react";
-import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
-import {useEffect, useState} from "react";
+import {useState} from "react";
 
 const NodeForm = ({
   show,
@@ -59,42 +58,17 @@ const CreateSavedLink = ({
   originUrl,
   showGenerateButton=true,
   hideActiveRegions=true,
-  initialValues={},
-  showNodeConfig=false
+  showNodeConfig=false,
+  nodeData=[],
+  form,
+  startDate,
+  endDate,
+  setStartDate,
+  setEndDate,
+  fabricNode,
+  setFabricNode
 }) => {
-  const initialStartDate = initialValues.startDate ? new Date(initialValues.startDate) : new Date();
-  const initialEndDate = initialValues.endDate ? new Date(initialValues.endDate) : null;
-
-  const form = useForm({
-    mode: "uncontrolled",
-    initialValues: {
-      region: initialValues.region,
-      label: initialValues.label,
-      useSecure: true,
-      startDate: initialStartDate, // controlled
-      endDate: initialEndDate // controlled
-    }
-  });
-
-  const [startDate, setStartDate] = useState(initialStartDate);
-  const [endDate, setEndDate] = useState(initialEndDate);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [fabricNode, setFabricNode] = useState("");
-  const [nodes, setNodes] = useState([]);
-
-  useEffect(() => {
-    dataStore.LoadNodes({region: initialValues.region})
-      .then(nodes => setNodes(nodes.fabricURIs || []));
-  }, []);
-
-  form.watch("region", ({value}) => {
-    dataStore.LoadNodes({region: value})
-      .then(nodes => {
-        const fabricNodes = [...new Set(nodes.fabricURIs || [])];
-        setNodes(fabricNodes);
-      });
-  });
 
   const HandleSubmit = async(values) => {
     try {
@@ -238,6 +212,8 @@ const CreateSavedLink = ({
     });
   }
 
+  if(!form) { return <Loader />; }
+
   return (
     <>
       <form onSubmit={form.onSubmit(HandleSubmit)}>
@@ -255,10 +231,7 @@ const CreateSavedLink = ({
       <NodeForm
         show={showNodeConfig}
         originUrl={originUrl}
-        nodeData={[
-          {label: "Automatic", value: ""},
-          ...nodes.map(node => ({label: node, value: node}))
-        ]}
+        nodeData={nodeData}
         fabricNode={fabricNode}
         setFabricNode={setFabricNode}
       />
