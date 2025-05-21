@@ -634,7 +634,7 @@ class DataStore {
   });
 
   // TODO: Move this to client-js
-  SrtPlayoutUrl = flow(function * ({objectId, originUrl, tokenData=null}){
+  SrtPlayoutUrl = flow(function * ({objectId, originUrl, fabricNode, tokenData=null}){
     try {
       let token = "", url, port;
       const networkName = this.rootStore.networkInfo?.name || "";
@@ -649,10 +649,15 @@ class DataStore {
 
       if(tokenData) {
         const {issueTime, expirationTime, label, useSecure, region} = tokenData;
+        let urlObject;
 
-        const nodes = yield this.client.UseRegion({region});
-        const urlObject = new URL(nodes.fabricURIs[0]);
-        yield this.client.ResetRegion();
+        if(fabricNode) {
+          urlObject = new URL(fabricNode);
+        } else {
+          const nodes = yield this.client.UseRegion({region});
+          urlObject = new URL(nodes.fabricURIs[0]);
+          yield this.client.ResetRegion();
+        }
 
         url = new URL(`srt://${urlObject.hostname}:${port}`);
         if(useSecure) {
@@ -728,7 +733,7 @@ class DataStore {
         srt_urls: [newValue]
       };
     }
-  };
+  }
 
   DeleteSrtUrl = flow(function * ({objectId, region}) {
     const urlsByStream = this.srtUrlsByStream[objectId];

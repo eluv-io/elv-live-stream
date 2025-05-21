@@ -46,13 +46,14 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
   };
 
   const HandleGenerateLink = async(values, removeData={}) => {
-    const {label, useSecure, region, startDate, endDate} = values;
+    const {label, useSecure, region, startDate, endDate, fabricNode} = values;
     const issueTime = startDate ? new Date(startDate) : new Date();
     const futureDate = new Date(issueTime.getTime() + 14 * 24 * 60 * 60 * 1000); // Add 2 weeks
 
     const url = await dataStore.SrtPlayoutUrl({
       objectId,
       originUrl,
+      fabricNode,
       tokenData: {
         expirationTime: endDate ? new Date(endDate).getTime() : (futureDate.getTime()),
         issueTime: issueTime.getTime(),
