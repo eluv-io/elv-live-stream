@@ -707,13 +707,20 @@ class DataStore {
     this.liveStreamUrls = urls;
   };
 
-  UpdateSrtUrls({objectId, url, region, label}) {
+  UpdateSrtUrls({objectId, newData={}, removeData={}}) {
     const urlsByStream = this.srtUrlsByStream[objectId];
+    let srtUrls;
+
+    if(removeData?.url) {
+      srtUrls = urlsByStream?.srt_urls.filter(el => removeData.url !== el.url);
+    }
+
+    const {url, region, label} = newData;
     const newValue = {url, region, label};
 
     if(urlsByStream) {
       urlsByStream.srt_urls = [
-        ...urlsByStream?.srt_urls || [],
+        ...srtUrls || [],
         newValue
       ];
     } else {
@@ -721,12 +728,11 @@ class DataStore {
         srt_urls: [newValue]
       };
     }
-  }
+  };
 
   DeleteSrtUrl = flow(function * ({objectId, region}) {
     const urlsByStream = this.srtUrlsByStream[objectId];
     const newSrtUrls = [];
-
     urlsByStream.srt_urls.forEach(urlObj => {
       if(urlObj.region !== region) {
         newSrtUrls.push(toJS(urlObj));
@@ -738,7 +744,6 @@ class DataStore {
       libraryId,
       objectId: this.siteId
     });
-
 
     yield this.client.ReplaceMetadata({
       libraryId,
@@ -758,7 +763,13 @@ class DataStore {
     this.srtUrlsByStream[objectId].srt_urls = newSrtUrls;
   });
 
-  UpdateSiteObject = flow(function * ({objectId, url, region, label}) {
+  UpdateSiteSrtLinks = flow(function * ({
+    objectId,
+    url,
+    region,
+    label,
+    removeData={}
+  }) {
     if(!this.siteId) { return; }
 
     const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
@@ -767,7 +778,15 @@ class DataStore {
       objectId: this.siteId
     });
 
-    this.UpdateSrtUrls({objectId, url, region, label});
+    this.UpdateSrtUrls({
+      objectId,
+      newData: {
+        url,
+        region,
+        label,
+      },
+      removeData
+    });
 
     yield this.client.ReplaceMetadata({
       libraryId,

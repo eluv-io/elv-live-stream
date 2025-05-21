@@ -1,5 +1,5 @@
 import {Box, Button, Flex, Modal} from "@mantine/core";
-import CreateSavedLink from "@/pages/stream-details/transport-stream/common/CreateSavedLink.jsx";
+import SrtLinkForm from "@/pages/stream-details/transport-stream/common/SrtLinkForm.jsx";
 import {useEffect, useState} from "react";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
 import {dataStore} from "@/stores/index.js";
@@ -61,7 +61,7 @@ const EditLinkModal = observer(({
       size="85%"
       confirmText="Update"
     >
-      <CreateSavedLink
+      <SrtLinkForm
         objectId={objectId}
         originUrl={originUrl}
         showGenerateButton={false}
@@ -87,7 +87,7 @@ const EditLinkModal = observer(({
             try {
               setError(undefined);
               setLoading(true);
-              await ConfirmCallback();
+              await ConfirmCallback(formData);
               CloseCallback();
             } catch(error) {
               // eslint-disable-next-line no-console

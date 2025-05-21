@@ -9,7 +9,7 @@ import {IconSelector} from "@tabler/icons-react";
 import {useState} from "react";
 import {notifications} from "@mantine/notifications";
 
-const CreateSavedLink = ({
+const SrtLinkForm = ({
   objectId,
   originUrl,
   showGenerateButton=true,
@@ -199,4 +199,4 @@ const CreateSavedLink = ({
   );
 };
 
-export default CreateSavedLink;
+export default SrtLinkForm;

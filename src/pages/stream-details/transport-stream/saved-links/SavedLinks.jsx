@@ -6,7 +6,7 @@ import {LinkIcon, PencilIcon, TrashIcon} from "@/assets/icons/index.js";
 import {useState} from "react";
 import {SortTable} from "@/utils/helpers.js";
 import {useClipboard} from "@mantine/hooks";
-import CreateSavedLink from "@/pages/stream-details/transport-stream/common/CreateSavedLink.jsx";
+import SrtLinkForm from "@/pages/stream-details/transport-stream/common/SrtLinkForm.jsx";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import {dataStore} from "@/stores/index.js";
 
@@ -45,8 +45,8 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
     }));
   };
 
-  const HandleGenerateLink = async() => {
-    const {label, useSecure, region, startDate, endDate} = formData;
+  const HandleGenerateLink = async(values, removeData={}) => {
+    const {label, useSecure, region, startDate, endDate} = values;
     const issueTime = startDate ? new Date(startDate) : new Date();
     const futureDate = new Date(issueTime.getTime() + 14 * 24 * 60 * 60 * 1000); // Add 2 weeks
 
@@ -62,7 +62,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
       }
     });
 
-    await dataStore.UpdateSiteObject({objectId, url, region, label});
+    await dataStore.UpdateSiteSrtLinks({objectId, url, region, label, removeData});
 
     // Reset region since one link per region is allowed
     HandleFormChange({key: "region", value: ""});
@@ -72,10 +72,10 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
 
   return (
     <>
-      <CreateSavedLink
+      <SrtLinkForm
         objectId={objectId}
         originUrl={originUrl}
-        HandleGenerateLink={HandleGenerateLink}
+        HandleGenerateLink={() => HandleGenerateLink(formData)}
         HandleFormChange={HandleFormChange}
         formData={formData}
       />
@@ -210,7 +210,14 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
                       {
                         id: "delete-action",
                         label: "Delete",
-                        HandleClick: () => setDeleteModalData(prevState => ({...prevState, show: true, regionLabel: record.region, regionValue: record.regionValue, url: record.value, label: record.label})),
+                        HandleClick: () => setDeleteModalData(prevState => ({
+                          ...prevState,
+                          show: true,
+                          regionLabel: record.region,
+                          regionValue: record.regionValue,
+                          url: record.value,
+                          label: record.label
+                        })),
                         Icon: <TrashIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />,
                         disabled: record.label.includes("Anonymous")
                       }
@@ -241,6 +248,9 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
       <EditLinkModal
         show={modalData.show}
         CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
+        ConfirmCallback={async (values) => {
+          await HandleGenerateLink(values, {url: modalData.url});
+        }}
         objectId={objectId}
         originUrl={modalData.url}
         initialValues={modalData.initialValues}
