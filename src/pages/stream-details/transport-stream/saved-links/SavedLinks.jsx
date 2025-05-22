@@ -79,6 +79,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
         HandleGenerateLink={() => HandleGenerateLink(formData)}
         HandleFormChange={HandleFormChange}
         formData={formData}
+        mb={10}
       />
       <Box className={styles.tableWrapper} mb={29}>
         {/* Table to display links */}

@@ -19,7 +19,8 @@ const SrtLinkForm = ({
   nodeData=[],
   formData={},
   HandleFormChange,
-  HandleGenerateLink
+  HandleGenerateLink,
+  mb=20
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -152,7 +153,7 @@ const SrtLinkForm = ({
     <>
       {
         showLinkConfig &&
-        <Box className={styles.tableWrapper} mb={29}>
+        <Box className={styles.tableWrapper} mb={mb}>
           {/* Form table to generate links */}
           <DataTable
             classNames={{header: styles.tableHeader}}
