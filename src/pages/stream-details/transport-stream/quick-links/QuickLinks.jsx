@@ -180,7 +180,8 @@ const QuickLinks = observer(({links=[], objectId}) => {
                           show: true,
                           url: record.value,
                           initialValues: {
-                            region: record.region
+                            region: record.regionValue,
+                            regionLabel: record.region
                           }
                         }),
                         Icon: <PencilIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />

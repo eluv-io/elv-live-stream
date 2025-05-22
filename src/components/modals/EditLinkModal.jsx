@@ -48,7 +48,7 @@ const EditLinkModal = observer(({
   }, [initialValues]);
 
   useEffect(() => {
-    dataStore.LoadNodes({region: formData.region})
+    dataStore.LoadNodes({region: initialValues.region})
       .then(nodes => {
         const fabricNodes = [...new Set(nodes.fabricURIs || [])];
 
@@ -65,7 +65,7 @@ const EditLinkModal = observer(({
 
         setNodes(fabricNodes);
       });
-  }, [formData.region, originUrl]);
+  }, [initialValues.region, originUrl]);
 
   useEffect(() => {
     if(!showLinkConfig) {
