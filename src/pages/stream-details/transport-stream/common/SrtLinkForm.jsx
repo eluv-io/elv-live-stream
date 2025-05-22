@@ -1,4 +1,4 @@
-import {Box, Button, Group, Select, Text, TextInput} from "@mantine/core";
+import {Box, Button, Group, Loader, Select, Text, TextInput} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
@@ -20,6 +20,7 @@ const SrtLinkForm = ({
   formData={},
   HandleFormChange,
   HandleGenerateLink,
+  loadingFabricNode,
   mb=20
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -199,6 +200,8 @@ const SrtLinkForm = ({
                 title: "Fabric Node",
                 width: 350,
                 render: () => (
+                  loadingFabricNode ?
+                  <Loader size="sm" /> :
                   <Select
                     data={nodeData}
                     placeholder="Select Node"

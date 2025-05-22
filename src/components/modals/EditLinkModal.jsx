@@ -17,6 +17,7 @@ const EditLinkModal = observer(({
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [loadingFabricNode, setLoadingFabricNode] = useState(false);
 
   const [formData, setFormData] = useState({});
   const [nodes, setNodes] = useState([]);
@@ -40,7 +41,7 @@ const EditLinkModal = observer(({
       useSecure: true,
       startDate: initialStartDate ?? null,
       endDate: initialEndDate ?? null,
-      fabricNode: ""
+      fabricNode: null
     };
 
     setFormData(data);
@@ -48,7 +49,9 @@ const EditLinkModal = observer(({
   }, [initialValues]);
 
   useEffect(() => {
-    dataStore.LoadNodes({region: initialValues.region})
+    setLoadingFabricNode(true);
+    setNodes([]);
+    dataStore.LoadNodes({region: formData.region})
       .then(nodes => {
         const fabricNodes = [...new Set(nodes.fabricURIs || [])];
 
@@ -58,14 +61,16 @@ const EditLinkModal = observer(({
             return node.includes(urlObject.hostname);
           });
 
-          if(matchedNode.length > 0) {
-            HandleChange({key: "fabricNode", value: matchedNode[0]});
-          }
+          HandleChange({
+            key: "fabricNode",
+            value: matchedNode.length > 0 ? matchedNode[0] : ""
+          });
         }
 
         setNodes(fabricNodes);
+        setLoadingFabricNode(false);
       });
-  }, [initialValues.region, originUrl]);
+  }, [formData.region, originUrl]);
 
   useEffect(() => {
     if(!showLinkConfig) {
@@ -102,6 +107,7 @@ const EditLinkModal = observer(({
         nodeData={nodeData}
         showNodeConfig
         showLinkConfig={showLinkConfig}
+        loadingFabricNode={loadingFabricNode}
       />
       {
         !error ? null :
