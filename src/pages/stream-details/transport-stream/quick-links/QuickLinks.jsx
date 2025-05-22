@@ -95,7 +95,8 @@ const QuickLinks = observer(({links=[], objectId}) => {
                     <Select
                       key={form.key("region")}
                       data={
-                        FABRIC_NODE_REGIONS.filter(item => {
+                        FABRIC_NODE_REGIONS
+                          .filter(item => {
                           const activeRegions = (dataStore.srtUrlsByStream?.[objectId]?.quick_links || []).map(urlObj => urlObj.region);
                           const isDisabled = activeRegions.includes(item.value);
 

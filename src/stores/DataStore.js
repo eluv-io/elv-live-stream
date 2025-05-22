@@ -648,7 +648,7 @@ class DataStore {
       }
 
       if(quickLink) {
-        const permission = yield this.client.Permission({objectId});
+        const permission = yield this.client.Permission({objectId, clearCache: true});
         let urlObject;
 
         if(fabricNode) {
@@ -660,7 +660,10 @@ class DataStore {
         }
 
         if(permission === "public") {
-          token = "";
+          const contentSpaceId = yield this.client.ContentSpaceId();
+          token = this.client.utils.B64(
+            JSON.stringify({ qspace_id: contentSpaceId })
+          );
         } else {
           token = yield this.client.CreateSignedToken({
             objectId,
