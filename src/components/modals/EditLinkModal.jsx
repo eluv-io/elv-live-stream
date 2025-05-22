@@ -26,6 +26,13 @@ const EditLinkModal = observer(({
   const initialStartDate = initialValues.startDate ? new Date(initialValues.startDate) : new Date();
   const initialEndDate = initialValues.endDate ? new Date(initialValues.endDate) : null;
 
+  const HandleChange = ({key, value}) => {
+    setFormData(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
   useEffect(() => {
     const data = {
       region: initialValues.region ?? "",
@@ -44,9 +51,21 @@ const EditLinkModal = observer(({
     dataStore.LoadNodes({region: formData.region})
       .then(nodes => {
         const fabricNodes = [...new Set(nodes.fabricURIs || [])];
+
+        if(originUrl) {
+          const urlObject = new URL(originUrl);
+          const matchedNode = fabricNodes.filter(node => {
+            return node.includes(urlObject.hostname);
+          });
+
+          if(matchedNode.length > 0) {
+            HandleChange({key: "fabricNode", value: matchedNode[0]});
+          }
+        }
+
         setNodes(fabricNodes);
       });
-  }, [formData.region]);
+  }, [formData.region, originUrl]);
 
   useEffect(() => {
     if(!showLinkConfig) {
@@ -59,13 +78,6 @@ const EditLinkModal = observer(({
     );
     setIsDirty(dirty);
   }, [formData, originalFormData]);
-
-  const HandleChange = ({key, value}) => {
-    setFormData(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
 
   const nodeData = [
     {label: "Automatic", value: ""},
