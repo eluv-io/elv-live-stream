@@ -10,6 +10,7 @@ const EditLinkModal = observer(({
   originUrl,
   objectId,
   initialValues,
+  showLinkConfig=true,
   CloseCallback,
   ConfirmCallback
 }) => {
@@ -70,6 +71,7 @@ const EditLinkModal = observer(({
         HandleFormChange={HandleChange}
         nodeData={nodeData}
         showNodeConfig
+        showLinkConfig={showLinkConfig}
       />
       {
         !error ? null :

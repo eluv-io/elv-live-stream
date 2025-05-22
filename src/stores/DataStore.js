@@ -649,9 +649,15 @@ class DataStore {
 
       if(quickLink) {
         const permission = yield this.client.Permission({objectId});
-        const nodes = yield this.client.UseRegion({region: tokenData.region});
-        let urlObject = new URL(nodes.fabricURIs[0]);
-        yield this.client.ResetRegion();
+        let urlObject;
+
+        if(fabricNode) {
+          urlObject = new URL(fabricNode);
+        } else {
+          const nodes = yield this.client.UseRegion({region: tokenData.region});
+          urlObject = new URL(nodes.fabricURIs[0]);
+          yield this.client.ResetRegion();
+        }
 
         if(permission === "public") {
           token = "";

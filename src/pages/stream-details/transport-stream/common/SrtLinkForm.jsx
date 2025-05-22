@@ -15,6 +15,7 @@ const SrtLinkForm = ({
   showGenerateButton=true,
   hideActiveRegions=true,
   showNodeConfig=false,
+  showLinkConfig=true,
   nodeData=[],
   formData={},
   HandleFormChange,
@@ -148,18 +149,21 @@ const SrtLinkForm = ({
 
   return (
     <>
-      <Box className={styles.tableWrapper} mb={29}>
-        {/* Form table to generate links */}
-        <DataTable
-          classNames={{header: styles.tableHeader}}
-          records={[
-            {id: "link-form-row", ...formData}
-          ]}
-          minHeight={75}
-          withColumnBorders
-          columns={columns}
-        />
-      </Box>
+      {
+        showLinkConfig &&
+        <Box className={styles.tableWrapper} mb={29}>
+          {/* Form table to generate links */}
+          <DataTable
+            classNames={{header: styles.tableHeader}}
+            records={[
+              {id: "link-form-row", ...formData}
+            ]}
+            minHeight={75}
+            withColumnBorders
+            columns={columns}
+          />
+        </Box>
+      }
 
       {/* Node form */}
       {

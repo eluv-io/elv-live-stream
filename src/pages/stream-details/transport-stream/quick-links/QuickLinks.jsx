@@ -10,6 +10,7 @@ import {useForm} from "@mantine/form";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {dataStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
+import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 
 const QuickLinks = observer(({links=[], objectId}) => {
   const [sortStatus, setSortStatus] = useState({
@@ -20,6 +21,15 @@ const QuickLinks = observer(({links=[], objectId}) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const clipboard = useClipboard();
 
+  const [modalData, setModalData] = useState({
+    show: false,
+    url: "",
+    initialValues: {
+      region: "",
+      fabricNode: ""
+    }
+  });
+
   const form = useForm({
     mode: "uncontrolled",
     initialValues: {
@@ -27,22 +37,22 @@ const QuickLinks = observer(({links=[], objectId}) => {
     }
   });
 
-  const HandleGenerate = async(values) => {
+  const HandleGenerateLink = async(values, removeData={}) => {
     try {
-      setIsSubmitting(true);
-
-      const {region} = values;
+      const {region, fabricNode} = values;
 
       const url = await dataStore.SrtPlayoutUrl({
         objectId,
         quickLink: true,
+        fabricNode,
         tokenData: {region}
       });
 
       await dataStore.UpdateSiteQuickLinks({
         objectId,
         url,
-        region
+        region,
+        removeData
       });
 
       notifications.show({
@@ -55,8 +65,6 @@ const QuickLinks = observer(({links=[], objectId}) => {
         color: "red",
         message: "Unable to create link"
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -64,7 +72,14 @@ const QuickLinks = observer(({links=[], objectId}) => {
 
   return (
     <>
-      <form onSubmit={form.onSubmit(HandleGenerate)}>
+      <form onSubmit={form.onSubmit(() => {
+        try {
+          setIsSubmitting(true);
+          HandleGenerateLink();
+        } finally {
+          setIsSubmitting(false);
+        }
+      })}>
         <SimpleGrid cols={2} spacing={150} mb={10}>
           <Box className={styles.tableWrapper}>
             {/* Form table to generate links */}
@@ -161,7 +176,13 @@ const QuickLinks = observer(({links=[], objectId}) => {
                       {
                         id: "edit-action",
                         label: "Edit",
-                        HandleClick: () => {},
+                        HandleClick: () => setModalData({
+                          show: true,
+                          url: record.value,
+                          initialValues: {
+                            region: record.region
+                          }
+                        }),
                         Icon: <PencilIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
                       },
                       {
@@ -191,6 +212,17 @@ const QuickLinks = observer(({links=[], objectId}) => {
               )
             }
           ]}
+        />
+        <EditLinkModal
+          show={modalData.show}
+          CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
+          ConfirmCallback={async (values) => {
+            await HandleGenerateLink(values, {url: modalData.url});
+          }}
+          objectId={objectId}
+          originUrl={modalData.url}
+          initialValues={modalData.initialValues}
+          showLinkConfig={false}
         />
       </Box>
     </>
