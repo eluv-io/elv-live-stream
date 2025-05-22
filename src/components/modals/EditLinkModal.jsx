@@ -82,7 +82,7 @@ const EditLinkModal = observer(({
 
       <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
         <Button
-          disabled={loading}
+          disabled={loading || !formData.region || !formData.label}
           variant="filled"
           loading={loading}
           onClick={async () => {
