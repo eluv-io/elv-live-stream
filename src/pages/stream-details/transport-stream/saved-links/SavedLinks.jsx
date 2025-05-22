@@ -28,15 +28,13 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
     }
   };
 
-  const initFormData = {
+  const [formData, setFormData] = useState({
     region: "",
     label: "",
     useSecure: true,
     startDate: new Date(),
     endDate: null
-  };
-
-  const [formData, setFormData] = useState(initFormData);
+  });
   const [modalData, setModalData] = useState(initModalData);
   const clipboard = useClipboard();
 
@@ -48,7 +46,13 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
   };
 
   const ResetForm = () => {
-    setFormData(initFormData);
+    setFormData({
+      region: null,
+      label: "",
+      useSecure: true,
+      startDate: new Date(),
+      endDate: null
+    });
   };
 
   const HandleGenerateLink = async(values, removeData={}) => {
