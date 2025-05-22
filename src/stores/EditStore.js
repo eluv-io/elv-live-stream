@@ -693,7 +693,7 @@ class EditStore {
         if(dvrEnabled === true) {
           playoutMeta.dvr_enabled = dvrEnabled;
           if(![undefined, null].includes(dvrStartTime)) {
-            playoutMeta.dvr_start_time = dvrStartTime.toISOString();
+            playoutMeta.dvr_start_time = new Date(dvrStartTime).toISOString();
           } else {
             delete playoutMeta.dvr_start_time;
           }
@@ -719,7 +719,7 @@ class EditStore {
 
         updateValue.dvrEnabled = dvrEnabled;
         updateValue.dvrMaxDuration = [undefined, null].includes(dvrMaxDuration) ? undefined : (dvrMaxDuration);
-        updateValue.dvrStartTime = dvrStartTime ? dvrStartTime.toISOString() : undefined;
+        updateValue.dvrStartTime = dvrStartTime ? new Date(dvrStartTime).toISOString() : undefined;
       }
     }
 
