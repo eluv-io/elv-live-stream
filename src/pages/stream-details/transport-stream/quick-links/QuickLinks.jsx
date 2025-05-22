@@ -215,6 +215,7 @@ const QuickLinks = observer(({links=[], objectId}) => {
         />
         <EditLinkModal
           show={modalData.show}
+          title="Update SRT Quick Link"
           CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
           ConfirmCallback={async (values) => {
             await HandleGenerateLink(values, {url: modalData.url});

@@ -7,6 +7,7 @@ import {observer} from "mobx-react-lite";
 
 const EditLinkModal = observer(({
   show,
+  title="Update SRT Saved Link",
   originUrl,
   objectId,
   initialValues,
@@ -75,7 +76,7 @@ const EditLinkModal = observer(({
     <Modal
       opened={show}
       onClose={CloseCallback}
-      title="Update SRT Saved Links"
+      title={title}
       size="85%"
       confirmText="Update"
     >
