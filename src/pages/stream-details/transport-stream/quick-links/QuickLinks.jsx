@@ -64,12 +64,12 @@ const QuickLinks = observer(({links=[], objectId}) => {
           setIsSubmitting(true);
           await HandleGenerateLink(values);
 
-          form.reset();
-
           notifications.show({
             title: "New link created",
             message: `Link for ${values.region} successfully created`
           });
+
+          form.reset();
         } catch(_e) {
           notifications.show({
             title: "Error",
