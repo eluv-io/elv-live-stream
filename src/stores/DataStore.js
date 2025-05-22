@@ -736,10 +736,10 @@ class DataStore {
 
   UpdateSrtUrls({objectId, newData={}, removeData={}}) {
     const urlsByStream = this.srtUrlsByStream[objectId];
-    let srtUrls;
+    let srtUrls = urlsByStream?.srt_urls || [];
 
     if(removeData?.url) {
-      srtUrls = urlsByStream?.srt_urls.filter(el => removeData.url !== el.url);
+      srtUrls = srtUrls.filter(el => removeData.url !== el.url);
     }
 
     const {url, region, label} = newData;
