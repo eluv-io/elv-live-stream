@@ -88,7 +88,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
           records={records || []}
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
-          minHeight={150}
+          minHeight={records?.length > 0 ? 75 : 150}
           noRecordsText="No saved links found"
           columns={[
             {
