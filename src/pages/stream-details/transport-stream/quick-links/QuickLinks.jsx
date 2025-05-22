@@ -38,34 +38,21 @@ const QuickLinks = observer(({links=[], objectId}) => {
   });
 
   const HandleGenerateLink = async(values, removeData={}) => {
-    try {
-      const {region, fabricNode} = values;
+    const {region, fabricNode} = values;
 
-      const url = await dataStore.SrtPlayoutUrl({
-        objectId,
-        quickLink: true,
-        fabricNode,
-        tokenData: {region}
-      });
+    const url = await dataStore.SrtPlayoutUrl({
+      objectId,
+      quickLink: true,
+      fabricNode,
+      tokenData: {region}
+    });
 
-      await dataStore.UpdateSiteQuickLinks({
-        objectId,
-        url,
-        region,
-        removeData
-      });
-
-      notifications.show({
-        title: "New link created",
-        message: `Link for ${region} successfully created`
-      });
-    } catch(_e) {
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: "Unable to create link"
-      });
-    }
+    await dataStore.UpdateSiteQuickLinks({
+      objectId,
+      url,
+      region,
+      removeData
+    });
   };
 
   const records = links.sort(SortTable({sortStatus}));
@@ -76,6 +63,19 @@ const QuickLinks = observer(({links=[], objectId}) => {
         try {
           setIsSubmitting(true);
           await HandleGenerateLink(values);
+
+          form.reset();
+
+          notifications.show({
+            title: "New link created",
+            message: `Link for ${values.region} successfully created`
+          });
+        } catch(_e) {
+          notifications.show({
+            title: "Error",
+            color: "red",
+            message: "Unable to create link"
+          });
         } finally {
           setIsSubmitting(false);
         }
@@ -218,7 +218,19 @@ const QuickLinks = observer(({links=[], objectId}) => {
           title="Update SRT Quick Link"
           CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
           ConfirmCallback={async (values) => {
-            await HandleGenerateLink(values, {url: modalData.url});
+            try {
+              await HandleGenerateLink(values, {url: modalData.url});
+              notifications.show({
+                title: "Link updated",
+                message: `Link for ${values.region} successfully updated`
+              });
+            } catch(_e) {
+              notifications.show({
+                title: "Error",
+                color: "red",
+                message: "Unable to update link"
+              });
+            }
           }}
           objectId={objectId}
           originUrl={modalData.url}

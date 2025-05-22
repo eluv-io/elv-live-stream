@@ -9,6 +9,7 @@ import {useClipboard} from "@mantine/hooks";
 import SrtLinkForm from "@/pages/stream-details/transport-stream/common/SrtLinkForm.jsx";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import {dataStore} from "@/stores/index.js";
+import {notifications} from "@mantine/notifications";
 
 const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}) => {
   const [sortStatus, setSortStatus] = useState({
@@ -27,14 +28,15 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
     }
   };
 
-  const [formData, setFormData] = useState({
+  const initFormData = {
     region: "",
     label: "",
     useSecure: true,
     startDate: new Date(),
     endDate: null
-  });
+  };
 
+  const [formData, setFormData] = useState(initFormData);
   const [modalData, setModalData] = useState(initModalData);
   const clipboard = useClipboard();
 
@@ -43,6 +45,10 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
       ...prev,
       [key]: value
     }));
+  };
+
+  const ResetForm = () => {
+    setFormData(initFormData);
   };
 
   const HandleGenerateLink = async(values, removeData={}) => {
@@ -65,8 +71,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
 
     await dataStore.UpdateSiteSrtLinks({objectId, url, region, label, removeData});
 
-    // Reset region since one link per region is allowed
-    HandleFormChange({key: "region", value: ""});
+    ResetForm();
   };
 
   const records = links.sort(SortTable({sortStatus}));
@@ -76,7 +81,9 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
       <SrtLinkForm
         objectId={objectId}
         originUrl={originUrl}
-        HandleGenerateLink={() => HandleGenerateLink(formData)}
+        HandleGenerateLink={async() => {
+          await HandleGenerateLink(formData);
+        }}
         HandleFormChange={HandleFormChange}
         formData={formData}
         mb={10}
@@ -251,7 +258,19 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
         show={modalData.show}
         CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
         ConfirmCallback={async (values) => {
-          await HandleGenerateLink(values, {url: modalData.url});
+          try {
+            await HandleGenerateLink(values, {url: modalData.url});
+            notifications.show({
+              title: "Link updated",
+              message: `Link for ${values.region} successfully updated`
+            });
+          } catch(_e) {
+            notifications.show({
+              title: "Error",
+              color: "red",
+              message: "Unable to update link"
+            });
+          }
         }}
         objectId={objectId}
         originUrl={modalData.url}
