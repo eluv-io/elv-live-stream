@@ -30,9 +30,10 @@ const SrtLinkForm = ({
       setIsSubmitting(true);
       await HandleGenerateLink();
 
+      const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === formData.region)?.label || "";
       notifications.show({
         title: "New link created",
-        message: `Link for ${formData.region} successfully created`
+        message: `Link for ${regionLabel} successfully created`
       });
     } catch(_e) {
       notifications.show({

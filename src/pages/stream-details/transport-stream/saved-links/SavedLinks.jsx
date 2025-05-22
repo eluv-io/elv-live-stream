@@ -10,6 +10,7 @@ import SrtLinkForm from "@/pages/stream-details/transport-stream/common/SrtLinkF
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import {dataStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
+import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 
 const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}) => {
   const [sortStatus, setSortStatus] = useState({
@@ -206,6 +207,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
                             url: record.value,
                             initialValues: {
                               region: record.regionValue,
+                              regionLabel: record.region,
                               label: record.label,
                               startDate: record.startDate,
                               endDate: record.endDate
@@ -264,9 +266,10 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
         ConfirmCallback={async (values) => {
           try {
             await HandleGenerateLink(values, {url: modalData.url});
+            const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === values.region)?.label || "";
             notifications.show({
               title: "Link updated",
-              message: `Link for ${values.region} successfully updated`
+              message: `Link for ${regionLabel} successfully updated`
             });
           } catch(_e) {
             notifications.show({

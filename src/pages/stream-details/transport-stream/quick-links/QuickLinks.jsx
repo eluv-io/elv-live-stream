@@ -64,9 +64,10 @@ const QuickLinks = observer(({links=[], objectId}) => {
           setIsSubmitting(true);
           await HandleGenerateLink(values);
 
+          const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === values.region)?.label || "";
           notifications.show({
             title: "New link created",
-            message: `Link for ${values.region} successfully created`
+            message: `Link for ${regionLabel} successfully created`
           });
 
           form.reset();
