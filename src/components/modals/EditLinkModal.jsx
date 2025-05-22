@@ -19,19 +19,24 @@ const EditLinkModal = observer(({
 
   const [formData, setFormData] = useState({});
   const [nodes, setNodes] = useState([]);
+  const [originalFormData, setOriginalFormData] = useState({});
+  const [isDirty, setIsDirty] = useState(false);
 
   const initialStartDate = initialValues.startDate ? new Date(initialValues.startDate) : new Date();
   const initialEndDate = initialValues.endDate ? new Date(initialValues.endDate) : null;
 
   useEffect(() => {
-    setFormData({
+    const data = {
       region: initialValues.region ?? "",
       label: initialValues.label ?? "",
       useSecure: true,
       startDate: initialStartDate ?? null,
       endDate: initialEndDate ?? null,
       fabricNode: ""
-    });
+    };
+
+    setFormData(data);
+    setOriginalFormData(Object.assign({}, data));
   }, [initialValues]);
 
   useEffect(() => {
@@ -41,6 +46,18 @@ const EditLinkModal = observer(({
         setNodes(fabricNodes);
       });
   }, [formData.region]);
+
+  useEffect(() => {
+    if(!showLinkConfig) {
+      setIsDirty(true);
+      return;
+    }
+
+    const dirty = Object.keys(formData).some(
+      key => formData[key] !== originalFormData[key]
+    );
+    setIsDirty(dirty);
+  }, [formData, originalFormData]);
 
   const HandleChange = ({key, value}) => {
     setFormData(prev => ({
@@ -82,7 +99,11 @@ const EditLinkModal = observer(({
 
       <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
         <Button
-          disabled={loading || !formData.region || !formData.label}
+          disabled={
+          loading ||
+          (showLinkConfig && (!formData.region || !formData.label)) ||
+          !isDirty
+        }
           variant="filled"
           loading={loading}
           onClick={async () => {
