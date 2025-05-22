@@ -178,16 +178,26 @@ const SrtLinkForm = ({
             ]}
             minHeight={75}
             withColumnBorders
+            withScrollArea={false}
             columns={[
               {
                 accessor: "url",
                 title: "URL",
-                render: () => <Text truncate="end" maw={700}>{originUrl}</Text>
+                width: "auto",
+                render: () => (
+                  <Text
+                    truncate="end"
+                    miw={200}
+                    maw={500}
+                    w="100%"
+                    display="block"
+                  >{originUrl}</Text>
+                )
               },
               {
                 accessor: "node",
                 title: "Fabric Node",
-                width: 400,
+                width: 350,
                 render: () => (
                   <Select
                     data={nodeData}
