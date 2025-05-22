@@ -760,10 +760,10 @@ class DataStore {
 
   UpdateSrtQuickLinks({objectId, newData={}, removeData={}}) {
     const urlsByStream = this.srtUrlsByStream[objectId];
-    let quickLinks;
+    let quickLinks = urlsByStream?.quick_links || [];
 
     if(removeData?.url) {
-      quickLinks = urlsByStream?.quick_links.filter(el => removeData.url !== el.url);
+      quickLinks = quickLinks.filter(el => removeData.url !== el.url);
     }
 
     const {url, region} = newData;
