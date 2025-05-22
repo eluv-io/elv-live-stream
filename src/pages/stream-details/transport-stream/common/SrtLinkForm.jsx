@@ -101,16 +101,17 @@ const SrtLinkForm = ({
             value={formData.startDate}
             onChange={(value) => HandleFormChange({key: "startDate", value})}
             name="startDate"
-            valueFormat="MMM DD, YYYY HH:mm A"
+            valueFormat="MMM DD, YYYY HH:mm"
             size="sm"
             minDate={new Date()}
+            maxDate={formData.endDate}
             miw={220}
             clearable
             placeholder="Start"
             timePickerProps={{
               withDropdown: true,
               popoverProps: {withinPortal: false},
-              format: "12h",
+              format: "24h",
             }}
             leftSection={<CalendarMonthIcon/>}
             rightSection={formData.startDate ? null : <IconSelector height={16}/>}
@@ -119,8 +120,8 @@ const SrtLinkForm = ({
             value={formData.endDate}
             onChange={(value) => HandleFormChange({key: "endDate", value})}
             name="endDate"
-            valueFormat="MMM DD, YYYY hh:mm A"
-            minDate={formData.startDate}
+            valueFormat="MMM DD, YYYY HH:mm"
+            minDate={Math.max(new Date().getTime(), new Date(formData.startDate).getTime())}
             size="sm"
             miw={220}
             clearable
@@ -128,7 +129,7 @@ const SrtLinkForm = ({
             timePickerProps={{
               withDropdown: true,
               popoverProps: {withinPortal: false},
-              format: "12h",
+              format: "24h",
             }}
             leftSection={<CalendarMonthIcon/>}
             rightSection={formData.endDate ? null : <IconSelector height={16}/>}
