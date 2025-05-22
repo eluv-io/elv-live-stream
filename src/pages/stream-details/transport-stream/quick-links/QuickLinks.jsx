@@ -72,10 +72,10 @@ const QuickLinks = observer(({links=[], objectId}) => {
 
   return (
     <>
-      <form onSubmit={form.onSubmit(() => {
+      <form onSubmit={form.onSubmit(async(values) => {
         try {
           setIsSubmitting(true);
-          HandleGenerateLink();
+          await HandleGenerateLink(values);
         } finally {
           setIsSubmitting(false);
         }
@@ -115,7 +115,7 @@ const QuickLinks = observer(({links=[], objectId}) => {
                   accessor: "actions",
                   textAlign: "center",
                   title: "",
-                  render: () => <Button type="submit" loading={isSubmitting}>Generate</Button>
+                  render: () => <Button type="submit" loading={isSubmitting} disabled={!form.getValues().region}>Generate</Button>
                 }
               ]}
             />
