@@ -41,16 +41,36 @@ const EditLinkModal = observer(({
       useSecure: true,
       startDate: initialStartDate ?? null,
       endDate: initialEndDate ?? null,
-      fabricNode: null
+      fabricNode: ""
     };
 
-    setFormData(data);
-    setOriginalFormData(Object.assign({}, data));
+      setLoadingFabricNode(true);
+      setNodes([]);
+
+      dataStore.LoadNodes({region: formData.region})
+        .then(nodes => {
+          const fabricNodes = [...new Set(nodes.fabricURIs || [])];
+
+          if(originUrl) {
+            const urlObject = new URL(originUrl);
+            const matchedNode = fabricNodes.filter(node => {
+              return node.includes(urlObject.hostname);
+            });
+
+            data.fabricNode = matchedNode.length > 0 ? matchedNode[0] : "";
+          }
+
+          setNodes(fabricNodes);
+          setLoadingFabricNode(false);
+        });
+
+      setFormData(data);
+      setOriginalFormData(Object.assign({}, data));
   }, [initialValues]);
 
   useEffect(() => {
-    setLoadingFabricNode(true);
-    setNodes([]);
+    if(formData.region === originalFormData.region) { return; }
+
     dataStore.LoadNodes({region: formData.region})
       .then(nodes => {
         const fabricNodes = [...new Set(nodes.fabricURIs || [])];
@@ -119,10 +139,10 @@ const EditLinkModal = observer(({
       <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
         <Button
           disabled={
-          loading ||
-          (showLinkConfig && (!formData.region || !formData.label)) ||
-          !isDirty
-        }
+            loading ||
+            (showLinkConfig && (!formData.region || !formData.label)) ||
+            !isDirty
+          }
           variant="filled"
           loading={loading}
           onClick={async () => {
