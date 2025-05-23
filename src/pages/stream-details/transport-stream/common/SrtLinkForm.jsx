@@ -186,7 +186,9 @@ const SrtLinkForm = ({
     nodeConfigColumns.unshift({
       accessor: "region",
       title: "Region",
-      render: (record) => <Text>{record.region}</Text>
+      render: (record) => <Text>
+        {FABRIC_NODE_REGIONS.find(data => data.value === record.region)?.label || ""}
+      </Text>
     });
   }
 
