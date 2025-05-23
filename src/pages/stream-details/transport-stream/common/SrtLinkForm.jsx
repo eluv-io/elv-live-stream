@@ -150,6 +150,46 @@ const SrtLinkForm = ({
     });
   }
 
+  const nodeConfigColumns =[
+    {
+      accessor: "url",
+      title: "URL",
+      width: "auto",
+      render: () => (
+        <Text
+          truncate="end"
+          miw={200}
+          maw={500}
+          w="100%"
+          display="block"
+        >{originUrl}</Text>
+      )
+    },
+    {
+      accessor: "node",
+      title: "Fabric Node",
+      width: 350,
+      render: () => (
+        loadingFabricNode ?
+          <Loader size="sm" /> :
+          <Select
+            data={nodeData}
+            placeholder="Select Node"
+            value={formData.fabricNode}
+            onChange={(value) => HandleFormChange({key: "fabricNode", value})}
+          />
+      )
+    }
+  ];
+
+  if(!showLinkConfig) {
+    nodeConfigColumns.unshift({
+      accessor: "region",
+      title: "Region",
+      render: (record) => <Text>{record.region}</Text>
+    });
+  }
+
   return (
     <>
       {
@@ -175,42 +215,12 @@ const SrtLinkForm = ({
           <DataTable
             classNames={{header: styles.tableHeader}}
             records={[
-              {id: "node-form-row", url: originUrl, node: formData.fabricNode}
+              {id: "node-form-row", url: originUrl, node: formData.fabricNode, region: formData.region}
             ]}
             minHeight={75}
             withColumnBorders
             withScrollArea={false}
-            columns={[
-              {
-                accessor: "url",
-                title: "URL",
-                width: "auto",
-                render: () => (
-                  <Text
-                    truncate="end"
-                    miw={200}
-                    maw={500}
-                    w="100%"
-                    display="block"
-                  >{originUrl}</Text>
-                )
-              },
-              {
-                accessor: "node",
-                title: "Fabric Node",
-                width: 350,
-                render: () => (
-                  loadingFabricNode ?
-                  <Loader size="sm" /> :
-                  <Select
-                    data={nodeData}
-                    placeholder="Select Node"
-                    value={formData.fabricNode}
-                    onChange={(value) => HandleFormChange({key: "fabricNode", value})}
-                  />
-                )
-              }
-            ]}
+            columns={nodeConfigColumns}
           />
         </Box>
       }
