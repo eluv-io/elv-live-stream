@@ -223,9 +223,11 @@ const QuickLinks = observer(({links=[], objectId}) => {
           ConfirmCallback={async (values) => {
             try {
               await HandleGenerateLink(values, {url: modalData.url});
+              const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === values.region)?.label || "";
+              
               notifications.show({
                 title: "Link updated",
-                message: `Link for ${values.region} successfully updated`
+                message: `Link for ${regionLabel} successfully updated`
               });
             } catch(_e) {
               notifications.show({
