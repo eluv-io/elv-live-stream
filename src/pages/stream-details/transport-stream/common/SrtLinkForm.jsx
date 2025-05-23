@@ -187,7 +187,7 @@ const SrtLinkForm = ({
       accessor: "region",
       title: "Region",
       render: (record) => <Text>
-        {FABRIC_NODE_REGIONS.find(data => data.value === record.region)?.label || ""}
+        {FABRIC_NODE_REGIONS.find(data => data.value === record.region)?.label || "--"}
       </Text>
     });
   }
