@@ -76,8 +76,7 @@ const TransportStreamPanel = observer(({url}) => {
   const srtUrls = (dataStore.srtUrlsByStream?.[params.id]?.srt_urls || [])
     .map(DetailLink);
 
-  const quickLinks = (dataStore.srtUrlsByStream?.[params.id]?.quick_links || [])
-    .map(DetailLink);
+  const quickLinkRegions = dataStore.srtUrlsByStream?.[params.id]?.quick_link_regions || {};
 
   if(loading) { return <Loader />; }
 
@@ -92,7 +91,7 @@ const TransportStreamPanel = observer(({url}) => {
           objectId={params.id}
           setDeleteModalData={setModalData}
           originUrl={url}
-          links={quickLinks}
+          regions={quickLinkRegions}
         />
 
         <SectionTitle mb={8}>Saved Links</SectionTitle>

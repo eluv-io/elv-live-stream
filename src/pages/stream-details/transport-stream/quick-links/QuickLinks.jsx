@@ -5,14 +5,14 @@ import {ActionIcon, Box, Button, Group, Select, SimpleGrid, Title, Tooltip} from
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
 import {LinkIcon, PencilIcon} from "@/assets/icons/index.js";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {useForm} from "@mantine/form";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {dataStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 
-const QuickLinks = observer(({links=[], objectId}) => {
+const QuickLinks = observer(({objectId, regions={}}) => {
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "label",
     direction: "asc"
@@ -30,6 +30,9 @@ const QuickLinks = observer(({links=[], objectId}) => {
     }
   });
 
+  const [links, setLinks] = useState([]);
+  const [loadingQuickLinks, setLoadingQuickLinks] = useState(false);
+
   const form = useForm({
     mode: "uncontrolled",
     initialValues: {
@@ -37,7 +40,42 @@ const QuickLinks = observer(({links=[], objectId}) => {
     }
   });
 
-  const HandleGenerateLink = async(values, removeData={}) => {
+  useEffect(() => {
+    if(regions) {
+      const LoadLinks = async() => {
+        try {
+          setLoadingQuickLinks(true);
+
+          const linkData = await Promise.all(
+            Object.keys(regions).map(async(region) => {
+              const url = await dataStore.SrtPlayoutUrl({
+                objectId,
+                quickLink: true,
+                tokenData: {region}
+              });
+
+              const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === region)?.label || "";
+
+              return {url, region: {label: regionLabel, value: region}};
+            })
+          );
+
+          setLinks(linkData);
+        } finally {
+          setLoadingQuickLinks(false);
+        }
+      };
+
+      LoadLinks();
+    }
+  }, [regions]);
+
+  const HandleGenerateLink = async({
+    values,
+    removeData = {},
+    updateSite = true,
+    updateLinks
+  }) => {
     const {region, fabricNode} = values;
 
     const url = await dataStore.SrtPlayoutUrl({
@@ -47,12 +85,27 @@ const QuickLinks = observer(({links=[], objectId}) => {
       tokenData: {region}
     });
 
-    await dataStore.UpdateSiteQuickLinks({
-      objectId,
-      url,
-      region,
-      removeData
-    });
+    if(updateLinks) {
+      const linkData = links;
+      linkData.forEach(data => {
+        if(data.region?.value === region) {
+          data.url = url;
+        }
+      });
+
+      setLinks(linkData);
+    }
+
+    if(updateSite) {
+      await dataStore.UpdateSiteQuickLinks({
+        objectId,
+        url,
+        region,
+        removeData
+      });
+    }
+
+    return url;
   };
 
   const records = links.sort(SortTable({sortStatus}));
@@ -62,7 +115,7 @@ const QuickLinks = observer(({links=[], objectId}) => {
       <form onSubmit={form.onSubmit(async(values) => {
         try {
           setIsSubmitting(true);
-          await HandleGenerateLink(values);
+          await HandleGenerateLink({values});
 
           const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === values.region)?.label || "";
           notifications.show({
@@ -130,6 +183,7 @@ const QuickLinks = observer(({links=[], objectId}) => {
           classNames={{header: styles.tableHeader}}
           idAccessor="label"
           records={records || []}
+          fetching={loadingQuickLinks}
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
           minHeight={records?.length > 0 ? 75 : 150}
@@ -143,11 +197,11 @@ const QuickLinks = observer(({links=[], objectId}) => {
                 <Title
                   order={4}
                   lineClamp={1}
-                  title={record.region}
+                  title={record.region?.label}
                   miw={175}
                   c="elv-gray.9"
                 >
-                  {record.region || "--"}
+                  {record.region?.label || "--"}
                 </Title>
               )
             },
@@ -159,12 +213,12 @@ const QuickLinks = observer(({links=[], objectId}) => {
                   order={4}
                   lineClamp={1}
                   truncate="end"
-                  title={record.value || "--"}
+                  title={record.url || "--"}
                   miw={100}
                   maw={350}
                   c="elv-gray.9"
                 >
-                  {record.value}
+                  {record.url}
                 </Title>
               )
             },
@@ -180,10 +234,10 @@ const QuickLinks = observer(({links=[], objectId}) => {
                         label: "Edit",
                         HandleClick: () => setModalData({
                           show: true,
-                          url: record.value,
+                          url: record.url,
                           initialValues: {
-                            region: record.regionValue,
-                            regionLabel: record.region
+                            region: record.region?.value,
+                            regionLabel: record.region?.label
                           }
                         }),
                         Icon: <PencilIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
@@ -191,7 +245,7 @@ const QuickLinks = observer(({links=[], objectId}) => {
                       {
                         id: "copy-action",
                         label: clipboard.copied ? "Copied" : "Copy",
-                        HandleClick: () => clipboard.copy(record.value),
+                        HandleClick: () => clipboard.copy(record.url),
                         Icon: <LinkIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
                       }
                     ].map(action => (
@@ -222,9 +276,15 @@ const QuickLinks = observer(({links=[], objectId}) => {
           CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
           ConfirmCallback={async (values) => {
             try {
-              await HandleGenerateLink(values, {url: modalData.url});
+              await HandleGenerateLink({
+                values,
+                removeData: {url: modalData.url},
+                updateSite: false,
+                updateLinks: true
+              });
+
               const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === values.region)?.label || "";
-              
+
               notifications.show({
                 title: "Link updated",
                 message: `Link for ${regionLabel} successfully updated`

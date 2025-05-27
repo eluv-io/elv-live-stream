@@ -763,25 +763,19 @@ class DataStore {
 
   UpdateSrtQuickLinks({objectId, newData={}, removeData={}}) {
     const urlsByStream = this.srtUrlsByStream[objectId];
-    let quickLinks = urlsByStream?.quick_links || [];
+    let quickLinkRegions = urlsByStream?.quick_link_regions;
 
-    if(removeData?.url) {
-      quickLinks = quickLinks.filter(el => removeData.url !== el.url);
+    if(removeData?.region) {
+      delete quickLinkRegions.region;
     }
 
-    const {url, region} = newData;
-    const newValue = {url, region};
-
-    if(urlsByStream) {
-      urlsByStream.quick_links = [
-        ...quickLinks || [],
-        newValue
-      ];
-    } else {
-      this.srtUrlsByStream[objectId] = {
-        ...this.srtUrlsByStream[objectId],
-        quick_links: [newValue]
+    const {region} = newData;
+    if(!quickLinkRegions) {
+      urlsByStream["quick_link_regions"] = {
+        [region]: true
       };
+    } else {
+      quickLinkRegions[region] = true;
     }
   }
 
@@ -861,7 +855,6 @@ class DataStore {
 
   UpdateSiteQuickLinks = flow(function * ({
     objectId,
-    url,
     region,
     removeData={}
   }) {
@@ -876,7 +869,6 @@ class DataStore {
     this.UpdateSrtQuickLinks({
       objectId,
       newData: {
-        url,
         region
       },
       removeData
@@ -886,8 +878,8 @@ class DataStore {
       libraryId,
       objectId: this.siteId,
       writeToken,
-      metadataSubtree: `/srt_playout_info/${objectId}/quick_links`,
-      metadata: toJS(this.srtUrlsByStream[objectId]?.quick_links || [])
+      metadataSubtree: `/srt_playout_info/${objectId}/quick_link_regions`,
+      metadata: toJS(this.srtUrlsByStream[objectId]?.quick_link_regions || {})
     });
 
     yield this.client.FinalizeContentObject({
