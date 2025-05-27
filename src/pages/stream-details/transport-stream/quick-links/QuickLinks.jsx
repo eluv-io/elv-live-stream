@@ -73,10 +73,10 @@ const QuickLinks = observer(({objectId, regions={}}) => {
   const HandleGenerateLink = async({
     values,
     removeData = {},
-    updateSite = true,
-    updateLinks
+    updateSite = true
   }) => {
     const {region, fabricNode} = values;
+    const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === region)?.label || "";
 
     const url = await dataStore.SrtPlayoutUrl({
       objectId,
@@ -85,16 +85,15 @@ const QuickLinks = observer(({objectId, regions={}}) => {
       tokenData: {region}
     });
 
-    if(updateLinks) {
-      const linkData = links;
-      linkData.forEach(data => {
-        if(data.region?.value === region) {
-          data.url = url;
-        }
-      });
+    // Update links variable
+    const linkData = [...links, {url, region: {value: region, label: regionLabel}}];
+    linkData.forEach(data => {
+      if(data.region?.value === region) {
+        data.url = url;
+      }
+    });
 
-      setLinks(linkData);
-    }
+    setLinks(linkData);
 
     if(updateSite) {
       await dataStore.UpdateSiteQuickLinks({
@@ -115,7 +114,9 @@ const QuickLinks = observer(({objectId, regions={}}) => {
       <form onSubmit={form.onSubmit(async(values) => {
         try {
           setIsSubmitting(true);
-          await HandleGenerateLink({values});
+          await HandleGenerateLink({
+            values
+          });
 
           const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === values.region)?.label || "";
           notifications.show({
@@ -151,7 +152,7 @@ const QuickLinks = observer(({objectId, regions={}}) => {
                       data={
                         FABRIC_NODE_REGIONS
                           .filter(item => {
-                          const activeRegions = (dataStore.srtUrlsByStream?.[objectId]?.quick_links || []).map(urlObj => urlObj.region);
+                          const activeRegions = Object.keys(regions || {}).map(region => region);
                           const isDisabled = activeRegions.includes(item.value);
 
                           if(!isDisabled) {
@@ -279,8 +280,7 @@ const QuickLinks = observer(({objectId, regions={}}) => {
               await HandleGenerateLink({
                 values,
                 removeData: {url: modalData.url},
-                updateSite: false,
-                updateLinks: true
+                updateSite: false
               });
 
               const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === values.region)?.label || "";
