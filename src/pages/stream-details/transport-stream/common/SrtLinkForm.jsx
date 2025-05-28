@@ -147,7 +147,7 @@ const SrtLinkForm = ({
       accessor: "actions",
       textAlign: "center",
       title: "",
-      render: () => <Button type="button" loading={isSubmitting} onClick={HandleSubmit} disabled={!formData.region || !formData.label}>Generate</Button>
+      render: () => <Button type="button" loading={isSubmitting} onClick={HandleSubmit} disabled={!formData.region || !formData.label || formData.label?.trim().length < 1}>Generate</Button>
     });
   }
 
