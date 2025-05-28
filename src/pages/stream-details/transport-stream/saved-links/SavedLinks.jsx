@@ -10,6 +10,7 @@ import SrtLinkForm from "@/pages/stream-details/transport-stream/common/SrtLinkF
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import {dataStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}) => {
   const [sortStatus, setSortStatus] = useState({
@@ -101,6 +102,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
           minHeight={records?.length > 0 ? 75 : 150}
+          highlightOnHover
           noRecordsText="No saved links found"
           columns={[
             {
@@ -113,6 +115,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
                   lineClamp={1}
                   title={record.label}
                   miw={175}
+                  maw={350}
                   c="elv-gray.9"
                 >
                   {record.label || "--"}
@@ -268,7 +271,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
 
             notifications.show({
               title: "Link updated",
-              message: `Link for ${values.label} successfully updated`
+              message: <NotificationMessage>Link successfully updated for {values.label}</NotificationMessage>
             });
           } catch(_e) {
             notifications.show({

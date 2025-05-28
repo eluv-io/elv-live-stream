@@ -188,6 +188,7 @@ const QuickLinks = observer(({objectId, regions={}}) => {
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
           minHeight={records?.length > 0 ? 75 : 150}
+          highlightOnHover
           noRecordsText="No quick links found"
           columns={[
             {
