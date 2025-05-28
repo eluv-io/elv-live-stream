@@ -17,7 +17,7 @@ import {CheckExpiration} from "@/utils/helpers.js";
 import SavedLinks from "@/pages/stream-details/transport-stream/saved-links/SavedLinks.jsx";
 import QuickLinks from "@/pages/stream-details/transport-stream/quick-links/QuickLinks.jsx";
 
-const TransportStreamPanel = observer(({url}) => {
+const TransportStreamPanel = observer(({url, active}) => {
   const params = useParams();
 
   const initModalData = {
@@ -92,6 +92,7 @@ const TransportStreamPanel = observer(({url}) => {
           setDeleteModalData={setModalData}
           originUrl={url}
           regions={quickLinkRegions}
+          active={active}
         />
 
         <SectionTitle mb={8}>Saved Links</SectionTitle>

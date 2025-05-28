@@ -243,17 +243,21 @@ class EditStore {
     }
   });
 
-  SetPermission = ({objectId, permission}) => {
+  SetPermission = flow(function * ({objectId, permission}) {
     try {
-      return this.client.SetPermission({
+      const response = yield this.client.SetPermission({
         objectId,
         permission
       });
+
+      yield new Promise(resolve => setTimeout(resolve, 1000));
+
+      return response;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to set permission.", error);
     }
-  };
+  });
 
   AddMetadata = flow(function * ({
     libraryId,

@@ -172,6 +172,7 @@ const StreamDetailsPage = observer(() => {
               {
                 stream.status ?
                 <tab.Component
+                  active={activeTab === tab.value}
                   status={stream.status}
                   slug={stream.slug}
                   currentDrm={stream.drm}

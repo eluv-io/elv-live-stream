@@ -13,7 +13,7 @@ import {notifications} from "@mantine/notifications";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
-const QuickLinks = observer(({objectId, regions={}}) => {
+const QuickLinks = observer(({objectId, regions={}, active}) => {
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "label",
     direction: "asc"
@@ -42,7 +42,7 @@ const QuickLinks = observer(({objectId, regions={}}) => {
   });
 
   useEffect(() => {
-    if(regions) {
+    if(regions && active) {
       const LoadLinks = async() => {
         try {
           setLoadingQuickLinks(true);
@@ -69,7 +69,7 @@ const QuickLinks = observer(({objectId, regions={}}) => {
 
       LoadLinks();
     }
-  }, [regions]);
+  }, [active, regions]);
 
   const HandleGenerateLink = async({
     values,
