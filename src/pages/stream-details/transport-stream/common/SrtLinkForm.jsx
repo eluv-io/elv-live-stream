@@ -155,21 +155,18 @@ const SrtLinkForm = ({
     {
       accessor: "url",
       title: "URL",
-      width: "auto",
+      width: 700,
       render: () => (
         <Text
           truncate="end"
-          miw={200}
-          maw={500}
           w="100%"
-          display="block"
         >{originUrl}</Text>
       )
     },
     {
       accessor: "node",
       title: "Fabric Node",
-      width: 350,
+      width: "auto",
       render: () => (
         loadingFabricNode ?
           <Loader size="sm" /> :
