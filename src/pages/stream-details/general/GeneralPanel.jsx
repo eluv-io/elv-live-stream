@@ -6,6 +6,7 @@ import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import {CircleInfoIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const GeneralPanel = observer(({slug}) => {
   const [formData, setFormData] = useState({
@@ -102,7 +103,7 @@ const GeneralPanel = observer(({slug}) => {
       }
 
       notifications.show({
-        title: `${formData.name || params.id} updated`,
+        title: <NotificationMessage>Updated {formData.name || params.id}</NotificationMessage>,
         message: "Changes have been applied successfully"
       });
     } catch(error) {

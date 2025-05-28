@@ -8,6 +8,7 @@ import {CalendarMonthIcon} from "@/assets/icons/index.js";
 import {IconSelector} from "@tabler/icons-react";
 import {useState} from "react";
 import {notifications} from "@mantine/notifications";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const SrtLinkForm = ({
   objectId,
@@ -32,7 +33,7 @@ const SrtLinkForm = ({
 
       notifications.show({
         title: "New link created",
-        message: `Link for ${formData.label} successfully created`
+        message: <NotificationMessage>Link successfully created for {formData.label}</NotificationMessage>
       });
     } catch(_e) {
       notifications.show({

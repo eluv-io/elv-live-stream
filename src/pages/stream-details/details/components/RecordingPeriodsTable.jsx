@@ -12,6 +12,7 @@ import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "../../../streams/Streams.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const RecordingPeriodsTable = observer(({
   records,
@@ -49,8 +50,8 @@ const RecordingPeriodsTable = observer(({
       await CopyCallback();
 
       notifications.show({
-        title: `${title || objectId} copied to VoD`,
-        message: `${response?.target_object_id} successfully created`,
+        title: <NotificationMessage>Copied to VoD: {title || objectId}</NotificationMessage>,
+        message: <NotificationMessage>Successfully created {response?.target_object_id}</NotificationMessage>,
         autoClose: false
       });
       close();

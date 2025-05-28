@@ -12,6 +12,7 @@ import {
 } from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const RecordingPanel = observer(({
   title,
@@ -106,7 +107,7 @@ const RecordingPanel = observer(({
       PageVersionCallback(prev => prev + 1);
 
       notifications.show({
-        title: `${title || params.id} updated`,
+        title: <NotificationMessage>Updated {title || params.id}</NotificationMessage>,
         message: "Settings have been applied successfully"
       });
     } catch(error) {

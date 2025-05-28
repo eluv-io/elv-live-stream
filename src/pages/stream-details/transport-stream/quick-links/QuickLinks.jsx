@@ -11,6 +11,7 @@ import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {dataStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const QuickLinks = observer(({objectId, regions={}}) => {
   const [sortStatus, setSortStatus] = useState({
@@ -121,7 +122,7 @@ const QuickLinks = observer(({objectId, regions={}}) => {
           const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === values.region)?.label || "";
           notifications.show({
             title: "New link created",
-            message: `Link for ${regionLabel} successfully created`
+            message: <NotificationMessage>Successfully created link for {regionLabel}</NotificationMessage>
           });
 
           form.reset();
@@ -288,7 +289,7 @@ const QuickLinks = observer(({objectId, regions={}}) => {
 
               notifications.show({
                 title: "Link updated",
-                message: `Link for ${regionLabel} successfully updated`
+                message: <NotificationMessage>Successfully updated link for {regionLabel}</NotificationMessage>
               });
             } catch(_e) {
               notifications.show({
