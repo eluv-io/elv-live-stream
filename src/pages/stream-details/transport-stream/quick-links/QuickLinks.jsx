@@ -229,7 +229,7 @@ const QuickLinks = observer(({objectId, regions={}}) => {
               accessor: "actions",
               title: "",
               render: (record) => (
-                <Group wrap="nowrap" gap={8}>
+                <Group wrap="nowrap" gap={8} justify="flex-end">
                   {
                     [
                       {

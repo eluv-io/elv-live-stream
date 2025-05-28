@@ -155,7 +155,7 @@ const SrtLinkForm = ({
     {
       accessor: "url",
       title: "URL",
-      width: 700,
+      width: 550,
       render: () => (
         <Text
           truncate="end"
