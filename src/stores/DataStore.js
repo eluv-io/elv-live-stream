@@ -762,20 +762,28 @@ class DataStore {
   }
 
   UpdateSrtQuickLinks({objectId, newData={}, removeData={}}) {
-    const urlsByStream = this.srtUrlsByStream[objectId];
-    let quickLinkRegions = urlsByStream?.quick_link_regions;
-
-    if(removeData?.region) {
-      delete quickLinkRegions.region;
-    }
-
     const {region} = newData;
-    if(!quickLinkRegions) {
-      urlsByStream["quick_link_regions"] = {
-        [region]: true
+    if(!this.srtUrlsByStream[objectId]) {
+      this.srtUrlsByStream[objectId] = {
+        quick_link_regions: {
+          [region]: true
+        }
       };
     } else {
-      quickLinkRegions[region] = true;
+      const urlsByStream = this.srtUrlsByStream[objectId];
+      let quickLinkRegions = urlsByStream?.quick_link_regions;
+
+      if(removeData?.region) {
+        delete quickLinkRegions.region;
+      }
+
+      if(!quickLinkRegions) {
+        urlsByStream["quick_link_regions"] = {
+          [region]: true
+        };
+      } else {
+        quickLinkRegions[region] = true;
+      }
     }
   }
 
@@ -858,36 +866,42 @@ class DataStore {
     region,
     removeData={}
   }) {
-    if(!this.siteId) { return; }
+    try {
+      if(!this.siteId) { return; }
 
-    const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
-    const {writeToken} = yield this.client.EditContentObject({
-      libraryId,
-      objectId: this.siteId
-    });
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId: this.siteId
+      });
 
-    this.UpdateSrtQuickLinks({
-      objectId,
-      newData: {
-        region
-      },
-      removeData
-    });
+      this.UpdateSrtQuickLinks({
+        objectId,
+        newData: {
+          region
+        },
+        removeData
+      });
 
-    yield this.client.ReplaceMetadata({
-      libraryId,
-      objectId: this.siteId,
-      writeToken,
-      metadataSubtree: `/srt_playout_info/${objectId}/quick_link_regions`,
-      metadata: toJS(this.srtUrlsByStream[objectId]?.quick_link_regions || {})
-    });
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId: this.siteId,
+        writeToken,
+        metadataSubtree: `/srt_playout_info/${objectId}/quick_link_regions`,
+        metadata: toJS(this.srtUrlsByStream[objectId]?.quick_link_regions || {})
+      });
 
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId: this.siteId,
-      writeToken,
-      commitMessage: "Update srt quick link"
-    });
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId: this.siteId,
+        writeToken,
+        commitMessage: "Update srt quick link"
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to update site", error);
+      throw error;
+    }
   });
 
   LoadNodes = flow(function * ({region}) {
