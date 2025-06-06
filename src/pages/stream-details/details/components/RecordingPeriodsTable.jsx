@@ -4,8 +4,13 @@ import {useDisclosure} from "@mantine/hooks";
 import {streamStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import {RECORDING_STATUS_TEXT} from "@/utils/constants.js";
-import {Box, Button, Flex, Group, Text} from "@mantine/core";
-import {DateFormat, Pluralize, SortTable} from "@/utils/helpers.js";
+import {Box, Button, Checkbox, Flex, Group, Text} from "@mantine/core";
+import {
+  DateFormat,
+  Pluralize,
+  RecordingPeriodIsExpired,
+  SortTable
+} from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
 import DetailsCopyModal from "@/pages/stream-details/details/components/CopyToVodModal.jsx";
 import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
@@ -26,15 +31,19 @@ const RecordingPeriodsTable = observer(({
   loading
 }) => {
   const [selectedRecords, setSelectedRecords] = useState([]);
+
   const [copyingToVod, setCopyingToVod] = useState(false);
   const [showCopyModal, {open, close}] = useDisclosure(false);
   const [vodTitle, setVodTitle] = useState(`${title} VoD`);
   const [vodLibraryId, setVodLibraryId] = useState(libraryId);
   const [vodAccessGroup, setVodAccessGroup] = useState(null);
+
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "end_time",
     direction: "asc"
   });
+
+  const [showExpired, setShowExpired] = useState(true);
 
   const HandleCopy = async ({title}) => {
     try {
@@ -76,9 +85,11 @@ const RecordingPeriodsTable = observer(({
     const videoIsEmpty = (item?.sources?.video?.parts || []).length === 0;
 
     if(
-      videoIsEmpty ||
-      !MeetsDurationMin({startTime, endTime}) ||
-      !IsWithinRetentionPeriod({startTime})
+      RecordingPeriodIsExpired({
+        parts: item?.sources?.video?.parts || [],
+        startTime,
+        endTime
+      })
     ) {
       status = "EXPIRED";
     } else if(!videoIsEmpty && item?.sources?.video?.trimmed > 0) {
@@ -88,29 +99,6 @@ const RecordingPeriodsTable = observer(({
     }
 
     return text ? RECORDING_STATUS_TEXT[status] : status;
-  };
-
-  const MeetsDurationMin = ({startTime, endTime}) => {
-    startTime = new Date(startTime).getTime();
-    endTime = new Date(endTime).getTime();
-
-    // If starting or currently running, part is copyable
-    if(endTime === 0 || startTime === 0) { return true; }
-
-    return (endTime - startTime) >= 61000;
-  };
-
-  const IsWithinRetentionPeriod = ({startTime}) => {
-    const currentTimeMs = new Date().getTime();
-    const startTimeMs = new Date(startTime).getTime();
-
-    if(persistent) { return true; }
-
-    const retentionMs = parseInt(retention || "") * 1000;
-
-    if(typeof startTimeMs !== "number") { return false; }
-
-    return (currentTimeMs - startTimeMs) < retentionMs;
   };
 
   const ExpirationTime = ({startTime, retention, persistent}) => {
@@ -127,7 +115,17 @@ const RecordingPeriodsTable = observer(({
       }) : "--";
   };
 
-  records = (records || []).sort(SortTable({sortStatus}));
+  records = (records || [])
+    .filter(record => {
+      const expired = RecordingPeriodIsExpired({
+        parts: record?.sources?.video?.parts || [],
+        startTime: record.start_time,
+        endTime: record.end_time
+      });
+
+      return showExpired ? expired : !expired;
+    })
+    .sort(SortTable({sortStatus}));
 
   return (
     <>
@@ -225,6 +223,16 @@ const RecordingPeriodsTable = observer(({
                     endTime: record.end_time
                   })}
                 </BasicTableRowText>
+              ),
+              filter: () => (
+                <Checkbox
+                  label="Expired Entries"
+                  description="Show expired recording periods"
+                  checked={showExpired}
+                  onChange={() => {
+                    setShowExpired((current) => !current);
+                  }}
+                />
               )
             }
           ]}
