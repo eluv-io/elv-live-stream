@@ -1,5 +1,5 @@
 // Force strict mode so mutations are only allowed within actions.
-import {configure, flow, makeAutoObservable, runInAction} from "mobx";
+import {configure, flow, makeAutoObservable, runInAction, toJS} from "mobx";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 
 configure({
@@ -19,6 +19,7 @@ class DataStore {
   siteLibraryId;
   liveStreamUrls;
   ladderProfiles;
+  srtUrlsByStream;
 
   constructor(rootStore) {
     makeAutoObservable(this);
@@ -272,6 +273,7 @@ class DataStore {
           "live_recording/playout_config/forensic_watermark",
           "live_recording/recording_config/recording_params/xc_params/connection_timeout",
           "live_recording/recording_config/recording_params/reconnect_timeout",
+          "live_recording/recording_config/recording_params/persistent",
           "live_recording/playout_config/dvr_enabled",
           "live_recording/playout_config/dvr_start_time",
           "live_recording/playout_config/dvr_max_duration",
@@ -330,6 +332,7 @@ class DataStore {
         imageWatermark,
         originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
         partTtl: partTtl ? partTtl.toString() : null,
+        persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
         playoutLadderProfile: streamMeta?.live_recording_config?.playout_ladder_profile,
         reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
         referenceUrl: streamMeta?.live_recording_config?.reference_url,
@@ -363,12 +366,23 @@ class DataStore {
         ]
       });
 
+      const urlMeta = yield this.client.ContentObjectMetadata({
+        objectId,
+        libraryId,
+        metadataSubtree: "/",
+        select: [
+          "live_recording_config/url",
+          "live_recording/recording_config/recording_params/origin_url"
+        ]
+      });
+
       this.rootStore.streamStore.UpdateStream({
         key: slug,
         value: {
-          title: streamMeta?.name || streamMeta.asset_metadata?.title || streamMeta.asset_metadata?.display_title,
+          title: streamMeta?.name,
           description: streamMeta.description,
-          display_title: streamMeta.asset_metadata?.display_title
+          display_title: streamMeta.asset_metadata?.display_title,
+          originUrl: urlMeta?.live_recording?.recording_config?.recording_params?.origin_url || urlMeta?.live_recording_config?.url
         }
       });
     } catch(error) {
@@ -494,6 +508,8 @@ class DataStore {
           "live_recording/recording_config/recording_params/xc_params/connection_timeout",
           "live_recording/recording_config/recording_params/reconnect_timeout",
           "live_recording_config/part_ttl",
+          "live_recording/recording_config/recording_params/persistent",
+          "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
         ]
       });
 
@@ -505,9 +521,11 @@ class DataStore {
       return {
         audioStreams,
         audioData,
+        persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
         retention: streamMeta?.live_recording_config?.part_ttl,
         connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
-        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout
+        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,
+        copyMpegTs: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.copy_mpegts
       };
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -593,6 +611,16 @@ class DataStore {
     }
   });
 
+  LoadSrtPlayoutUrls = flow(function * () {
+    const srtUrls = yield this.client.ContentObjectMetadata({
+      libraryId: yield this.client.ContentObjectLibraryId({objectId: this.siteId}),
+      objectId: this.siteId,
+      metadataSubtree: "srt_playout_info"
+    });
+
+    this.srtUrlsByStream = srtUrls || {};
+  });
+
   EmbedUrl = flow(function * ({objectId}) {
     try {
       const url = yield this.client.EmbedUrl({objectId, mediaType: "live_video"});
@@ -606,33 +634,90 @@ class DataStore {
   });
 
   // TODO: Move this to client-js
-  SrtPlayoutUrl = flow(function * ({objectId, originUrl}){
+  SrtPlayoutUrl = flow(function * ({objectId, originUrl, fabricNode, tokenData=null, quickLink=false}){
     try {
-      // Used to extract hostname
-      const originUrlObject = new URL(originUrl);
+      let token = "", url, port;
+      const networkName = this.rootStore.networkInfo?.name || "";
 
-      if(!originUrlObject) {
-        // eslint-disable-next-line no-console
-        console.error(`Invalid origin url: ${originUrl}`);
-        return "";
+      if(networkName.includes("main")) {
+        port = 11080;
+      } else if(networkName.includes("demo")) {
+        port = 11090;
+      } else if(networkName.includes("test")) {
+        port = 11091;
       }
 
-      let token = "";
-      const url = new URL(`srt://${originUrlObject.hostname}:11080`);
+      if(quickLink) {
+        const permission = yield this.client.Permission({objectId, clearCache: true});
+        let urlObject;
 
-      const permission = yield this.client.Permission({
-        objectId
-      });
+        if(fabricNode) {
+          urlObject = new URL(fabricNode);
+        } else {
+          const nodes = yield this.client.UseRegion({region: tokenData.region});
+          urlObject = new URL(nodes.fabricURIs[0]);
+          yield this.client.ResetRegion();
+        }
 
-      if(["owner", "editable", "viewable"].includes(permission)) {
+        if(permission === "public") {
+          const contentSpaceId = yield this.client.ContentSpaceId();
+          token = this.client.utils.B64(
+            JSON.stringify({ qspace_id: contentSpaceId })
+          );
+        } else {
+          token = yield this.client.CreateSignedToken({
+            objectId,
+            duration: 14 * 24 * 60 * 60 * 1000 // 2 weeks
+          });
+        }
+
+        url = new URL(`srt://${urlObject.hostname}:${port}`);
+      } else if(tokenData) {
+        const {issueTime, expirationTime, label, useSecure, region} = tokenData;
+        let urlObject;
+
+        if(fabricNode) {
+          urlObject = new URL(fabricNode);
+        } else {
+          const nodes = yield this.client.UseRegion({region});
+          urlObject = new URL(nodes.fabricURIs[0]);
+          yield this.client.ResetRegion();
+        }
+
+        url = new URL(`srt://${urlObject.hostname}:${port}`);
+        if(useSecure) {
+          token = yield this.client.CreateSignedToken({
+            objectId,
+            issueTime,
+            expirationTime,
+            context: {
+              usr: {
+                label
+              }
+            }
+          });
+        } else {
+          // TODO: For unsecure signature, b58 encode JSON and use as token
+        }
+      } else {
+        // Used to extract hostname
+        const originUrlObject = new URL(originUrl);
+
+        if(!originUrlObject) {
+          // eslint-disable-next-line no-console
+          console.error(`Invalid origin url: ${originUrl}`);
+          return "";
+        }
+
+        url = new URL(`srt://${originUrlObject.hostname}:${port}`);
+
         token = yield this.client.CreateSignedToken({
           objectId,
           duration: 86400000
         });
-      } else {
-        const spaceId = { qspace_id: this.rootStore.contentSpaceId };
-        token = this.client.utils.B64(JSON.stringify(spaceId));
       }
+
+      if(!url) { return ""; }
 
       url.searchParams.set("streamid", `live-ts.${objectId}${token ? `.${token}` : ""}`);
 
@@ -651,6 +736,184 @@ class DataStore {
   UpdateStreamUrls = ({urls}) => {
     this.liveStreamUrls = urls;
   };
+
+  UpdateSrtUrls({objectId, newData={}, removeData={}}) {
+    const urlsByStream = this.srtUrlsByStream[objectId];
+    let srtUrls = urlsByStream?.srt_urls || [];
+
+    if(removeData?.url) {
+      srtUrls = srtUrls.filter(el => removeData.url !== el.url);
+    }
+
+    const {url, region, label} = newData;
+    const newValue = {url, region, label};
+
+    if(urlsByStream) {
+      urlsByStream.srt_urls = [
+        ...srtUrls || [],
+        newValue
+      ];
+    } else {
+      this.srtUrlsByStream[objectId] = {
+        ...this.srtUrlsByStream[objectId],
+        srt_urls: [newValue]
+      };
+    }
+  }
+
+  UpdateSrtQuickLinks({objectId, newData={}, removeData={}}) {
+    const {region} = newData;
+    if(!this.srtUrlsByStream[objectId]) {
+      this.srtUrlsByStream[objectId] = {
+        quick_link_regions: {
+          [region]: true
+        }
+      };
+    } else {
+      const urlsByStream = this.srtUrlsByStream[objectId];
+      let quickLinkRegions = urlsByStream?.quick_link_regions;
+
+      if(removeData?.region) {
+        delete quickLinkRegions.region;
+      }
+
+      if(!quickLinkRegions) {
+        urlsByStream["quick_link_regions"] = {
+          [region]: true
+        };
+      } else {
+        quickLinkRegions[region] = true;
+      }
+    }
+  }
+
+  DeleteSrtUrl = flow(function * ({objectId, region}) {
+    const urlsByStream = this.srtUrlsByStream[objectId];
+    const newSrtUrls = [];
+    urlsByStream.srt_urls.forEach(urlObj => {
+      if(urlObj.region !== region) {
+        newSrtUrls.push(toJS(urlObj));
+      }
+    });
+
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId: this.siteId
+    });
+
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      metadataSubtree: `/srt_playout_info/${objectId}/srt_urls`,
+      metadata: newSrtUrls
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      commitMessage: "Delete srt url"
+    });
+
+    this.srtUrlsByStream[objectId].srt_urls = newSrtUrls;
+  });
+
+  UpdateSiteSrtLinks = flow(function * ({
+    objectId,
+    url,
+    region,
+    label,
+    removeData={}
+  }) {
+    if(!this.siteId) { return; }
+
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId: this.siteId
+    });
+
+    this.UpdateSrtUrls({
+      objectId,
+      newData: {
+        url,
+        region,
+        label,
+      },
+      removeData
+    });
+
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      metadataSubtree: `/srt_playout_info/${objectId}/srt_urls`,
+      metadata: toJS(this.srtUrlsByStream[objectId]?.srt_urls || [])
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId: this.siteId,
+      writeToken,
+      commitMessage: "Update srt url"
+    });
+  });
+
+  UpdateSiteQuickLinks = flow(function * ({
+    objectId,
+    region,
+    removeData={}
+  }) {
+    try {
+      if(!this.siteId) { return; }
+
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId: this.siteId
+      });
+
+      this.UpdateSrtQuickLinks({
+        objectId,
+        newData: {
+          region
+        },
+        removeData
+      });
+
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId: this.siteId,
+        writeToken,
+        metadataSubtree: `/srt_playout_info/${objectId}/quick_link_regions`,
+        metadata: toJS(this.srtUrlsByStream[objectId]?.quick_link_regions || {})
+      });
+
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId: this.siteId,
+        writeToken,
+        commitMessage: "Update srt quick link"
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to update site", error);
+      throw error;
+    }
+  });
+
+  LoadNodes = flow(function * ({region}) {
+    yield this.client.UseRegion({region});
+    const nodes = this.client.Nodes();
+
+    if(region) {
+      yield this.client.ResetRegion();
+    }
+
+    return nodes;
+  });
 }
 
 export default DataStore;

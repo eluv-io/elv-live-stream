@@ -2,6 +2,7 @@ import GeneralPanel from "@/pages/stream-details/general/GeneralPanel";
 import PlayoutPanel from "@/pages/stream-details/playout/PlayoutPanel";
 import RecordingPanel from "@/pages/stream-details/recording/RecordingPanel";
 import DetailsPanel from "@/pages/stream-details/details/DetailsPanel";
+import TransportStreamPanel from "@/pages/stream-details/transport-stream/TransportStreamPanel.jsx";
 
 export const STATUS_MAP = {
   UNCONFIGURED: "unconfigured",
@@ -19,7 +20,8 @@ export const DETAILS_TABS = [
   {label: "Details", value: "status", Component: DetailsPanel},
   {label: "General Config", value: "general", Component: GeneralPanel},
   {label: "Recording Config", value: "recording", Component: RecordingPanel},
-  {label: "Playout Config", value: "playout", Component: PlayoutPanel}
+  {label: "Playout Config", value: "playout", Component: PlayoutPanel},
+  {label: "Transport Stream Distribution", value: "tsDistribution", Component: TransportStreamPanel, HideTab: (stream) => stream.originUrl?.includes("rtmp")}
 ];
 
 export const DEFAULT_WATERMARK_TEXT = {
@@ -81,7 +83,8 @@ export const RETENTION_OPTIONS = [
   {label: "6 Hours", value: "21600"}, // 60 * 60 * 6 = 21600
   {label: "1 Day", value: "86400"}, // 60 * 60 * 24 = 86400 seconds
   {label: "1 Week", value: "604800"}, // 60 * 60 * 24 * 7 = 604800 seconds
-  {label: "1 Month", value: "2635200"} // 60 * 60 * 24 * 30.5 = 2635200 seconds
+  {label: "1 Month", value: "2635200"}, // 60 * 60 * 24 * 30.5 = 2635200 seconds
+  // {label: "Indefinitely", value: "indefinite"}
 ];
 
 export const DVR_DURATION_OPTIONS = [
@@ -167,3 +170,16 @@ export const RETENTION_TEXT = {
   604800: "1 Week",
   2635200: "1 Month"
 };
+
+export const FABRIC_NODE_REGIONS = [
+  {value: "na-east-north", label: "NA Northeast"},
+  {value: "na-east-south", label: "NA Southeast"},
+  {value: "na-west-north", label: "NA Northwest"},
+  {value: "na-west-south", label: "NA Southwest"},
+  {value: "eu-east-north", label: "EU Northeast"},
+  {value: "eu-east-south", label: "EU Southeast"},
+  {value: "eu-west-north", label: "EU Northwest"},
+  {value: "eu-west-south", label: "EU Southwest"},
+  {value: "as-east", label: "AS East"},
+  {value: "au-east", label: "AU East"},
+];

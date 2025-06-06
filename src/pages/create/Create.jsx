@@ -329,6 +329,17 @@ const Create = observer(() => {
       const url = formProtocol === "custom" ? formCustomUrl : formUrl;
       const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, playoutProfile, protocol, retention} = form.getValues();
 
+      let retentionData = null;
+      let persistent = false;
+
+      if(retention) {
+        if(retention === "indefinite") {
+          persistent = true;
+        } else {
+          retentionData = parseInt(retention);
+        }
+      }
+
       if(objectData === null) {
         // Stream hasn't been created
         const response = await editStore.InitLiveStreamObject({
@@ -341,7 +352,8 @@ const Create = observer(() => {
           permission,
           playoutProfile,
           protocol,
-          retention: retention ? parseInt(retention) : null,
+          retention: retentionData,
+          persistent,
           url
         });
 
@@ -361,7 +373,8 @@ const Create = observer(() => {
           name,
           playoutProfile,
           protocol,
-          retention: retention ? parseInt(retention) : null,
+          retention: retentionData,
+          persistent,
           url
         });
       }

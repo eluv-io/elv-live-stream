@@ -6,6 +6,7 @@ export const ParseLiveConfigData = ({
   referenceUrl,
   encryption,
   retention,
+  persistent,
   audioFormData,
   playoutProfile
 }) => {
@@ -13,7 +14,8 @@ export const ParseLiveConfigData = ({
     drm: encryption.includes("drm") ? "drm" : encryption.includes("clear") ? "clear" : undefined,
     drm_type: encryption,
     audio: audioFormData ? audioFormData : null,
-    part_ttl: parseInt(retention),
+    part_ttl: parseInt(retention || ""),
+    persistent,
     url,
     reference_url: referenceUrl,
     playout_ladder_profile: playoutProfile
@@ -226,4 +228,16 @@ export const CopyToClipboard = ({text}) => {
         console.error("Unable to copy to clipboard", error);
       }
     });
+};
+
+export const CheckExpiration = (date) => {
+  if(typeof date !== "number") { return false; }
+
+  const today = new Date();
+  const inputDate = new Date(date);
+
+  inputDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  return inputDate < today;
 };

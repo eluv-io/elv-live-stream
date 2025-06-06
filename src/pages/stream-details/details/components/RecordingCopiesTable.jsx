@@ -12,6 +12,7 @@ import {notifications} from "@mantine/notifications";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "../../../streams/Streams.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loading}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);
@@ -135,7 +136,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
           setDeleteId("");
           notifications.show({
             title: "Live recording copy deleted",
-            message: `${deleteId} successfully deleted`,
+            message: <NotificationMessage>Successfully deleted {deleteId}</NotificationMessage>,
             autoClose: false
           });
 

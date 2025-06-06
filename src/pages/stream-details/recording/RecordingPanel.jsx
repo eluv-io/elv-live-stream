@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
 import {dataStore, editStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Box, Button, Divider, Loader, Select, SimpleGrid} from "@mantine/core";
+import {Box, Button, Checkbox, Divider, Loader, Select, SimpleGrid} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
@@ -12,11 +12,14 @@ import {
 } from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const RecordingPanel = observer(({
   title,
   slug,
-  status
+  status,
+  PageVersionCallback,
+  url
 }) => {
   const params = useParams();
   const [audioTracks, setAudioTracks] = useState([]);
@@ -24,6 +27,8 @@ const RecordingPanel = observer(({
   const [retention, setRetention] = useState("");
   const [connectionTimeout, setConnectionTimeout] = useState("");
   const [reconnectionTimeout, setReconnectionTimeout] = useState("");
+  const [copyMpegTs, setCopyMpegTs] = useState(false);
+
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -35,11 +40,13 @@ const RecordingPanel = observer(({
         audioStreams,
         audioData,
         retention: retentionMeta,
+        persistent: persistentMeta,
         connectionTimeout: connectionTimeoutMeta,
-        reconnectionTimeout: reconnectionTimeoutMeta
+        reconnectionTimeout: reconnectionTimeoutMeta,
+        copyMpegTs: copyMpegTsMeta
       } = await dataStore.LoadRecordingConfigData({objectId: params.id});
 
-      retentionMeta = retentionMeta ? retentionMeta.toString() : null;
+      retentionMeta = persistentMeta ? "indefinite" : retentionMeta ? retentionMeta.toString() : null;
       connectionTimeoutMeta = connectionTimeoutMeta ? connectionTimeoutMeta.toString() : null;
       reconnectionTimeoutMeta =reconnectionTimeoutMeta ? reconnectionTimeoutMeta.toString() : null;
 
@@ -52,6 +59,7 @@ const RecordingPanel = observer(({
       setReconnectionTimeout(
         RECONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(reconnectionTimeoutMeta) ? reconnectionTimeoutMeta : null
       );
+      setCopyMpegTs(copyMpegTsMeta === undefined ? false : copyMpegTsMeta);
     } finally {
       setLoading(false);
     }
@@ -68,39 +76,38 @@ const RecordingPanel = observer(({
     try {
       setApplyingChanges(true);
 
+      let retentionData = null;
+      let persistent = false;
+
+      if(retention) {
+        if(retention === "indefinite") {
+          persistent = true;
+        } else {
+          retentionData = parseInt(retention);
+        }
+      }
+
       await editStore.UpdateRecordingConfig({
         objectId: params.id,
         slug,
         audioFormData,
         configFormData: {
-          retention: retention ? parseInt(retention) : null,
+          retention: retentionData,
+          persistent,
           connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
           reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null
+        },
+        tsFormData: {
+          copyMpegTs
         }
       });
 
-      // const {writeToken} = await editStore.UpdateConfigMetadata({
-      //   objectId: params.id,
-      //   slug,
-      //   retention: retention ? parseInt(retention) : null,
-      //   connectionTimeout: connectionTimeout ? parseInt(connectionTimeout) : null,
-      //   reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null,
-      //   finalize: false
-      // });
-      // console.log('write token', writeToken)
-      //
-      // await streamStore.UpdateStreamAudioSettings({
-      //   objectId: params.id,
-      //   writeToken,
-      //   finalize: true,
-      //   slug,
-      //   audioData: audioFormData
-      // });
-
       await LoadConfigData();
 
+      PageVersionCallback(prev => prev + 1);
+
       notifications.show({
-        title: `${title || params.id} updated`,
+        title: <NotificationMessage>Updated {title || params.id}</NotificationMessage>,
         message: "Settings have been applied successfully"
       });
     } catch(error) {
@@ -168,7 +175,24 @@ const RecordingPanel = observer(({
           </SimpleGrid>
         </DisabledTooltipWrapper>
 
-        <Divider mb={29} />
+        {
+          !(url || "").includes("rtmp") &&
+          <DisabledTooltipWrapper
+            disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+            tooltipLabel="Transport Stream configuration is disabled when the stream is running"
+          >
+            <SectionTitle mb={8}>Transport Stream</SectionTitle>
+            <SimpleGrid cols={2} spacing={150} mb={29}>
+              <Checkbox
+                label="Record Transport Stream Source"
+                checked={copyMpegTs}
+                onChange={(event) => setCopyMpegTs(event.target.checked)}
+                mb={12}
+              />
+            </SimpleGrid>
+            <Divider mb={29} />
+          </DisabledTooltipWrapper>
+        }
 
         <DisabledTooltipWrapper
           disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}

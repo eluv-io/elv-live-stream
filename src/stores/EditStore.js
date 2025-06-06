@@ -37,6 +37,7 @@ class EditStore {
     playoutProfile,
     protocol,
     retention,
+    persistent,
     url
   }) {
     const response = yield this.CreateContentObject({
@@ -58,6 +59,7 @@ class EditStore {
       encryption,
       playoutProfile,
       retention,
+      persistent,
       referenceUrl: protocol === "custom" ? undefined : url
     });
 
@@ -128,6 +130,7 @@ class EditStore {
     playoutProfile,
     protocol,
     retention,
+    persistent,
     url
   }) {
     if(accessGroup) {
@@ -149,6 +152,7 @@ class EditStore {
       encryption,
       playoutProfile,
       retention,
+      persistent,
       referenceUrl: protocol === "custom" ? undefined : url,
       audioFormData
     });
@@ -239,17 +243,21 @@ class EditStore {
     }
   });
 
-  SetPermission = ({objectId, permission}) => {
+  SetPermission = flow(function * ({objectId, permission}) {
     try {
-      return this.client.SetPermission({
+      const response = yield this.client.SetPermission({
         objectId,
         permission
       });
+
+      yield new Promise(resolve => setTimeout(resolve, 1000));
+
+      return response;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to set permission.", error);
     }
-  };
+  });
 
   AddMetadata = flow(function * ({
     libraryId,
@@ -301,10 +309,14 @@ class EditStore {
     objectId,
     writeToken,
     name,
+    url,
     description,
-    displayTitle
+    displayTitle,
+    slug
   }) {
     try {
+      const updateValue = {};
+
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
@@ -325,6 +337,28 @@ class EditStore {
       if(name) {
         metadata.public["name"] = name;
         metadata.public.asset_metadata["title"] = name;
+        updateValue["title"] = name;
+      }
+
+      if(url) {
+        yield this.client.ReplaceMetadata({
+          libraryId,
+          objectId,
+          writeToken,
+          metadataSubtree: "live_recording/recording_config/recording_params/origin_url",
+          metadata: url
+        });
+
+        yield this.client.MergeMetadata({
+          libraryId,
+          objectId,
+          writeToken,
+          metadataSubtree: "live_recording_config",
+          metadata: {
+            reference_url: url,
+            url
+          }
+        });
       }
 
       if(description) {
@@ -342,13 +376,20 @@ class EditStore {
         metadata
       });
 
-      return this.client.FinalizeContentObject({
+      const response = this.client.FinalizeContentObject({
         libraryId,
         objectId,
         writeToken,
         commitMessage: "Update metadata",
         awaitCommitConfirmation: true
       });
+
+      streamStore.UpdateStream({
+        key: slug,
+        value: updateValue
+      });
+
+      return response;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to update metadata", error);
@@ -548,13 +589,15 @@ class EditStore {
     finalize=true,
     slug,
     retention,
+    persistent,
     connectionTimeout,
     reconnectionTimeout,
     skipDvrSection=false,
     dvrEnabled,
     dvrStartTime,
     dvrMaxDuration,
-    playoutProfile
+    playoutProfile,
+    copyMpegTs
   }){
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -586,6 +629,16 @@ class EditStore {
       });
 
       updateValue.partTtl = parseInt(retention);
+    }
+
+    if(persistent !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/persistent",
+        metadata: persistent
+      });
     }
 
     if(playoutProfile !== undefined) {
@@ -623,6 +676,16 @@ class EditStore {
       updateValue.reconnectionTimeout = parseInt(reconnectionTimeout);
     }
 
+    if(copyMpegTs !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/copy_mpegts",
+        metadata: copyMpegTs
+      });
+    }
+
     if(!skipDvrSection) {
       if(dvrEnabled !== undefined) {
         const playoutMeta = yield this.client.ContentObjectMetadata({
@@ -634,7 +697,7 @@ class EditStore {
         if(dvrEnabled === true) {
           playoutMeta.dvr_enabled = dvrEnabled;
           if(![undefined, null].includes(dvrStartTime)) {
-            playoutMeta.dvr_start_time = dvrStartTime.toISOString();
+            playoutMeta.dvr_start_time = new Date(dvrStartTime).toISOString();
           } else {
             delete playoutMeta.dvr_start_time;
           }
@@ -660,7 +723,7 @@ class EditStore {
 
         updateValue.dvrEnabled = dvrEnabled;
         updateValue.dvrMaxDuration = [undefined, null].includes(dvrMaxDuration) ? undefined : (dvrMaxDuration);
-        updateValue.dvrStartTime = dvrStartTime ? dvrStartTime.toISOString() : undefined;
+        updateValue.dvrStartTime = dvrStartTime ? new Date(dvrStartTime).toISOString() : undefined;
       }
     }
 
@@ -690,7 +753,8 @@ class EditStore {
     slug,
     writeToken,
     audioFormData,
-    configFormData
+    configFormData,
+    tsFormData
   }) {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -703,7 +767,9 @@ class EditStore {
       }));
     }
 
-    const {retention, connectionTimeout, reconnectionTimeout} = configFormData;
+    const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
+
+    const {copyMpegTs} = tsFormData;
 
     yield this.rootStore.streamStore.UpdateStreamAudioSettings({
       objectId,
@@ -717,8 +783,10 @@ class EditStore {
       objectId,
       slug,
       retention,
+      persistent,
       connectionTimeout,
       reconnectionTimeout,
+      copyMpegTs,
       writeToken,
       finalize: false
     });

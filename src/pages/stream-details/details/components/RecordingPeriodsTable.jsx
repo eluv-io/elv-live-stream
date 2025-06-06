@@ -12,6 +12,7 @@ import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "../../../streams/Streams.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const RecordingPeriodsTable = observer(({
   records,
@@ -21,6 +22,7 @@ const RecordingPeriodsTable = observer(({
   CopyCallback,
   currentTimeMs,
   retention,
+  persistent,
   loading
 }) => {
   const [selectedRecords, setSelectedRecords] = useState([]);
@@ -48,8 +50,8 @@ const RecordingPeriodsTable = observer(({
       await CopyCallback();
 
       notifications.show({
-        title: `${title || objectId} copied to VoD`,
-        message: `${response?.target_object_id} successfully created`,
+        title: <NotificationMessage>Copied to VoD: {title || objectId}</NotificationMessage>,
+        message: <NotificationMessage>Successfully created {response?.target_object_id}</NotificationMessage>,
         autoClose: false
       });
       close();
@@ -101,6 +103,9 @@ const RecordingPeriodsTable = observer(({
   const IsWithinRetentionPeriod = ({startTime}) => {
     const currentTimeMs = new Date().getTime();
     const startTimeMs = new Date(startTime).getTime();
+
+    if(persistent) { return true; }
+
     const retentionMs = parseInt(retention || "") * 1000;
 
     if(typeof startTimeMs !== "number") { return false; }
@@ -108,10 +113,12 @@ const RecordingPeriodsTable = observer(({
     return (currentTimeMs - startTimeMs) < retentionMs;
   };
 
-  const ExpirationTime = ({startTime, retention}) => {
+  const ExpirationTime = ({startTime, retention, persistent}) => {
     if(!startTime) { return "--"; }
 
-    const expirationTimeMs = (startTime * 1000) + (parseInt(retention || "") * 1000);
+    const retentionTime = persistent ? 0 : (parseInt(retention || "") * 1000);
+
+    const expirationTimeMs = (startTime * 1000) + retentionTime;
 
     return expirationTimeMs ?
       DateFormat({
@@ -203,7 +210,7 @@ const RecordingPeriodsTable = observer(({
               title: "Expiration Time",
               render: record => (
                 <BasicTableRowText>
-                  <ExpirationTime startTime={record?.start_time_epoch_sec} retention={retention} />
+                  <ExpirationTime startTime={record?.start_time_epoch_sec} retention={retention} persistent={persistent} />
                 </BasicTableRowText>
               )
             },

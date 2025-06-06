@@ -67,7 +67,7 @@ const PlaceholderContent = observer(({
               onContextMenu={e => e.preventDefault()}
               onError={event => {
                 // eslint-disable-next-line no-console
-                console.log("Failed to load frame segment URL", event?.target?.error || event);
+                console.warn("Failed to load frame segment URL", event?.target?.error || event);
               }}
             />
           )

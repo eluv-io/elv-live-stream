@@ -63,6 +63,7 @@ class StreamStore {
           "output/audio/bitrate",
           "output/audio/channel_layout",
           "part_ttl",
+          "persistent",
           "drm",
           "drm_type",
           "audio",
@@ -76,7 +77,8 @@ class StreamStore {
         metadataSubtree: "live_recording/recording_config",
         select: [
           "recording_params/xc_params/connection_timeout",
-          "recording_params/reconnect_timeout"
+          "recording_params/reconnect_timeout",
+          "recording_params/xc_params/copy_mpegts"
         ]
       });
 
@@ -97,12 +99,20 @@ class StreamStore {
         customSettings["part_ttl"] = liveRecordingConfig.part_ttl;
       }
 
+      if(Object.hasOwn(liveRecordingConfig, "persistent")) {
+        customSettings["persistent"] = liveRecordingConfig.persistent;
+      }
+
       if(recordingConfig?.recording_params?.xc_params?.connection_timeout) {
         customSettings["connection_timeout"] = recordingConfig.recording_params.xc_params.connection_timeout;
       }
 
       if(recordingConfig?.recording_params?.reconnect_timeout) {
         customSettings["reconnect_timeout"] = recordingConfig.recording_params.reconnect_timeout;
+      }
+
+      if(Object.hasOwn(recordingConfig?.recording_params?.xc_params || {}, "copy_mpegts")) {
+        customSettings["copy_mpegts"] = recordingConfig.recording_params.xc_params.copy_mpegts;
       }
 
       if(liveRecordingConfig.playout_ladder_profile) {

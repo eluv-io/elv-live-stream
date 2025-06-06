@@ -1,0 +1,16 @@
+.tableHeader {
+  th {
+    color: var(--mantine-color-elv-black-3);
+  }
+}
+
+.textInput {
+  border-radius: 8px !important;
+}
+
+.tableWrapper {
+  border: 1px solid var(--mantine-color-elv-gray-1);
+  border-radius: 5px;
+  padding: 1px;
+  overflow: hidden;
+}

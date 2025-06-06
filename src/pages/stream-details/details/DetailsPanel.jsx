@@ -7,11 +7,12 @@ import {DateFormat, FormatTime} from "@/utils/helpers";
 import {STATUS_MAP, QUALITY_TEXT, RETENTION_TEXT} from "@/utils/constants";
 import RecordingPeriodsTable from "@/pages/stream-details/details/components/RecordingPeriodsTable.jsx";
 import RecordingCopiesTable from "@/pages/stream-details/details/components/RecordingCopiesTable.jsx";
-import {IconAlertCircle, IconLink} from "@tabler/icons-react";
+import {IconAlertCircle} from "@tabler/icons-react";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import styles from "./DetailsPanel.module.css";
 import {useClipboard} from "@mantine/hooks";
+import {LinkIcon} from "@/assets/icons/index.js";
 
 export const Runtime = ({
   startTime,
@@ -53,13 +54,12 @@ const DetailRow = ({label, value}) => {
   );
 };
 
-const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, slug, url, egressEnabled}) => {
+const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug}) => {
   const [frameSegmentUrl, setFrameSegmentUrl] = useState("");
   const [status, setStatus] = useState(null);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
   const [embedUrl, setEmbedUrl] = useState(null);
-  const [srtUrl, setSrtUrl] = useState(null);
 
   const params = useParams();
   const clipboard = useClipboard({timeout: 2000});
@@ -85,22 +85,9 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       setEmbedUrl(url);
     };
 
-    const LoadSrtPlayoutUrl = async() => {
-      const srtUrlString = await dataStore.SrtPlayoutUrl({
-        objectId: params.id,
-        originUrl: url
-      });
-
-      setSrtUrl(srtUrlString);
-    };
-
     LoadLiveRecordingCopies();
     LoadStatus();
     LoadEmbedUrl();
-
-    if(url.includes("srt")) {
-      LoadSrtPlayoutUrl();
-    }
   }, [params.id]);
 
   const LoadLiveRecordingCopies = async() => {
@@ -205,7 +192,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                 {
                   [
                     {label: "Copy Embeddable URL", value: embedUrl, hidden: !embedUrl, id: "embeddable-url-link"},
-                    {label: "Copy SRT URL", value: srtUrl, hidden: !egressEnabled, id: "srt-url-link"}
+                    // {label: "Copy SRT URL", value: srtUrl, hidden: !egressEnabled, id: "srt-url-link"}
                   ]
                     .filter(item => !item.hidden)
                     .map(item => (
@@ -220,7 +207,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                           color="elv-gray.5"
                           mt={8}
                           onClick={() => clipboard.copy(item.value)}
-                          leftSection={<IconLink color="var(--mantine-color-elv-gray-8)" />}
+                          leftSection={<LinkIcon color="var(--mantine-color-elv-gray-8)" />}
                         >
                           <Text c="elv-gray.8" fz={12} fw={500}>
                             { item.label }
@@ -249,6 +236,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         CopyCallback={LoadLiveRecordingCopies}
         currentTimeMs={currentTimeMs}
         retention={currentRetention}
+        persistent={currentPersistent}
         status={status}
         loading={loading}
       />

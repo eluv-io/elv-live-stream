@@ -22,8 +22,10 @@ import {DEFAULT_WATERMARK_FORENSIC, DEFAULT_WATERMARK_TEXT, DVR_DURATION_OPTIONS
 import {dataStore, editStore, streamStore} from "@/stores";
 import {ENCRYPTION_OPTIONS} from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {CircleInfoIcon} from "@/assets/icons/index.js";
+import {CalendarMonthIcon, CircleInfoIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import {IconSelector} from "@tabler/icons-react";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const PlayoutPanel = observer(({
   status,
@@ -110,7 +112,7 @@ const PlayoutPanel = observer(({
       });
 
       notifications.show({
-        title: `${title || params.id} updated`,
+        title: <NotificationMessage>Updated {title || params.id}</NotificationMessage>,
         message: "Settings have been applied successfully"
       });
     } catch(error) {
@@ -208,12 +210,18 @@ const PlayoutPanel = observer(({
                 value={dvrStartTime}
                 onChange={setDvrStartTime}
                 disabled={!dvrEnabled}
-                valueFormat={"MM/DD/YYYY, HH:mm:ss A"}
+                valueFormat={"MM/DD/YYYY, HH:mm:ss"}
                 minDate={new Date()}
                 w="100%"
                 size="sm"
+                timePickerProps={{
+                  withDropdown: true,
+                  popoverProps: {withinPortal: false},
+                  format: "24h",
+                }}
+                leftSection={<CalendarMonthIcon/>}
+                rightSection={dvrStartTime ? null : <IconSelector height={16}/>}
                 clearable
-                withSeconds
               />
               <Select
                 label="Max Duration"

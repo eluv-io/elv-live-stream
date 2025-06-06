@@ -157,7 +157,9 @@ const StreamDetailsPage = observer(() => {
       <Tabs className={styles.root} value={activeTab} onChange={setActiveTab}>
         <Tabs.List className={styles.list}>
           {
-            DETAILS_TABS.map(tab => (
+            DETAILS_TABS
+              .filter(tab => tab.HideTab ? !tab.HideTab(stream) : tab)
+              .map(tab => (
               <Tabs.Tab value={tab.value} key={`details-tabs-${tab.value}`} className={styles.tab}>
                 <Title order={3} c="elv-gray.9">{tab.label}</Title>
               </Tabs.Tab>
@@ -170,6 +172,7 @@ const StreamDetailsPage = observer(() => {
               {
                 stream.status ?
                 <tab.Component
+                  active={activeTab === tab.value}
                   status={stream.status}
                   slug={stream.slug}
                   currentDrm={stream.drm}
@@ -178,10 +181,10 @@ const StreamDetailsPage = observer(() => {
                   forensicWatermark={stream.forensicWatermark}
                   title={stream.title}
                   embedUrl={stream.embedUrl}
-                  egressEnabled={stream.egressEnabled}
                   url={stream.originUrl}
                   recordingInfo={recordingInfo}
                   currentRetention={stream.partTtl}
+                  currentPersistent={stream.persistent}
                   currentConnectionTimeout={stream.connectionTimeout}
                   currentReconnectionTimeout={stream.reconnectionTimeout}
                   currentDvrEnabled={stream.dvrEnabled}
@@ -190,6 +193,7 @@ const StreamDetailsPage = observer(() => {
                   currentPlayoutProfile={stream.playoutLadderProfile}
                   libraryId={stream.libraryId}
                   currentWatermarkType={stream.watermarkType}
+                  PageVersionCallback={setPageVersion}
                 /> : <Loader />
               }
             </Tabs.Panel>
