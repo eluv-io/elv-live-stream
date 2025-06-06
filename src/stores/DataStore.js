@@ -582,7 +582,7 @@ class DataStore {
 
       // Map used for form data
       const audioData = {};
-      audioStreams.forEach(spec => {
+      audioStreams.forEach((spec, i) => {
         const audioConfigForIndex = audioConfig && audioConfig[spec.stream_index] ? audioConfig[spec.stream_index] : {};
         const ladderSpecsForIndex = recordingParamsMetadata && (recordingParamsMetadata.ladder_specs).find(i => i.stream_index === spec.stream_index);
 
@@ -595,7 +595,7 @@ class DataStore {
           recording_bitrate: initBitrate,
           recording_channels: spec.channels,
           playout: Object.hasOwn(audioConfigForIndex, "playout") ? audioConfigForIndex.playout : true,
-          playout_label: audioConfigForIndex.playout_label || `Audio ${spec.stream_index}`,
+          playout_label: audioConfigForIndex.playout_label || `Audio ${i + 1}`,
           lang: ladderSpecsForIndex?.lang,
           default: ladderSpecsForIndex?.default
         };

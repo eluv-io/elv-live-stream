@@ -1225,7 +1225,7 @@ class StreamStore {
         .filter(stream => stream.codec_type === "audio");
       const audioIndexes = probeAudioStreams.map(stream => stream.stream_index);
 
-      probeAudioStreams.forEach(stream => {
+      probeAudioStreams.forEach((stream, i) => {
         const currentAudioSetting = audioConfig[stream.stream_index];
 
         // Corresponding audio setting exists for that index
@@ -1246,7 +1246,7 @@ class StreamStore {
             codec: stream.codec_name,
             default: false,
             playout: true,
-            playout_label: `Audio ${stream.stream_index}`,
+            playout_label: `Audio ${i + 1}`,
             record: true,
             recording_bitrate: 192000,
             recording_channels: stream.channels
