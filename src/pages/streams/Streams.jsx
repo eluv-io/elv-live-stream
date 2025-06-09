@@ -100,13 +100,13 @@ const Streams = observer(() => {
           onSortStatusChange={setSortStatus}
           columns={[
             { accessor: "title", title: "Name", sortable: true, render: record => (
-              <Stack gap={0} maw="80%">
+              <Stack gap={0} maw="100%">
                 <UnstyledButton onClick={() => navigate(`/streams/${record.objectId || record.slug}`)} disabled={!record.objectId} style={{pointerEvents: record.objectId ? "auto" : "none"}}>
-                  <Title order={3} lineClamp={1} title={record.title || record.slug}>
+                  <Title order={3} lineClamp={1} title={record.title || record.slug} style={{wordBreak: "break-all"}}>
                     {record.title || record.slug}
                   </Title>
                 </UnstyledButton>
-                <Title order={6} c="elv-gray.6">
+                <Title order={6} c="elv-gray.6" lineClamp={1}>
                   {record.objectId}
                 </Title>
               </Stack>
