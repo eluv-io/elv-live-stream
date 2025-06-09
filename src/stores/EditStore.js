@@ -802,6 +802,7 @@ class EditStore {
 
   SaveLadderProfiles = flow(function * ({profileData}) {
     try {
+      if(!dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
       const libraryId = yield this.client.ContentObjectLibraryId({objectId: dataStore.siteId});
       const {writeToken} = yield this.client.EditContentObject({
         libraryId,
@@ -831,6 +832,8 @@ class EditStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to save ladder profiles", error);
+
+      throw error;
     }
   });
 
