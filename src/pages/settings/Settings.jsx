@@ -145,7 +145,7 @@ const Settings = observer(() => {
       notifications.show({
         title: "Error",
         color: "red",
-        message: "Unable to apply settings"
+        message: `${error}` || "Unable to apply settings"
       });
     } finally {
       setSaving(false);
