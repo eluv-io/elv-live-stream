@@ -38,7 +38,7 @@ class ModalStore {
       errorMessage: "Configure Modal - Failed to check stream"
     },
     "START": {
-      title: "Start Stream Configuration",
+      title: "Start Stream",
       message: "Are you sure you want to start the stream? Once started, the stream will go live, and any changes may require restarting. Please confirm before proceeding.",
       confirmText: "Start Stream",
       Method: ({slug}) => this.rootStore.streamStore.StartStream({slug}),
