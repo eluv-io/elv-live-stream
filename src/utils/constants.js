@@ -13,7 +13,8 @@ export const STATUS_MAP = {
   STARTING: "starting",
   RUNNING: "running",
   STALLED: "stalled",
-  DEGRADED: "degraded"
+  DEGRADED: "degraded",
+  UNAVAILABLE: "unavailable"
 };
 
 export const DETAILS_TABS = [
@@ -121,7 +122,8 @@ export const STATUS_TEXT = {
   starting: "Starting",
   running: "Running",
   stalled: "Stalled",
-  terminating: "Terminating"
+  terminating: "Terminating",
+  unavailable: "Momentarily Unavailable"
 };
 
 export const FORMAT_TEXT = {
