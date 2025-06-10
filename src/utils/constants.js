@@ -123,7 +123,7 @@ export const STATUS_TEXT = {
   running: "Running",
   stalled: "Stalled",
   terminating: "Terminating",
-  unavailable: "Momentarily Unavailable"
+  unavailable: "Temporarily Unavailable"
 };
 
 export const FORMAT_TEXT = {
