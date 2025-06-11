@@ -57,7 +57,7 @@ class ModalStore {
       errorMessage: ""
     },
     "STOP": {
-      title: "Stop Stream Confirmation",
+      title: "Stop Stream",
       message: "Are you sure you want to stop the stream? Once stopped, viewers will be disconnected, and the stream cannot be resumed. You can start a new session later if needed.",
       confirmText: "Stop Stream",
       Method: ({objectId, slug}) => this.rootStore.streamStore.OperateLRO({
