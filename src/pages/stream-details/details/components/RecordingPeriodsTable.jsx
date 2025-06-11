@@ -39,8 +39,8 @@ const RecordingPeriodsTable = observer(({
   const [vodAccessGroup, setVodAccessGroup] = useState(null);
 
   const [sortStatus, setSortStatus] = useState({
-    columnAccessor: "end_time",
-    direction: "asc"
+    columnAccessor: "start_time",
+    direction: "desc"
   });
 
   const [showExpired, setShowExpired] = useState(true);
@@ -88,7 +88,8 @@ const RecordingPeriodsTable = observer(({
       RecordingPeriodIsExpired({
         parts: item?.sources?.video?.parts || [],
         startTime,
-        endTime
+        endTime,
+        retention: parseInt(retention)
       })
     ) {
       status = "EXPIRED";
@@ -120,10 +121,15 @@ const RecordingPeriodsTable = observer(({
       const expired = RecordingPeriodIsExpired({
         parts: record?.sources?.video?.parts || [],
         startTime: record.start_time,
-        endTime: record.end_time
+        endTime: record.end_time,
+        retention: parseInt(retention)
       });
 
-      return showExpired ? expired : !expired;
+      if(showExpired) {
+        return true;
+      } else {
+        return !expired;
+      }
     })
     .sort(SortTable({sortStatus}));
 

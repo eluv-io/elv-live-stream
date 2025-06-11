@@ -270,14 +270,15 @@ export const IsWithinRetentionPeriod = ({startTime, persistent, retention}) => {
 export const RecordingPeriodIsExpired = ({
   parts=[],
   startTime,
-  endTime
+  endTime,
+  retention
 }) => {
   const videoIsEmpty = parts.length === 0;
 
   if(
     videoIsEmpty ||
     !MeetsDurationMin({startTime, endTime}) ||
-    !IsWithinRetentionPeriod({startTime})
+    !IsWithinRetentionPeriod({startTime, retention})
   ) {
     return true;
   } else {
