@@ -43,7 +43,7 @@ const RecordingPeriodsTable = observer(({
     direction: "desc"
   });
 
-  const [showExpired, setShowExpired] = useState(true);
+  const [showExpired, setShowExpired] = useState(false);
 
   const HandleCopy = async ({title}) => {
     try {
@@ -117,7 +117,8 @@ const RecordingPeriodsTable = observer(({
   };
 
   records = (records || [])
-    .filter(record => {
+    .sort(SortTable({sortStatus}))
+    .filter((record, i) => {
       const expired = RecordingPeriodIsExpired({
         parts: record?.sources?.video?.parts || [],
         startTime: record.start_time,
@@ -128,10 +129,10 @@ const RecordingPeriodsTable = observer(({
       if(showExpired) {
         return true;
       } else {
+        if(i === 0) { return record; }
         return !expired;
       }
-    })
-    .sort(SortTable({sortStatus}));
+    });
 
   return (
     <>
