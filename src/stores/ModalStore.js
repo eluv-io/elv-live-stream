@@ -172,7 +172,7 @@ class ModalStore {
         });
       }
 
-      throw Error(error);
+      throw error;
     }
   };
 
