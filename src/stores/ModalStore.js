@@ -38,7 +38,7 @@ class ModalStore {
       errorMessage: "Configure Modal - Failed to check stream"
     },
     "START": {
-      title: "Start Stream Configuration",
+      title: "Start Stream",
       message: "Are you sure you want to start the stream? Once started, the stream will go live, and any changes may require restarting. Please confirm before proceeding.",
       confirmText: "Start Stream",
       Method: ({slug}) => this.rootStore.streamStore.StartStream({slug}),
@@ -57,7 +57,7 @@ class ModalStore {
       errorMessage: ""
     },
     "STOP": {
-      title: "Stop Stream Confirmation",
+      title: "Stop Stream",
       message: "Are you sure you want to stop the stream? Once stopped, viewers will be disconnected, and the stream cannot be resumed. You can start a new session later if needed.",
       confirmText: "Stop Stream",
       Method: ({objectId, slug}) => this.rootStore.streamStore.OperateLRO({
@@ -172,7 +172,7 @@ class ModalStore {
         });
       }
 
-      throw Error(error);
+      throw error;
     }
   };
 

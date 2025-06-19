@@ -82,7 +82,20 @@ class StreamStore {
         ]
       });
 
-      const customSettings = {};
+      const playoutConfig = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording/playout_config",
+        select: [
+          "simple_watermark",
+          "image_watermark",
+          "forensic_watermark"
+        ]
+      });
+
+      const customSettings = {
+        metaPathValues: {}
+      };
 
       const edgeWriteToken = yield this.client.ContentObjectMetadata({
         libraryId,
@@ -92,27 +105,39 @@ class StreamStore {
 
       // Config api will override meta containing edge write token
       if(edgeWriteToken) {
-        customSettings["edge_write_token"] = edgeWriteToken;
+        customSettings.metaPathValues["live_recording.fabric_config.edge_write_token = customSettings.edge_write_token"] = edgeWriteToken;
       }
 
       if(liveRecordingConfig.part_ttl) {
-        customSettings["part_ttl"] = liveRecordingConfig.part_ttl;
+        customSettings.metaPathValues["live_recording.recording_config.recording_params.part_ttl"] = liveRecordingConfig.part_ttl;
       }
 
       if(Object.hasOwn(liveRecordingConfig, "persistent")) {
-        customSettings["persistent"] = liveRecordingConfig.persistent;
+        customSettings.metaPathValues["live_recording.recording_config.recording_params.persistent"] = liveRecordingConfig.persistent;
       }
 
       if(recordingConfig?.recording_params?.xc_params?.connection_timeout) {
-        customSettings["connection_timeout"] = recordingConfig.recording_params.xc_params.connection_timeout;
+        customSettings.metaPathValues["live_recording.recording_config.recording_params.xc_params.connection_timeout"] = recordingConfig.recording_params.xc_params.connection_timeout;
       }
 
       if(recordingConfig?.recording_params?.reconnect_timeout) {
-        customSettings["reconnect_timeout"] = recordingConfig.recording_params.reconnect_timeout;
+        customSettings.metaPathValues["live_recording.recording_config.recording_params.reconnect_timeout"] = recordingConfig.recording_params.reconnect_timeout;
+      }
+
+      if(playoutConfig?.simple_watermark) {
+        customSettings.metaPathValues["live_recording.playout_config.simple_watermark"] = playoutConfig.simple_watermark;
+      }
+
+      if(playoutConfig?.image_watermark) {
+        customSettings.metaPathValues["live_recording.playout_config.image_watermark"] = playoutConfig.image_watermark;
+      }
+
+      if(playoutConfig?.forensic_watermark) {
+        customSettings.metaPathValues["live_recording.playout_config.forensic_watermark"] = playoutConfig.forensic_watermark;
       }
 
       if(Object.hasOwn(recordingConfig?.recording_params?.xc_params || {}, "copy_mpegts")) {
-        customSettings["copy_mpegts"] = recordingConfig.recording_params.xc_params.copy_mpegts;
+        customSettings.metaPathValues["live_recording.recording_config.recording_params.xc_params.copy_mpegts"] = recordingConfig.recording_params.xc_params.copy_mpegts;
       }
 
       if(liveRecordingConfig.playout_ladder_profile) {

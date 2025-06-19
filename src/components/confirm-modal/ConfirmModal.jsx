@@ -68,8 +68,14 @@ const ConfirmModal = observer(({
             loadingText : null
         }
         {
-          !error ? null :
-            <AlertMessage error={{message: error}} mt={16} onClick={() => setError(null)} />
+          !error ?
+            null :
+            <AlertMessage
+              error={{message: error}}
+              mt={16}
+              onClick={() => setError(null)}
+              styles={{root: {overflowX: "auto"}}}
+            />
         }
       </Box>
       <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
@@ -87,9 +93,9 @@ const ConfirmModal = observer(({
               await ConfirmCallback();
               CloseCallback();
             } catch(error) {
-              // eslint-disable-next-line no-console
-              console.error(error);
-              setError(error?.message || error.kind || error.toString());
+               
+              const errorMessage = typeof error === "object" ? JSON.stringify(error, null, 2) : (error?.message || error.kind || error.toString());
+              setError(errorMessage);
             } finally {
               setLoading(false);
             }
