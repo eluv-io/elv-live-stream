@@ -120,8 +120,24 @@ const Streams = observer(() => {
                 </BasicTableRowText>
               )
             },
-            { accessor: "format", title: "Format", render: record => <BasicTableRowText>{FORMAT_TEXT[record.format]}</BasicTableRowText> },
-            { accessor: "video", title: "Video", render: record => <BasicTableRowText style={{textWrap: "nowrap"}}>{CODEC_TEXT[record.codecName]} {VideoBitrateReadable(record.videoBitrate)}</BasicTableRowText> },
+            {
+              accessor: "format",
+              title: "Format",
+              render: record => (
+                <BasicTableRowText style={{textWrap: "nowrap"}}>
+                  {FORMAT_TEXT[record.format]}
+                </BasicTableRowText>
+              )
+            },
+            {
+              accessor: "video",
+              title: "Video",
+              render: record => (
+                <BasicTableRowText style={{textWrap: "nowrap"}}>
+                  {CODEC_TEXT[record.codecName]} {VideoBitrateReadable(record.videoBitrate)}
+                </BasicTableRowText>
+              )
+            },
             {
               accessor: "audioStreams",
               title: "Audio",
