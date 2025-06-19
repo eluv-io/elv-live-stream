@@ -93,7 +93,6 @@ const ConfirmModal = observer(({
               await ConfirmCallback();
               CloseCallback();
             } catch(error) {
-               
               const errorMessage = typeof error === "object" ? JSON.stringify(error, null, 2) : (error?.message || error.kind || error.toString());
               setError(errorMessage);
             } finally {
