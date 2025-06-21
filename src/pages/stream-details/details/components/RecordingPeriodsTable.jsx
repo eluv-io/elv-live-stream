@@ -166,7 +166,7 @@ const RecordingPeriodsTable = observer(({
               title: "Start Time",
               sortable: true,
               render: record => (
-                <BasicTableRowText>
+                <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
                     record.start_time ?
                       DateFormat({time: record.start_time, format: "iso"}) : "--"
@@ -179,7 +179,7 @@ const RecordingPeriodsTable = observer(({
               title: "End Time",
               sortable: true,
               render: record => (
-                <BasicTableRowText>
+                <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
                     record.end_time ?
                       DateFormat({time: record.end_time, format: "iso"}) : "--"
@@ -191,7 +191,7 @@ const RecordingPeriodsTable = observer(({
               accessor: "runtime",
               title: "Runtime",
               render: record => (
-                <BasicTableRowText>
+                <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
                     record.start_time ?
                       Runtime({
@@ -214,7 +214,7 @@ const RecordingPeriodsTable = observer(({
               accessor: "expiration_time",
               title: "Expiration Time",
               render: record => (
-                <BasicTableRowText>
+                <BasicTableRowText style={{wordBreak: "break-word"}}>
                   <ExpirationTime startTime={record?.start_time_epoch_sec} retention={retention} persistent={persistent} />
                 </BasicTableRowText>
               )
