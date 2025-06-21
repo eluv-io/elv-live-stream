@@ -54,7 +54,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
               accessor: "startTime",
               title: "Start Time",
               render: record => (
-                <BasicTableRowText>
+                <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
                     record.startTime ?
                       DateFormat({time: record.startTime, format: "sec"}) : ""
@@ -66,7 +66,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
               accessor: "endTime",
               title: "End Time",
               render: record => (
-                <BasicTableRowText>
+                <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
                     record.endTime ?
                       DateFormat({time: record.endTime, format: "sec"}) : ""
@@ -79,7 +79,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
               title: "Date Added",
               sortable: true,
               render: record => (
-                <BasicTableRowText>
+                <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
                     record.create_time ?
                       DateFormat({time: record.create_time, format: "ms"}) : ""
