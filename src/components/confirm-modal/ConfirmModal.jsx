@@ -73,7 +73,7 @@ const ConfirmModal = observer(({
             <AlertMessage
               error={{message: error}}
               mt={16}
-              onClick={() => setError(null)}
+              onClose={() => setError(null)}
               styles={{root: {overflowX: "auto"}}}
             />
         }
