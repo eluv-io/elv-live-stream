@@ -621,9 +621,7 @@ class StreamStore {
         "image": {
           "/": `./files/${fileInfo?.[0].path}`
         },
-        "margin_h": null,
-        "margin_v": null,
-        "target_video_height": 1080
+        "wm_enabled": true
       };
 
       payload["imageWatermark"] = imageWatermark;

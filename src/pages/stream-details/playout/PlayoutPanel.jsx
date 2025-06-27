@@ -251,7 +251,7 @@ const PlayoutPanel = observer(({
               {label: "None", value: ""},
               {label: "Image", value: "IMAGE"},
               {label: "Text", value: "TEXT"},
-              {label: "Forensic", value: "FORENSIC"}
+              {label: "Forensic", value: "FORENSIC", disabled: status === STATUS_MAP.UNINITIALIZED}
             ]}
             value={watermarkType}
             onChange={(value) => {
