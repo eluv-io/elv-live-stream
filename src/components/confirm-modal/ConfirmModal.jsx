@@ -103,6 +103,14 @@ const ConfirmModal = observer(({
                 }
 
                 errorMessage = error.toString();
+              } else if(typeof error === "object") {
+                const errorTree = error.message || error.kind;
+
+                if(typeof errorTree === "object") {
+                  errorMessage = JSON.stringify((errorTree), null, 2);
+                } else {
+                  errorMessage = errorTree.toString();
+                }
               } else {
                 errorMessage = JSON.stringify(error, null, 2);
               }
