@@ -1,15 +1,12 @@
-import {useRef, useState} from "react";
+import {useState} from "react";
 import {useParams} from "react-router-dom";
-import path from "path";
 import {observer} from "mobx-react-lite";
 import {
   Box,
   Button,
   Checkbox,
   Divider,
-  FileButton,
   Flex,
-  Group,
   Select,
   SimpleGrid,
   Text,
@@ -18,7 +15,13 @@ import {
 } from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {DateTimePicker} from "@mantine/dates";
-import {DEFAULT_WATERMARK_FORENSIC, DEFAULT_WATERMARK_TEXT, DVR_DURATION_OPTIONS, STATUS_MAP} from "@/utils/constants";
+import {
+  DEFAULT_WATERMARK_FORENSIC,
+  DEFAULT_WATERMARK_IMAGE,
+  DEFAULT_WATERMARK_TEXT,
+  DVR_DURATION_OPTIONS,
+  STATUS_MAP
+} from "@/utils/constants";
 import {dataStore, editStore, streamStore} from "@/stores";
 import {ENCRYPTION_OPTIONS} from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
@@ -45,7 +48,7 @@ const PlayoutPanel = observer(({
   const [playoutProfile, setPlayoutProfile] = useState(currentPlayoutProfile || "");
   const [formWatermarks, setFormWatermarks] = useState(
     {
-      image: imageWatermark ? imageWatermark : undefined,
+      image: imageWatermark ? JSON.stringify(imageWatermark, null, 2) : undefined,
       text: simpleWatermark ? JSON.stringify(simpleWatermark, null, 2) : undefined,
       forensic: forensicWatermark ? JSON.stringify(forensicWatermark, null, 2) : undefined
     }
@@ -56,7 +59,6 @@ const PlayoutPanel = observer(({
   const [dvrMaxDuration, setDvrMaxDuration] = useState(currentDvrMaxDuration !== undefined ? currentDvrMaxDuration : "0");
 
   const [applyingChanges, setApplyingChanges] = useState(false);
-  const resetRef = useRef(null);
   const params = useParams();
 
   const defaultOption = dataStore.ladderProfiles?.default ?
@@ -257,24 +259,36 @@ const PlayoutPanel = observer(({
             onChange={(value) => {
               setWatermarkType(value);
 
-              if(value === "TEXT") {
+              const watermarkDefault = (
+                value === "TEXT"
+                  ? DEFAULT_WATERMARK_TEXT
+                  : value === "FORENSIC"
+                  ? DEFAULT_WATERMARK_FORENSIC
+                  : DEFAULT_WATERMARK_IMAGE
+              );
+
+              const keyMap = {
+                "TEXT": "text",
+                "IMAGE": "image",
+                "FORENSIC": "forensic"
+              };
+
+              if(value) {
                 setFormWatermarks({
-                  text: JSON.stringify(DEFAULT_WATERMARK_TEXT, null, 2)
-                });
-              } else if(value === "FORENSIC") {
-                setFormWatermarks({
-                  forensic: JSON.stringify(DEFAULT_WATERMARK_FORENSIC, null, 2)
+                  [keyMap[value]]: JSON.stringify(watermarkDefault, null, 2)
                 });
               }
             }}
           />
         </SimpleGrid>
         {
-          ["FORENSIC", "TEXT"].includes(watermarkType) &&
+          !!watermarkType &&
           <Textarea
             mb={16}
             mt={12}
-            value={watermarkType === "TEXT" ? formWatermarks.text : watermarkType === "FORENSIC" ? formWatermarks.forensic : ""}
+            value={
+            watermarkType === "TEXT" ? formWatermarks.text : watermarkType === "FORENSIC" ? formWatermarks.forensic : watermarkType === "IMAGE" ? formWatermarks.image : ""
+          }
             size="md"
             rows={10}
             onChange={(event) => {
@@ -286,46 +300,13 @@ const PlayoutPanel = observer(({
                 value["text"] = event.target.value;
               } else if(watermarkType === "FORENSIC") {
                 value["forensic"] = event.target.value;
+              } else if(watermarkType === "IMAGE") {
+                value["image"] = event.target.value;
               }
 
               setFormWatermarks(value);
             }}
           />
-        }
-        {
-          watermarkType === "IMAGE" &&
-          <>
-            <FileButton
-              onChange={(file) => {
-                if(!file) { return; }
-                const value = {
-                  ...formWatermarks,
-                  image: file
-                };
-
-                setFormWatermarks(value);
-              }}
-              accept="image/*"
-              resetRef={resetRef}
-              mt={12}
-            >
-              {(props) => (
-                <Button variant="outline" {...props}>Upload image</Button>
-              )}
-            </FileButton>
-            {
-              formWatermarks?.image ?
-                (
-                  <Group mb={16} mt={16}>
-                    Selected File:
-                    <Text>
-                      { path.basename(formWatermarks?.image?.name || formWatermarks?.image?.image?.["/"]) }
-                    </Text>
-                  </Group>
-                )
-                : null
-            }
-          </>
         }
       </Box>
       <Button
