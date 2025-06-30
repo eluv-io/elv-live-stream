@@ -230,6 +230,7 @@ const GeneralPanel = observer(({slug}) => {
                     }
                   ))
                 }
+                allowDeselect={false}
               />
             </SimpleGrid>
           </Box>

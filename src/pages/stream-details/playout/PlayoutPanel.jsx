@@ -147,6 +147,7 @@ const PlayoutPanel = observer(({
             description={ladderProfilesData.length > 0 ? null : "No profiles are configured. Create a profile in Settings."}
             value={playoutProfile}
             onChange={(value) => setPlayoutProfile(value)}
+            allowDeselect={false}
           />
         </DisabledTooltipWrapper>
         <DisabledTooltipWrapper
@@ -185,6 +186,7 @@ const PlayoutPanel = observer(({
             placeholder="Select DRM"
             value={drm}
             onChange={(value) => setDrm(value)}
+            allowDeselect={false}
           />
         </DisabledTooltipWrapper>
       </SimpleGrid>
