@@ -46,6 +46,13 @@ export const DEFAULT_WATERMARK_FORENSIC = {
   "wm_enabled": true
 };
 
+export const DEFAULT_WATERMARK_IMAGE = {
+  "align_h": "right",
+  "align_v": "top",
+  "image": "PATH_TO_IMAGE",
+  "wm_enabled": true
+};
+
 export const DRM_MAP = {
   ALL: ["hls-sample-aes", "hls-aes128", "hls-fairplay", "hls-widevine-cenc", "hls-playready-cenc", "dash-widevine", "dash-playready-cenc"],
   PUBLIC: ["hls-sample-aes", "hls-aes128", "dash-widevine", "dash-playready-cenc"],
