@@ -281,6 +281,7 @@ const PlayoutPanel = observer(({
                 });
               }
             }}
+            allowDeselect={false}
           />
         </SimpleGrid>
         {
