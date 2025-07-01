@@ -8,7 +8,8 @@ export const ParseLiveConfigData = ({
   retention,
   persistent,
   audioFormData,
-  playoutProfile
+  playoutProfile,
+  reconnectionTimeout=600
 }) => {
   const config = {
     drm: encryption.includes("drm") ? "drm" : encryption.includes("clear") ? "clear" : undefined,
@@ -18,7 +19,8 @@ export const ParseLiveConfigData = ({
     persistent,
     url,
     reference_url: referenceUrl,
-    playout_ladder_profile: playoutProfile
+    playout_ladder_profile: playoutProfile,
+    reconnect_timeout: reconnectionTimeout
   };
 
   return config;

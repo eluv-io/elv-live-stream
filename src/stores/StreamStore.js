@@ -66,7 +66,8 @@ class StreamStore {
           "drm",
           "drm_type",
           "audio",
-          "playout_ladder_profile"
+          "playout_ladder_profile",
+          "reconnect_timeout"
         ]
       });
 
@@ -119,8 +120,12 @@ class StreamStore {
         customSettings.metaPathValues["live_recording.recording_config.recording_params.xc_params.connection_timeout"] = recordingConfig.recording_params.xc_params.connection_timeout;
       }
 
-      if(recordingConfig?.recording_params?.reconnect_timeout) {
-        customSettings.metaPathValues["live_recording.recording_config.recording_params.reconnect_timeout"] = recordingConfig.recording_params.reconnect_timeout;
+      if(
+        recordingConfig?.recording_params?.reconnect_timeout ||
+        liveRecordingConfig?.reconnect_timeout
+      ) {
+        const value = recordingConfig?.recording_params?.reconnect_timeout || liveRecordingConfig?.reconnect_timeout;
+        customSettings.metaPathValues["live_recording.recording_config.recording_params.reconnect_timeout"] = value;
       }
 
       if(playoutConfig?.simple_watermark) {
