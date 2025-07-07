@@ -7,7 +7,7 @@ import Video from "@/components/video/Video.jsx";
 import {IconX} from "@tabler/icons-react";
 import styles from "./VideoContainer.module.css";
 
-const VideoContent = observer(({allowClose, setPlay, slug, borderRadius}) => {
+const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLevelToPlayerSize=true}) => {
   return (
     <>
       <Box pos="absolute" inset={0} style={{borderRadius}}>
@@ -28,7 +28,7 @@ const VideoContent = observer(({allowClose, setPlay, slug, borderRadius}) => {
       <Video
         objectId={streamStore.streams[slug].objectId}
         playerOptions={{
-          capLevelToPlayerSize: false,
+          capLevelToPlayerSize,
           autoplay: true
         }}
       />

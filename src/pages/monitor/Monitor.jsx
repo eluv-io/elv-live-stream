@@ -158,6 +158,7 @@ const GridItem = observer(({stream, index}) => {
         slug={stream.slug}
         showPreview={streamStore.showMonitorPreviews}
         playable={stream.status === "running"}
+        capLevelToPlayerSize
       />
       <Flex flex={1} p="0.5rem 0 0.5rem" w="100%">
         <Flex direction="column" w="100%" gap={0}>
