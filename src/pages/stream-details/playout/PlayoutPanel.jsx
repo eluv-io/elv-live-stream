@@ -22,7 +22,7 @@ import {
   DVR_DURATION_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants";
-import {dataStore, editStore, streamStore} from "@/stores";
+import {dataStore, streamStore} from "@/stores";
 import {ENCRYPTION_OPTIONS} from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {CalendarMonthIcon, CircleInfoIcon} from "@/assets/icons/index.js";
@@ -77,40 +77,34 @@ const PlayoutPanel = observer(({
 
     try {
       setApplyingChanges(true);
-      await streamStore.WatermarkConfiguration({
-        textWatermark: watermarkType ? formWatermarks.text : null,
-        imageWatermark: watermarkType ? formWatermarks.image : null,
-        forensicWatermark: watermarkType ? formWatermarks.forensic : null,
-        existingTextWatermark: simpleWatermark,
-        existingImageWatermark: imageWatermark,
-        existingForensicWatermark: forensicWatermark,
-        watermarkType,
-        objectId,
-        slug,
-        status
-      });
 
-      await streamStore.DrmConfiguration({
+      await streamStore.ApplyPlayoutSettings({
         objectId,
         slug,
-        existingDrmType: currentDrm,
-        drmType: drm
-      });
-
-      await editStore.UpdateConfigMetadata({
-        objectId,
-        slug,
-        dvrEnabled,
-        dvrMaxDuration,
-        dvrStartTime,
-        playoutProfile,
-        skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
-      });
-
-      await streamStore.UpdateLadderSpecs({
-        objectId,
-        slug,
-        profile: playoutProfile
+        status,
+        watermarkParams: {
+          watermarkType,
+          textWatermark: watermarkType ? formWatermarks.text : null,
+          imageWatermark: watermarkType ? formWatermarks.image : null,
+          forensicWatermark: watermarkType ? formWatermarks.forensic : null,
+          existingTextWatermark: simpleWatermark,
+          existingImageWatermark: imageWatermark,
+          existingForensicWatermark: forensicWatermark
+        },
+        drmParams: {
+          existingDrmType: currentDrm,
+          drmType: drm
+        },
+        configMetaParams: {
+          dvrEnabled,
+          dvrMaxDuration,
+          dvrStartTime,
+          playoutProfile,
+          skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
+        },
+        playoutProfileParams: {
+          profile: playoutProfile
+        }
       });
 
       notifications.show({
