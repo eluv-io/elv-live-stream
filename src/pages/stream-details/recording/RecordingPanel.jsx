@@ -142,6 +142,7 @@ const RecordingPanel = observer(({
               placeholder="Select Time Duration"
               value={retention}
               onChange={value => setRetention(value)}
+              allowDeselect={false}
             />
           </SimpleGrid>
         </DisabledTooltipWrapper>
@@ -162,6 +163,7 @@ const RecordingPanel = observer(({
               placeholder="Select Connection Timeout"
               value={connectionTimeout}
               onChange={(value) => setConnectionTimeout(value)}
+              allowDeselect={false}
             />
             <Select
               label="Reconnection Timeout"
@@ -171,6 +173,7 @@ const RecordingPanel = observer(({
               placeholder="Select Reconnection Timeout"
               value={reconnectionTimeout}
               onChange={(value) => setReconnectionTimeout(value)}
+              allowDeselect={false}
             />
           </SimpleGrid>
         </DisabledTooltipWrapper>

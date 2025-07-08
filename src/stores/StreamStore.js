@@ -3,7 +3,6 @@ import {configure, flow, makeAutoObservable} from "mobx";
 import {editStore} from "./index";
 import UrlJoin from "url-join";
 import {dataStore} from "./index";
-import {FileInfo} from "@/utils/helpers";
 import {ENCRYPTION_OPTIONS} from "@/utils/constants";
 
 configure({
@@ -67,7 +66,8 @@ class StreamStore {
           "drm",
           "drm_type",
           "audio",
-          "playout_ladder_profile"
+          "playout_ladder_profile",
+          "reconnect_timeout"
         ]
       });
 
@@ -120,8 +120,12 @@ class StreamStore {
         customSettings.metaPathValues["live_recording.recording_config.recording_params.xc_params.connection_timeout"] = recordingConfig.recording_params.xc_params.connection_timeout;
       }
 
-      if(recordingConfig?.recording_params?.reconnect_timeout) {
-        customSettings.metaPathValues["live_recording.recording_config.recording_params.reconnect_timeout"] = recordingConfig.recording_params.reconnect_timeout;
+      if(
+        recordingConfig?.recording_params?.reconnect_timeout ||
+        liveRecordingConfig?.reconnect_timeout
+      ) {
+        const value = recordingConfig?.recording_params?.reconnect_timeout || liveRecordingConfig?.reconnect_timeout;
+        customSettings.metaPathValues["live_recording.recording_config.recording_params.reconnect_timeout"] = value;
       }
 
       if(playoutConfig?.simple_watermark) {
@@ -587,7 +591,7 @@ class StreamStore {
     objectId,
     slug,
     textWatermark,
-    imageWatermarkFile,
+    imageWatermark,
     forensicWatermark
   }){
     const payload = {
@@ -595,35 +599,7 @@ class StreamStore {
       finalize: true
     };
 
-    if(imageWatermarkFile) {
-      const fileInfo = yield FileInfo({path: "", fileList: [imageWatermarkFile]});
-
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      const {writeToken} = yield this.client.EditContentObject({objectId, libraryId});
-
-      yield this.client.UploadFiles({
-        libraryId,
-        objectId,
-        writeToken,
-        fileInfo
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        commitMessage: "Upload image"
-      });
-
-      const imageWatermark = {
-        "align_h": "right",
-        "align_v": "top",
-        "image": {
-          "/": `./files/${fileInfo?.[0].path}`
-        },
-        "wm_enabled": true
-      };
-
+    if(imageWatermark) {
       payload["imageWatermark"] = imageWatermark;
     } else if(textWatermark) {
       payload["simpleWatermark"] = textWatermark;
@@ -669,7 +645,7 @@ class StreamStore {
     if(existingImageWatermark && !imageWatermark) {
       removeTypes.push("image");
     } else if(imageWatermark) {
-      payload["imageWatermarkFile"] = imageWatermark;
+      payload["imageWatermark"] = imageWatermark ? JSON.parse(imageWatermark) : null;
     }
 
     if(existingForensicWatermark && !forensicWatermark) {
@@ -677,6 +653,7 @@ class StreamStore {
     } else if(forensicWatermark) {
       payload["forensicWatermark"] = forensicWatermark ? JSON.parse(forensicWatermark) : null;
     }
+    console.log("WatermarkConfiguration - imageWatermark", imageWatermark);
 
     if(imageWatermark || textWatermark || forensicWatermark) {
       yield this.AddWatermark(payload);
