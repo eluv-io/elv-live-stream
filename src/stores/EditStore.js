@@ -45,7 +45,7 @@ class EditStore {
       permission
     });
 
-    const {objectId, write_token} = response;
+    const {objectId, writeToken} = response;
 
     if(accessGroup) {
       this.AddAccessGroupPermission({
@@ -69,22 +69,33 @@ class EditStore {
       name,
       description,
       displayTitle,
-      writeToken: write_token,
-      config
+      writeToken,
+      config,
+      finalize: false
     });
 
     yield this.CreateSiteLinks({objectId});
-    yield this.AddStreamToSite({objectId});
 
     try {
       yield this.client.SetPermission({
         objectId,
-        permission
+        permission,
+        writeToken
       });
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to set permission.", error);
     }
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Create stream object",
+      awaitCommitConfirmation: true
+    });
+
+    yield this.AddStreamToSite({objectId});
 
     const statusResponse = yield streamStore.CheckStatus({
       objectId
@@ -157,19 +168,36 @@ class EditStore {
       audioFormData
     });
 
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId
+    });
+
     yield this.AddMetadata({
       libraryId,
       objectId,
       name,
       description,
       displayTitle,
-      config
+      config,
+      writeToken,
+      finalize: false
     });
 
-    yield streamStore.UpdateStreamAudioSettings({
+    yield this.rootStore.streamStore.UpdateStreamAudioSettings({
       objectId,
       slug,
-      audioData: audioFormData
+      writeToken,
+      audioData: audioFormData,
+      finalize: false
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Update audio settings",
+      awaitCommitConfirmation: true
     });
   });
 
@@ -266,7 +294,8 @@ class EditStore {
     config,
     name,
     description,
-    displayTitle
+    displayTitle,
+    finalize=true
   }) {
     if(!writeToken) {
       ({writeToken} = yield this.client.EditContentObject({
@@ -295,13 +324,15 @@ class EditStore {
       }
     });
 
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Add metadata",
-      awaitCommitConfirmation: true
-    });
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Add metadata",
+        awaitCommitConfirmation: true
+      });
+    }
   });
 
   UpdateDetailMetadata = flow(function * ({
@@ -412,14 +443,6 @@ class EditStore {
         path: "public/asset_metadata/sources/default",
         target: "playout/default/options.json"
       }]
-    });
-
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Create stream link",
-      awaitCommitConfirmation: true
     });
   });
 
@@ -691,6 +714,7 @@ class EditStore {
         const playoutMeta = yield this.client.ContentObjectMetadata({
           libraryId,
           objectId,
+          writeToken,
           metadataSubtree: "live_recording/playout_config"
         });
 
