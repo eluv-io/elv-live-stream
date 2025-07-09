@@ -35,7 +35,7 @@ const RecordingPeriodsTable = observer(({
   const [copyingToVod, setCopyingToVod] = useState(false);
   const [showCopyModal, {open, close}] = useDisclosure(false);
   const [vodTitle, setVodTitle] = useState(`${title} VoD`);
-  const [vodLibraryId, setVodLibraryId] = useState(libraryId);
+  const [vodLibraryId, setVodLibraryId] = useState("");
   const [vodAccessGroup, setVodAccessGroup] = useState(null);
 
   const [sortStatus, setSortStatus] = useState({

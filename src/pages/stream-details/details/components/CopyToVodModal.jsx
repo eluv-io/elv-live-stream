@@ -20,10 +20,25 @@ const CopyToVodModal = observer(({
   useEffect(() => {
     const LoadLibraries = async() => {
       await dataStore.LoadLibraries();
+
+      // Default to title mezzanine library
+      const libraryMatchMezz = Object.keys(dataStore.libraries || {}).find(libId => dataStore.libraries[libId].name.toLowerCase().includes("title mezzanines"));
+
+      if(libraryMatchMezz) {
+        setLibraryId(libraryMatchMezz);
+      }
     };
 
     const LoadGroups = async() => {
       await dataStore.LoadAccessGroups();
+
+      // Default to content admin group
+      const groupMatchAdmin = Object.keys(dataStore.accessGroups || {})
+        .find(groupName => groupName.toLowerCase().includes("content admin"));
+
+      if(groupMatchAdmin) {
+        setAccessGroup(groupMatchAdmin);
+      }
     };
 
     if(!dataStore.libraries) {
