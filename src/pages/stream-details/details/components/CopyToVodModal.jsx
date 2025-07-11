@@ -20,18 +20,32 @@ const CopyToVodModal = observer(({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    const SetDefaultLibrary = () => {
+      // Default to title mezzanine library
+      const libraryMatchMezz = Object.keys(dataStore.libraries || {}).find(libId => dataStore.libraries[libId].name.toLowerCase().includes("title mezzanines"));
+
+      if(libraryMatchMezz) {
+        setLibraryId(libraryMatchMezz);
+      }
+    };
+
+    const SetDefaultGroup = () => {
+      // Default to content admin group
+      const groupMatchAdmin = Object.keys(dataStore.accessGroups || {})
+        .find(groupName => groupName.toLowerCase().includes("content admin"));
+
+      if(groupMatchAdmin) {
+        setAccessGroup(groupMatchAdmin);
+      }
+    };
+
     const LoadLibraries = async() => {
       try {
         setLoadingLibraries(true);
 
         await dataStore.LoadLibraries();
 
-        // Default to title mezzanine library
-        const libraryMatchMezz = Object.keys(dataStore.libraries || {}).find(libId => dataStore.libraries[libId].name.toLowerCase().includes("title mezzanines"));
-
-        if(libraryMatchMezz) {
-          setLibraryId(libraryMatchMezz);
-        }
+        SetDefaultLibrary();
       } finally {
         setLoadingLibraries(false);
       }
@@ -42,26 +56,22 @@ const CopyToVodModal = observer(({
         setLoadingGroups(true);
 
         await dataStore.LoadAccessGroups();
-
-        // Default to content admin group
-        const groupMatchAdmin = Object.keys(dataStore.accessGroups || {})
-          .find(groupName => groupName.toLowerCase().includes("content admin"));
-
-        if(groupMatchAdmin) {
-          setAccessGroup(groupMatchAdmin);
-        }
+        SetDefaultGroup();
       } finally {
         setLoadingGroups(false);
       }
     };
 
-
     if(!dataStore.libraries) {
       LoadLibraries();
+    } else {
+      SetDefaultLibrary();
     }
 
     if(!dataStore.accessGroups) {
       LoadGroups();
+    } else {
+      SetDefaultGroup();
     }
   }, []);
 
