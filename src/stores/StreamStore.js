@@ -653,7 +653,6 @@ class StreamStore {
     } else if(forensicWatermark) {
       payload["forensicWatermark"] = forensicWatermark ? JSON.parse(forensicWatermark) : null;
     }
-    console.log("WatermarkConfiguration - imageWatermark", imageWatermark);
 
     if(imageWatermark || textWatermark || forensicWatermark) {
       yield this.AddWatermark(payload);
@@ -1013,13 +1012,6 @@ class StreamStore {
     });
     const targetObjectId = createResponse.id;
 
-    if(accessGroup) {
-      editStore.AddAccessGroupPermission({
-        objectId: targetObjectId,
-        groupName: accessGroup
-      });
-    }
-
     // Set editable permission
     yield this.client.SetPermission({
       objectId: targetObjectId,
@@ -1034,6 +1026,13 @@ class StreamStore {
       awaitCommitConfirmation: true,
       commitMessage: "Create VoD object"
     });
+
+    if(accessGroup) {
+      yield editStore.AddAccessGroupPermission({
+        objectId: targetObjectId,
+        groupName: accessGroup
+      });
+    }
 
     let response;
     try {
