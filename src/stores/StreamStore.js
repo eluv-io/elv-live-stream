@@ -1012,7 +1012,6 @@ class StreamStore {
     });
     const targetObjectId = createResponse.id;
 
-    console.log("Create response", createResponse)
 
     try {
       // Set editable permission
