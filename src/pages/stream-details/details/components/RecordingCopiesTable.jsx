@@ -136,8 +136,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
           setDeleteId("");
           notifications.show({
             title: "Live recording copy deleted",
-            message: <NotificationMessage>Successfully deleted {deleteId}</NotificationMessage>,
-            autoClose: false
+            message: <NotificationMessage>Successfully deleted {deleteId}</NotificationMessage>
           });
 
           DeleteCallback();
