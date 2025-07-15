@@ -1021,7 +1021,6 @@ class StreamStore {
         commitMessage: "Create VoD object"
       });
     } catch(error) {
-      // eslint-disable-next-line no-console
       console.error("Failed to finalize object", error);
       throw error;
     }
@@ -1033,7 +1032,6 @@ class StreamStore {
         permission: "editable"
       });
     } catch(error) {
-      // eslint-disable-next-line no-console
       console.error("Failed to set permission", error);
       throw error;
     }
