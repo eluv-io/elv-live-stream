@@ -1012,20 +1012,32 @@ class StreamStore {
     });
     const targetObjectId = createResponse.id;
 
-    // Set editable permission
-    yield this.client.SetPermission({
-      objectId: targetObjectId,
-      permission: "editable",
-      writeToken: createResponse.writeToken
-    });
+    console.log("Create response", createResponse)
 
-    yield this.client.FinalizeContentObject({
-      libraryId: targetLibraryId,
-      objectId: targetObjectId,
-      writeToken: createResponse.writeToken,
-      awaitCommitConfirmation: true,
-      commitMessage: "Create VoD object"
-    });
+    try {
+      // Set editable permission
+      yield this.client.SetPermission({
+        objectId: targetObjectId,
+        permission: "editable",
+        writeToken: createResponse.writeToken
+      });
+    } catch(error) {
+      console.log("Failed to set permission", error);
+      throw error;
+    }
+
+    try {
+      yield this.client.FinalizeContentObject({
+        libraryId: targetLibraryId,
+        objectId: targetObjectId,
+        writeToken: createResponse.writeToken,
+        awaitCommitConfirmation: true,
+        commitMessage: "Create VoD object"
+      });
+    } catch(error) {
+      console.log("Failed to finalize object", error);
+      throw error;
+    }
 
     if(accessGroup) {
       yield editStore.AddAccessGroupPermission({
