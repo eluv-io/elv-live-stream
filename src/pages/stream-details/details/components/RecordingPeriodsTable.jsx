@@ -12,7 +12,7 @@ import {
   SortTable
 } from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
-import DetailsCopyModal from "@/pages/stream-details/details/components/CopyToVodModal.jsx";
+import CopyToVodModal from "@/pages/stream-details/details/components/CopyToVodModal.jsx";
 import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "../../../streams/Streams.module.css";
@@ -22,7 +22,6 @@ import NotificationMessage from "@/components/notification-message/NotificationM
 const RecordingPeriodsTable = observer(({
   records,
   objectId,
-  libraryId,
   title,
   CopyCallback,
   currentTimeMs,
@@ -35,7 +34,7 @@ const RecordingPeriodsTable = observer(({
   const [copyingToVod, setCopyingToVod] = useState(false);
   const [showCopyModal, {open, close}] = useDisclosure(false);
   const [vodTitle, setVodTitle] = useState(`${title} VoD`);
-  const [vodLibraryId, setVodLibraryId] = useState(libraryId);
+  const [vodLibraryId, setVodLibraryId] = useState("");
   const [vodAccessGroup, setVodAccessGroup] = useState(null);
 
   const [sortStatus, setSortStatus] = useState({
@@ -259,13 +258,9 @@ const RecordingPeriodsTable = observer(({
           highlightOnHover
         />
       </Box>
-      <DetailsCopyModal
+      <CopyToVodModal
         show={showCopyModal}
-        close={() => {
-          setVodLibraryId(libraryId);
-          setVodAccessGroup(null);
-          close();
-        }}
+        close={close}
         Callback={(title) => HandleCopy({title})}
         title={vodTitle}
         setTitle={setVodTitle}

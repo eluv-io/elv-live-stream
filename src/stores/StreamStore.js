@@ -1165,27 +1165,37 @@ class StreamStore {
     });
     const targetObjectId = createResponse.id;
 
+    try {
+      yield this.client.FinalizeContentObject({
+        libraryId: targetLibraryId,
+        objectId: targetObjectId,
+        writeToken: createResponse.writeToken,
+        awaitCommitConfirmation: true,
+        commitMessage: "Create VoD object"
+      });
+    } catch(error) {
+      console.error("Failed to finalize object", error);
+      throw error;
+    }
+
+    // Set editable permission
+    try {
+      yield this.client.SetPermission({
+        objectId: targetObjectId,
+        permission: "editable",
+        writeToken: createResponse.writeToken
+      });
+    } catch(error) {
+      console.error("Failed to set permission", error);
+      throw error;
+    }
+
     if(accessGroup) {
       this.rootStore.editStore.AddAccessGroupPermission({
         objectId: targetObjectId,
         groupName: accessGroup
       });
     }
-
-    // Set editable permission
-    yield this.client.SetPermission({
-      objectId: targetObjectId,
-      permission: "editable",
-      writeToken: createResponse.writeToken
-    });
-
-    yield this.client.FinalizeContentObject({
-      libraryId: targetLibraryId,
-      objectId: targetObjectId,
-      writeToken: createResponse.writeToken,
-      awaitCommitConfirmation: true,
-      commitMessage: "Create VoD object"
-    });
 
     let response;
     try {

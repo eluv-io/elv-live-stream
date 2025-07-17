@@ -15,23 +15,63 @@ const CopyToVodModal = observer(({
   Callback
 }) => {
   const [error, setError] = useState();
-  const [loading, setLoading] = useState(false);
+  const [loadingLibraries, setLoadingLibraries] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    const SetDefaultLibrary = () => {
+      // Default to title mezzanine library
+      const libraryMatchMezz = Object.keys(dataStore.libraries || {}).find(libId => dataStore.libraries[libId].name.toLowerCase().includes("title mezzanines"));
+
+      if(libraryMatchMezz) {
+        setLibraryId(libraryMatchMezz);
+      }
+    };
+
+    const SetDefaultGroup = () => {
+      // Default to content admin group
+      const groupMatchAdmin = Object.keys(dataStore.accessGroups || {})
+        .find(groupName => groupName.toLowerCase().includes("content admin"));
+
+      if(groupMatchAdmin) {
+        setAccessGroup(groupMatchAdmin);
+      }
+    };
+
     const LoadLibraries = async() => {
-      await dataStore.LoadLibraries();
+      try {
+        setLoadingLibraries(true);
+
+        await dataStore.LoadLibraries();
+
+        SetDefaultLibrary();
+      } finally {
+        setLoadingLibraries(false);
+      }
     };
 
     const LoadGroups = async() => {
-      await dataStore.LoadAccessGroups();
+      try {
+        setLoadingGroups(true);
+
+        await dataStore.LoadAccessGroups();
+        SetDefaultGroup();
+      } finally {
+        setLoadingGroups(false);
+      }
     };
 
     if(!dataStore.libraries) {
       LoadLibraries();
+    } else {
+      SetDefaultLibrary();
     }
 
     if(!dataStore.accessGroups) {
       LoadGroups();
+    } else {
+      SetDefaultGroup();
     }
   }, []);
 
@@ -47,8 +87,8 @@ const CopyToVodModal = observer(({
     >
       <Box w="100%">
         {
-          !dataStore.libraries ?
-            <Loader /> :
+          (!dataStore.libraries || loadingLibraries) ?
+            <Box><Loader /></Box> :
             (
               <Select
                 label="Library"
@@ -70,8 +110,8 @@ const CopyToVodModal = observer(({
         }
 
         {
-          !dataStore.accessGroups ?
-            <Loader /> :
+          (!dataStore.accessGroups || loadingGroups) ?
+            <Box mt={12}><Loader /></Box> :
             (
               <Select
                 label="Access Group"
@@ -113,19 +153,19 @@ const CopyToVodModal = observer(({
           Cancel
         </Button>
         <Button
-          disabled={loading || !libraryId || !title}
-          loading={loading}
+          disabled={submitting || !libraryId || !title}
+          loading={submitting}
           onClick={async () => {
             try {
               setError(undefined);
-              setLoading(true);
+              setSubmitting(true);
               await Callback(title);
             } catch(error) {
               // eslint-disable-next-line no-console
               console.error(error);
               setError(error?.message || error.kind || error.toString());
             } finally {
-              setLoading(false);
+              setSubmitting(false);
             }
           }}
         >
