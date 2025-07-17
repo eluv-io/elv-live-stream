@@ -653,7 +653,6 @@ class StreamStore {
     } else if(forensicWatermark) {
       payload["forensicWatermark"] = forensicWatermark ? JSON.parse(forensicWatermark) : null;
     }
-    console.log("WatermarkConfiguration - imageWatermark", imageWatermark);
 
     if(imageWatermark || textWatermark || forensicWatermark) {
       yield this.AddWatermark(payload);
@@ -1013,27 +1012,36 @@ class StreamStore {
     });
     const targetObjectId = createResponse.id;
 
+    try {
+      yield this.client.FinalizeContentObject({
+        libraryId: targetLibraryId,
+        objectId: targetObjectId,
+        writeToken: createResponse.writeToken,
+        awaitCommitConfirmation: true,
+        commitMessage: "Create VoD object"
+      });
+    } catch(error) {
+      console.error("Failed to finalize object", error);
+      throw error;
+    }
+
+    try {
+      // Set editable permission
+      yield this.client.SetPermission({
+        objectId: targetObjectId,
+        permission: "editable"
+      });
+    } catch(error) {
+      console.error("Failed to set permission", error);
+      throw error;
+    }
+
     if(accessGroup) {
-      editStore.AddAccessGroupPermission({
+      yield editStore.AddAccessGroupPermission({
         objectId: targetObjectId,
         groupName: accessGroup
       });
     }
-
-    // Set editable permission
-    yield this.client.SetPermission({
-      objectId: targetObjectId,
-      permission: "editable",
-      writeToken: createResponse.writeToken
-    });
-
-    yield this.client.FinalizeContentObject({
-      libraryId: targetLibraryId,
-      objectId: targetObjectId,
-      writeToken: createResponse.writeToken,
-      awaitCommitConfirmation: true,
-      commitMessage: "Create VoD object"
-    });
 
     let response;
     try {
