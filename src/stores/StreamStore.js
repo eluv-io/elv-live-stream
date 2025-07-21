@@ -1100,8 +1100,7 @@ class StreamStore {
     try {
       yield this.client.SetPermission({
         objectId: targetObjectId,
-        permission: "editable",
-        writeToken: createResponse.writeToken
+        permission: "editable"
       });
     } catch(error) {
       console.error("Failed to set permission", error);
