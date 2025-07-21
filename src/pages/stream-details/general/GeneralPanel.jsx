@@ -78,29 +78,14 @@ const GeneralPanel = observer(({slug}) => {
     try {
       setApplyingChanges(true);
 
-      await editStore.UpdateDetailMetadata({
+      await editStore.UpdateGeneralConfig({
         objectId: params.id,
-        name: formData.name,
-        url: formData.url,
-        description: formData.description,
-        displayTitle: formData.displayTitle,
-        slug
+        slug,
+        formData,
+        updatePermission: currentSettings.permission !== formData.permission,
+        updateAccessGroup: currentSettings.accessGroup !== formData.accessGroup,
+        removeAccessGroup: currentSettings.accessGroup
       });
-
-      if(currentSettings.permission !== formData.permission) {
-        await editStore.SetPermission({
-          objectId: params.id,
-          permission: formData.permission
-        });
-      }
-
-      if(currentSettings.accessGroup !== formData.accessGroup) {
-        await editStore.UpdateAccessGroupPermission({
-          objectId: params.id,
-          addGroup: formData.accessGroup,
-          removeGroup: currentSettings.accessGroup
-        });
-      }
 
       notifications.show({
         title: <NotificationMessage>Updated {formData.name || params.id}</NotificationMessage>,

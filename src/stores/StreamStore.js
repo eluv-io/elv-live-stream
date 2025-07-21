@@ -1,8 +1,7 @@
 // Force strict mode so mutations are only allowed within actions.
 import {configure, flow, makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
-import {dataStore} from "./index";
-import {ENCRYPTION_OPTIONS, STATUS_MAP} from "@/utils/constants";
+import {ENCRYPTION_OPTIONS} from "@/utils/constants";
 
 configure({
   enforceActions: "always"
@@ -145,8 +144,8 @@ class StreamStore {
 
       if(liveRecordingConfig.playout_ladder_profile) {
         const allProfiles = yield this.client.ContentObjectMetadata({
-          libraryId: yield this.client.ContentObjectLibraryId({objectId: dataStore.siteId}),
-          objectId: dataStore.siteId,
+          libraryId: yield this.client.ContentObjectLibraryId({objectId: this.rootStore.dataStore.siteId}),
+          objectId: this.rootStore.dataStore.siteId,
           metadataSubtree: "public/asset_metadata/profiles"
         });
 
@@ -233,7 +232,7 @@ class StreamStore {
         objectId
       });
 
-      const streamDetails = yield dataStore.LoadStreamMetadata({
+      const streamDetails = yield this.rootStore.dataStore.LoadStreamMetadata({
         objectId
       });
 
@@ -555,87 +554,6 @@ class StreamStore {
     }
 
     return url;
-  });
-
-  ApplyPlayoutSettings = flow(function * ({
-    objectId,
-    slug,
-    status,
-    watermarkParams,
-    drmParams,
-    configMetaParams,
-    playoutProfileParams
-  }){
-    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    const {writeToken} = yield this.client.EditContentObject({
-      libraryId,
-      objectId
-    });
-
-    const basicCallParams = {
-      libraryId,
-      objectId,
-      writeToken,
-      slug,
-      finalize: false
-    };
-
-    // Apply watermark settings
-
-    yield this.WatermarkConfiguration({
-      ...basicCallParams,
-      ...watermarkParams,
-      status
-    });
-
-    // Apply DRM settings
-
-    const drmResponse = yield this.DrmConfiguration({
-      ...basicCallParams,
-      ...drmParams
-    });
-
-    // Apply config metadata changes
-
-    yield this.rootStore.editStore.UpdateConfigMetadata({
-      ...basicCallParams,
-      ...configMetaParams,
-      skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
-    });
-
-    // Apply playout profile settings
-
-    yield this.UpdateLadderSpecs({
-      ...basicCallParams,
-      ...playoutProfileParams
-    });
-
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Apply playout settings"
-    });
-
-    // Initialize stream after DRM update
-
-    if(drmResponse?.drmNeedsInit) {
-      yield this.client.StreamInitialize({
-        ...drmResponse?.drmInitPayload
-      });
-    }
-
-    // Update status
-    const statusResponse = yield this.CheckStatus({
-      objectId
-    });
-
-    this.UpdateStream({
-      key: slug,
-      value: {
-        status: statusResponse.state
-      }
-    });
   });
 
   RemoveWatermark = flow(function * ({
@@ -976,7 +894,7 @@ class StreamStore {
       }));
     }
 
-    const ladderProfiles = yield dataStore.LoadLadderProfiles();
+    const ladderProfiles = yield this.rootStore.dataStore.LoadLadderProfiles();
 
     let audioData = yield this.client.ContentObjectMetadata({
       libraryId,
@@ -985,7 +903,7 @@ class StreamStore {
     });
 
     if(!audioData || Object.keys(audioData || {}).length === 0) {
-      ({audioData} = yield dataStore.LoadStreamProbeData({
+      ({audioData} = yield this.rootStore.dataStore.LoadStreamProbeData({
         objectId
       }));
     }
@@ -1139,7 +1057,7 @@ class StreamStore {
     }
 
     // Create content object
-    const titleType = dataStore.titleContentType;
+    const titleType = this.rootStore.dataStore.titleContentType;
 
     if(!targetLibraryId) {
       targetLibraryId = yield this.client.ContentObjectLibraryId({objectId});

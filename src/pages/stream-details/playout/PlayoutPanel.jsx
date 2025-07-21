@@ -22,7 +22,7 @@ import {
   DVR_DURATION_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants";
-import {dataStore, streamStore} from "@/stores";
+import {dataStore, editStore} from "@/stores";
 import {ENCRYPTION_OPTIONS} from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {CalendarMonthIcon, CircleInfoIcon} from "@/assets/icons/index.js";
@@ -78,7 +78,7 @@ const PlayoutPanel = observer(({
     try {
       setApplyingChanges(true);
 
-      await streamStore.ApplyPlayoutSettings({
+      await editStore.UpdatePlayoutConfig({
         objectId,
         slug,
         status,
