@@ -184,7 +184,7 @@ class EditStore {
       finalize: false
     });
 
-    yield this.rootStore.this.rootStore.streamStore.UpdateStreamAudioSettings({
+    yield this.rootStore.streamStore.UpdateStreamAudioSettings({
       objectId,
       slug,
       writeToken,
@@ -799,7 +799,7 @@ class EditStore {
 
     const {copyMpegTs} = tsFormData;
 
-    yield this.rootStore.this.rootStore.streamStore.UpdateStreamAudioSettings({
+    yield this.rootStore.streamStore.UpdateStreamAudioSettings({
       objectId,
       writeToken,
       slug,
@@ -910,7 +910,7 @@ class EditStore {
 
     // Apply watermark settings
 
-    yield this.rootStore.this.rootStore.streamStore.WatermarkConfiguration({
+    yield this.rootStore.streamStore.WatermarkConfiguration({
       ...basicCallParams,
       ...watermarkParams,
       status
@@ -918,7 +918,7 @@ class EditStore {
 
     // Apply DRM settings
 
-    const drmResponse = yield this.rootStore.this.rootStore.streamStore.DrmConfiguration({
+    const drmResponse = yield this.rootStore.streamStore.DrmConfiguration({
       ...basicCallParams,
       ...drmParams
     });
@@ -933,7 +933,7 @@ class EditStore {
 
     // Apply playout profile settings
 
-    yield this.rootStore.this.rootStore.streamStore.UpdateLadderSpecs({
+    yield this.rootStore.streamStore.UpdateLadderSpecs({
       ...basicCallParams,
       ...playoutProfileParams
     });
@@ -954,11 +954,11 @@ class EditStore {
     }
 
     // Update status
-    const statusResponse = yield this.rootStore.this.rootStore.streamStore.CheckStatus({
+    const statusResponse = yield this.rootStore.streamStore.CheckStatus({
       objectId
     });
 
-    this.rootStore.this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamStore.UpdateStream({
       key: slug,
       value: {
         status: statusResponse.state
