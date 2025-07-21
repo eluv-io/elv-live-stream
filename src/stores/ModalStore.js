@@ -105,7 +105,7 @@ class ModalStore {
       title: "Delete Stream Confirmation",
       message: "Are you sure you want to delete the stream?",
       confirmText: "Delete Stream",
-      Method: ({objectId}) => this.rootStore.editStore.DeleteStream({objectId}),
+      Method: ({objectId}) => this.rootStore.streamManagementStore.DeleteStream({objectId}),
       notification: ({objectId}) => {
         return {
           success: {

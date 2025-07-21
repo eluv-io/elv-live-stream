@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {dataStore, editStore, streamStore, rootStore} from "@/stores";
+import {dataStore, streamStore, rootStore, streamManagementStore} from "@/stores";
 import {useNavigate} from "react-router-dom";
 import {ENCRYPTION_OPTIONS, RETENTION_OPTIONS} from "@/utils/constants";
 import {
@@ -297,7 +297,7 @@ const Create = observer(() => {
   const HandleProbeConfirm = async() => {
     const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, playoutProfile, protocol, retention} = form.getValues();
 
-    const {objectId, slug} = await editStore.InitLiveStreamObject({
+    const {objectId, slug} = await streamManagementStore.InitLiveStreamObject({
       accessGroup,
       description,
       displayTitle,
@@ -342,7 +342,7 @@ const Create = observer(() => {
 
       if(objectData === null) {
         // Stream hasn't been created
-        const response = await editStore.InitLiveStreamObject({
+        const response = await streamManagementStore.InitLiveStreamObject({
           accessGroup,
           description,
           displayTitle,
@@ -361,7 +361,7 @@ const Create = observer(() => {
       } else {
         // Stream has already been created and probed
         objectId = objectData.objectId;
-        await editStore.UpdateLiveStreamObject({
+        await streamManagementStore.UpdateLiveStreamObject({
           objectId,
           slug: objectData.slug,
           audioFormData,

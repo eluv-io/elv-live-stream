@@ -1,30 +1,92 @@
-// Force strict mode so mutations are only allowed within actions.
-import {configure, flow, makeAutoObservable, runInAction, toJS} from "mobx";
-import {ParseLiveConfigData, Slugify} from "@/utils/helpers";
+import {configure, flow, makeAutoObservable} from "mobx";
+import {ParseLiveConfigData, Slugify} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
 
 configure({
   enforceActions: "always"
 });
 
-// Store for handling writing content
-class EditStore {
-  rootStore;
-  libraries;
-  accessGroups;
-  contentType;
-
+// Store managing actions for individual streams
+class StreamManagementStore {
   constructor(rootStore) {
     makeAutoObservable(this);
 
-    runInAction(() => {
-      this.rootStore = rootStore;
-    });
+    this.rootStore = rootStore;
   }
 
   get client() {
     return this.rootStore.client;
   }
+
+  CreateContentObject = flow(function * ({
+    libraryId
+  }) {
+    let response;
+    try {
+      response = yield this.client.CreateContentObject({
+        libraryId,
+        options: { type: this.rootStore.dataStore.contentType }
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to create content object.", error);
+    }
+
+    return response;
+  });
+
+  AddAccessGroupPermission = flow(function * ({
+    objectId,
+    groupName,
+    groupAddress
+  }) {
+    try {
+      if(!groupAddress) {
+        groupAddress = this.rootStore.dataStore.accessGroups[groupName]?.address;
+      }
+
+      yield this.client.AddContentObjectGroupPermission({
+        objectId,
+        groupAddress,
+        permission: "manage"
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(`Unable to add group permission for group: ${groupName || groupAddress}`, error);
+    }
+  });
+
+  RemoveAccessGroupPermission = ({
+    objectId,
+    groupAddress
+  }) => {
+    try {
+      return this.client.RemoveContentObjectGroupPermission({
+        objectId,
+        groupAddress,
+        permission: "manage"
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(`Unable to remove group permission for group: ${groupAddress}`, error);
+    }
+  };
+
+  UpdateAccessGroupPermission = flow(function * ({objectId, addGroup, removeGroup}) {
+    if(removeGroup) {
+      yield this.RemoveAccessGroupPermission({
+        objectId,
+        groupAddress: removeGroup
+      });
+    }
+
+    if(addGroup) {
+      yield this.AddAccessGroupPermission({
+        objectId,
+        groupAddress: addGroup
+      });
+    }
+  });
 
   InitLiveStreamObject = flow(function * ({
     accessGroup,
@@ -127,6 +189,7 @@ class EditStore {
     };
   });
 
+
   // Update audio settings for streams that have been created and probed
   UpdateLiveStreamObject = flow(function * ({
     audioFormData,
@@ -199,76 +262,6 @@ class EditStore {
       commitMessage: "Update audio settings",
       awaitCommitConfirmation: true
     });
-  });
-
-  CreateContentObject = flow(function * ({
-    libraryId
-  }) {
-    let response;
-    try {
-      response = yield this.client.CreateContentObject({
-        libraryId,
-        options: { type: this.rootStore.dataStore.contentType }
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to create content object.", error);
-    }
-
-    return response;
-  });
-
-  AddAccessGroupPermission = flow(function * ({
-    objectId,
-    groupName,
-    groupAddress
-  }) {
-    try {
-      if(!groupAddress) {
-        groupAddress = this.rootStore.dataStore.accessGroups[groupName]?.address;
-      }
-
-      yield this.client.AddContentObjectGroupPermission({
-        objectId,
-        groupAddress,
-        permission: "manage"
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error(`Unable to add group permission for group: ${groupName || groupAddress}`, error);
-    }
-  });
-
-  RemoveAccessGroupPermission = ({
-    objectId,
-    groupAddress
-  }) => {
-    try {
-      return this.client.RemoveContentObjectGroupPermission({
-        objectId,
-        groupAddress,
-        permission: "manage"
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error(`Unable to remove group permission for group: ${groupAddress}`, error);
-    }
-  };
-
-  UpdateAccessGroupPermission = flow(function * ({objectId, addGroup, removeGroup}) {
-    if(removeGroup) {
-      yield this.RemoveAccessGroupPermission({
-        objectId,
-        groupAddress: removeGroup
-      });
-    }
-
-    if(addGroup) {
-      yield this.AddAccessGroupPermission({
-        objectId,
-        groupAddress: addGroup
-      });
-    }
   });
 
   SetPermission = flow(function * ({objectId, permission}) {
@@ -431,134 +424,6 @@ class EditStore {
     }
   });
 
-  CreateSiteLinks = flow(function * ({objectId}) {
-    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    const {writeToken} = yield this.client.EditContentObject({
-      libraryId,
-      objectId
-    });
-
-    yield this.client.CreateLinks({
-      libraryId,
-      objectId,
-      writeToken,
-      links: [{
-        type: "rep",
-        path: "public/asset_metadata/sources/default",
-        target: "playout/default/options.json"
-      }]
-    });
-  });
-
-  CreateLink = ({
-    targetHash,
-    linkTarget="meta/public/asset_metadata",
-    options={},
-    autoUpdate=true
-  }) => {
-    return {
-      ...options,
-      ".": {
-        ...(options["."] || {}),
-        ...autoUpdate ? {"auto_update": {"tag": "latest"}} : undefined
-      },
-      "/": `/qfab/${targetHash}/${linkTarget}`
-    };
-  };
-
-  AddStreamToSite = flow(function * ({objectId}) {
-    try {
-      const streamMetadata = yield this.client.ContentObjectMetadata({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        metadataSubtree: "public/asset_metadata/live_streams",
-      });
-
-      const objectName = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId}),
-        objectId,
-        metadataSubtree: "public/name"
-      });
-
-      const streamData = {
-        ...this.CreateLink({
-          targetHash: yield this.client.LatestVersionHash({objectId}),
-          options: {
-            ".": {
-              container: yield this.client.LatestVersionHash({objectId: this.rootStore.dataStore.siteId})
-            }
-          }
-        }),
-        order: Object.keys(streamMetadata).length,
-      };
-
-      const {writeToken} = yield this.client.EditContentObject({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId
-      });
-
-      yield this.client.ReplaceMetadata({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        writeToken,
-        metadataSubtree: "public/asset_metadata/live_streams",
-        metadata: {
-          ...toJS(streamMetadata),
-          [Slugify(objectName)]: streamData
-        }
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        writeToken,
-        commitMessage: "Add live stream",
-        awaitCommitConfirmation: true
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to replace meta", error);
-    }
-  });
-
-  UpdateStreamLink = flow(function * ({objectId, slug}) {
-    try {
-      const originalLink = yield this.client.ContentObjectMetadata({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        metadataSubtree: `public/asset_metadata/live_streams/${slug}`,
-      });
-
-      const link = this.CreateLink({
-        targetHash: yield this.client.LatestVersionHash({objectId}),
-        options: originalLink
-      });
-
-      const {writeToken} = yield this.client.EditContentObject({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId
-      });
-
-      yield this.client.ReplaceMetadata({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        writeToken,
-        metadataSubtree: `public/asset_metadata/live_streams/${slug}`,
-        metadata: link
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        writeToken,
-        commitMessage: "Update stream link",
-        awaitCommitConfirmation: true
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to update stream link", error);
-    }
-  });
 
   UpdateRetention = flow(function * ({
     objectId,
@@ -775,6 +640,7 @@ class EditStore {
     };
   });
 
+
   UpdateRecordingConfig = flow(function * ({
     libraryId,
     objectId,
@@ -966,6 +832,7 @@ class EditStore {
     });
   });
 
+
   SaveLadderProfiles = flow(function * ({profileData}) {
     try {
       if(!this.rootStore.dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
@@ -1002,7 +869,6 @@ class EditStore {
       throw error;
     }
   });
-
 
   DeleteStream = flow(function * ({objectId}) {
     const streams = Object.assign({}, this.rootStore.streamStore.streams);
@@ -1048,4 +914,4 @@ class EditStore {
   });
 }
 
-export default EditStore;
+export default StreamManagementStore;

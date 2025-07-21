@@ -226,7 +226,7 @@ class StreamStore {
       }
 
       // Update stream link in site after stream configuration
-      yield this.rootStore.editStore.UpdateStreamLink({objectId, slug});
+      yield this.rootStore.siteStore.UpdateStreamLink({objectId, slug});
 
       const response = yield this.CheckStatus({
         objectId
@@ -1108,7 +1108,7 @@ class StreamStore {
     }
 
     if(accessGroup) {
-      this.rootStore.editStore.AddAccessGroupPermission({
+      this.rootStore.streamManagementStore.AddAccessGroupPermission({
         objectId: targetObjectId,
         groupName: accessGroup
       });

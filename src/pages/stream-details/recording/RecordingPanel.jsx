@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
-import {dataStore, editStore} from "@/stores";
+import {dataStore, streamManagementStore} from "@/stores";
 import {useParams} from "react-router-dom";
 import {Box, Button, Checkbox, Divider, Loader, Select, SimpleGrid} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
@@ -87,7 +87,7 @@ const RecordingPanel = observer(({
         }
       }
 
-      await editStore.UpdateRecordingConfig({
+      await streamManagementStore.UpdateRecordingConfig({
         objectId: params.id,
         slug,
         audioFormData,
