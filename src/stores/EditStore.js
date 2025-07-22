@@ -918,7 +918,7 @@ class EditStore {
 
     // Apply DRM settings
 
-    const drmResponse = yield this.rootStore.streamStore.DrmConfiguration({
+    yield this.rootStore.streamStore.DrmConfiguration({
       ...basicCallParams,
       ...drmParams
     });
@@ -947,11 +947,11 @@ class EditStore {
 
     // Initialize stream after DRM update
 
-    if(drmResponse?.drmNeedsInit) {
-      yield this.client.StreamInitialize({
-        ...drmResponse?.drmInitPayload
-      });
-    }
+    // if(drmResponse?.drmNeedsInit) {
+    //   yield this.client.StreamInitialize({
+    //     ...drmResponse?.drmInitPayload
+    //   });
+    // }
 
     // Update status
     const statusResponse = yield this.rootStore.streamStore.CheckStatus({

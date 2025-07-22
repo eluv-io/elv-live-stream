@@ -754,18 +754,19 @@ class StreamStore {
     });
 
     let updateValue = {}, drmNeedsInit = false;
+    yield this.client.StreamInitialize({
+      name: objectId,
+      drm: drmType === "clear" ? false : true,
+      format: drmOption.format.join(","),
+      writeToken
+    });
+
     if(finalize) {
       yield this.client.FinalizeContentObject({
         objectId,
         libraryId,
         writeToken,
         commitMessage: "Update drm type metadata"
-      });
-
-      yield this.client.StreamInitialize({
-        name: objectId,
-        drm: drmType === "clear" ? false : true,
-        format: drmOption.format.join(",")
       });
 
       const statusResponse = yield this.CheckStatus({
