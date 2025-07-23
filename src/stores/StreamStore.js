@@ -758,7 +758,8 @@ class StreamStore {
       name: objectId,
       drm: drmType === "clear" ? false : true,
       format: drmOption.format.join(","),
-      writeToken
+      writeToken,
+      finalize: false
     });
 
     if(finalize) {

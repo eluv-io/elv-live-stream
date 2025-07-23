@@ -949,6 +949,7 @@ class EditStore {
 
     // if(drmResponse?.drmNeedsInit) {
     //   yield this.client.StreamInitialize({
+    //     finalize: false,
     //     ...drmResponse?.drmInitPayload
     //   });
     // }
