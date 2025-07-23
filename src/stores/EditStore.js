@@ -1,7 +1,7 @@
 // Force strict mode so mutations are only allowed within actions.
 import {configure, flow, makeAutoObservable, runInAction, toJS} from "mobx";
 import {ParseLiveConfigData, Slugify} from "@/utils/helpers";
-import {dataStore, streamStore} from "./index";
+import {STATUS_MAP} from "@/utils/constants.js";
 
 configure({
   enforceActions: "always"
@@ -45,7 +45,7 @@ class EditStore {
       permission
     });
 
-    const {objectId, write_token} = response;
+    const {objectId, writeToken} = response;
 
     if(accessGroup) {
       this.AddAccessGroupPermission({
@@ -69,24 +69,35 @@ class EditStore {
       name,
       description,
       displayTitle,
-      writeToken: write_token,
-      config
+      writeToken,
+      config,
+      finalize: false
     });
 
     yield this.CreateSiteLinks({objectId});
-    yield this.AddStreamToSite({objectId});
 
     try {
       yield this.client.SetPermission({
         objectId,
-        permission
+        permission,
+        writeToken
       });
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to set permission.", error);
     }
 
-    const statusResponse = yield streamStore.CheckStatus({
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Create stream object",
+      awaitCommitConfirmation: true
+    });
+
+    yield this.AddStreamToSite({objectId});
+
+    const statusResponse = yield this.rootStore.streamStore.CheckStatus({
       objectId
     });
 
@@ -96,7 +107,7 @@ class EditStore {
       status: statusResponse.state,
     };
 
-    const streamDetails = yield dataStore.LoadStreamMetadata({
+    const streamDetails = yield this.rootStore.dataStore.LoadStreamMetadata({
       objectId,
       libraryId
     }) || {};
@@ -105,7 +116,7 @@ class EditStore {
       streamValue[detail] = streamDetails[detail];
     });
 
-    streamStore.UpdateStream({
+    this.rootStore.streamStore.UpdateStream({
       key: Slugify(name),
       value: streamValue
     });
@@ -157,19 +168,36 @@ class EditStore {
       audioFormData
     });
 
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId
+    });
+
     yield this.AddMetadata({
       libraryId,
       objectId,
       name,
       description,
       displayTitle,
-      config
+      config,
+      writeToken,
+      finalize: false
     });
 
-    yield streamStore.UpdateStreamAudioSettings({
+    yield this.rootStore.streamStore.UpdateStreamAudioSettings({
       objectId,
       slug,
-      audioData: audioFormData
+      writeToken,
+      audioData: audioFormData,
+      finalize: false
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Update audio settings",
+      awaitCommitConfirmation: true
     });
   });
 
@@ -180,7 +208,7 @@ class EditStore {
     try {
       response = yield this.client.CreateContentObject({
         libraryId,
-        options: { type: dataStore.contentType }
+        options: { type: this.rootStore.dataStore.contentType }
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -197,7 +225,7 @@ class EditStore {
   }) {
     try {
       if(!groupAddress) {
-        groupAddress = dataStore.accessGroups[groupName]?.address;
+        groupAddress = this.rootStore.dataStore.accessGroups[groupName]?.address;
       }
 
       yield this.client.AddContentObjectGroupPermission({
@@ -266,7 +294,8 @@ class EditStore {
     config,
     name,
     description,
-    displayTitle
+    displayTitle,
+    finalize=true
   }) {
     if(!writeToken) {
       ({writeToken} = yield this.client.EditContentObject({
@@ -295,19 +324,22 @@ class EditStore {
       }
     });
 
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Add metadata",
-      awaitCommitConfirmation: true
-    });
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Add metadata",
+        awaitCommitConfirmation: true
+      });
+    }
   });
 
   UpdateDetailMetadata = flow(function * ({
     libraryId,
     objectId,
     writeToken,
+    finalize=true,
     name,
     url,
     description,
@@ -376,15 +408,18 @@ class EditStore {
         metadata
       });
 
-      const response = this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        commitMessage: "Update metadata",
-        awaitCommitConfirmation: true
-      });
+      let response;
+      if(finalize) {
+        response = this.client.FinalizeContentObject({
+          libraryId,
+          objectId,
+          writeToken,
+          commitMessage: "Update metadata",
+          awaitCommitConfirmation: true
+        });
+      }
 
-      streamStore.UpdateStream({
+      this.rootStore.streamStore.UpdateStream({
         key: slug,
         value: updateValue
       });
@@ -413,14 +448,6 @@ class EditStore {
         target: "playout/default/options.json"
       }]
     });
-
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Create stream link",
-      awaitCommitConfirmation: true
-    });
   });
 
   CreateLink = ({
@@ -442,8 +469,8 @@ class EditStore {
   AddStreamToSite = flow(function * ({objectId}) {
     try {
       const streamMetadata = yield this.client.ContentObjectMetadata({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId,
         metadataSubtree: "public/asset_metadata/live_streams",
       });
 
@@ -458,7 +485,7 @@ class EditStore {
           targetHash: yield this.client.LatestVersionHash({objectId}),
           options: {
             ".": {
-              container: yield this.client.LatestVersionHash({objectId: dataStore.siteId})
+              container: yield this.client.LatestVersionHash({objectId: this.rootStore.dataStore.siteId})
             }
           }
         }),
@@ -466,13 +493,13 @@ class EditStore {
       };
 
       const {writeToken} = yield this.client.EditContentObject({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId
       });
 
       yield this.client.ReplaceMetadata({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId,
         writeToken,
         metadataSubtree: "public/asset_metadata/live_streams",
         metadata: {
@@ -482,8 +509,8 @@ class EditStore {
       });
 
       yield this.client.FinalizeContentObject({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId,
         writeToken,
         commitMessage: "Add live stream",
         awaitCommitConfirmation: true
@@ -497,8 +524,8 @@ class EditStore {
   UpdateStreamLink = flow(function * ({objectId, slug}) {
     try {
       const originalLink = yield this.client.ContentObjectMetadata({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId,
         metadataSubtree: `public/asset_metadata/live_streams/${slug}`,
       });
 
@@ -508,21 +535,21 @@ class EditStore {
       });
 
       const {writeToken} = yield this.client.EditContentObject({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId
       });
 
       yield this.client.ReplaceMetadata({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId,
         writeToken,
         metadataSubtree: `public/asset_metadata/live_streams/${slug}`,
         metadata: link
       });
 
       yield this.client.FinalizeContentObject({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId,
         writeToken,
         commitMessage: "Update stream link",
         awaitCommitConfirmation: true
@@ -574,7 +601,7 @@ class EditStore {
       awaitCommitConfirmation: true
     });
 
-    streamStore.UpdateStream({
+    this.rootStore.streamStore.UpdateStream({
       key: slug,
       value: {
         partTtl: retention
@@ -691,6 +718,7 @@ class EditStore {
         const playoutMeta = yield this.client.ContentObjectMetadata({
           libraryId,
           objectId,
+          writeToken,
           metadataSubtree: "live_recording/playout_config"
         });
 
@@ -737,7 +765,7 @@ class EditStore {
       });
     }
 
-    streamStore.UpdateStream({
+    this.rootStore.streamStore.UpdateStream({
       key: slug,
       value: updateValue
     });
@@ -800,13 +828,151 @@ class EditStore {
     });
   });
 
+  UpdateGeneralConfig = flow(function * ({
+    objectId,
+    libraryId,
+    formData,
+    writeToken,
+    slug,
+    updatePermission=false,
+    updateAccessGroup=false,
+    removeAccessGroup
+  }) {
+    const {accessGroup, name, url, description, displayTitle, permission} = formData;
+
+    if(!libraryId) {
+      libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    }
+
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId
+      }));
+    }
+
+    yield this.UpdateDetailMetadata({
+      objectId,
+      name,
+      url,
+      description,
+      displayTitle,
+      slug,
+      writeToken,
+      finalize: false
+    });
+
+    if(updatePermission) {
+      yield this.SetPermission({
+        objectId,
+        permission
+      });
+    }
+
+    if(updateAccessGroup) {
+      yield this.UpdateAccessGroupPermission({
+        objectId,
+        addGroup: accessGroup,
+        removeGroup: removeAccessGroup
+      });
+    }
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Apply general config"
+    });
+  });
+
+  UpdatePlayoutConfig = flow(function * ({
+    objectId,
+    slug,
+    status,
+    watermarkParams,
+    drmParams,
+    configMetaParams,
+    playoutProfileParams
+  }){
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId
+    });
+
+    const basicCallParams = {
+      libraryId,
+      objectId,
+      writeToken,
+      slug,
+      finalize: false
+    };
+
+    // Apply watermark settings
+
+    yield this.rootStore.streamStore.WatermarkConfiguration({
+      ...basicCallParams,
+      ...watermarkParams,
+      status
+    });
+
+    // Apply DRM settings
+
+    yield this.rootStore.streamStore.DrmConfiguration({
+      ...basicCallParams,
+      ...drmParams
+    });
+
+    // Apply config metadata changes
+
+    yield this.UpdateConfigMetadata({
+      ...basicCallParams,
+      ...configMetaParams,
+      skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
+    });
+
+    // Apply playout profile settings
+
+    yield this.rootStore.streamStore.UpdateLadderSpecs({
+      ...basicCallParams,
+      ...playoutProfileParams
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Apply playout settings"
+    });
+
+    // Initialize stream after DRM update
+
+    // if(drmResponse?.drmNeedsInit) {
+    //   yield this.client.StreamInitialize({
+    //     ...drmResponse?.drmInitPayload
+    //   });
+    // }
+
+    // Update status
+    const statusResponse = yield this.rootStore.streamStore.CheckStatus({
+      objectId
+    });
+
+    this.rootStore.streamStore.UpdateStream({
+      key: slug,
+      value: {
+        status: statusResponse.state
+      }
+    });
+  });
+
   SaveLadderProfiles = flow(function * ({profileData}) {
     try {
-      if(!dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId: dataStore.siteId});
+      if(!this.rootStore.dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.rootStore.dataStore.siteId});
       const {writeToken} = yield this.client.EditContentObject({
         libraryId,
-        objectId: dataStore.siteId
+        objectId: this.rootStore.dataStore.siteId
       });
 
       profileData.default = JSON.parse(profileData.default || {});
@@ -814,7 +980,7 @@ class EditStore {
 
       yield this.client.ReplaceMetadata({
         libraryId,
-        objectId: dataStore.siteId,
+        objectId: this.rootStore.dataStore.siteId,
         writeToken,
         metadataSubtree: "public/asset_metadata/profiles",
         metadata: profileData
@@ -822,13 +988,13 @@ class EditStore {
 
       yield this.client.FinalizeContentObject({
         libraryId,
-        objectId: dataStore.siteId,
+        objectId: this.rootStore.dataStore.siteId,
         writeToken,
         commitMessage: "Update playout ladder profiles",
         awaitCommitConfirmation: true
       });
 
-      dataStore.UpdateLadderProfiles({profiles: profileData});
+      this.rootStore.dataStore.UpdateLadderProfiles({profiles: profileData});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to save ladder profiles", error);
@@ -839,35 +1005,35 @@ class EditStore {
 
 
   DeleteStream = flow(function * ({objectId}) {
-    const streams = Object.assign({}, streamStore.streams);
+    const streams = Object.assign({}, this.rootStore.streamStore.streams);
     const slug = Object.keys(streams).find(streamSlug => {
       return streams[streamSlug].objectId === objectId;
     });
 
     const streamMetadata = yield this.client.ContentObjectMetadata({
-      libraryId: dataStore.siteLibraryId,
-      objectId: dataStore.siteId,
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId,
       metadataSubtree: "public/asset_metadata/live_streams",
     });
 
     delete streamMetadata[slug];
 
     const {writeToken} = yield this.client.EditContentObject({
-      libraryId: dataStore.siteLibraryId,
-      objectId: dataStore.siteId
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId
     });
 
     yield this.client.ReplaceMetadata({
-      libraryId: dataStore.siteLibraryId,
-      objectId: dataStore.siteId,
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId,
       writeToken,
       metadataSubtree: "public/asset_metadata/live_streams",
       metadata: streamMetadata
     });
 
     yield this.client.FinalizeContentObject({
-      libraryId: dataStore.siteLibraryId,
-      objectId: dataStore.siteId,
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId,
       writeToken,
       commitMessage: "Delete live stream"
     });
@@ -878,7 +1044,7 @@ class EditStore {
     });
 
     delete streams[slug];
-    streamStore.UpdateStreams({streams});
+    this.rootStore.streamStore.UpdateStreams({streams});
   });
 }
 
