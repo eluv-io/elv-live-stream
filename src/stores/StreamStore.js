@@ -1,7 +1,7 @@
 // Force strict mode so mutations are only allowed within actions.
 import {configure, flow, makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
-import {ENCRYPTION_OPTIONS} from "@/utils/constants";
+import {ENCRYPTION_OPTIONS, STATUS_MAP} from "@/utils/constants";
 
 configure({
   enforceActions: "always"
@@ -730,6 +730,7 @@ class StreamStore {
     drmType,
     existingDrmType,
     writeToken,
+    status,
     finalize=true
   }) {
     if(existingDrmType === drmType) { return; }
@@ -749,18 +750,29 @@ class StreamStore {
       objectId,
       libraryId,
       writeToken,
+      metadataSubtree: "live_recording_config/drm",
+      metadata: drmType.includes("drm") ? "drm" : drmType.includes("clear") ? "clear" : undefined,
+    });
+
+    yield this.client.ReplaceMetadata({
+      objectId,
+      libraryId,
+      writeToken,
       metadataSubtree: "live_recording_config/drm_type",
       metadata: drmType
     });
 
     let updateValue = {}, drmNeedsInit = false;
-    yield this.client.StreamInitialize({
-      name: objectId,
-      drm: drmType === "clear" ? false : true,
-      format: drmOption.format.join(","),
-      writeToken,
-      finalize: false
-    });
+
+    if(![STATUS_MAP.UNINITIALIZED, STATUS_MAP.UNCONFIGURED].includes(status)) {
+      yield this.client.StreamInitialize({
+        name: objectId,
+        drm: drmType === "clear" ? false : true,
+        format: drmOption.format.join(","),
+        writeToken,
+        finalize: false
+      });
+    }
 
     if(finalize) {
       yield this.client.FinalizeContentObject({

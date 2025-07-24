@@ -920,7 +920,8 @@ class EditStore {
 
     yield this.rootStore.streamStore.DrmConfiguration({
       ...basicCallParams,
-      ...drmParams
+      ...drmParams,
+      status
     });
 
     // Apply config metadata changes
