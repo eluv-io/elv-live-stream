@@ -199,13 +199,6 @@ class StreamStore {
         });
       }
 
-      yield this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        commitMessage: "Apply live stream configuration"
-      });
-
       if((liveRecordingConfig?.drm_type || "").includes("drm")) {
         const drmOption = liveRecordingConfig?.drm_type ? ENCRYPTION_OPTIONS.find(option => option.value === liveRecordingConfig.drm_type) : null;
 
@@ -220,10 +213,19 @@ class StreamStore {
           yield this.client.StreamInitialize({
             name: objectId,
             drm: liveRecordingConfig?.drm === "clear" ? false : true,
-            format: drmOption?.format.join(",")
+            format: drmOption?.format.join(","),
+            writeToken,
+            finalize: false
           });
         }
       }
+
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Apply live stream configuration"
+      });
 
       // Update stream link in site after stream configuration
       yield this.rootStore.editStore.UpdateStreamLink({objectId, slug});
