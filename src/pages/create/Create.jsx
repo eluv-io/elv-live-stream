@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {dataStore, streamStore, rootStore, streamManagementStore} from "@/stores";
+import {dataStore, streamBrowseStore, rootStore, streamManagementStore} from "@/stores";
 import {useNavigate} from "react-router-dom";
 import {ENCRYPTION_OPTIONS, RETENTION_OPTIONS} from "@/utils/constants";
 import {
@@ -225,7 +225,7 @@ const Create = observer(() => {
     if(objectData !== null) {
       LoadConfigData();
     }
-  }, [objectData, streamStore.streams]);
+  }, [objectData, streamBrowseStore.streams]);
 
   // Controlled form values that need state variables
   const [formProtocol, setFormProtocol] = useState("mpegts");
@@ -311,7 +311,7 @@ const Create = observer(() => {
       url: formProtocol === "custom" ? formCustomUrl : formUrl
     });
 
-    await streamStore.ConfigureStream({objectId, slug});
+    await streamBrowseStore.ConfigureStream({objectId, slug});
 
     setObjectData({objectId, slug});
 

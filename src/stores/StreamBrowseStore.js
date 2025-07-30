@@ -8,7 +8,7 @@ configure({
 });
 
 // Focuses on the viewer's experience, loading and providing access to all browsable streams.
-class StreamStore {
+class StreamBrowseStore {
   streams;
   streamFrameUrls = {};
   showMonitorPreviews = false;
@@ -1372,4 +1372,4 @@ class StreamStore {
   });
 }
 
-export default StreamStore;
+export default StreamBrowseStore;

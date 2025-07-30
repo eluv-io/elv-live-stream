@@ -1,7 +1,7 @@
 import {configure, flow, makeAutoObservable} from "mobx";
 import {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
 import DataStore from "@/stores/DataStore";
-import StreamStore from "@/stores/StreamStore";
+import StreamBrowseStore from "@/stores/StreamBrowseStore.js";
 import ModalStore from "@/stores/ModalStore.js";
 import StreamManagementStore from "@/stores/StreamManagementStore.js";
 import SiteStore from "@/stores/SiteStore.js";
@@ -23,7 +23,7 @@ class RootStore {
     makeAutoObservable(this);
 
     this.dataStore = new DataStore(this);
-    this.streamStore = new StreamStore(this);
+    this.streamBrowseStore = new StreamBrowseStore(this);
     this.streamManagementStore = new StreamManagementStore(this);
     this.modalStore = new ModalStore(this);
     this.siteStore = new SiteStore(this);

@@ -159,7 +159,7 @@ class StreamManagementStore {
 
     yield this.AddStreamToSite({objectId});
 
-    const statusResponse = yield this.rootStore.streamStore.CheckStatus({
+    const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
       objectId
     });
 
@@ -178,7 +178,7 @@ class StreamManagementStore {
       streamValue[detail] = streamDetails[detail];
     });
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamBrowseStore.UpdateStream({
       key: Slugify(name),
       value: streamValue
     });
@@ -247,7 +247,7 @@ class StreamManagementStore {
       finalize: false
     });
 
-    yield this.rootStore.streamStore.UpdateStreamAudioSettings({
+    yield this.rootStore.streamBrowseStore.UpdateStreamAudioSettings({
       objectId,
       slug,
       writeToken,
@@ -412,7 +412,7 @@ class StreamManagementStore {
         });
       }
 
-      this.rootStore.streamStore.UpdateStream({
+      this.rootStore.streamBrowseStore.UpdateStream({
         key: slug,
         value: updateValue
       });
@@ -466,7 +466,7 @@ class StreamManagementStore {
       awaitCommitConfirmation: true
     });
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamBrowseStore.UpdateStream({
       key: slug,
       value: {
         partTtl: retention
@@ -630,7 +630,7 @@ class StreamManagementStore {
       });
     }
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamBrowseStore.UpdateStream({
       key: slug,
       value: updateValue
     });
@@ -665,7 +665,7 @@ class StreamManagementStore {
 
     const {copyMpegTs} = tsFormData;
 
-    yield this.rootStore.streamStore.UpdateStreamAudioSettings({
+    yield this.rootStore.streamBrowseStore.UpdateStreamAudioSettings({
       objectId,
       writeToken,
       slug,
@@ -776,7 +776,7 @@ class StreamManagementStore {
 
     // Apply watermark settings
 
-    yield this.rootStore.streamStore.WatermarkConfiguration({
+    yield this.rootStore.streamBrowseStore.WatermarkConfiguration({
       ...basicCallParams,
       ...watermarkParams,
       status
@@ -784,7 +784,7 @@ class StreamManagementStore {
 
     // Apply DRM settings
 
-    yield this.rootStore.streamStore.DrmConfiguration({
+    yield this.rootStore.streamBrowseStore.DrmConfiguration({
       ...basicCallParams,
       ...drmParams,
       status
@@ -800,7 +800,7 @@ class StreamManagementStore {
 
     // Apply playout profile settings
 
-    yield this.rootStore.streamStore.UpdateLadderSpecs({
+    yield this.rootStore.streamBrowseStore.UpdateLadderSpecs({
       ...basicCallParams,
       ...playoutProfileParams
     });
@@ -822,11 +822,11 @@ class StreamManagementStore {
     // }
 
     // Update status
-    const statusResponse = yield this.rootStore.streamStore.CheckStatus({
+    const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
       objectId
     });
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamBrowseStore.UpdateStream({
       key: slug,
       value: {
         status: statusResponse.state
@@ -873,7 +873,7 @@ class StreamManagementStore {
   });
 
   DeleteStream = flow(function * ({objectId}) {
-    const streams = Object.assign({}, this.rootStore.streamStore.streams);
+    const streams = Object.assign({}, this.rootStore.streamBrowseStore.streams);
     const slug = Object.keys(streams).find(streamSlug => {
       return streams[streamSlug].objectId === objectId;
     });
@@ -912,7 +912,7 @@ class StreamManagementStore {
     });
 
     delete streams[slug];
-    this.rootStore.streamStore.UpdateStreams({streams});
+    this.rootStore.streamBrowseStore.UpdateStreams({streams});
   });
 }
 

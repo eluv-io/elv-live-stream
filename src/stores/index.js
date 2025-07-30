@@ -12,7 +12,7 @@ window.rootStore = rootStore;
 window.client = rootStore.client;
 
 export const dataStore = rootStore.dataStore;
-export const streamStore = rootStore.streamStore;
+export const streamBrowseStore = rootStore.streamBrowseStore;
 export const streamManagementStore = rootStore.streamManagementStore;
 export const modalStore = rootStore.modalStore;
 export const siteStore = rootStore.siteStore;
