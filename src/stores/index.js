@@ -1,9 +1,10 @@
 import {configure, flow, makeAutoObservable} from "mobx";
 import {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
 import DataStore from "@/stores/DataStore";
-import EditStore from "@/stores/EditStore";
 import StreamStore from "@/stores/StreamStore";
 import ModalStore from "@/stores/ModalStore.js";
+import StreamManagementStore from "@/stores/StreamManagementStore.js";
+import SiteStore from "@/stores/SiteStore.js";
 
 // Force strict mode so mutations are only allowed within actions.
 configure({
@@ -21,9 +22,10 @@ class RootStore {
     makeAutoObservable(this);
 
     this.dataStore = new DataStore(this);
-    this.editStore = new EditStore(this);
     this.streamStore = new StreamStore(this);
+    this.streamManagementStore = new StreamManagementStore(this);
     this.modalStore = new ModalStore(this);
+    this.siteStore = new SiteStore(this);
 
     this.Initialize();
   }
@@ -61,8 +63,9 @@ class RootStore {
 
 export const rootStore = new RootStore();
 export const dataStore = rootStore.dataStore;
-export const editStore = rootStore.editStore;
 export const streamStore = rootStore.streamStore;
+export const streamManagementStore = rootStore.streamManagementStore;
 export const modalStore = rootStore.modalStore;
+export const siteStore = rootStore.siteStore;
 
 window.rootStore = rootStore;

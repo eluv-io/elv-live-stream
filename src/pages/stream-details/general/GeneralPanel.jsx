@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import {Box, Button, Divider, Flex, Loader, Select, SimpleGrid, Text, TextInput, Tooltip} from "@mantine/core";
 import {useEffect, useState} from "react";
-import {dataStore, editStore, rootStore, streamStore} from "@/stores";
+import {dataStore, rootStore, streamManagementStore, streamStore} from "@/stores";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import {CircleInfoIcon} from "@/assets/icons/index.js";
@@ -78,7 +78,7 @@ const GeneralPanel = observer(({slug}) => {
     try {
       setApplyingChanges(true);
 
-      await editStore.UpdateGeneralConfig({
+      await streamManagementStore.UpdateGeneralConfig({
         objectId: params.id,
         slug,
         formData,

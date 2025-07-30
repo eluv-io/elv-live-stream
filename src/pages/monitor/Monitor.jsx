@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 
-import {dataStore, editStore, modalStore, streamStore} from "@/stores";
+import {dataStore, modalStore, rootStore, streamStore} from "@/stores";
 import {SortTable, StreamIsActive} from "@/utils/helpers";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -85,7 +85,7 @@ const OverflowMenu = observer(({stream}) => {
       id: "fabric-browser-stream",
       label: "Open in Fabric Browser",
       Icon: <ExternalLinkIcon {...iconProps} />,
-      onClick: () => editStore.client.SendMessage({
+      onClick: () => rootStore.client.SendMessage({
         options: {
           operation: "OpenLink",
           libraryId: stream.libraryId,

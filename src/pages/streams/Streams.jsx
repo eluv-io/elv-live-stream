@@ -13,7 +13,7 @@ import {
   IconCircleX
 } from "@tabler/icons-react";
 
-import {dataStore, editStore, modalStore, streamStore} from "@/stores";
+import {dataStore, modalStore, streamStore} from "@/stores";
 import {SanitizeUrl, SortTable, VideoBitrateReadable, StreamIsActive} from "@/utils/helpers";
 import {STATUS_MAP} from "@/utils/constants";
 import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
@@ -290,7 +290,7 @@ const Streams = observer(() => {
                         title="Open in Fabric Browser"
                         variant="subtle"
                         color="gray.6"
-                        onClick={() => editStore.client.SendMessage({
+                        onClick={() => streamStore.client.SendMessage({
                           options: {
                             operation: "OpenLink",
                             libraryId: record.libraryId,
