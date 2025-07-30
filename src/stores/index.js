@@ -11,6 +11,7 @@ configure({
   enforceActions: "always"
 });
 
+// The central hub, instantiating and coordinating all other MobX stores.
 class RootStore {
   client;
   loaded = false;

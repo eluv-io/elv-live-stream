@@ -1,6 +1,7 @@
 import {flow, toJS} from "mobx";
 import {Slugify} from "@/utils/helpers.js";
 
+// Manages the live stream platform's core "site" object, including its properties and actions related to platform-level administration.
 class SiteStore {
   constructor(rootStore) {
     this.rootStore = rootStore;

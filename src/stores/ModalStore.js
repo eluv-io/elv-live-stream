@@ -1,5 +1,6 @@
 import {makeAutoObservable} from "mobx";
 
+// Centralizes control over all modal windows, managing their visibility, content, and properties.
 class ModalStore {
   modalData = {
     objectId: null,

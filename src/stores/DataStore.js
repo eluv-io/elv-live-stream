@@ -6,7 +6,7 @@ configure({
   enforceActions: "always"
 });
 
-// Store for loading all the initial data
+// Manages fetching and caching raw data from the backend, handling static or unchanging information.
 class DataStore {
   rootStore;
   loaded = false;

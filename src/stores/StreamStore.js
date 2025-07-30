@@ -7,7 +7,7 @@ configure({
   enforceActions: "always"
 });
 
-// Store for all stream-related actions
+// Focuses on the viewer's experience, loading and providing access to all browsable streams.
 class StreamStore {
   streams;
   streamFrameUrls = {};

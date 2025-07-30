@@ -6,7 +6,7 @@ configure({
   enforceActions: "always"
 });
 
-// Store managing actions for individual streams
+// Handles the business logic for stream creators, covering creation, editing, and live stream control.
 class StreamManagementStore {
   constructor(rootStore) {
     makeAutoObservable(this);
