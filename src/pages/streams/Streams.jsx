@@ -13,7 +13,7 @@ import {
   IconCircleX
 } from "@tabler/icons-react";
 
-import {dataStore, editStore, modalStore, streamStore} from "@/stores";
+import {dataStore, modalStore, streamBrowseStore} from "@/stores";
 import {SanitizeUrl, SortTable, VideoBitrateReadable, StreamIsActive} from "@/utils/helpers";
 import {STATUS_MAP} from "@/utils/constants";
 import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
@@ -39,7 +39,7 @@ const Streams = observer(() => {
     await dataStore.Initialize(true);
   }, 500);
 
-  const records = Object.values(streamStore.streams || {})
+  const records = Object.values(streamBrowseStore.streams || {})
     .filter(record => {
       return (
         !debouncedFilter ||
@@ -171,8 +171,8 @@ const Streams = observer(() => {
                           variant="subtle"
                           color="gray.6"
                           onClick={async () => {
-                            const url = await streamStore.client.ContentObjectMetadata({
-                              libraryId: await streamStore.client.ContentObjectLibraryId({objectId: record.objectId}),
+                            const url = await streamBrowseStore.client.ContentObjectMetadata({
+                              libraryId: await streamBrowseStore.client.ContentObjectLibraryId({objectId: record.objectId}),
                               objectId: record.objectId,
                               metadataSubtree: "live_recording_config/url"
                             });
@@ -290,7 +290,7 @@ const Streams = observer(() => {
                         title="Open in Fabric Browser"
                         variant="subtle"
                         color="gray.6"
-                        onClick={() => editStore.client.SendMessage({
+                        onClick={() => streamBrowseStore.client.SendMessage({
                           options: {
                             operation: "OpenLink",
                             libraryId: record.libraryId,

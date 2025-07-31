@@ -1,16 +1,14 @@
 // Force strict mode so mutations are only allowed within actions.
 import {configure, flow, makeAutoObservable} from "mobx";
-import {editStore} from "./index";
 import UrlJoin from "url-join";
-import {dataStore} from "./index";
-import {ENCRYPTION_OPTIONS} from "@/utils/constants";
+import {ENCRYPTION_OPTIONS, STATUS_MAP} from "@/utils/constants";
 
 configure({
   enforceActions: "always"
 });
 
-// Store for all stream-related actions
-class StreamStore {
+// Focuses on the viewer's experience, loading and providing access to all browsable streams.
+class StreamBrowseStore {
   streams;
   streamFrameUrls = {};
   showMonitorPreviews = false;
@@ -146,8 +144,8 @@ class StreamStore {
 
       if(liveRecordingConfig.playout_ladder_profile) {
         const allProfiles = yield this.client.ContentObjectMetadata({
-          libraryId: yield this.client.ContentObjectLibraryId({objectId: dataStore.siteId}),
-          objectId: dataStore.siteId,
+          libraryId: yield this.client.ContentObjectLibraryId({objectId: this.rootStore.dataStore.siteId}),
+          objectId: this.rootStore.dataStore.siteId,
           metadataSubtree: "public/asset_metadata/profiles"
         });
 
@@ -201,13 +199,6 @@ class StreamStore {
         });
       }
 
-      yield this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        commitMessage: "Apply live stream configuration"
-      });
-
       if((liveRecordingConfig?.drm_type || "").includes("drm")) {
         const drmOption = liveRecordingConfig?.drm_type ? ENCRYPTION_OPTIONS.find(option => option.value === liveRecordingConfig.drm_type) : null;
 
@@ -222,19 +213,28 @@ class StreamStore {
           yield this.client.StreamInitialize({
             name: objectId,
             drm: liveRecordingConfig?.drm === "clear" ? false : true,
-            format: drmOption?.format.join(",")
+            format: drmOption?.format.join(","),
+            writeToken,
+            finalize: false
           });
         }
       }
 
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Apply live stream configuration"
+      });
+
       // Update stream link in site after stream configuration
-      yield editStore.UpdateStreamLink({objectId, slug});
+      yield this.rootStore.siteStore.UpdateStreamLink({objectId, slug});
 
       const response = yield this.CheckStatus({
         objectId
       });
 
-      const streamDetails = yield dataStore.LoadStreamMetadata({
+      const streamDetails = yield this.rootStore.dataStore.LoadStreamMetadata({
         objectId
       });
 
@@ -561,12 +561,15 @@ class StreamStore {
   RemoveWatermark = flow(function * ({
     objectId,
     slug,
-    types
+    types,
+    writeToken,
+    finalize
   }) {
     yield this.client.StreamRemoveWatermark({
       objectId,
       types,
-      finalize: true
+      writeToken,
+      finalize
     });
 
     const updateValue = {};
@@ -592,11 +595,20 @@ class StreamStore {
     slug,
     textWatermark,
     imageWatermark,
-    forensicWatermark
+    forensicWatermark,
+    finalize=true,
+    writeToken
   }){
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({objectId, libraryId}));
+    }
+
     const payload = {
       objectId,
-      finalize: true
+      writeToken,
+      finalize: false
     };
 
     if(imageWatermark) {
@@ -609,14 +621,25 @@ class StreamStore {
 
     const response = yield this.client.StreamAddWatermark(payload);
 
-    this.UpdateStream({
-      key: slug,
-      value: {
-        imageWatermark: response.imageWatermark,
-        simpleWatermark: response.textWatermark,
-        forensicWatermark: response.forensicWatermark
-      }
-    });
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Set watermark"
+      });
+    }
+
+    if(response) {
+      this.UpdateStream({
+        key: slug,
+        value: {
+          imageWatermark: response.imageWatermark,
+          simpleWatermark: response.textWatermark,
+          forensicWatermark: response.forensicWatermark
+        }
+      });
+    }
   });
 
   WatermarkConfiguration = flow(function * ({
@@ -627,8 +650,11 @@ class StreamStore {
     existingImageWatermark,
     existingForensicWatermark,
     watermarkType,
+    libraryId,
     objectId,
-    slug
+    slug,
+    writeToken,
+    finalize=true
   }) {
     const removeTypes = [];
     const payload = {
@@ -654,45 +680,80 @@ class StreamStore {
       payload["forensicWatermark"] = forensicWatermark ? JSON.parse(forensicWatermark) : null;
     }
 
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({objectId, libraryId}));
+    }
+
     if(imageWatermark || textWatermark || forensicWatermark) {
-      yield this.AddWatermark(payload);
+      yield this.AddWatermark({...payload,
+        writeToken,
+        finalize: false
+      });
     }
 
     if(removeTypes.length > 0) {
       yield this.RemoveWatermark({
         objectId,
         slug,
+        writeToken,
+        finalize: false,
         types: removeTypes
       });
     }
 
-    const statusResponse = yield this.CheckStatus({
-      objectId
-    });
+    let updateValue = {};
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Configure watermark"
+      });
+
+      const statusResponse = yield this.CheckStatus({
+        objectId
+      });
+
+      updateValue["status"] = statusResponse.state;
+    } else {
+      updateValue["watermarkType"] = watermarkType;
+    }
 
     this.UpdateStream({
       key: slug,
-      value: {
-        status: statusResponse.state,
-        watermarkType
-      }
+      value: updateValue
     });
   });
 
   DrmConfiguration = flow(function * ({
+    libraryId,
     objectId,
     slug,
     drmType,
-    existingDrmType
+    existingDrmType,
+    writeToken,
+    status,
+    finalize=true
   }) {
     if(existingDrmType === drmType) { return; }
 
     const drmOption = ENCRYPTION_OPTIONS.find(option => option.value === drmType);
 
-    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    const {writeToken} = yield this.client.EditContentObject({
+    libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({
+        objectId,
+        libraryId
+      }));
+    }
+
+    yield this.client.ReplaceMetadata({
       objectId,
-      libraryId
+      libraryId,
+      writeToken,
+      metadataSubtree: "live_recording_config/drm",
+      metadata: drmType.includes("drm") ? "drm" : drmType.includes("clear") ? "clear" : undefined,
     });
 
     yield this.client.ReplaceMetadata({
@@ -703,32 +764,49 @@ class StreamStore {
       metadata: drmType
     });
 
-    yield this.client.FinalizeContentObject({
-      objectId,
-      libraryId,
-      writeToken,
-      commitMessage: "Update drm type metadata"
-    });
+    let updateValue = {}, drmNeedsInit = false;
 
-    const response = yield this.client.StreamInitialize({
-      name: objectId,
-      drm: drmType === "clear" ? false : true,
-      format: drmOption.format.join(",")
-    });
-
-    const statusResponse = yield this.CheckStatus({
-      objectId
-    });
-
-    if(response) {
-      this.UpdateStream({
-        key: slug,
-        value: {
-          status: statusResponse.state,
-          drm: drmType
-        }
+    if(![STATUS_MAP.UNINITIALIZED, STATUS_MAP.UNCONFIGURED].includes(status)) {
+      yield this.client.StreamInitialize({
+        name: objectId,
+        drm: drmType === "clear" ? false : true,
+        format: drmOption.format.join(","),
+        writeToken,
+        finalize: false
       });
     }
+
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        objectId,
+        libraryId,
+        writeToken,
+        commitMessage: "Update drm type metadata"
+      });
+
+      const statusResponse = yield this.CheckStatus({
+        objectId
+      });
+
+      updateValue["status"] = statusResponse.state;
+    } else {
+      updateValue["drm"] = drmType;
+      drmNeedsInit = true;
+    }
+
+    this.UpdateStream({
+      key: slug,
+      value: updateValue
+    });
+
+    return {
+      drmNeedsInit,
+      drmInitPayload: {
+        name: objectId,
+        drm: drmType === "clear" ? false : true,
+        format: drmOption.format.join(",")
+      }
+    };
   });
 
   UpdateAudioLadderSpecs = flow(function * ({
@@ -810,7 +888,13 @@ class StreamStore {
     };
   });
 
-  UpdateLadderSpecs = flow(function * ({objectId, libraryId, profile=""}) {
+  UpdateLadderSpecs = flow(function * ({
+    objectId,
+    libraryId,
+    profile="",
+    writeToken,
+    finalize=true
+  }) {
     let profileData;
     let topLadderRate = 0;
     let ladderSpecs = [];
@@ -819,12 +903,14 @@ class StreamStore {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
     }
 
-    const {writeToken} = yield this.client.EditContentObject({
-      libraryId,
-      objectId
-    });
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId
+      }));
+    }
 
-    const ladderProfiles = yield dataStore.LoadLadderProfiles();
+    const ladderProfiles = yield this.rootStore.dataStore.LoadLadderProfiles();
 
     let audioData = yield this.client.ContentObjectMetadata({
       libraryId,
@@ -833,7 +919,7 @@ class StreamStore {
     });
 
     if(!audioData || Object.keys(audioData || {}).length === 0) {
-      ({audioData} = yield dataStore.LoadStreamProbeData({
+      ({audioData} = yield this.rootStore.dataStore.LoadStreamProbeData({
         objectId
       }));
     }
@@ -902,13 +988,14 @@ class StreamStore {
       metadata: audioIndexMeta
     });
 
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Update ladder_specs",
-      awaitCommitConfirmation: true
-    });
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Update ladder_specs"
+      });
+    }
   });
 
   FetchLiveRecordingCopies = flow(function * ({objectId, libraryId}) {
@@ -986,7 +1073,7 @@ class StreamStore {
     }
 
     // Create content object
-    const titleType = dataStore.titleContentType;
+    const titleType = this.rootStore.dataStore.titleContentType;
 
     if(!targetLibraryId) {
       targetLibraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -1025,8 +1112,8 @@ class StreamStore {
       throw error;
     }
 
+    // Set editable permission
     try {
-      // Set editable permission
       yield this.client.SetPermission({
         objectId: targetObjectId,
         permission: "editable"
@@ -1037,7 +1124,7 @@ class StreamStore {
     }
 
     if(accessGroup) {
-      yield editStore.AddAccessGroupPermission({
+      this.rootStore.streamManagementStore.AddAccessGroupPermission({
         objectId: targetObjectId,
         groupName: accessGroup
       });
@@ -1285,4 +1372,4 @@ class StreamStore {
   });
 }
 
-export default StreamStore;
+export default StreamBrowseStore;

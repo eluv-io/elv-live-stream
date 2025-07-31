@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {streamStore, dataStore, modalStore} from "@/stores";
+import {streamBrowseStore, dataStore, modalStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
@@ -20,18 +20,18 @@ const StreamDetailsPage = observer(() => {
   const [recordingInfo, setRecordingInfo] = useState(null);
 
   if(!streamSlug) {
-    streamSlug = Object.keys(streamStore.streams || {}).find(slug => (
-      streamStore.streams[slug].objectId === params.id
+    streamSlug = Object.keys(streamBrowseStore.streams || {}).find(slug => (
+      streamBrowseStore.streams[slug].objectId === params.id
     ));
   }
 
   if(streamSlug) {
     stream = undefined;
-    stream = streamStore.streams[streamSlug];
+    stream = streamBrowseStore.streams[streamSlug];
   }
 
   const GetStatus = async () => {
-    await streamStore.CheckStatus({
+    await streamBrowseStore.CheckStatus({
       objectId: params.id,
       update: true
     });
@@ -80,12 +80,12 @@ const StreamDetailsPage = observer(() => {
       label: "Delete",
       variant: "outline",
       uppercase: true,
-      disabled: StreamIsActive(streamStore.streams?.[streamSlug]?.status),
+      disabled: StreamIsActive(streamBrowseStore.streams?.[streamSlug]?.status),
       onClick: () => {
         modalStore.SetModal({
           data: {
-            objectId: streamStore.streams?.[streamSlug].objectId,
-            name: streamStore.streams?.[streamSlug].title,
+            objectId: streamBrowseStore.streams?.[streamSlug].objectId,
+            name: streamBrowseStore.streams?.[streamSlug].title,
           },
           slug: streamSlug,
           Callback: () => navigate("/streams"),
@@ -101,15 +101,15 @@ const StreamDetailsPage = observer(() => {
     }
   ];
 
-  if([STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(streamStore.streams?.[streamSlug]?.status)) {
+  if([STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(streamBrowseStore.streams?.[streamSlug]?.status)) {
     actions.push({
       label: "Start",
       variant: "filled",
       onClick: () => {
         modalStore.SetModal({
           data: {
-            objectId: streamStore.streams?.[streamSlug].objectId,
-            name: streamStore.streams?.[streamSlug].title
+            objectId: streamBrowseStore.streams?.[streamSlug].objectId,
+            name: streamBrowseStore.streams?.[streamSlug].title
           },
           Callback: () => LoadEdgeWriteTokenMeta(),
           op: "START",
@@ -120,15 +120,15 @@ const StreamDetailsPage = observer(() => {
     });
   }
 
-  if([STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(streamStore.streams?.[streamSlug]?.status)) {
+  if([STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(streamBrowseStore.streams?.[streamSlug]?.status)) {
     actions.push({
       label: "Stop",
       variant: "filled",
       onClick: () => {
         modalStore.SetModal({
           data: {
-            objectId: streamStore.streams?.[streamSlug].objectId,
-            name: streamStore.streams?.[streamSlug].title,
+            objectId: streamBrowseStore.streams?.[streamSlug].objectId,
+            name: streamBrowseStore.streams?.[streamSlug].title,
           },
           Callback: () => DebouncedRefresh(),
           op: "STOP",
@@ -142,12 +142,12 @@ const StreamDetailsPage = observer(() => {
   return (
     <PageContainer
       key={`stream-details-${pageVersion}`}
-      title={`Edit ${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
+      title={`Edit ${streamBrowseStore.streams?.[streamSlug]?.title || stream.objectId}`}
       subtitle={stream.objectId}
       titleRightSection={
         <StatusText
           status={stream.status}
-          quality={streamStore.streams?.[streamSlug]?.quality}
+          quality={streamBrowseStore.streams?.[streamSlug]?.quality}
           size="md"
           withBorder
         />

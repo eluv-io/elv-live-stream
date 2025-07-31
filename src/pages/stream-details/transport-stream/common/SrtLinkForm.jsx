@@ -219,7 +219,6 @@ const SrtLinkForm = ({
             ]}
             minHeight={75}
             withColumnBorders
-            withScrollArea={false}
             columns={nodeConfigColumns}
           />
         </Box>
