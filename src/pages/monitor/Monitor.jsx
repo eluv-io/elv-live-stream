@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 
-import {dataStore, editStore, modalStore, streamStore} from "@/stores";
+import {dataStore, modalStore, rootStore, streamBrowseStore} from "@/stores";
 import {SortTable, StreamIsActive} from "@/utils/helpers";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -85,7 +85,7 @@ const OverflowMenu = observer(({stream}) => {
       id: "fabric-browser-stream",
       label: "Open in Fabric Browser",
       Icon: <ExternalLinkIcon {...iconProps} />,
-      onClick: () => editStore.client.SendMessage({
+      onClick: () => rootStore.client.SendMessage({
         options: {
           operation: "OpenLink",
           libraryId: stream.libraryId,
@@ -156,7 +156,7 @@ const GridItem = observer(({stream, index}) => {
       <VideoContainer
         index={index}
         slug={stream.slug}
-        showPreview={streamStore.showMonitorPreviews}
+        showPreview={streamBrowseStore.showMonitorPreviews}
         playable={stream.status === "running"}
         capLevelToPlayerSize
       />
@@ -214,8 +214,8 @@ const Monitor = observer(() => {
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
 
-  const streams = !streamStore.streams ? undefined :
-    Object.values(streamStore.streams || {})
+  const streams = !streamBrowseStore.streams ? undefined :
+    Object.values(streamBrowseStore.streams || {})
       .filter(record => {
         return (
           !debouncedFilter ||
@@ -240,11 +240,11 @@ const Monitor = observer(() => {
           onChange={event => setFilter(event.target.value)}
         />
         <Button
-          onClick={() => streamStore.ToggleMonitorPreviews()}
+          onClick={() => streamBrowseStore.ToggleMonitorPreviews()}
           variant="outline"
           ml="auto"
         >
-          { streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews" }
+          { streamBrowseStore.showMonitorPreviews ? "Hide Previews" : "Show Previews" }
         </Button>
       </Flex>
       {

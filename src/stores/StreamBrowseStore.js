@@ -7,8 +7,8 @@ configure({
   enforceActions: "always"
 });
 
-// Store for all stream-related actions
-class StreamStore {
+// Focuses on the viewer's experience, loading and providing access to all browsable streams.
+class StreamBrowseStore {
   streams;
   streamFrameUrls = {};
   showMonitorPreviews = false;
@@ -228,7 +228,7 @@ class StreamStore {
       });
 
       // Update stream link in site after stream configuration
-      yield this.rootStore.editStore.UpdateStreamLink({objectId, slug});
+      yield this.rootStore.siteStore.UpdateStreamLink({objectId, slug});
 
       const response = yield this.CheckStatus({
         objectId
@@ -1124,7 +1124,7 @@ class StreamStore {
     }
 
     if(accessGroup) {
-      this.rootStore.editStore.AddAccessGroupPermission({
+      this.rootStore.streamManagementStore.AddAccessGroupPermission({
         objectId: targetObjectId,
         groupName: accessGroup
       });
@@ -1372,4 +1372,4 @@ class StreamStore {
   });
 }
 
-export default StreamStore;
+export default StreamBrowseStore;

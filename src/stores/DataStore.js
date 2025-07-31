@@ -6,7 +6,7 @@ configure({
   enforceActions: "always"
 });
 
-// Store for loading all the initial data
+// Manages fetching and caching raw data from the backend, handling static or unchanging information.
 class DataStore {
   rootStore;
   loaded = false;
@@ -48,7 +48,7 @@ class DataStore {
       yield this.LoadLadderProfiles();
       yield this.LoadStreams();
       this.loaded = true;
-      yield this.rootStore.streamStore.AllStreamsStatus(reload);
+      yield this.rootStore.streamBrowseStore.AllStreamsStatus(reload);
     } catch(error) {
       this.loaded = true;
     }
@@ -133,7 +133,7 @@ class DataStore {
   });
 
   LoadStreams = flow(function * () {
-    this.rootStore.streamStore.UpdateStreams({});
+    this.rootStore.streamBrowseStore.UpdateStreams({});
     let streamMetadata;
     try {
       const siteMetadata = yield this.client.ContentObjectMetadata({
@@ -149,7 +149,7 @@ class DataStore {
 
       streamMetadata = siteMetadata?.public?.asset_metadata?.live_streams || {};
     } catch(error) {
-      this.rootStore.streamStore.UpdateStreams({streams: {}});
+      this.rootStore.streamBrowseStore.UpdateStreams({streams: {}});
       this.rootStore.SetErrorMessage("Error: Unable to load streams");
       // eslint-disable-next-line no-console
       console.error(error);
@@ -189,7 +189,7 @@ class DataStore {
       }
     );
 
-    this.rootStore.streamStore.UpdateStreams({streams: streamMetadata});
+    this.rootStore.streamBrowseStore.UpdateStreams({streams: streamMetadata});
   });
 
   LoadLibraries = flow(function * () {
@@ -376,7 +376,7 @@ class DataStore {
         ]
       });
 
-      this.rootStore.streamStore.UpdateStream({
+      this.rootStore.streamBrowseStore.UpdateStream({
         key: slug,
         value: {
           title: streamMeta?.name,

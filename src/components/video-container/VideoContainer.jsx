@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {streamStore} from "@/stores/index.js";
+import {streamBrowseStore} from "@/stores/index.js";
 import {ActionIcon, AspectRatio, Box} from "@mantine/core";
 import {PlayCircleIcon as PlayIcon} from "@/assets/icons/index.js";
 import Video from "@/components/video/Video.jsx";
@@ -26,7 +26,7 @@ const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLeve
         }
       </Box>
       <Video
-        objectId={streamStore.streams[slug].objectId}
+        objectId={streamBrowseStore.streams[slug].objectId}
         playerOptions={{
           capLevelToPlayerSize,
           autoplay: true
@@ -86,15 +86,15 @@ export const VideoContainer = observer(({
 }) => {
   const [play, setPlay] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
-  const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamStore.streamFrameUrls[slug]?.url);
-  const status = streamStore.streams?.[slug]?.status;
+  const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamBrowseStore.streamFrameUrls[slug]?.url);
+  const status = streamBrowseStore.streams?.[slug]?.status;
 
   useEffect(() => {
     if(!showPreview || play || status !== "running") {
       return;
     }
 
-    const existingFrame = streamStore.streamFrameUrls[slug];
+    const existingFrame = streamBrowseStore.streamFrameUrls[slug];
     // Frame loading already initialized - no delay needed
     if(frameKey > 0 || (existingFrame && Date.now() - existingFrame.timestamp < 60000)) {
       setFrameSegmentUrl(existingFrame.url);
@@ -106,7 +106,7 @@ export const VideoContainer = observer(({
     // Stagger frame loads
     const delay = Math.min(200 + 500 * index, 10000);
     const frameTimeout = setTimeout(async () => {
-      setFrameSegmentUrl(await streamStore.StreamFrameURL(slug));
+      setFrameSegmentUrl(await streamBrowseStore.StreamFrameURL(slug));
     }, delay);
 
     return () => clearTimeout(frameTimeout);
