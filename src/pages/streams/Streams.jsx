@@ -180,7 +180,9 @@ const Streams = observer(() => {
                           title="Check Stream"
                           variant="subtle"
                           color="gray.6"
-                          onClick={async () => {
+                          onClick={async (e) => {
+                            e.stopPropagation();
+
                             const url = await streamBrowseStore.client.ContentObjectMetadata({
                               libraryId: await streamBrowseStore.client.ContentObjectLibraryId({objectId: record.objectId}),
                               objectId: record.objectId,
@@ -220,7 +222,9 @@ const Streams = observer(() => {
                           title="Start Stream"
                           variant="subtle"
                           color="gray.6"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
+
                             modalStore.SetModal({
                               data: {
                                 objectId: record.objectId,
@@ -241,7 +245,9 @@ const Streams = observer(() => {
                           title="Deactivate Stream"
                           variant="subtle"
                           color="gray.6"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
+
                             modalStore.SetModal({
                               data: {
                                 objectId: record.objectId,
@@ -266,8 +272,11 @@ const Streams = observer(() => {
                       !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status) ? null :
                         <>
                           <ActionIcon
-                            component={Link}
-                            to={`/streams/${record.objectId}/preview`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+
+                              navigate(`/streams/${record.objectId}/preview`);
+                            }}
                             title="View Stream"
                             variant="subtle"
                             color="gray.6"
@@ -278,7 +287,9 @@ const Streams = observer(() => {
                             title="Stop Stream"
                             variant="subtle"
                             color="gray.6"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
+
                               modalStore.SetModal({
                                 data: {
                                   objectId: record.objectId,
@@ -300,14 +311,18 @@ const Streams = observer(() => {
                         title="Open in Fabric Browser"
                         variant="subtle"
                         color="gray.6"
-                        onClick={() => streamBrowseStore.client.SendMessage({
-                          options: {
-                            operation: "OpenLink",
-                            libraryId: record.libraryId,
-                            objectId: record.objectId
-                          },
-                          noResponse: true
-                        })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+
+                          streamBrowseStore.client.SendMessage({
+                            options: {
+                              operation: "OpenLink",
+                              libraryId: record.libraryId,
+                              objectId: record.objectId
+                            },
+                            noResponse: true
+                          });
+                        }}
                       >
                         <IconExternalLink />
                       </ActionIcon>
@@ -317,7 +332,9 @@ const Streams = observer(() => {
                       variant="subtle"
                       color="gray.6"
                       disabled={StreamIsActive(record.status)}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
+
                         modalStore.SetModal({
                           data: {
                             objectId: record.objectId,
