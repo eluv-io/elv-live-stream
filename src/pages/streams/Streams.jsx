@@ -28,6 +28,7 @@ import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "./Streams.module.css";
+import CopyButton from "@/components/copy-button/CopyButton.jsx";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -106,9 +107,15 @@ const Streams = observer(() => {
                     {record.title || record.slug}
                   </Title>
                 </UnstyledButton>
-                <Title order={6} c="elv-gray.6" lineClamp={1}>
-                  {record.objectId}
-                </Title>
+                <CopyButton
+                  value={record.objectId}
+                  textComponent={
+                    <Title order={6} c="elv-gray.6" lineClamp={1}>
+                      {record.objectId}
+                    </Title>
+                  }
+                />
+
               </Stack>
             )},
             {
