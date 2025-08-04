@@ -21,7 +21,7 @@ import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import {DataTable} from "mantine-datatable";
 import {notifications} from "@mantine/notifications";
-import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton, Text} from "@mantine/core";
+import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, Text} from "@mantine/core";
 
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -81,6 +81,11 @@ const Streams = observer(() => {
           minHeight={(!records || records.length === 0) ? 130 : 75}
           fetching={!dataStore.loaded}
           records={records}
+          onRowClick={({record}) => {
+            if(!record.objectId) { return; }
+
+            navigate(`/streams/${record.objectId || record.slug}`);
+          }}
           emptyState={
             // Mantine bug where empty state link still present underneath table rows
             !records &&
@@ -102,11 +107,9 @@ const Streams = observer(() => {
           columns={[
             { accessor: "title", title: "Name", sortable: true, render: record => (
               <Stack gap={0} maw="100%">
-                <UnstyledButton onClick={() => navigate(`/streams/${record.objectId || record.slug}`)} disabled={!record.objectId} style={{pointerEvents: record.objectId ? "auto" : "none"}}>
-                  <Title order={3} lineClamp={1} title={record.title || record.slug} style={{wordBreak: "break-all"}}>
-                    {record.title || record.slug}
-                  </Title>
-                </UnstyledButton>
+                <Title order={3} lineClamp={1} title={record.title || record.slug} style={{wordBreak: "break-all"}}>
+                  {record.title || record.slug}
+                </Title>
                 <CopyButton
                   value={record.objectId}
                   textComponent={
