@@ -2,7 +2,7 @@ import {useRef, useEffect} from "react";
 import {Alert, Box} from "@mantine/core";
 
 const AlertMessage = ({error, onClose, ...props}) => {
-  const errorRef = useRef(null);
+  const errorRef = useRef(undefined);
 
   useEffect(() => {
     if(errorRef && errorRef.current) {

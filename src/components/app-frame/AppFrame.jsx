@@ -124,7 +124,7 @@ const AppFrame = observer(({
   onCancel,
   Reload
 }) => {
-  const appRef = useRef();
+  const appRef = useRef(undefined);
 
   useEffect(() => {
     return () => {
