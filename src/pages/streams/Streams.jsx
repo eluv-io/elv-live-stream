@@ -29,6 +29,7 @@ import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "./Streams.module.css";
 import CopyButton from "@/components/copy-button/CopyButton.jsx";
+import {useContextMenu} from "mantine-contextmenu";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -40,6 +41,8 @@ const Streams = observer(() => {
     await dataStore.Initialize(true);
   }, 500);
 
+  const {showContextMenu} = useContextMenu();
+
   const records = Object.values(streamBrowseStore.streams || {})
     .filter(record => {
       return (
@@ -49,6 +52,72 @@ const Streams = observer(() => {
       );
     })
     .sort(SortTable({sortStatus}));
+
+  const HandleContextMenu = ({record, event}) => {
+    event.preventDefault();
+
+    const contextMenuIconProps = {
+      color: "var(--mantine-color-elv-gray-6)",
+      size: 20
+    };
+
+    const menuItems = [
+      {
+        key: "check",
+        color: "var(--mantine-color-elv-gray-9)",
+        icon: <IconListCheck {...contextMenuIconProps} />,
+        hidden: ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status),
+        onClick: () => {}
+      },
+      {
+        key: "view",
+        color: "var(--mantine-color-elv-gray-9)",
+        icon: <IconDeviceAnalytics {...contextMenuIconProps} />,
+        hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
+        onClick: () => {}
+      },
+      {
+        key: "start",
+        color: "var(--mantine-color-elv-gray-9)",
+        icon: <IconPlayerPlay {...contextMenuIconProps} />,
+        hidden: !record.status || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status),
+        onClick: () => {}
+      },
+      {
+        key: "stop",
+        color: "var(--mantine-color-elv-gray-9)",
+        icon: <IconPlayerStop {...contextMenuIconProps} />,
+        hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
+        onClick: () => {}
+      },
+      {key: "divider-1"},
+      {
+        key: "open-in-fabric-browser",
+        color: "var(--mantine-color-elv-gray-9)",
+        title: "Open in Fabric Browser",
+        icon: <IconExternalLink {...contextMenuIconProps} />,
+        hidden: !record.objectId,
+        onClick: () => {}
+      },
+      {key: "divider-2"},
+      {
+        key: "deactivate",
+        color: "var(--mantine-color-elv-gray-9)",
+        icon: <IconCircleX {...contextMenuIconProps} />,
+        hidden: !record.status || record.status !== STATUS_MAP.STOPPED,
+        onClick: () => {}
+      },
+      {
+        key: "delete",
+        color: "var(--mantine-color-elv-gray-9)",
+        icon: <IconTrash {...contextMenuIconProps} />,
+        disabled: StreamIsActive(record.status),
+        onClick: () => {}
+      }
+    ];
+
+    showContextMenu(menuItems)(event);
+  };
 
   return (
     <PageContainer
@@ -81,6 +150,7 @@ const Streams = observer(() => {
           minHeight={(!records || records.length === 0) ? 130 : 75}
           fetching={!dataStore.loaded}
           records={records}
+          onRowContextMenu={HandleContextMenu}
           onRowClick={({record}) => {
             if(!record.objectId) { return; }
 
