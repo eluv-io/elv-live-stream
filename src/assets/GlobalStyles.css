@@ -13,3 +13,7 @@
 .mantine-Table-th.no-border-end {
   border-inline-end: none;
 }
+
+.mantine-datatable-context-menu-cursor {
+  cursor: default;
+}
