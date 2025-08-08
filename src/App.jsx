@@ -25,7 +25,7 @@ import {ContextMenuProvider} from "mantine-contextmenu";
 const App = observer(() => {
   return (
     <MantineProvider withCSSVariables theme={MantineTheme}>
-      <ContextMenuProvider>
+      <ContextMenuProvider borderRadius={5}>
         <BrowserRouter>
           <AppShell
             padding="0"

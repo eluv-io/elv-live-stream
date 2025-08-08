@@ -13,7 +13,3 @@
 .mantine-Table-th.no-border-end {
   border-inline-end: none;
 }
-
-.mantine-contextmenu {
-  border-radius: 5px;
-}
