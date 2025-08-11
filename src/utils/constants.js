@@ -3,6 +3,15 @@ import PlayoutPanel from "@/pages/stream-details/playout/PlayoutPanel";
 import RecordingPanel from "@/pages/stream-details/recording/RecordingPanel";
 import DetailsPanel from "@/pages/stream-details/details/DetailsPanel";
 import TransportStreamPanel from "@/pages/stream-details/transport-stream/TransportStreamPanel.jsx";
+import {
+  IconCircleX,
+  IconDeviceAnalytics,
+  IconExternalLink,
+  IconListCheck,
+  IconPlayerPlay,
+  IconPlayerStop, IconTrash
+} from "@tabler/icons-react";
+import {StreamIsActive} from "@/utils/helpers.js";
 
 export const STATUS_MAP = {
   UNCONFIGURED: "unconfigured",
@@ -117,6 +126,58 @@ export const RECONNECTION_TIMEOUT_OPTIONS = [
   {label: "1 Hour", value: "3600"},
   {label: "4 Hours", value: "14400"}
 ];
+
+export const STREAM_ACTIONS = {
+  CHECK: {
+    label: "Check",
+    key: "check",
+    icon: IconListCheck,
+    hidden: (record) => ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status),
+    actionType: "checkAction"
+  },
+  VIEW: {
+    label: "View",
+    key: "view",
+    icon: IconDeviceAnalytics,
+    hidden: (record) => !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
+    path: (objectId) => `/streams/${objectId}/preview`
+  },
+  START: {
+    label: "Start",
+    key: "start",
+    icon: IconPlayerPlay,
+    hidden: (record) => !record.status || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status),
+    actionType: "startAction"
+  },
+  STOP: {
+    label: "Stop",
+    key: "stop",
+    icon: IconPlayerStop,
+    hidden: (record) => !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
+    actionType: "stopAction"
+  },
+  OPEN_IN_FABRIC_BROWSER: {
+    label: "Open in Fabric Browser",
+    key: "open-fabric-browser",
+    icon: IconExternalLink,
+    hidden: (record) => !record.objectId,
+    actionType: "fabricBrowserAction"
+  },
+  DEACTIVATE: {
+    label: "Deactivate",
+    key: "deactivate",
+    icon: IconCircleX,
+    hidden: (record) => !record.status || record.status !== STATUS_MAP.STOPPED,
+    actionType: "deactivateAction"
+  },
+  DELETE: {
+    label: "Delete",
+    key: "delete",
+    icon: IconTrash,
+    disabled: (record) => StreamIsActive(record.status),
+    actionType: "deleteAction"
+  }
+};
 
 // Human-readable text
 
