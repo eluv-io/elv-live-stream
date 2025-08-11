@@ -1,5 +1,6 @@
 import {makeAutoObservable} from "mobx";
 
+// Centralizes control over all modal windows, managing their visibility, content, and properties.
 class ModalStore {
   modalData = {
     objectId: null,
@@ -19,7 +20,7 @@ class ModalStore {
       message: "Are you sure you want to check the stream?",
       messageInactive: "Are you sure you want to check the stream? This will override your saved configuration.",
       confirmText: "Check Stream",
-      Method: ({objectId, slug}) => this.rootStore.streamStore.ConfigureStream({
+      Method: ({objectId, slug}) => this.rootStore.streamBrowseStore.ConfigureStream({
         objectId,
         slug
       }),
@@ -41,7 +42,7 @@ class ModalStore {
       title: "Start Stream",
       message: "Are you sure you want to start the stream? Once started, the stream will go live, and any changes may require restarting. Please confirm before proceeding.",
       confirmText: "Start Stream",
-      Method: ({slug}) => this.rootStore.streamStore.StartStream({slug}),
+      Method: ({slug}) => this.rootStore.streamBrowseStore.StartStream({slug}),
       notification: () => {
         return {
           success: {
@@ -60,7 +61,7 @@ class ModalStore {
       title: "Stop Stream",
       message: "Are you sure you want to stop the stream? Once stopped, viewers will be disconnected, and the stream cannot be resumed. You can start a new session later if needed.",
       confirmText: "Stop Stream",
-      Method: ({objectId, slug}) => this.rootStore.streamStore.OperateLRO({
+      Method: ({objectId, slug}) => this.rootStore.streamBrowseStore.OperateLRO({
         objectId,
         slug,
         operation: "STOP"
@@ -83,7 +84,7 @@ class ModalStore {
       title: "Deactivate Stream Confirmation",
       message: "Are you sure you want to deactivate the stream?",
       confirmText: "Deactivate Stream",
-      Method: ({objectId, slug}) => this.rootStore.streamStore.DeactivateStream({
+      Method: ({objectId, slug}) => this.rootStore.streamBrowseStore.DeactivateStream({
         objectId,
         slug
       }),
@@ -105,7 +106,7 @@ class ModalStore {
       title: "Delete Stream Confirmation",
       message: "Are you sure you want to delete the stream?",
       confirmText: "Delete Stream",
-      Method: ({objectId}) => this.rootStore.editStore.DeleteStream({objectId}),
+      Method: ({objectId}) => this.rootStore.streamManagementStore.DeleteStream({objectId}),
       notification: ({objectId}) => {
         return {
           success: {
