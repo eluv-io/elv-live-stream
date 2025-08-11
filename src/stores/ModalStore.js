@@ -8,7 +8,7 @@ class ModalStore {
     title: "",
     message: "",
     name: "",
-    loadingText: "",
+    loadingText: null,
     ConfirmCallback: null,
     CloseCallback: null,
     confirmText: "",
@@ -241,7 +241,7 @@ class ModalStore {
         ConfirmCallback: null,
         CloseCallback: null,
         confirmText: "",
-        loadingText: ""
+        loadingText: null
       };
     }, 300);
   };

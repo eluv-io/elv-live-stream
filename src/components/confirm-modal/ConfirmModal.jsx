@@ -37,8 +37,8 @@ const ConfirmModal = observer(({
     >
       <Box>
         {
-          customMessage ?
-            customMessage : (
+          (customMessage && typeof customMessage === "function") ?
+            customMessage() : (
              <Text>{message}</Text>
             )
         }
@@ -64,8 +64,8 @@ const ConfirmModal = observer(({
           </Box>
         }
         {
-          loading && loadingText ?
-            loadingText : null
+          loading && loadingText && typeof loadingText === "function" ?
+            loadingText() : null
         }
         {
           !error ?

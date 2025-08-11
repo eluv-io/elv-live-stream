@@ -112,32 +112,33 @@ const TransportStreamPanel = observer(({url, active}) => {
           region: modalData.regionValue
         })}
         title="Delete SRT Link"
-        customMessage={
-          <Stack>
-            <Text>Are you sure you want to delete the link?</Text>
-            <Grid>
-              <Grid.Col span={3}>
-                <Text>Label:</Text>
-              </Grid.Col>
-              <Grid.Col span={9}>
-                <Text truncate="end">{ modalData.label || "" }</Text>
-              </Grid.Col>
+        customMessage={() => (
+            <Stack>
+              <Text>Are you sure you want to delete the link?</Text>
+              <Grid>
+                <Grid.Col span={3}>
+                  <Text>Label:</Text>
+                </Grid.Col>
+                <Grid.Col span={9}>
+                  <Text truncate="end">{ modalData.label || "" }</Text>
+                </Grid.Col>
 
-              <Grid.Col span={3}>
-                <Text>Region:</Text>
-              </Grid.Col>
-              <Grid.Col span={9}>
-                <Text>{ modalData.regionLabel || "" }</Text>
-              </Grid.Col>
+                <Grid.Col span={3}>
+                  <Text>Region:</Text>
+                </Grid.Col>
+                <Grid.Col span={9}>
+                  <Text>{ modalData.regionLabel || "" }</Text>
+                </Grid.Col>
 
-              <Grid.Col span={3}>
-                <Text>Stream URL:</Text>
-              </Grid.Col>
-              <Grid.Col span={9}>
-                <Text style={{wordBreak: "break-all"}}>{ modalData.url || "" }</Text>
-              </Grid.Col>
-            </Grid>
-          </Stack>
+                <Grid.Col span={3}>
+                  <Text>Stream URL:</Text>
+                </Grid.Col>
+                <Grid.Col span={9}>
+                  <Text style={{wordBreak: "break-all"}}>{ modalData.url || "" }</Text>
+                </Grid.Col>
+              </Grid>
+            </Stack>
+          )
         }
       />
     </Box>

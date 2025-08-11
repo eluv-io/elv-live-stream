@@ -15,7 +15,7 @@ import {
 
 import {dataStore, modalStore, streamBrowseStore} from "@/stores";
 import {SanitizeUrl, SortTable, VideoBitrateReadable, StreamIsActive} from "@/utils/helpers";
-import {STATUS_MAP} from "@/utils/constants";
+import {STATUS_MAP, STREAM_ACTIONS} from "@/utils/constants";
 import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
 
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
@@ -30,6 +30,7 @@ import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx
 import styles from "./Streams.module.css";
 import CopyButton from "@/components/copy-button/CopyButton.jsx";
 import {useContextMenu} from "mantine-contextmenu";
+import {useStreamActions} from "@/hooks/useStreamActions.jsx";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -56,65 +57,65 @@ const Streams = observer(() => {
   const HandleContextMenu = ({record, event}) => {
     event.preventDefault();
 
+    const {HandleCheckAction, HandleDeleteAction, HandleDeactivateAction, HandleFabricBrowserAction, HandleStartAction, HandleStopAction} = useStreamActions();
+
     const contextMenuIconProps = {
       color: "var(--mantine-color-elv-gray-6)",
       size: 20
     };
 
-    const menuItems = [
-      {
-        key: "check",
-        color: "var(--mantine-color-elv-gray-9)",
-        icon: <IconListCheck {...contextMenuIconProps} />,
-        hidden: ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status),
-        onClick: () => {}
-      },
-      {
-        key: "view",
-        color: "var(--mantine-color-elv-gray-9)",
-        icon: <IconDeviceAnalytics {...contextMenuIconProps} />,
-        hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
-        onClick: () => {}
-      },
-      {
-        key: "start",
-        color: "var(--mantine-color-elv-gray-9)",
-        icon: <IconPlayerPlay {...contextMenuIconProps} />,
-        hidden: !record.status || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status),
-        onClick: () => {}
-      },
-      {
-        key: "stop",
-        color: "var(--mantine-color-elv-gray-9)",
-        icon: <IconPlayerStop {...contextMenuIconProps} />,
-        hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
-        onClick: () => {}
-      },
-      {key: "divider-1"},
-      {
-        key: "open-in-fabric-browser",
-        color: "var(--mantine-color-elv-gray-9)",
-        title: "Open in Fabric Browser",
-        icon: <IconExternalLink {...contextMenuIconProps} />,
-        hidden: !record.objectId,
-        onClick: () => {}
-      },
-      {key: "divider-2"},
-      {
-        key: "deactivate",
-        color: "var(--mantine-color-elv-gray-9)",
-        icon: <IconCircleX {...contextMenuIconProps} />,
-        hidden: !record.status || record.status !== STATUS_MAP.STOPPED,
-        onClick: () => {}
-      },
-      {
-        key: "delete",
-        color: "var(--mantine-color-elv-gray-9)",
-        icon: <IconTrash {...contextMenuIconProps} />,
-        disabled: StreamIsActive(record.status),
-        onClick: () => {}
-      }
+    const DIVIDER = { type: "divider", key: "divider" };
+
+    const actionHandlers = {
+      checkAction: HandleCheckAction,
+      startAction: HandleStartAction,
+      stopAction: HandleStopAction,
+      fabricBrowserAction: HandleFabricBrowserAction,
+      deactivateAction: HandleDeactivateAction,
+      deleteAction: HandleDeleteAction
+    };
+
+    const groupedMenuActions = [
+      STREAM_ACTIONS.CHECK,
+      STREAM_ACTIONS.VIEW,
+      STREAM_ACTIONS.START,
+      STREAM_ACTIONS.STOP,
+      DIVIDER,
+      STREAM_ACTIONS.OPEN_IN_FABRIC_BROWSER,
+      DIVIDER,
+      STREAM_ACTIONS.DEACTIVATE,
+      STREAM_ACTIONS.DELETE
     ];
+
+    const menuItems = groupedMenuActions.map((action, i) => {
+      if(action.type === "divider") {
+        return ({
+          key: `divider-${i}`,
+          type: "divider"
+        });
+      }
+
+      return (
+        {
+          key: action.key,
+          color: "var(--mantine-color-elv-gray-9)",
+          icon: <action.icon {...contextMenuIconProps} />,
+          hidden: action.hidden ? action.hidden(record) : false,
+          disabled: action.disabled ? action.disabled(record) : false,
+          onClick: (event) => {
+            const clickHandler = actionHandlers[action.actionType];
+
+            // action is a link
+            if(action.path) {
+              navigate(action.path(record.objectId));
+            } else if(clickHandler && typeof clickHandler === "function") {
+              // all other action functions have a click handler
+              clickHandler({data: record, event});
+            }
+          }
+        }
+      );
+    });
 
     showContextMenu(menuItems)(event);
   };
@@ -263,7 +264,7 @@ const Streams = observer(() => {
                               data: {
                                 objectId: record.objectId,
                                 name: record.title,
-                                loadingText: (
+                                loadingText: () => (
                                   <Stack mt={16} gap={5}>
                                     <Text>
                                       Please send your stream to:
@@ -322,7 +323,7 @@ const Streams = observer(() => {
                               data: {
                                 objectId: record.objectId,
                                 name: record.title,
-                                customMessage: (
+                                customMessage: () => (
                                   <Stack gap={0} mb={8}>
                                     <Text c="elv-gray.9">Are you sure you want to deactivate the stream?</Text>
                                     <Text fw={700} c="elv-gray.9">You will lose all recording media. Be sure to save a VoD copy first.</Text>
