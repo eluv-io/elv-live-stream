@@ -7,6 +7,10 @@ class SiteStore {
     this.rootStore = rootStore;
   }
 
+  get client() {
+    return this.rootStore.client;
+  }
+
   CreateLink = ({
     targetHash,
     linkTarget="meta/public/asset_metadata",
