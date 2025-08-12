@@ -136,7 +136,7 @@ class StreamManagementStore {
       finalize: false
     });
 
-    yield this.CreateSiteLinks({objectId});
+    yield this.rootStore.siteStore.CreateSiteLinks({objectId});
 
     try {
       yield this.client.SetPermission({
@@ -157,7 +157,7 @@ class StreamManagementStore {
       awaitCommitConfirmation: true
     });
 
-    yield this.AddStreamToSite({objectId});
+    yield this.rootStore.siteStore.AddStreamToSite({objectId});
 
     const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
       objectId
