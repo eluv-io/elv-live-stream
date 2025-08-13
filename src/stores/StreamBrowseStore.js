@@ -1276,7 +1276,6 @@ class StreamBrowseStore {
       ...audioLadderSpecs
     ];
 
-    console.log("laddersSPecs", newLadderSpecs)
 
     yield this.client.ReplaceMetadata({
       libraryId,
@@ -1377,7 +1376,6 @@ class StreamBrowseStore {
         audioToDelete.forEach(index => delete audioConfig[index]);
       });
 
-      console.log("audioData", audioConfig)
 
       yield this.UpdateStreamAudioSettings({
         objectId,
