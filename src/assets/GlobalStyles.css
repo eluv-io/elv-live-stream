@@ -15,5 +15,5 @@
 }
 
 .mantine-datatable-context-menu-cursor {
-  cursor: default;
+  cursor: pointer;
 }
