@@ -912,11 +912,17 @@ class StreamBrowseStore {
 
     const ladderProfiles = yield this.rootStore.dataStore.LoadLadderProfiles();
 
-    let audioData = yield this.client.ContentObjectMetadata({
+    const liveRecordingMetadata = yield this.client.ContentObjectMetadata({
       libraryId,
       objectId,
-      metadataSubtree: "live_recording_config/audio"
+      metadataSubtree: "live_recording_config",
+      select: [
+        "audio",
+        "probe_info/streams"
+      ]
     });
+
+    let audioData = liveRecordingMetadata.audio;
 
     if(!audioData || Object.keys(audioData || {}).length === 0) {
       ({audioData} = yield this.rootStore.dataStore.LoadStreamProbeData({
@@ -934,21 +940,31 @@ class StreamBrowseStore {
       profileData = ladderProfiles.default;
     }
 
+    // Determine top rung height
+    const probeVideoStreams = (liveRecordingMetadata?.probe_info?.streams || [])
+      .filter(stream => stream.codec_type === "video");
+    const maxRungHeight = probeVideoStreams.map(stream => stream.height)
+      .reduce((max, current) => {
+        return current > max ? current : max;
+      }, -Infinity);
+
     // Add fully-formed video specs
     profileData.ladder_specs.video.forEach(spec => {
-      if(spec.bit_rate > topLadderRate) {
-        topLadderRate = spec.bit_rate;
+      if(spec.height <= maxRungHeight) {
+        if(spec.bit_rate > topLadderRate) {
+          topLadderRate = spec.bit_rate;
+        }
+
+        const videoSpec = {
+          ...spec,
+          media_type: 1,
+          representation: `videovideo_${spec.width}x${spec.height}_h264@${spec.bit_rate}`,
+          stream_index: 0,
+          stream_name: "video"
+        };
+
+        ladderSpecs.push(videoSpec);
       }
-
-      const videoSpec = {
-        ...spec,
-        media_type: 1,
-        representation: `videovideo_${spec.width}x${spec.height}_h264@${spec.bit_rate}`,
-        stream_index: 0,
-        stream_name: "video"
-      };
-
-      ladderSpecs.push(videoSpec);
     });
 
     const {nAudio, globalAudioBitrate, audioLadderSpecs, audioIndexMeta} = yield this.UpdateAudioLadderSpecs({
@@ -1260,6 +1276,8 @@ class StreamBrowseStore {
       ...audioLadderSpecs
     ];
 
+    console.log("laddersSPecs", newLadderSpecs)
+
     yield this.client.ReplaceMetadata({
       libraryId,
       objectId,
@@ -1358,6 +1376,8 @@ class StreamBrowseStore {
 
         audioToDelete.forEach(index => delete audioConfig[index]);
       });
+
+      console.log("audioData", audioConfig)
 
       yield this.UpdateStreamAudioSettings({
         objectId,
