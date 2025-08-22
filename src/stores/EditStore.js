@@ -462,7 +462,7 @@ class EditStore {
             }
           }
         }),
-        order: Object.keys(streamMetadata).length,
+        order: Object.keys(streamMetadata || {}).length,
       };
 
       const {writeToken} = yield this.client.EditContentObject({
@@ -476,7 +476,7 @@ class EditStore {
         writeToken,
         metadataSubtree: "public/asset_metadata/live_streams",
         metadata: {
-          ...toJS(streamMetadata),
+          ...toJS(streamMetadata || {}),
           [Slugify(objectName)]: streamData
         }
       });
