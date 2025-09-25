@@ -245,72 +245,74 @@ const PlayoutPanel = observer(({
       <Divider mb={29} mt={29} />
 
       <Box mb={25}>
-        <SectionTitle mb={12}>Visible Watermark</SectionTitle>
+        <DisabledTooltipWrapper tooltipLabel="Watermark configuration is disabled when the stream is not initialized" disabled={[STATUS_MAP.UNINITIALIZED].includes(status)}>
+          <SectionTitle mb={12}>Visible Watermark</SectionTitle>
 
-        <SimpleGrid cols={2} spacing={150}>
-          <Select
-            label="Watermark Type"
-            name="watermarkType"
-            data={[
-              {label: "None", value: ""},
-              {label: "Image", value: "IMAGE"},
-              {label: "Text", value: "TEXT"},
-              {label: "Forensic", value: "FORENSIC", disabled: status === STATUS_MAP.UNINITIALIZED}
-            ]}
-            value={watermarkType}
-            onChange={(value) => {
-              setWatermarkType(value);
+          <SimpleGrid cols={2} spacing={150}>
+            <Select
+              label="Watermark Type"
+              name="watermarkType"
+              data={[
+                {label: "None", value: ""},
+                {label: "Image", value: "IMAGE"},
+                {label: "Text", value: "TEXT"},
+                {label: "Forensic", value: "FORENSIC", disabled: status === STATUS_MAP.UNINITIALIZED}
+              ]}
+              value={watermarkType}
+              onChange={(value) => {
+                setWatermarkType(value);
 
-              const watermarkDefault = (
-                value === "TEXT"
-                  ? DEFAULT_WATERMARK_TEXT
-                  : value === "FORENSIC"
-                  ? DEFAULT_WATERMARK_FORENSIC
-                  : DEFAULT_WATERMARK_IMAGE
-              );
+                const watermarkDefault = (
+                  value === "TEXT"
+                    ? DEFAULT_WATERMARK_TEXT
+                    : value === "FORENSIC"
+                    ? DEFAULT_WATERMARK_FORENSIC
+                    : DEFAULT_WATERMARK_IMAGE
+                );
 
-              const keyMap = {
-                "TEXT": "text",
-                "IMAGE": "image",
-                "FORENSIC": "forensic"
-              };
+                const keyMap = {
+                  "TEXT": "text",
+                  "IMAGE": "image",
+                  "FORENSIC": "forensic"
+                };
 
-              if(value) {
-                setFormWatermarks({
-                  [keyMap[value]]: JSON.stringify(watermarkDefault, null, 2)
-                });
-              }
-            }}
-            allowDeselect={false}
-          />
-        </SimpleGrid>
-        {
-          !!watermarkType &&
-          <Textarea
-            mb={16}
-            mt={12}
-            value={
-            watermarkType === "TEXT" ? formWatermarks.text : watermarkType === "FORENSIC" ? formWatermarks.forensic : watermarkType === "IMAGE" ? formWatermarks.image : ""
+                if(value) {
+                  setFormWatermarks({
+                    [keyMap[value]]: JSON.stringify(watermarkDefault, null, 2)
+                  });
+                }
+              }}
+              allowDeselect={false}
+            />
+          </SimpleGrid>
+          {
+            !!watermarkType &&
+            <Textarea
+              mb={16}
+              mt={12}
+              value={
+              watermarkType === "TEXT" ? formWatermarks.text : watermarkType === "FORENSIC" ? formWatermarks.forensic : watermarkType === "IMAGE" ? formWatermarks.image : ""
+            }
+              size="md"
+              rows={10}
+              onChange={(event) => {
+                const value = {
+                  ...formWatermarks
+                };
+
+                if(watermarkType === "TEXT") {
+                  value["text"] = event.target.value;
+                } else if(watermarkType === "FORENSIC") {
+                  value["forensic"] = event.target.value;
+                } else if(watermarkType === "IMAGE") {
+                  value["image"] = event.target.value;
+                }
+
+                setFormWatermarks(value);
+              }}
+            />
           }
-            size="md"
-            rows={10}
-            onChange={(event) => {
-              const value = {
-                ...formWatermarks
-              };
-
-              if(watermarkType === "TEXT") {
-                value["text"] = event.target.value;
-              } else if(watermarkType === "FORENSIC") {
-                value["forensic"] = event.target.value;
-              } else if(watermarkType === "IMAGE") {
-                value["image"] = event.target.value;
-              }
-
-              setFormWatermarks(value);
-            }}
-          />
-        }
+        </DisabledTooltipWrapper>
       </Box>
       <Button
         disabled={applyingChanges}
