@@ -159,6 +159,10 @@ class StreamBrowseStore {
 
           if(profileData) {
             customSettings["ladder_profile"] = profileData.ladder_specs;
+            if(!profileData.ladder_specs.video) {
+              throw Error("No video ladder specs found in profile. Please make sure they are defined as ladder_specs: {video: {}, audio: {}}.");
+
+            }
           } else {
             // eslint-disable-next-line no-console
             console.warn(`Ladder profile ${liveRecordingConfig.playout_ladder_profile} not found. Defaulting to the built-in profile.`);
@@ -932,6 +936,10 @@ class StreamBrowseStore {
       profileData = ladderProfiles.custom.find(item => item.name === profile);
     } else {
       profileData = ladderProfiles.default;
+    }
+
+    if(!profileData.ladder_specs.video) {
+      throw Error("No video ladder specs found. Please make sure they are defined as ladder_specs: {video: {}, audio: {}}.");
     }
 
     // Add fully-formed video specs
