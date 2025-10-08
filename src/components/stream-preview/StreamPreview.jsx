@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import {useParams, useNavigate} from "react-router-dom";
 import {Button, Loader} from "@mantine/core";
-import {rootStore, streamStore} from "@/stores/index.js";
+import {rootStore, streamBrowseStore} from "@/stores/index.js";
 import AppFrame from "@/components/app-frame/AppFrame.jsx";
 import styles from "./StreamPreview.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -10,10 +10,10 @@ const StreamPreview = observer(() => {
   const {id} = useParams();
   const navigate = useNavigate();
 
-  const streamSlug = Object.keys(streamStore.streams || {}).find(slug => (
-    streamStore.streams[slug].objectId === id
+  const streamSlug = Object.keys(streamBrowseStore.streams || {}).find(slug => (
+    streamBrowseStore.streams[slug].objectId === id
   ));
-  const streamObject = streamStore.streams?.[streamSlug];
+  const streamObject = streamBrowseStore.streams?.[streamSlug];
 
   if(!streamObject) {
     return (
@@ -31,7 +31,7 @@ const StreamPreview = observer(() => {
     );
   }
 
-  const libraryId = streamStore.streams[streamSlug].libraryId;
+  const libraryId = streamBrowseStore.streams[streamSlug].libraryId;
   const queryParams = {
     contentSpaceId: rootStore.contentSpaceId,
     libraryId,

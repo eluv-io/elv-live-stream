@@ -3,7 +3,7 @@ import TextEditorBox from "@/components/text-editor-box/TextEditorBox.jsx";
 import {useEffect, useState} from "react";
 import {DefaultLadderProfile} from "@/utils/profiles.js";
 import {observer} from "mobx-react-lite";
-import {dataStore, editStore} from "@/stores/index.js";
+import {dataStore, streamManagementStore} from "@/stores/index.js";
 import {PlusIcon} from "@/assets/icons/index.js";
 import {rootStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
@@ -97,7 +97,7 @@ const Settings = observer(() => {
       };
 
       if(!draftItems[index]) {
-        await editStore.SaveLadderProfiles({
+        await streamManagementStore.SaveLadderProfiles({
           profileData: newData
         });
       }
@@ -130,7 +130,7 @@ const Settings = observer(() => {
 
       setSaving(true);
 
-      await editStore.SaveLadderProfiles({
+      await streamManagementStore.SaveLadderProfiles({
         profileData: {...profileFormData}
       });
 

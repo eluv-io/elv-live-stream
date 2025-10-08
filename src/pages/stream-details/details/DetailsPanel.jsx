@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {Box, Button, Code, Flex, Grid, Group, Skeleton, Stack, Text, Title, Tooltip} from "@mantine/core";
-import {dataStore, streamStore} from "@/stores";
+import {dataStore, streamBrowseStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
 import {DateFormat, FormatTime} from "@/utils/helpers";
@@ -67,13 +67,13 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
 
   useEffect(() => {
     const LoadStatus = async () => {
-      const statusResponse = await streamStore.CheckStatus({
+      const statusResponse = await streamBrowseStore.CheckStatus({
         objectId: params.id
       });
 
       let frameUrl = "";
       if(statusResponse?.state === STATUS_MAP.RUNNING) {
-        streamStore.StreamFrameURL(slug).then(url => setFrameSegmentUrl(url));
+        streamBrowseStore.StreamFrameURL(slug).then(url => setFrameSegmentUrl(url));
       }
 
       setStatus(statusResponse);
@@ -93,7 +93,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   const LoadLiveRecordingCopies = async() => {
     try {
       setLoading(true);
-      let liveRecordingCopies = await streamStore.FetchLiveRecordingCopies({
+      let liveRecordingCopies = await streamBrowseStore.FetchLiveRecordingCopies({
         objectId: params.id
       });
 

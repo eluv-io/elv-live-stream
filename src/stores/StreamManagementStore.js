@@ -1,177 +1,22 @@
-// Force strict mode so mutations are only allowed within actions.
-import {configure, flow, makeAutoObservable, runInAction, toJS} from "mobx";
-import {ParseLiveConfigData, Slugify} from "@/utils/helpers";
-import {dataStore, streamStore} from "./index";
+import {configure, flow, makeAutoObservable} from "mobx";
+import {ParseLiveConfigData, Slugify} from "@/utils/helpers.js";
+import {STATUS_MAP} from "@/utils/constants.js";
 
 configure({
   enforceActions: "always"
 });
 
-// Store for handling writing content
-class EditStore {
-  rootStore;
-  libraries;
-  accessGroups;
-  contentType;
-
+// Handles the business logic for stream creators, covering creation, editing, and live stream control.
+class StreamManagementStore {
   constructor(rootStore) {
     makeAutoObservable(this);
 
-    runInAction(() => {
-      this.rootStore = rootStore;
-    });
+    this.rootStore = rootStore;
   }
 
   get client() {
     return this.rootStore.client;
   }
-
-  InitLiveStreamObject = flow(function * ({
-    accessGroup,
-    description,
-    displayTitle,
-    encryption,
-    libraryId,
-    name,
-    permission,
-    playoutProfile,
-    protocol,
-    retention,
-    persistent,
-    url
-  }) {
-    const response = yield this.CreateContentObject({
-      libraryId,
-      permission
-    });
-
-    const {objectId, write_token} = response;
-
-    if(accessGroup) {
-      this.AddAccessGroupPermission({
-        objectId,
-        groupName: accessGroup
-      });
-    }
-
-    const config = ParseLiveConfigData({
-      url,
-      encryption,
-      playoutProfile,
-      retention,
-      persistent,
-      referenceUrl: protocol === "custom" ? undefined : url
-    });
-
-    yield this.AddMetadata({
-      libraryId,
-      objectId,
-      name,
-      description,
-      displayTitle,
-      writeToken: write_token,
-      config
-    });
-
-    yield this.CreateSiteLinks({objectId});
-    yield this.AddStreamToSite({objectId});
-
-    try {
-      yield this.client.SetPermission({
-        objectId,
-        permission
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to set permission.", error);
-    }
-
-    const statusResponse = yield streamStore.CheckStatus({
-      objectId
-    });
-
-    const streamValue = {
-      objectId,
-      title: name,
-      status: statusResponse.state,
-    };
-
-    const streamDetails = yield dataStore.LoadStreamMetadata({
-      objectId,
-      libraryId
-    }) || {};
-
-    Object.keys(streamDetails).forEach(detail => {
-      streamValue[detail] = streamDetails[detail];
-    });
-
-    streamStore.UpdateStream({
-      key: Slugify(name),
-      value: streamValue
-    });
-
-    return {
-      objectId,
-      slug: Slugify(name)
-    };
-  });
-
-  // Update audio settings for streams that have been created and probed
-  UpdateLiveStreamObject = flow(function * ({
-    audioFormData,
-    objectId,
-    slug,
-    accessGroup,
-    description,
-    displayTitle,
-    encryption,
-    libraryId,
-    name,
-    playoutProfile,
-    protocol,
-    retention,
-    persistent,
-    url
-  }) {
-    if(accessGroup) {
-      this.AddAccessGroupPermission({
-        objectId,
-        groupName: accessGroup
-      });
-    }
-
-    // Remove audio stream from meta if record=false
-    Object.keys(audioFormData || {}).forEach(index => {
-      if(!audioFormData[index].record) {
-        delete audioFormData[index];
-      }
-    });
-
-    const config = ParseLiveConfigData({
-      url,
-      encryption,
-      playoutProfile,
-      retention,
-      persistent,
-      referenceUrl: protocol === "custom" ? undefined : url,
-      audioFormData
-    });
-
-    yield this.AddMetadata({
-      libraryId,
-      objectId,
-      name,
-      description,
-      displayTitle,
-      config
-    });
-
-    yield streamStore.UpdateStreamAudioSettings({
-      objectId,
-      slug,
-      audioData: audioFormData
-    });
-  });
 
   CreateContentObject = flow(function * ({
     libraryId
@@ -180,7 +25,7 @@ class EditStore {
     try {
       response = yield this.client.CreateContentObject({
         libraryId,
-        options: { type: dataStore.contentType }
+        options: { type: this.rootStore.dataStore.contentType }
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -197,7 +42,7 @@ class EditStore {
   }) {
     try {
       if(!groupAddress) {
-        groupAddress = dataStore.accessGroups[groupName]?.address;
+        groupAddress = this.rootStore.dataStore.accessGroups[groupName]?.address;
       }
 
       yield this.client.AddContentObjectGroupPermission({
@@ -243,6 +88,182 @@ class EditStore {
     }
   });
 
+  InitLiveStreamObject = flow(function * ({
+    accessGroup,
+    description,
+    displayTitle,
+    encryption,
+    libraryId,
+    name,
+    permission,
+    playoutProfile,
+    protocol,
+    retention,
+    persistent,
+    url
+  }) {
+    const response = yield this.CreateContentObject({
+      libraryId,
+      permission
+    });
+
+    const {objectId, writeToken} = response;
+
+    if(accessGroup) {
+      this.AddAccessGroupPermission({
+        objectId,
+        groupName: accessGroup
+      });
+    }
+
+    const config = ParseLiveConfigData({
+      url,
+      encryption,
+      playoutProfile,
+      retention,
+      persistent,
+      referenceUrl: protocol === "custom" ? undefined : url
+    });
+
+    yield this.AddMetadata({
+      libraryId,
+      objectId,
+      name,
+      description,
+      displayTitle,
+      writeToken,
+      config,
+      finalize: false
+    });
+
+    yield this.rootStore.siteStore.CreateSiteLinks({objectId});
+
+    try {
+      yield this.client.SetPermission({
+        objectId,
+        permission,
+        writeToken
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to set permission.", error);
+    }
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Create stream object",
+      awaitCommitConfirmation: true
+    });
+
+    yield this.rootStore.siteStore.AddStreamToSite({objectId});
+
+    const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
+      objectId
+    });
+
+    const streamValue = {
+      objectId,
+      title: name,
+      status: statusResponse.state,
+    };
+
+    const streamDetails = yield this.rootStore.dataStore.LoadStreamMetadata({
+      objectId,
+      libraryId
+    }) || {};
+
+    Object.keys(streamDetails).forEach(detail => {
+      streamValue[detail] = streamDetails[detail];
+    });
+
+    this.rootStore.streamBrowseStore.UpdateStream({
+      key: Slugify(name),
+      value: streamValue
+    });
+
+    return {
+      objectId,
+      slug: Slugify(name)
+    };
+  });
+
+
+  // Update audio settings for streams that have been created and probed
+  UpdateLiveStreamObject = flow(function * ({
+    audioFormData,
+    objectId,
+    slug,
+    accessGroup,
+    description,
+    displayTitle,
+    encryption,
+    libraryId,
+    name,
+    playoutProfile,
+    protocol,
+    retention,
+    persistent,
+    url
+  }) {
+    if(accessGroup) {
+      this.AddAccessGroupPermission({
+        objectId,
+        groupName: accessGroup
+      });
+    }
+
+    // Remove audio stream from meta if record=false
+    Object.keys(audioFormData || {}).forEach(index => {
+      if(!audioFormData[index].record) {
+        delete audioFormData[index];
+      }
+    });
+
+    const config = ParseLiveConfigData({
+      url,
+      encryption,
+      playoutProfile,
+      retention,
+      persistent,
+      referenceUrl: protocol === "custom" ? undefined : url,
+      audioFormData
+    });
+
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId
+    });
+
+    yield this.AddMetadata({
+      libraryId,
+      objectId,
+      name,
+      description,
+      displayTitle,
+      config,
+      writeToken,
+      finalize: false
+    });
+
+    yield this.rootStore.streamBrowseStore.UpdateStreamAudioSettings({
+      objectId,
+      slug,
+      writeToken,
+      audioData: audioFormData,
+      finalize: false
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Update audio settings",
+      awaitCommitConfirmation: true
+    });
+  });
+
   SetPermission = flow(function * ({objectId, permission}) {
     try {
       const response = yield this.client.SetPermission({
@@ -266,7 +287,8 @@ class EditStore {
     config,
     name,
     description,
-    displayTitle
+    displayTitle,
+    finalize=true
   }) {
     if(!writeToken) {
       ({writeToken} = yield this.client.EditContentObject({
@@ -295,19 +317,22 @@ class EditStore {
       }
     });
 
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Add metadata",
-      awaitCommitConfirmation: true
-    });
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Add metadata",
+        awaitCommitConfirmation: true
+      });
+    }
   });
 
   UpdateDetailMetadata = flow(function * ({
     libraryId,
     objectId,
     writeToken,
+    finalize=true,
     name,
     url,
     description,
@@ -376,15 +401,18 @@ class EditStore {
         metadata
       });
 
-      const response = this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        commitMessage: "Update metadata",
-        awaitCommitConfirmation: true
-      });
+      let response;
+      if(finalize) {
+        response = this.client.FinalizeContentObject({
+          libraryId,
+          objectId,
+          writeToken,
+          commitMessage: "Update metadata",
+          awaitCommitConfirmation: true
+        });
+      }
 
-      streamStore.UpdateStream({
+      this.rootStore.streamBrowseStore.UpdateStream({
         key: slug,
         value: updateValue
       });
@@ -396,142 +424,6 @@ class EditStore {
     }
   });
 
-  CreateSiteLinks = flow(function * ({objectId}) {
-    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    const {writeToken} = yield this.client.EditContentObject({
-      libraryId,
-      objectId
-    });
-
-    yield this.client.CreateLinks({
-      libraryId,
-      objectId,
-      writeToken,
-      links: [{
-        type: "rep",
-        path: "public/asset_metadata/sources/default",
-        target: "playout/default/options.json"
-      }]
-    });
-
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Create stream link",
-      awaitCommitConfirmation: true
-    });
-  });
-
-  CreateLink = ({
-    targetHash,
-    linkTarget="meta/public/asset_metadata",
-    options={},
-    autoUpdate=true
-  }) => {
-    return {
-      ...options,
-      ".": {
-        ...(options["."] || {}),
-        ...autoUpdate ? {"auto_update": {"tag": "latest"}} : undefined
-      },
-      "/": `/qfab/${targetHash}/${linkTarget}`
-    };
-  };
-
-  AddStreamToSite = flow(function * ({objectId}) {
-    try {
-      const streamMetadata = yield this.client.ContentObjectMetadata({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
-        metadataSubtree: "public/asset_metadata/live_streams",
-      });
-
-      const objectName = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId}),
-        objectId,
-        metadataSubtree: "public/name"
-      });
-
-      const streamData = {
-        ...this.CreateLink({
-          targetHash: yield this.client.LatestVersionHash({objectId}),
-          options: {
-            ".": {
-              container: yield this.client.LatestVersionHash({objectId: dataStore.siteId})
-            }
-          }
-        }),
-        order: Object.keys(streamMetadata || {}).length,
-      };
-
-      const {writeToken} = yield this.client.EditContentObject({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId
-      });
-
-      yield this.client.ReplaceMetadata({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
-        writeToken,
-        metadataSubtree: "public/asset_metadata/live_streams",
-        metadata: {
-          ...toJS(streamMetadata || {}),
-          [Slugify(objectName)]: streamData
-        }
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
-        writeToken,
-        commitMessage: "Add live stream",
-        awaitCommitConfirmation: true
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to replace meta", error);
-    }
-  });
-
-  UpdateStreamLink = flow(function * ({objectId, slug}) {
-    try {
-      const originalLink = yield this.client.ContentObjectMetadata({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
-        metadataSubtree: `public/asset_metadata/live_streams/${slug}`,
-      });
-
-      const link = this.CreateLink({
-        targetHash: yield this.client.LatestVersionHash({objectId}),
-        options: originalLink
-      });
-
-      const {writeToken} = yield this.client.EditContentObject({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId
-      });
-
-      yield this.client.ReplaceMetadata({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
-        writeToken,
-        metadataSubtree: `public/asset_metadata/live_streams/${slug}`,
-        metadata: link
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId: dataStore.siteLibraryId,
-        objectId: dataStore.siteId,
-        writeToken,
-        commitMessage: "Update stream link",
-        awaitCommitConfirmation: true
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to update stream link", error);
-    }
-  });
 
   UpdateRetention = flow(function * ({
     objectId,
@@ -574,7 +466,7 @@ class EditStore {
       awaitCommitConfirmation: true
     });
 
-    streamStore.UpdateStream({
+    this.rootStore.streamBrowseStore.UpdateStream({
       key: slug,
       value: {
         partTtl: retention
@@ -691,6 +583,7 @@ class EditStore {
         const playoutMeta = yield this.client.ContentObjectMetadata({
           libraryId,
           objectId,
+          writeToken,
           metadataSubtree: "live_recording/playout_config"
         });
 
@@ -737,7 +630,7 @@ class EditStore {
       });
     }
 
-    streamStore.UpdateStream({
+    this.rootStore.streamBrowseStore.UpdateStream({
       key: slug,
       value: updateValue
     });
@@ -746,6 +639,7 @@ class EditStore {
       writeToken
     };
   });
+
 
   UpdateRecordingConfig = flow(function * ({
     libraryId,
@@ -771,7 +665,7 @@ class EditStore {
 
     const {copyMpegTs} = tsFormData;
 
-    yield this.rootStore.streamStore.UpdateStreamAudioSettings({
+    yield this.rootStore.streamBrowseStore.UpdateStreamAudioSettings({
       objectId,
       writeToken,
       slug,
@@ -800,13 +694,154 @@ class EditStore {
     });
   });
 
+  UpdateGeneralConfig = flow(function * ({
+    objectId,
+    libraryId,
+    formData,
+    writeToken,
+    slug,
+    updatePermission=false,
+    updateAccessGroup=false,
+    removeAccessGroup
+  }) {
+    const {accessGroup, name, url, description, displayTitle, permission} = formData;
+
+    if(!libraryId) {
+      libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    }
+
+    if(!writeToken) {
+      ({writeToken} = yield this.client.EditContentObject({
+        libraryId,
+        objectId
+      }));
+    }
+
+    yield this.UpdateDetailMetadata({
+      objectId,
+      name,
+      url,
+      description,
+      displayTitle,
+      slug,
+      writeToken,
+      finalize: false
+    });
+
+    if(updatePermission) {
+      yield this.SetPermission({
+        objectId,
+        permission
+      });
+    }
+
+    if(updateAccessGroup) {
+      yield this.UpdateAccessGroupPermission({
+        objectId,
+        addGroup: accessGroup,
+        removeGroup: removeAccessGroup
+      });
+    }
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Apply general config"
+    });
+  });
+
+  UpdatePlayoutConfig = flow(function * ({
+    objectId,
+    slug,
+    status,
+    watermarkParams,
+    drmParams,
+    configMetaParams,
+    playoutProfileParams
+  }){
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId,
+      objectId
+    });
+
+    const basicCallParams = {
+      libraryId,
+      objectId,
+      writeToken,
+      slug,
+      finalize: false
+    };
+
+    // Apply watermark settings
+
+    yield this.rootStore.streamBrowseStore.WatermarkConfiguration({
+      ...basicCallParams,
+      ...watermarkParams,
+      status
+    });
+
+    // Apply DRM settings
+
+    yield this.rootStore.streamBrowseStore.DrmConfiguration({
+      ...basicCallParams,
+      ...drmParams,
+      status
+    });
+
+    // Apply config metadata changes
+
+    yield this.UpdateConfigMetadata({
+      ...basicCallParams,
+      ...configMetaParams,
+      skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
+    });
+
+    // Apply playout profile settings
+
+    yield this.rootStore.streamBrowseStore.UpdateLadderSpecs({
+      ...basicCallParams,
+      ...playoutProfileParams
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Apply playout settings"
+    });
+
+    // Initialize stream after DRM update
+
+    // if(drmResponse?.drmNeedsInit) {
+    //   yield this.client.StreamInitialize({
+    //     finalize: false,
+    //     ...drmResponse?.drmInitPayload
+    //   });
+    // }
+
+    // Update status
+    const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
+      objectId
+    });
+
+    this.rootStore.streamBrowseStore.UpdateStream({
+      key: slug,
+      value: {
+        status: statusResponse.state
+      }
+    });
+  });
+
+
   SaveLadderProfiles = flow(function * ({profileData}) {
     try {
-      if(!dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId: dataStore.siteId});
+      if(!this.rootStore.dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.rootStore.dataStore.siteId});
       const {writeToken} = yield this.client.EditContentObject({
         libraryId,
-        objectId: dataStore.siteId
+        objectId: this.rootStore.dataStore.siteId
       });
 
       profileData.default = JSON.parse(profileData.default || {});
@@ -814,7 +849,7 @@ class EditStore {
 
       yield this.client.ReplaceMetadata({
         libraryId,
-        objectId: dataStore.siteId,
+        objectId: this.rootStore.dataStore.siteId,
         writeToken,
         metadataSubtree: "public/asset_metadata/profiles",
         metadata: profileData
@@ -822,13 +857,13 @@ class EditStore {
 
       yield this.client.FinalizeContentObject({
         libraryId,
-        objectId: dataStore.siteId,
+        objectId: this.rootStore.dataStore.siteId,
         writeToken,
         commitMessage: "Update playout ladder profiles",
         awaitCommitConfirmation: true
       });
 
-      dataStore.UpdateLadderProfiles({profiles: profileData});
+      this.rootStore.dataStore.UpdateLadderProfiles({profiles: profileData});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to save ladder profiles", error);
@@ -837,37 +872,36 @@ class EditStore {
     }
   });
 
-
   DeleteStream = flow(function * ({objectId}) {
-    const streams = Object.assign({}, streamStore.streams);
+    const streams = Object.assign({}, this.rootStore.streamBrowseStore.streams);
     const slug = Object.keys(streams).find(streamSlug => {
       return streams[streamSlug].objectId === objectId;
     });
 
     const streamMetadata = yield this.client.ContentObjectMetadata({
-      libraryId: dataStore.siteLibraryId,
-      objectId: dataStore.siteId,
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId,
       metadataSubtree: "public/asset_metadata/live_streams",
     });
 
     delete streamMetadata[slug];
 
     const {writeToken} = yield this.client.EditContentObject({
-      libraryId: dataStore.siteLibraryId,
-      objectId: dataStore.siteId
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId
     });
 
     yield this.client.ReplaceMetadata({
-      libraryId: dataStore.siteLibraryId,
-      objectId: dataStore.siteId,
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId,
       writeToken,
       metadataSubtree: "public/asset_metadata/live_streams",
       metadata: streamMetadata
     });
 
     yield this.client.FinalizeContentObject({
-      libraryId: dataStore.siteLibraryId,
-      objectId: dataStore.siteId,
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId,
       writeToken,
       commitMessage: "Delete live stream"
     });
@@ -878,8 +912,8 @@ class EditStore {
     });
 
     delete streams[slug];
-    streamStore.UpdateStreams({streams});
+    this.rootStore.streamBrowseStore.UpdateStreams({streams});
   });
 }
 
-export default EditStore;
+export default StreamManagementStore;

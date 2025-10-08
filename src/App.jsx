@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {BrowserRouter} from "react-router-dom";
-import {modalStore, rootStore} from "@/stores";
+import {rootStore} from "@/stores";
 
 import "@mantine/core/styles.css";
 import "mantine-datatable/styles.css";
@@ -41,7 +41,7 @@ const App = observer(() => {
                   )
               }
               <ConfirmModal
-                {...modalStore.modalData}
+                {...rootStore.modalStore.modalData}
               />
             </DataWrapper>
           </AppShell.Main>

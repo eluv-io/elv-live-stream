@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import {Box, Button, Divider, Flex, Loader, Select, SimpleGrid, Text, TextInput, Tooltip} from "@mantine/core";
 import {useEffect, useState} from "react";
-import {dataStore, editStore, rootStore, streamStore} from "@/stores";
+import {dataStore, rootStore, streamManagementStore, streamBrowseStore} from "@/stores";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import {CircleInfoIcon} from "@/assets/icons/index.js";
@@ -31,7 +31,7 @@ const GeneralPanel = observer(({slug}) => {
       try {
         setLoading(true);
         await dataStore.LoadDetails({objectId: params.id, slug});
-        const stream = streamStore.streams[slug];
+        const stream = streamBrowseStore.streams[slug];
         const currentPermission = await dataStore.LoadPermission({objectId: params.id});
         const accessGroupPermission = await dataStore.LoadAccessGroupPermissions({objectId: params.id});
 
@@ -61,7 +61,7 @@ const GeneralPanel = observer(({slug}) => {
       LoadAccessGroups();
       LoadDetails();
     }
-  }, [params.id, streamStore.streams]);
+  }, [params.id, streamBrowseStore.streams]);
 
   const HandleFormChange = (event) => {
     const {name, value} = event.target;
@@ -78,29 +78,14 @@ const GeneralPanel = observer(({slug}) => {
     try {
       setApplyingChanges(true);
 
-      await editStore.UpdateDetailMetadata({
+      await streamManagementStore.UpdateGeneralConfig({
         objectId: params.id,
-        name: formData.name,
-        url: formData.url,
-        description: formData.description,
-        displayTitle: formData.displayTitle,
-        slug
+        slug,
+        formData,
+        updatePermission: currentSettings.permission !== formData.permission,
+        updateAccessGroup: currentSettings.accessGroup !== formData.accessGroup,
+        removeAccessGroup: currentSettings.accessGroup
       });
-
-      if(currentSettings.permission !== formData.permission) {
-        await editStore.SetPermission({
-          objectId: params.id,
-          permission: formData.permission
-        });
-      }
-
-      if(currentSettings.accessGroup !== formData.accessGroup) {
-        await editStore.UpdateAccessGroupPermission({
-          objectId: params.id,
-          addGroup: formData.accessGroup,
-          removeGroup: currentSettings.accessGroup
-        });
-      }
 
       notifications.show({
         title: <NotificationMessage>Updated {formData.name || params.id}</NotificationMessage>,

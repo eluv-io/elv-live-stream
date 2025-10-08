@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import {DataTable} from "mantine-datatable";
 import {ActionIcon, Box, Group, Stack, Text, Title} from "@mantine/core";
 import {DateFormat, SortTable} from "@/utils/helpers.js";
-import {editStore, streamStore} from "@/stores/index.js";
+import {streamBrowseStore} from "@/stores/index.js";
 import {IconExternalLink, IconTrash} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
@@ -96,7 +96,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
                     title="Open in Fabric Browser"
                     variant="subtle"
                     color="elv-gray.6"
-                    onClick={() => editStore.client.SendMessage({
+                    onClick={() => streamBrowseStore.client.SendMessage({
                       options: {
                         operation: "OpenLink",
                         objectId: record._id
@@ -131,7 +131,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
         message="Are you sure you want to delete the live recording copy? This action cannot be undone."
         danger
         ConfirmCallback={async () => {
-          await streamStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: deleteId});
+          await streamBrowseStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: deleteId});
 
           setDeleteId("");
           notifications.show({
