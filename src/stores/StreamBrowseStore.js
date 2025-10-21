@@ -871,7 +871,7 @@ class StreamBrowseStore {
       audioLadderSpec.stream_label = audioData[audioIndex].playout ? audioData[audioIndex].playout_label : null;
       audioLadderSpec.media_type = 2;
       audioLadderSpec.lang = audioData[audioIndex].lang;
-      audioLadderSpec.default = correspondingLadderSpec.default || audioData[audioIndex].default;
+      audioLadderSpec.default = Object.hasOwn(correspondingLadderSpec, "default") ? correspondingLadderSpec.default : audioData[audioIndex].default;
 
       audioLadderSpecs.push(audioLadderSpec);
 
@@ -1341,7 +1341,7 @@ class StreamBrowseStore {
           audioConfig[stream.stream_index] = {
             bitrate: stream.bit_rate,
             codec: stream.codec_name,
-            default: stream.default || false,
+            default: Object.hasOwn(stream, "default") ? stream.default : false,
             playout: true,
             playout_label: `Audio ${i + 1}`,
             record: true,
