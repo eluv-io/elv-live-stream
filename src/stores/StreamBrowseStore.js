@@ -863,13 +863,15 @@ class StreamBrowseStore {
       }
 
       audioLadderSpec.representation = `audioaudio_aac@${audioLadderSpec.bit_rate}`;
+      const correspondingLadderSpec = ladderSpecs.audio.find(el => el.representation.includes(audioLadderSpec.representation));
+
       audioLadderSpec.channels = audio.recordingChannels;
       audioLadderSpec.stream_index = parseInt(audioIndex);
       audioLadderSpec.stream_name = `audio_${audioIndex}`;
       audioLadderSpec.stream_label = audioData[audioIndex].playout ? audioData[audioIndex].playout_label : null;
       audioLadderSpec.media_type = 2;
       audioLadderSpec.lang = audioData[audioIndex].lang;
-      audioLadderSpec.default = audioData[audioIndex].default;
+      audioLadderSpec.default = correspondingLadderSpec.default || audioData[audioIndex].default;
 
       audioLadderSpecs.push(audioLadderSpec);
 
@@ -1339,7 +1341,7 @@ class StreamBrowseStore {
           audioConfig[stream.stream_index] = {
             bitrate: stream.bit_rate,
             codec: stream.codec_name,
-            default: false,
+            default: stream.default || false,
             playout: true,
             playout_label: `Audio ${i + 1}`,
             record: true,
