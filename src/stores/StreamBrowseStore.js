@@ -13,6 +13,7 @@ class StreamBrowseStore {
   streamFrameUrls = {};
   showMonitorPreviews = false;
   loadingStatus = false;
+  streamFilter = "";
 
   constructor(rootStore) {
     makeAutoObservable(this);
@@ -40,6 +41,10 @@ class StreamBrowseStore {
 
   UpdateStreams = ({streams}) => {
     this.streams = streams;
+  };
+
+  SetStreamFilter = ({filter}) => {
+    this.streamFilter = filter;
   };
 
   ConfigureStream = flow(function * ({
