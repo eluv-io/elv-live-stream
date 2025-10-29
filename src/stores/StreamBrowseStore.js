@@ -819,7 +819,8 @@ class StreamBrowseStore {
     libraryId,
     writeToken,
     ladderSpecs,
-    audioData
+    audioData,
+    edit=false
   }) {
     let globalAudioBitrate = 0;
     let nAudio = 0;
@@ -877,7 +878,7 @@ class StreamBrowseStore {
       // audioLadderSpec.default = Object.hasOwn(correspondingLadderSpec, "default") ? correspondingLadderSpec.default : audioData[audioIndex].default;
 
       // Set default audio stream if only ONLY exists
-      if(Object.keys(audioStreams).length === 1) {
+      if(Object.keys(audioStreams).length === 1 && !edit) {
         audioLadderSpec.default = true;
       } else {
         audioLadderSpec.default = audioData[audioIndex].default;
@@ -1223,7 +1224,7 @@ class StreamBrowseStore {
     return audioStreams;
   };
 
-  UpdateStreamAudioSettings = flow(function * ({objectId, writeToken, finalize=true, audioData}) {
+  UpdateStreamAudioSettings = flow(function * ({objectId, writeToken, finalize=true, audioData, edit=false}) {
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
     if(!writeToken) {
@@ -1262,7 +1263,8 @@ class StreamBrowseStore {
       objectId,
       writeToken,
       ladderSpecs: {audio: ladderSpecsMeta},
-      audioData: filteredAudioData
+      audioData: filteredAudioData,
+      edit
     });
 
     const videoLadderSpecs = (ladderSpecsMeta || []).filter(spec => spec.stream_name.includes("video"));
