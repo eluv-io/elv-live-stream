@@ -262,7 +262,6 @@ class StreamBrowseStore {
   CheckStatus = flow(function * ({
     objectId,
     slug,
-    stopLro=false,
     showParams=false,
     update=false
   }) {
@@ -270,7 +269,6 @@ class StreamBrowseStore {
     try {
       response = yield this.client.StreamStatus({
         name: objectId,
-        stopLro,
         showParams
       });
     } catch(error) {
