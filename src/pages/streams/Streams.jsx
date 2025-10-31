@@ -31,8 +31,7 @@ import styles from "./Streams.module.css";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
-  const [filter, setFilter] = useState("");
-  const [debouncedFilter] = useDebouncedValue(filter, 200);
+  const [debouncedFilter] = useDebouncedValue(streamBrowseStore.streamFilter, 200);
   const navigate = useNavigate();
 
   const DebouncedRefresh = useDebouncedCallback(async() => {
@@ -61,8 +60,8 @@ const Streams = observer(() => {
           placeholder="Search by object name or ID"
           leftSection={<MagnifyingGlassIcon width={15} height={15} />}
           mb={14}
-          value={filter}
-          onChange={event => setFilter(event.target.value)}
+          value={streamBrowseStore.streamFilter}
+          onChange={event => streamBrowseStore.SetStreamFilter({filter: event.target.value})}
         />
         <Button
           onClick={DebouncedRefresh}

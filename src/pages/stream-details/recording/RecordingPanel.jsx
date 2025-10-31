@@ -99,7 +99,8 @@ const RecordingPanel = observer(({
         },
         tsFormData: {
           copyMpegTs
-        }
+        },
+        edit: true
       });
 
       await LoadConfigData();

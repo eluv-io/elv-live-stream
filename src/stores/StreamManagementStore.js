@@ -648,7 +648,8 @@ class StreamManagementStore {
     writeToken,
     audioFormData,
     configFormData,
-    tsFormData
+    tsFormData,
+    edit=false
   }) {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -670,7 +671,8 @@ class StreamManagementStore {
       writeToken,
       slug,
       audioData: audioFormData,
-      finalize: false
+      finalize: false,
+      edit
     });
 
     yield this.UpdateConfigMetadata({
