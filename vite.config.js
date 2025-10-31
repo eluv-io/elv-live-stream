@@ -25,11 +25,14 @@ export default defineConfig({
     react()
   ],
   optimizeDeps: {
-    include: ["hash.js", "@eluvio/elv-client-js", "mux-embed"],
+    include: ["hash.js", "@eluvio/elv-client-js", "mux-embed", "node-interval-tree"],
   },
   build: {
     outDir: "dist",
-    manifest: true
+    manifest: true,
+    commonjsOptions: {
+      include: [/node_modules/]
+    }
   },
   server: {
     port: 8155,
