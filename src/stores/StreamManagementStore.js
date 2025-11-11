@@ -576,6 +576,20 @@ class StreamManagementStore {
         metadataSubtree: "live_recording/recording_config/recording_params/xc_params/copy_mpegts",
         metadata: copyMpegTs
       });
+
+      if(copyMpegTs) {
+        yield this.client.ReplaceMetadata({
+          libraryId,
+          objectId,
+          writeToken,
+          metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg",
+          metadata: {
+            "bypass_libav_reader": true,
+            "copy_mode": "raw",
+            "copy_packaging": "rtp_ts"
+          }
+        });
+      }
     }
 
     if(!skipDvrSection) {
