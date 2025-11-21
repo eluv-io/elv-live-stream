@@ -37,6 +37,23 @@ export default defineConfig({
     manifest: true,
     commonjsOptions: {
       include: [/node_modules/]
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Large stable vendor libraries - good for long-term caching
+          'vendor-eluvio': ['@eluvio/elv-client-js'],
+          'vendor-mantine': [
+            '@mantine/core',
+            '@mantine/hooks',
+            '@mantine/form',
+            '@mantine/notifications',
+            '@mantine/dates',
+            'mantine-datatable'
+          ]
+          // Other small deps (react, mobx, icons) bundled with app code
+        }
+      }
     }
   },
   server: {
