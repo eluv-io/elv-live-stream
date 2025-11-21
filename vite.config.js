@@ -2,6 +2,7 @@ import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react-swc";
 import {viteStaticCopy} from "vite-plugin-static-copy";
 import {fileURLToPath, URL} from "url";
+import {visualizer} from "rollup-plugin-visualizer";
 
 export default defineConfig({
   css: {
@@ -22,7 +23,14 @@ export default defineConfig({
         }
       ]
     }),
-    react()
+    react(),
+    // Uncomment to analyze bundle size
+    // visualizer({
+    //   filename: "bundle-analysis.html",
+    //   open: false,
+    //   gzipSize: true,
+    //   brotliSize: true
+    // })
   ],
   optimizeDeps: {
     include: ["hash.js", "@eluvio/elv-client-js", "mux-embed", "node-interval-tree"],
@@ -32,6 +40,23 @@ export default defineConfig({
     manifest: true,
     commonjsOptions: {
       include: [/node_modules/]
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Large stable vendor libraries - good for long-term caching
+          'vendor-eluvio': ['@eluvio/elv-client-js'],
+          'vendor-mantine': [
+            '@mantine/core',
+            '@mantine/hooks',
+            '@mantine/form',
+            '@mantine/notifications',
+            '@mantine/dates',
+            'mantine-datatable'
+          ]
+          // Other small deps (react, mobx, icons) bundled with app code
+        }
+      }
     }
   },
   server: {
