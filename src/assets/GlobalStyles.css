@@ -31,11 +31,11 @@
 }
 
 :root {
-  --mantine-font-family: Inter, Helvetica Neue, helvetica, sans-serif;
+  --mantine-font-family: inter, helvetica neue, helvetica, sans-serif;
 }
 
 body {
-  font-family: Inter, Helvetica Neue, helvetica, sans-serif;
+  font-family: Inter, "Helvetica Neue", helvetica, sans-serif;
 }
 
 .mantine-TextInput-input::placeholder,
