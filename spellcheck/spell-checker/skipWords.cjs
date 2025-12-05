@@ -98,6 +98,7 @@ module.exports = [
   "vo",
   "vod",
   "webkit",
+  "whitespace",
   "widevine",
   "wm",
   "xc",
