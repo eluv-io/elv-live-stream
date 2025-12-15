@@ -332,7 +332,7 @@ class StreamBrowseStore {
     }
 
     if(!tokenMeta || tokenMeta !== edgeWriteToken) {
-      yield this.client.StreamCreate({name: objectId, start});
+      yield this.client.StreamStartRecording({name: objectId, start});
     }
 
     yield this.OperateLRO({
