@@ -108,11 +108,7 @@ class DataStore {
 
   LoadLadderProfiles = flow(function * () {
     try {
-      const profiles = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId: this.siteId}),
-        objectId: this.siteId,
-        metadataSubtree: "public/asset_metadata/profiles"
-      });
+      const profiles = yield this.client.StreamLadderProfiles();
 
       this.UpdateLadderProfiles({profiles});
 
