@@ -2,28 +2,26 @@ import {STATUS_MAP} from "@/utils/constants";
 import Fraction from "fraction.js";
 
 export const ParseLiveConfigData = ({
-  url,
-  referenceUrl,
   encryption,
   retention,
-  persistent,
+  // persistent,
   audioFormData,
   playoutProfile,
   reconnectionTimeout=600
 }) => {
-  const config = {
-    drm: encryption.includes("drm") ? "drm" : encryption.includes("clear") ? "clear" : undefined,
+  return {
     drm_type: encryption,
-    audio: audioFormData ? audioFormData : null,
-    part_ttl: parseInt(retention || ""),
-    persistent,
-    url,
-    reference_url: referenceUrl,
-    playout_ladder_profile: playoutProfile,
-    reconnect_timeout: reconnectionTimeout
+    recording_config: {
+      part_ttl: parseInt(retention || ""),
+      reconnect_timeout: reconnectionTimeout
+    },
+    playout_config: {
+      drm: encryption
+    },
+    recording_stream_config: audioFormData ? {audio: audioFormData} : null,
+    profile: playoutProfile,
+    // TODO: add persistent
   };
-
-  return config;
 };
 
 export const Slugify = (string) => {
