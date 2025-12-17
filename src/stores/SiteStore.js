@@ -1,5 +1,4 @@
-import {flow, toJS} from "mobx";
-import {Slugify} from "@/utils/helpers.js";
+import {flow} from "mobx";
 
 // Manages the live stream platform's core "site" object, including its properties and actions related to platform-level administration.
 class SiteStore {
@@ -46,60 +45,14 @@ class SiteStore {
     });
   });
 
-  AddStreamToSite = flow(function * ({objectId}) {
+  AddStreamToSite = ({objectId}) => {
     try {
-      const streamMetadata = yield this.client.ContentObjectMetadata({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        metadataSubtree: "public/asset_metadata/live_streams",
-      });
-
-      const objectName = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId}),
-        objectId,
-        metadataSubtree: "public/name"
-      });
-
-      const streamData = {
-        ...this.CreateLink({
-          targetHash: yield this.client.LatestVersionHash({objectId}),
-          options: {
-            ".": {
-              container: yield this.client.LatestVersionHash({objectId: this.rootStore.dataStore.siteId})
-            }
-          }
-        }),
-        order: Object.keys(streamMetadata).length,
-      };
-
-      const {writeToken} = yield this.client.EditContentObject({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId
-      });
-
-      yield this.client.ReplaceMetadata({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        writeToken,
-        metadataSubtree: "public/asset_metadata/live_streams",
-        metadata: {
-          ...toJS(streamMetadata),
-          [Slugify(objectName)]: streamData
-        }
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        writeToken,
-        commitMessage: "Add live stream",
-        awaitCommitConfirmation: true
-      });
+      return this.client.StreamLinkToSite({objectId});
     } catch(error) {
       // eslint-disable-next-line no-console
-      console.error("Failed to replace meta", error);
+      console.error("Failed to add stream to site", error);
     }
-  });
+  };
 
   UpdateStreamLink = flow(function * ({objectId, slug}) {
     try {
