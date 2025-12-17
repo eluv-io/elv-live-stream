@@ -37,16 +37,13 @@ class DataStore {
     this.loaded = false;
     try {
       const tenantContractId = yield this.LoadTenantInfo();
-      if(!this.siteId) {
-        this.siteId = yield this.LoadTenantData({tenantContractId});
-      }
+      const {streamMetadata, siteObjectId, siteLibraryId} = yield this.LoadTenantData({tenantContractId});
 
-      if(!this.siteLibraryId) {
-        this.siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
-      }
+      this.siteId = siteObjectId;
+      this.siteLibraryId = siteLibraryId;
 
       yield this.LoadLadderProfiles();
-      yield this.LoadStreams();
+      yield this.LoadStreams({streamMetadata});
       this.loaded = true;
       yield this.rootStore.streamBrowseStore.AllStreamsStatus(reload);
     } catch(error) {
@@ -57,18 +54,7 @@ class DataStore {
   LoadTenantInfo = flow(function * () {
     try {
       if(!this.tenantId) {
-        const wallet = yield this.client.userProfileClient.UserWalletObjectInfo();
-        let tenantId = yield this.client.userProfileClient.TenantContractId();
-
-        if(!tenantId) {
-          tenantId = yield this.client.ContentObjectMetadata({
-            libraryId: yield this.client.ContentObjectLibraryId({objectId: wallet.objectId}),
-            objectId: wallet.objectId,
-            metadataSubtree: "tenantContractId",
-          });
-        }
-
-        this.tenantId = tenantId;
+        this.tenantId = yield this.client.userProfileClient.TenantContractId();
 
         if(!this.tenantId) {
           throw "Tenant ID not found";
@@ -86,27 +72,32 @@ class DataStore {
 
   LoadTenantData = flow(function * ({tenantContractId}) {
     try {
+      const {siteLibraryId, siteObjectId, streamMetadata} = yield this.client.StreamGetSiteData();
+
       const response = yield this.client.ContentObjectMetadata({
         libraryId: tenantContractId.replace("iten", "ilib"),
         objectId: tenantContractId.replace("iten", "iq__"),
-        metadataSubtree: "public",
+        metadataSubtree: "public/content_types",
         select: [
-          "sites/live_streams",
-          "content_types/live_stream",
-          "content_types/title"
+          "live_stream",
+          "title"
         ]
       });
-      const {sites, content_types} = response;
+      const {live_stream, title} = response;
 
-      if(content_types?.live_stream) {
-        this.contentType = content_types.live_stream;
+      if(live_stream) {
+        this.contentType = live_stream;
       }
 
-      if(content_types?.title) {
-        this.titleContentType = content_types.title;
+      if(title) {
+        this.titleContentType = title;
       }
 
-      return sites?.live_streams;
+      return {
+        siteLibraryId,
+        siteObjectId,
+        streamMetadata
+      };
     } catch(error) {
       this.rootStore.SetErrorMessage("Error: Unable to load tenant sites");
       // eslint-disable-next-line no-console
@@ -132,29 +123,8 @@ class DataStore {
     }
   });
 
-  LoadStreams = flow(function * () {
+  LoadStreams = flow(function * ({streamMetadata}) {
     this.rootStore.streamBrowseStore.UpdateStreams({});
-    let streamMetadata;
-    try {
-      const siteMetadata = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId: this.siteId}),
-        objectId: this.siteId,
-        select: [
-          "public/asset_metadata/live_streams"
-        ],
-        resolveLinks: true,
-        resolveIgnoreErrors: true,
-        resolveIncludeSource: true
-      });
-
-      streamMetadata = siteMetadata?.public?.asset_metadata?.live_streams || {};
-    } catch(error) {
-      this.rootStore.streamBrowseStore.UpdateStreams({streams: {}});
-      this.rootStore.SetErrorMessage("Error: Unable to load streams");
-      // eslint-disable-next-line no-console
-      console.error(error);
-      throw Error(`Unable to load live streams for site ${this.siteId}.`);
-    }
 
     yield this.client.utils.LimitedMap(
       10,
