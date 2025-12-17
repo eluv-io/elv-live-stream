@@ -250,7 +250,14 @@ class DataStore {
           "public/name",
           "public/asset_metadata/display_title",
           "live_recording_config/part_ttl",
-          "live_recording_config/playout_ladder_profile"
+          "live_recording_config/playout_ladder_profile",
+          //   New live_recording_config paths
+          "live_recording_config/recording_config/connection_timeout",
+          "live_recording_config/recording_config/reconnect_timeout",
+          "live_recording_config/profile",
+          "live_recording_config/playout_config/dvr",
+          "live_recording_config/playout_config/image_watermark",
+          "live_recording_config/playout_config/simple_watermark",
         ]
       });
       let probeMeta = streamMeta?.live_recording_config?.probe_info;
@@ -275,11 +282,11 @@ class DataStore {
 
       const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
       const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
-      const simpleWatermark = streamMeta?.live_recording?.playout_config?.simple_watermark;
-      const imageWatermark = streamMeta?.live_recording?.playout_config?.image_watermark;
+      const simpleWatermark = streamMeta?.live_recording_config?.playout_config?.simple_watermark ?? streamMeta?.live_recording?.playout_config?.simple_watermark;
+      const imageWatermark = streamMeta?.live_recording_config?.playout_config?.image_watermark ?? streamMeta?.live_recording?.playout_config?.image_watermark;
       const forensicWatermark = streamMeta?.live_recording?.playout_config?.forensic_watermark;
-      const connectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
-      const reconnectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
+      const connectionTimeout = streamMeta?.live_recording_config?.recording_config?.connection_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
+      const reconnectionTimeout = streamMeta?.live_recording_config?.recording_config?.reconnect_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
       const partTtl = streamMeta?.live_recording_config?.part_ttl;
       const dvrMaxDuration = streamMeta?.live_recording?.playout_config?.dvr_max_duration;
 
@@ -289,7 +296,7 @@ class DataStore {
         description: streamMeta?.public?.description,
         display_title: streamMeta?.public?.asset_metadata?.display_title,
         drm: streamMeta?.live_recording_config?.drm_type,
-        dvrEnabled: streamMeta?.live_recording?.playout_config?.dvr_enabled,
+        dvrEnabled: streamMeta?.live_recording_config?.playout_config?.dvr ?? streamMeta?.live_recording?.playout_config?.dvr_enabled,
         dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
         dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
         egressEnabled: streamMeta?.live_recording_config?.srt_egress_enabled,
@@ -299,7 +306,7 @@ class DataStore {
         originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
         partTtl: partTtl ? partTtl.toString() : null,
         persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
-        playoutLadderProfile: streamMeta?.live_recording_config?.playout_ladder_profile,
+        playoutLadderProfile: streamMeta?.live_recording_config?.profile ?? streamMeta?.live_recording_config?.playout_ladder_profile,
         reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
         referenceUrl: streamMeta?.live_recording_config?.reference_url,
         simpleWatermark,
