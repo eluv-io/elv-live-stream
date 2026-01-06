@@ -2,6 +2,7 @@
 import {configure, flow, makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {ENCRYPTION_OPTIONS, STATUS_MAP} from "@/utils/constants";
+import {ParseLiveConfigData} from "@/utils/helpers.js";
 
 configure({
   enforceActions: "always"
@@ -96,55 +97,46 @@ class StreamBrowseStore {
         ]
       });
 
-      const customSettings = {
-        metaPathValues: {}
-      };
-
-      const edgeWriteToken = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/fabric_config/edge_write_token"
-      });
+      const configSettings = {};
 
       // Config api will override meta containing edge write token
-      if(edgeWriteToken) {
-        customSettings.metaPathValues["live_recording.fabric_config.edge_write_token = customSettings.edge_write_token"] = edgeWriteToken;
-      }
+      // if(edgeWriteToken) {
+      //   customSettings.metaPathValues["live_recording.fabric_config.edge_write_token = customSettings.edge_write_token"] = edgeWriteToken;
+      // }
 
       if(liveRecordingConfig.part_ttl) {
-        customSettings.metaPathValues["live_recording.recording_config.recording_params.part_ttl"] = liveRecordingConfig.part_ttl;
+        configSettings.retention = liveRecordingConfig.part_ttl;
       }
 
       if(Object.hasOwn(liveRecordingConfig, "persistent")) {
-        customSettings.metaPathValues["live_recording.recording_config.recording_params.persistent"] = liveRecordingConfig.persistent;
+        // TODO: Add persistent
       }
 
       if(recordingConfig?.recording_params?.xc_params?.connection_timeout) {
-        customSettings.metaPathValues["live_recording.recording_config.recording_params.xc_params.connection_timeout"] = recordingConfig.recording_params.xc_params.connection_timeout;
+        configSettings.connectionTimeout = recordingConfig.recording_params.xc_params.connection_timeout;
       }
 
       if(
         recordingConfig?.recording_params?.reconnect_timeout ||
         liveRecordingConfig?.reconnect_timeout
       ) {
-        const value = recordingConfig?.recording_params?.reconnect_timeout || liveRecordingConfig?.reconnect_timeout;
-        customSettings.metaPathValues["live_recording.recording_config.recording_params.reconnect_timeout"] = value;
+        configSettings.reconnectionTimeout = recordingConfig?.recording_params?.reconnect_timeout || liveRecordingConfig?.reconnect_timeout;
       }
 
       if(playoutConfig?.simple_watermark) {
-        customSettings.metaPathValues["live_recording.playout_config.simple_watermark"] = playoutConfig.simple_watermark;
+        configSettings.simpleWatermark = playoutConfig.simple_watermark;
       }
 
       if(playoutConfig?.image_watermark) {
-        customSettings.metaPathValues["live_recording.playout_config.image_watermark"] = playoutConfig.image_watermark;
+        configSettings.imageWatermark = playoutConfig.image_watermark;
       }
 
       if(playoutConfig?.forensic_watermark) {
-        customSettings.metaPathValues["live_recording.playout_config.forensic_watermark"] = playoutConfig.forensic_watermark;
+        configSettings.forensicWatermark = playoutConfig.forensic_watermark;
       }
 
       if(Object.hasOwn(recordingConfig?.recording_params?.xc_params || {}, "copy_mpegts")) {
-        customSettings.metaPathValues["live_recording.recording_config.recording_params.xc_params.copy_mpegts"] = recordingConfig.recording_params.xc_params.copy_mpegts;
+        configSettings.copyMpegTs = recordingConfig.recording_params.xc_params.copy_mpegts;
       }
 
       if(liveRecordingConfig.playout_ladder_profile) {
@@ -163,7 +155,7 @@ class StreamBrowseStore {
           }
 
           if(profileData) {
-            customSettings["ladder_profile"] = profileData.ladder_specs;
+            configSettings.playoutProfile = profileData.ladder_specs;
           } else {
             // eslint-disable-next-line no-console
             console.warn(`Ladder profile ${liveRecordingConfig.playout_ladder_profile} not found. Defaulting to the built-in profile.`);
@@ -180,18 +172,20 @@ class StreamBrowseStore {
         });
       }
 
-      customSettings["audio"] = liveRecordingConfig.audio ? liveRecordingConfig.audio : undefined;
+      configSettings.audioFormData = liveRecordingConfig.audio ? liveRecordingConfig.audio : undefined;
 
       const {writeToken} = yield this.client.EditContentObject({
         libraryId,
         objectId
       });
 
+      const config = ParseLiveConfigData(configSettings);
+
       yield this.client.StreamConfig({
         name: objectId,
         writeToken,
         finalize: false,
-        customSettings,
+        liveRecordingConfig: config,
         probeMetadata
       });
 

@@ -7,16 +7,26 @@ export const ParseLiveConfigData = ({
   // persistent,
   audioFormData,
   playoutProfile,
-  reconnectionTimeout=600
+  reconnectionTimeout=600,
+  connectionTimeout,
+  simpleWatermark,
+  imageWatermark,
+  forensicWatermark,
+  copyMpegTs
 }) => {
   return {
     drm_type: encryption,
     recording_config: {
       part_ttl: parseInt(retention || ""),
-      reconnect_timeout: reconnectionTimeout
+      reconnect_timeout: reconnectionTimeout,
+      connectionTimeout,
+      copyMpegTs
     },
     playout_config: {
-      drm: encryption
+      drm: encryption,
+      simpleWatermark,
+      imageWatermark,
+      forensicWatermark
     },
     recording_stream_config: audioFormData ? {audio: audioFormData} : null,
     profile: playoutProfile,
