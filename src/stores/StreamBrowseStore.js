@@ -367,7 +367,7 @@ class StreamBrowseStore {
 
   DeactivateStream = flow(function * ({objectId, slug}) {
     try {
-      const response = yield this.client.StreamStopSession({name: objectId});
+      const response = yield this.client.StreamStopRecording({name: objectId});
 
       if(!response) { return; }
 
