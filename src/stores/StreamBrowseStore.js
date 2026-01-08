@@ -172,6 +172,10 @@ class StreamBrowseStore {
         });
       }
 
+      if(liveRecordingConfig.drm_type) {
+        configSettings.encryption = liveRecordingConfig.drm_type;
+      }
+
       configSettings.audioFormData = liveRecordingConfig.audio ? liveRecordingConfig.audio : undefined;
 
       const {writeToken} = yield this.client.EditContentObject({
@@ -198,26 +202,6 @@ class StreamBrowseStore {
         });
       }
 
-      if((liveRecordingConfig?.drm_type || "").includes("drm")) {
-        const drmOption = liveRecordingConfig?.drm_type ? ENCRYPTION_OPTIONS.find(option => option.value === liveRecordingConfig.drm_type) : null;
-
-        // Check for existing drm keys; if found, skip Stream Initialize
-        const drmKeyMeta = yield this.client.ContentObjectMetadata({
-          libraryId,
-          objectId,
-          metadataSubtree: "offerings/default/playout/drm_keys"
-        });
-
-        if(!drmKeyMeta) {
-          yield this.client.StreamInitialize({
-            name: objectId,
-            drm: liveRecordingConfig?.drm === "clear" ? false : true,
-            format: drmOption?.format.join(","),
-            writeToken,
-            finalize: false
-          });
-        }
-      }
 
       yield this.client.FinalizeContentObject({
         libraryId,
