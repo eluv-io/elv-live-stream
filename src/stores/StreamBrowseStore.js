@@ -733,15 +733,7 @@ class StreamBrowseStore {
       objectId,
       libraryId,
       writeToken,
-      metadataSubtree: "live_recording_config/drm",
-      metadata: drmType.includes("drm") ? "drm" : drmType.includes("clear") ? "clear" : undefined,
-    });
-
-    yield this.client.ReplaceMetadata({
-      objectId,
-      libraryId,
-      writeToken,
-      metadataSubtree: "live_recording_config/drm_type",
+      metadataSubtree: "live_recording/playout_config/drm",
       metadata: drmType
     });
 
