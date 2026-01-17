@@ -342,22 +342,34 @@ const Create = observer(() => {
 
       if(objectData === null) {
         // Stream hasn't been created
-        const response = await streamManagementStore.InitLiveStreamObject({
-          accessGroup,
-          description,
-          displayTitle,
-          encryption,
-          libraryId,
-          name,
-          permission,
-          playoutProfile,
-          protocol,
-          retention: retentionData,
-          persistent,
-          url
-        });
+        let response;
 
-        objectId = response.objectId;
+        try {
+          response = await streamManagementStore.InitLiveStreamObject({
+            accessGroup,
+            description,
+            displayTitle,
+            encryption,
+            libraryId,
+            name,
+            permission,
+            playoutProfile,
+            protocol,
+            retention: retentionData,
+            persistent,
+            url
+          });
+
+          objectId = response.objectId;
+        } catch(error) {
+          notifications.show({
+            title: "Error",
+            color: "red",
+            message: "Unable to create live stream"
+          });
+
+          throw error;
+        }
       } else {
         // Stream has already been created and probed
         objectId = objectData.objectId;

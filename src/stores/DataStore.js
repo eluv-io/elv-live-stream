@@ -37,16 +37,13 @@ class DataStore {
     this.loaded = false;
     try {
       const tenantContractId = yield this.LoadTenantInfo();
-      if(!this.siteId) {
-        this.siteId = yield this.LoadTenantData({tenantContractId});
-      }
+      const {streamMetadata, siteObjectId, siteLibraryId} = yield this.LoadTenantData({tenantContractId});
 
-      if(!this.siteLibraryId) {
-        this.siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
-      }
+      this.siteId = siteObjectId;
+      this.siteLibraryId = siteLibraryId;
 
       yield this.LoadLadderProfiles();
-      yield this.LoadStreams();
+      yield this.LoadStreams({streamMetadata});
       this.loaded = true;
       yield this.rootStore.streamBrowseStore.AllStreamsStatus(reload);
     } catch(error) {
@@ -57,18 +54,7 @@ class DataStore {
   LoadTenantInfo = flow(function * () {
     try {
       if(!this.tenantId) {
-        const wallet = yield this.client.userProfileClient.UserWalletObjectInfo();
-        let tenantId = yield this.client.userProfileClient.TenantContractId();
-
-        if(!tenantId) {
-          tenantId = yield this.client.ContentObjectMetadata({
-            libraryId: yield this.client.ContentObjectLibraryId({objectId: wallet.objectId}),
-            objectId: wallet.objectId,
-            metadataSubtree: "tenantContractId",
-          });
-        }
-
-        this.tenantId = tenantId;
+        this.tenantId = yield this.client.userProfileClient.TenantContractId();
 
         if(!this.tenantId) {
           throw "Tenant ID not found";
@@ -86,27 +72,32 @@ class DataStore {
 
   LoadTenantData = flow(function * ({tenantContractId}) {
     try {
+      const {siteLibraryId, siteObjectId, streamMetadata} = yield this.client.StreamGetSiteData();
+
       const response = yield this.client.ContentObjectMetadata({
         libraryId: tenantContractId.replace("iten", "ilib"),
         objectId: tenantContractId.replace("iten", "iq__"),
-        metadataSubtree: "public",
+        metadataSubtree: "public/content_types",
         select: [
-          "sites/live_streams",
-          "content_types/live_stream",
-          "content_types/title"
+          "live_stream",
+          "title"
         ]
       });
-      const {sites, content_types} = response;
+      const {live_stream, title} = response;
 
-      if(content_types?.live_stream) {
-        this.contentType = content_types.live_stream;
+      if(live_stream) {
+        this.contentType = live_stream;
       }
 
-      if(content_types?.title) {
-        this.titleContentType = content_types.title;
+      if(title) {
+        this.titleContentType = title;
       }
 
-      return sites?.live_streams;
+      return {
+        siteLibraryId,
+        siteObjectId,
+        streamMetadata
+      };
     } catch(error) {
       this.rootStore.SetErrorMessage("Error: Unable to load tenant sites");
       // eslint-disable-next-line no-console
@@ -117,11 +108,7 @@ class DataStore {
 
   LoadLadderProfiles = flow(function * () {
     try {
-      const profiles = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId: this.siteId}),
-        objectId: this.siteId,
-        metadataSubtree: "public/asset_metadata/profiles"
-      });
+      const profiles = yield this.client.StreamLadderProfiles();
 
       this.UpdateLadderProfiles({profiles});
 
@@ -132,29 +119,8 @@ class DataStore {
     }
   });
 
-  LoadStreams = flow(function * () {
+  LoadStreams = flow(function * ({streamMetadata}) {
     this.rootStore.streamBrowseStore.UpdateStreams({});
-    let streamMetadata;
-    try {
-      const siteMetadata = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId: this.siteId}),
-        objectId: this.siteId,
-        select: [
-          "public/asset_metadata/live_streams"
-        ],
-        resolveLinks: true,
-        resolveIgnoreErrors: true,
-        resolveIncludeSource: true
-      });
-
-      streamMetadata = siteMetadata?.public?.asset_metadata?.live_streams || {};
-    } catch(error) {
-      this.rootStore.streamBrowseStore.UpdateStreams({streams: {}});
-      this.rootStore.SetErrorMessage("Error: Unable to load streams");
-      // eslint-disable-next-line no-console
-      console.error(error);
-      throw Error(`Unable to load live streams for site ${this.siteId}.`);
-    }
 
     yield this.client.utils.LimitedMap(
       10,
@@ -284,7 +250,15 @@ class DataStore {
           "public/name",
           "public/asset_metadata/display_title",
           "live_recording_config/part_ttl",
-          "live_recording_config/playout_ladder_profile"
+          "live_recording_config/playout_ladder_profile",
+          //   New live_recording_config paths
+          "live_recording_config/recording_config/connection_timeout",
+          "live_recording_config/recording_config/reconnect_timeout",
+          "live_recording_config/profile",
+          "live_recording_config/playout_config/dvr",
+          "live_recording_config/playout_config/drm",
+          "live_recording_config/playout_config/image_watermark",
+          "live_recording_config/playout_config/simple_watermark",
         ]
       });
       let probeMeta = streamMeta?.live_recording_config?.probe_info;
@@ -309,11 +283,11 @@ class DataStore {
 
       const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
       const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
-      const simpleWatermark = streamMeta?.live_recording?.playout_config?.simple_watermark;
-      const imageWatermark = streamMeta?.live_recording?.playout_config?.image_watermark;
+      const simpleWatermark = streamMeta?.live_recording_config?.playout_config?.simple_watermark ?? streamMeta?.live_recording?.playout_config?.simple_watermark;
+      const imageWatermark = streamMeta?.live_recording_config?.playout_config?.image_watermark ?? streamMeta?.live_recording?.playout_config?.image_watermark;
       const forensicWatermark = streamMeta?.live_recording?.playout_config?.forensic_watermark;
-      const connectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
-      const reconnectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
+      const connectionTimeout = streamMeta?.live_recording_config?.recording_config?.connection_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
+      const reconnectionTimeout = streamMeta?.live_recording_config?.recording_config?.reconnect_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
       const partTtl = streamMeta?.live_recording_config?.part_ttl;
       const dvrMaxDuration = streamMeta?.live_recording?.playout_config?.dvr_max_duration;
 
@@ -322,8 +296,8 @@ class DataStore {
         connectionTimeout: connectionTimeout ? connectionTimeout.toString() : null,
         description: streamMeta?.public?.description,
         display_title: streamMeta?.public?.asset_metadata?.display_title,
-        drm: streamMeta?.live_recording_config?.drm_type,
-        dvrEnabled: streamMeta?.live_recording?.playout_config?.dvr_enabled,
+        drm: streamMeta?.live_recording_config?.playout_config?.drm,
+        dvrEnabled: streamMeta?.live_recording_config?.playout_config?.dvr ?? streamMeta?.live_recording?.playout_config?.dvr_enabled,
         dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
         dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
         egressEnabled: streamMeta?.live_recording_config?.srt_egress_enabled,
@@ -333,7 +307,7 @@ class DataStore {
         originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
         partTtl: partTtl ? partTtl.toString() : null,
         persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
-        playoutLadderProfile: streamMeta?.live_recording_config?.playout_ladder_profile,
+        playoutLadderProfile: streamMeta?.live_recording_config?.profile ?? streamMeta?.live_recording_config?.playout_ladder_profile,
         reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
         referenceUrl: streamMeta?.live_recording_config?.reference_url,
         simpleWatermark,

@@ -1,29 +1,39 @@
-import {STATUS_MAP} from "@/utils/constants";
+import {ENCRYPTION_OPTIONS, STATUS_MAP} from "@/utils/constants";
 import Fraction from "fraction.js";
 
 export const ParseLiveConfigData = ({
-  url,
-  referenceUrl,
   encryption,
   retention,
-  persistent,
+  // persistent,
   audioFormData,
   playoutProfile,
-  reconnectionTimeout=600
+  reconnectionTimeout=600,
+  connectionTimeout,
+  simpleWatermark,
+  imageWatermark,
+  forensicWatermark,
+  copyMpegTs
 }) => {
-  const config = {
-    drm: encryption.includes("drm") ? "drm" : encryption.includes("clear") ? "clear" : undefined,
-    drm_type: encryption,
-    audio: audioFormData ? audioFormData : null,
-    part_ttl: parseInt(retention || ""),
-    persistent,
-    url,
-    reference_url: referenceUrl,
-    playout_ladder_profile: playoutProfile,
-    reconnect_timeout: reconnectionTimeout
-  };
+  const drmOption = ENCRYPTION_OPTIONS.find(option => option.value === encryption);
 
-  return config;
+  return {
+    recording_config: {
+      part_ttl: parseInt(retention || ""),
+      reconnect_timeout: reconnectionTimeout,
+      connectionTimeout,
+      copyMpegTs
+    },
+    playout_config: {
+      drm: encryption,
+      simpleWatermark,
+      imageWatermark,
+      forensicWatermark,
+      playout_formats: drmOption ? drmOption.format : null
+    },
+    recording_stream_config: audioFormData ? {audio: audioFormData} : null,
+    profile: playoutProfile,
+    // TODO: add persistent
+  };
 };
 
 export const Slugify = (string) => {

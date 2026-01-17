@@ -28,7 +28,7 @@ class ModalStore {
         return {
           success: {
             title: "Probed Stream",
-            message: "Stream object was successfully created and probed",
+            message: "Stream object was successfully probed",
           },
           error: {
             title: "Error",

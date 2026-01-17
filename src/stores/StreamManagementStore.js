@@ -97,98 +97,72 @@ class StreamManagementStore {
     name,
     permission,
     playoutProfile,
-    protocol,
     retention,
     persistent,
     url
   }) {
-    const response = yield this.CreateContentObject({
-      libraryId,
-      permission
-    });
-
-    const {objectId, writeToken} = response;
-
-    if(accessGroup) {
-      this.AddAccessGroupPermission({
-        objectId,
-        groupName: accessGroup
-      });
-    }
-
-    const config = ParseLiveConfigData({
-      url,
-      encryption,
-      playoutProfile,
-      retention,
-      persistent,
-      referenceUrl: protocol === "custom" ? undefined : url
-    });
-
-    yield this.AddMetadata({
-      libraryId,
-      objectId,
-      name,
-      description,
-      displayTitle,
-      writeToken,
-      config,
-      finalize: false
-    });
-
-    yield this.rootStore.siteStore.CreateSiteLinks({objectId});
-
     try {
-      yield this.client.SetPermission({
-        objectId,
-        permission,
-        writeToken
+      const config = ParseLiveConfigData({
+        encryption,
+        playoutProfile,
+        retention,
+        persistent
       });
+
+      const groupAddress = this.rootStore.dataStore.accessGroups[accessGroup]?.address;
+
+      const response = yield this.client.StreamCreate({
+        libraryId,
+        url,
+        finalize: true,
+        liveRecordingConfig: config,
+        options: {
+          name,
+          displayTitle,
+          description,
+          accessGroups: groupAddress ? [groupAddress] : undefined,
+          permission,
+          linkToSite: true,
+          // TODO: Add ingress node api for non-public nodes
+          // ingressNodeApi
+        }
+      });
+
+      const {objectId} = response;
+
+      const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
+        objectId
+      });
+
+      const streamValue = {
+        objectId,
+        title: name,
+        status: statusResponse.state,
+      };
+
+      const streamDetails = yield this.rootStore.dataStore.LoadStreamMetadata({
+        objectId,
+        libraryId
+      }) || {};
+
+      Object.keys(streamDetails).forEach(detail => {
+        streamValue[detail] = streamDetails[detail];
+      });
+
+      this.rootStore.streamBrowseStore.UpdateStream({
+        key: Slugify(name),
+        value: streamValue
+      });
+
+      return {
+        objectId,
+        slug: Slugify(name)
+      };
     } catch(error) {
       // eslint-disable-next-line no-console
-      console.error("Unable to set permission.", error);
+      console.error("Failed to create stream.", error);
     }
-
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Create stream object",
-      awaitCommitConfirmation: true
-    });
-
-    yield this.rootStore.siteStore.AddStreamToSite({objectId});
-
-    const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
-      objectId
-    });
-
-    const streamValue = {
-      objectId,
-      title: name,
-      status: statusResponse.state,
-    };
-
-    const streamDetails = yield this.rootStore.dataStore.LoadStreamMetadata({
-      objectId,
-      libraryId
-    }) || {};
-
-    Object.keys(streamDetails).forEach(detail => {
-      streamValue[detail] = streamDetails[detail];
-    });
-
-    this.rootStore.streamBrowseStore.UpdateStream({
-      key: Slugify(name),
-      value: streamValue
-    });
-
-    return {
-      objectId,
-      slug: Slugify(name)
-    };
   });
-
 
   // Update audio settings for streams that have been created and probed
   UpdateLiveStreamObject = flow(function * ({
