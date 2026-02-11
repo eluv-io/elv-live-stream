@@ -1190,6 +1190,14 @@ class StreamBrowseStore {
         metadata: copiesMetadata
       });
 
+      yield this.client.ReplaceMetadata({
+        objectId,
+        libraryId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_frame_duration_ts",
+        metadata: 1001
+      });
+
       yield this.client.FinalizeContentObject({
         libraryId,
         objectId,
