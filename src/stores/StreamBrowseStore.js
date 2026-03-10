@@ -268,7 +268,7 @@ class StreamBrowseStore {
           status: response.state,
           warnings: response.warnings,
           quality: response.quality,
-          embedUrl: response?.playout_urls?.embed_url
+          embedUrl: response?.playoutUrls?.embedUrl
         }
       });
     }
@@ -297,7 +297,7 @@ class StreamBrowseStore {
         return;
     }
 
-    const edgeWriteToken = response.edge_write_token;
+    const edgeWriteToken = response.edgeWriteToken;
 
     let tokenMeta;
 
