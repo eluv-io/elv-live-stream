@@ -145,7 +145,7 @@ class StreamManagementStore {
         libraryId
       }) || {};
 
-      Object.keys(streamDetails).forEach(detail => {
+      Object.keys(streamDetails || {}).forEach(detail => {
         streamValue[detail] = streamDetails[detail];
       });
 
@@ -868,38 +868,17 @@ class StreamManagementStore {
       return streams[streamSlug].objectId === objectId;
     });
 
-    const streamMetadata = yield this.client.ContentObjectMetadata({
-      libraryId: this.rootStore.dataStore.siteLibraryId,
-      objectId: this.rootStore.dataStore.siteId,
-      metadataSubtree: "public/asset_metadata/live_streams",
-    });
+    yield this.client.StreamRemoveLinkToSite({objectId});
 
-    delete streamMetadata[slug];
-
-    const {writeToken} = yield this.client.EditContentObject({
-      libraryId: this.rootStore.dataStore.siteLibraryId,
-      objectId: this.rootStore.dataStore.siteId
-    });
-
-    yield this.client.ReplaceMetadata({
-      libraryId: this.rootStore.dataStore.siteLibraryId,
-      objectId: this.rootStore.dataStore.siteId,
-      writeToken,
-      metadataSubtree: "public/asset_metadata/live_streams",
-      metadata: streamMetadata
-    });
-
-    yield this.client.FinalizeContentObject({
-      libraryId: this.rootStore.dataStore.siteLibraryId,
-      objectId: this.rootStore.dataStore.siteId,
-      writeToken,
-      commitMessage: "Delete live stream"
-    });
-
-    yield this.client.DeleteContentObject({
-      libraryId: yield this.client.ContentObjectLibraryId({objectId}),
-      objectId
-    });
+    try {
+      yield this.client.DeleteContentObject({
+        libraryId: yield this.client.ContentObjectLibraryId({objectId}),
+        objectId
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.log(`Content object ${objectId} has already been deleted. Removed from the site object.`);
+    }
 
     delete streams[slug];
     this.rootStore.streamBrowseStore.UpdateStreams({streams});
