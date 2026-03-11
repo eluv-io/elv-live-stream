@@ -72,7 +72,20 @@ class DataStore {
 
   LoadTenantData = flow(function * ({tenantContractId}) {
     try {
-      const {siteLibraryId, siteObjectId, streamMetadata} = yield this.client.StreamGetSiteData();
+      const siteObjectId = yield this.client.ContentObjectMetadata({
+        libraryId: tenantContractId.replace("iten", "ilib"),
+        objectId: tenantContractId.replace("iten", "iq__"),
+        metadataSubtree: "public/sites/live_streams",
+      });
+      const siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: siteObjectId});
+      const streamMetadata = yield this.client.ContentObjectMetadata({
+        libraryId: siteLibraryId,
+        objectId: siteObjectId,
+        metadataSubtree: "public/asset_metadata/live_streams",
+        resolveLinks: true,
+        resolveIncludeSource: true,
+        resolveIgnoreErrors: true
+      });
 
       const response = yield this.client.ContentObjectMetadata({
         libraryId: tenantContractId.replace("iten", "ilib"),
