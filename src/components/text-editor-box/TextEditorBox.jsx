@@ -37,6 +37,7 @@ const TextEditorBox = ({
                   size={20}
                   variant="transparent"
                   color="elv-neutral.4"
+                  title="Reset"
                   onClick={HandleReset}
                 >
                   <IconRestore />
@@ -45,6 +46,7 @@ const TextEditorBox = ({
                   size={20}
                   variant="transparent"
                   color="elv-neutral.4"
+                  title="Edit"
                   onClick={() => setShowEditor(prevState => !prevState)}
                 >
                   <EditIcon />
@@ -59,6 +61,7 @@ const TextEditorBox = ({
             size={20}
             variant="transparent"
             color="elv-neutral.4"
+            title="Delete"
             onClick={HandleDelete}
           >
             <TrashIcon />

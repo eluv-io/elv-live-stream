@@ -42,7 +42,6 @@ class DataStore {
       this.siteId = siteObjectId;
       this.siteLibraryId = siteLibraryId;
 
-      // yield this.LoadLadderProfiles();
       yield this.LoadStreams({streamMetadata});
       this.loaded = true;
       yield this.rootStore.streamBrowseStore.AllStreamsStatus(reload);
