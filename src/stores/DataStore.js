@@ -42,7 +42,7 @@ class DataStore {
       this.siteId = siteObjectId;
       this.siteLibraryId = siteLibraryId;
 
-      yield this.LoadLadderProfiles();
+      // yield this.LoadLadderProfiles();
       yield this.LoadStreams({streamMetadata});
       this.loaded = true;
       yield this.rootStore.streamBrowseStore.AllStreamsStatus(reload);
@@ -54,7 +54,18 @@ class DataStore {
   LoadTenantInfo = flow(function * () {
     try {
       if(!this.tenantId) {
-        this.tenantId = yield this.client.userProfileClient.TenantContractId();
+        const wallet = yield this.client.userProfileClient.UserWalletObjectInfo();
+        let tenantId = yield this.client.userProfileClient.TenantContractId();
+
+        if(!tenantId) {
+          tenantId = yield this.client.ContentObjectMetadata({
+            libraryId: yield this.client.ContentObjectLibraryId({objectId: wallet.objectId}),
+            objectId: wallet.objectId,
+            metadataSubtree: "tenantContractId",
+          });
+        }
+
+        this.tenantId = tenantId;
 
         if(!this.tenantId) {
           throw "Tenant ID not found";
@@ -141,7 +152,12 @@ class DataStore {
       async slug => {
         const stream = streamMetadata[slug];
 
-        const versionHash = stream?.["."]?.source;
+        let versionHash = stream.versionHash ?? stream?.["."]?.source;
+
+        if(!versionHash) {
+          const match = stream?.["/"].match(/(hq__[^/]+)/);
+          versionHash = match ? match[1] : undefined;
+        }
 
         if(versionHash) {
           const objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;

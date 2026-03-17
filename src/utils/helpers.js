@@ -1,4 +1,4 @@
-import {ENCRYPTION_OPTIONS, STATUS_MAP} from "@/utils/constants";
+import {STATUS_MAP} from "@/utils/constants";
 import Fraction from "fraction.js";
 
 export const ParseLiveConfigData = ({
@@ -6,7 +6,6 @@ export const ParseLiveConfigData = ({
   retention,
   // persistent,
   audioFormData,
-  playoutProfile,
   reconnectionTimeout=600,
   connectionTimeout,
   simpleWatermark,
@@ -14,8 +13,6 @@ export const ParseLiveConfigData = ({
   forensicWatermark,
   copyMpegTs
 }) => {
-  const drmOption = ENCRYPTION_OPTIONS.find(option => option.value === encryption);
-
   return {
     recording_config: {
       part_ttl: parseInt(retention || ""),
@@ -27,11 +24,9 @@ export const ParseLiveConfigData = ({
       drm: encryption,
       simpleWatermark,
       imageWatermark,
-      forensicWatermark,
-      playout_formats: drmOption ? drmOption.format : null
+      forensicWatermark
     },
     recording_stream_config: audioFormData ? {audio: audioFormData} : null,
-    profile: playoutProfile,
     // TODO: add persistent
   };
 };

@@ -114,7 +114,6 @@ class StreamManagementStore {
       const response = yield this.client.StreamCreate({
         libraryId,
         url,
-        finalize: true,
         liveRecordingConfig: config,
         options: {
           name,
@@ -145,7 +144,7 @@ class StreamManagementStore {
         libraryId
       }) || {};
 
-      Object.keys(streamDetails || {}).forEach(detail => {
+      Object.keys(streamDetails).forEach(detail => {
         streamValue[detail] = streamDetails[detail];
       });
 
