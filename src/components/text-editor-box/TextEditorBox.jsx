@@ -1,27 +1,7 @@
 import {ActionIcon, Box, Flex, Group, JsonInput, Paper, Text, Title} from "@mantine/core";
 import {useState} from "react";
 import {EditIcon, TrashIcon} from "@/assets/icons/index.js";
-
-const EditorField = ({
-  show,
-  editorValue,
-  HandleChange
-}) => {
-  if(!show) { return null; }
-
-  return (
-    <JsonInput
-      value={editorValue}
-      onChange={value => HandleChange({value})}
-      autosize
-      minRows={5}
-      maxRows={15}
-      color="elv-gray.9"
-      validationError="Invalid JSON"
-      formatOnBlur
-    />
-  );
-};
+import {IconRestore} from "@tabler/icons-react";
 
 const TextEditorBox = ({
   columns=[],
@@ -30,7 +10,8 @@ const TextEditorBox = ({
   defaultShowEditor=false,
   hideDelete=false,
   HandleEditorValueChange,
-  HandleDelete
+  HandleDelete,
+  HandleReset
 }) => {
   const [showEditor, setShowEditor] = useState(defaultShowEditor);
   const width = 700;
@@ -52,6 +33,14 @@ const TextEditorBox = ({
                 ))
               }
               <Group ml="auto">
+                <ActionIcon
+                  size={20}
+                  variant="transparent"
+                  color="elv-neutral.4"
+                  onClick={HandleReset}
+                >
+                  <IconRestore />
+                </ActionIcon>
                 <ActionIcon
                   size={20}
                   variant="transparent"
@@ -78,11 +67,19 @@ const TextEditorBox = ({
       </Group>
 
       <Box w={width} mb={12}>
-        <EditorField
-          show={showEditor}
-          editorValue={editorValue}
-          HandleChange={HandleEditorValueChange}
-        />
+        {
+          showEditor &&
+          <JsonInput
+            value={editorValue}
+            onChange={value => HandleEditorValueChange({value})}
+            autosize
+            minRows={5}
+            maxRows={15}
+            color="elv-gray.9"
+            validationError="Invalid JSON"
+            formatOnBlur
+          />
+        }
       </Box>
     </Box>
   );
