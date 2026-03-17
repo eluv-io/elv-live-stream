@@ -129,7 +129,7 @@ const Settings = observer(() => {
         show={showModal}
         CloseCallback={() => setShowModal(false)}
         ConfirmCallback={async() => {
-          await HandleDeleteProfile({slug: pendingDeleteSlug})
+          await HandleDeleteProfile({slug: pendingDeleteSlug});
           profileStore.DeleteProfile(pendingDeleteSlug);
           setPendingDeleteSlug(null);
           setShowModal(false);
