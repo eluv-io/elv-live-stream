@@ -16,5 +16,6 @@ export const streamBrowseStore = rootStore.streamBrowseStore;
 export const streamManagementStore = rootStore.streamManagementStore;
 export const modalStore = rootStore.modalStore;
 export const siteStore = rootStore.siteStore;
+export const profileStore = rootStore.profileStore;
 
 rootStore.Initialize();

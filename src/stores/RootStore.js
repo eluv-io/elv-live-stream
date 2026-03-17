@@ -5,6 +5,7 @@ import StreamBrowseStore from "@/stores/StreamBrowseStore.js";
 import ModalStore from "@/stores/ModalStore.js";
 import StreamManagementStore from "@/stores/StreamManagementStore.js";
 import SiteStore from "@/stores/SiteStore.js";
+import ProfileStore from "@/stores/ProfileStore.js";
 
 // Force strict mode so mutations are only allowed within actions.
 configure({
@@ -27,6 +28,7 @@ class RootStore {
     this.streamManagementStore = new StreamManagementStore(this);
     this.modalStore = new ModalStore(this);
     this.siteStore = new SiteStore(this);
+    this.profileStore = new ProfileStore(this);
   }
 
   Initialize = flow(function * () {
