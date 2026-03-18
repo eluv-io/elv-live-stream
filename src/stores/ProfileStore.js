@@ -1,5 +1,6 @@
 // Manages the Live Recording Config profiles
 import {makeAutoObservable, runInAction, toJS} from "mobx";
+import {Slugify} from "@/utils/helpers.js";
 
 class ProfileStore {
   state = "pending";
@@ -37,7 +38,7 @@ class ProfileStore {
   }
 
   AddDraft() {
-    const draftName = `Draft Profile ${Object.keys(this.drafts).length + 1}`;
+    const draftName = `Config Profile ${Object.keys(this.drafts).length + 1}`;
     runInAction(() => {
       this.drafts[draftName] = {
         name: draftName
@@ -58,31 +59,35 @@ class ProfileStore {
     const libraryId = this.rootStore.dataStore.siteLibraryId;
     const objectId = this.rootStore.dataStore.siteId;
 
-    const {writeToken} = await this.client.EditContentObject({
-      libraryId,
-      objectId
-    });
+    // Deleting an existing profile
+    // For a profile that hasn't been saved, only the draft needs removal
+    if(slug in this.profiles) {
+      const {writeToken} = await this.client.EditContentObject({
+        libraryId,
+        objectId
+      });
 
-    await this.client.DeleteFiles({
-      libraryId,
-      objectId,
-      writeToken,
-      filePaths: [`live_stream_profiles/${profileName}.json`]
-    });
+      await this.client.DeleteFiles({
+        libraryId,
+        objectId,
+        writeToken,
+        filePaths: [`live_stream_profiles/${profileName}.json`]
+      });
 
-    await this.client.DeleteMetadata({
-      libraryId,
-      objectId,
-      writeToken,
-      metadataSubtree: `public/asset_metadata/profiles/${slug}`
-    });
+      await this.client.DeleteMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: `public/asset_metadata/profiles/${slug}`
+      });
 
-    await this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Delete config profile"
-    });
+      await this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Delete config profile"
+      });
+    }
 
     runInAction(() => {
       delete this.drafts[slug];
@@ -111,16 +116,33 @@ class ProfileStore {
       const isDirty = JSON.stringify(draft) !== JSON.stringify(profile);
 
       if(isDirty) {
-          // Profile is uploaded with the same filename/path, overwriting existing file
+        // Profile is uploaded with the same filename/path, overwriting existing file
         needsFinalize = true;
-        await this.client.StreamSaveConfigProfile({
-          profileMetadata: toJS(draft),
-          writeToken,
-          finalize: false
-        });
+        try {
+          await this.client.StreamSaveConfigProfile({
+            profileMetadata: toJS(draft),
+            writeToken,
+            finalize: false
+          });
 
-        if(draft.name !== profile.name) {
-          // Old profile must be deleted after new profile is created if the name has changed
+          if(profile && draft.name !== profile.name) {
+            await this.client.DeleteFiles({
+              libraryId: this.rootStore.dataStore.siteLibraryId,
+              objectId: this.rootStore.dataStore.siteId,
+              writeToken,
+              filePaths: [`live_stream_profiles/${Slugify(profile.name)}.json`]
+            });
+
+            await this.client.DeleteMetadata({
+              libraryId: this.rootStore.dataStore.siteLibraryId,
+              objectId: this.rootStore.dataStore.siteId,
+              writeToken,
+              metadataSubtree: `public/asset_metadata/profiles/${draftKey}`
+            });
+          }
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error("Failed to create content object.", error);
         }
       }
     }
