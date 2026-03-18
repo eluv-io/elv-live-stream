@@ -109,7 +109,7 @@ const Settings = observer(() => {
         }
         {
           Object.keys(profileStore.profiles).length === 0 ?
-            "No profiles created" : null
+            <Text mb={12}>No profiles found. Click &#39;Add Profile&#39; to begin setup.</Text> : null
         }
       </Box>
       {
