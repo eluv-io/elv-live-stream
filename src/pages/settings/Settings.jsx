@@ -20,6 +20,9 @@ const Settings = observer(() => {
     profileStore.LoadProfiles();
   }, []);
 
+  const HandleAddProfile = () => {
+    profileStore.AddDraft();
+  };
 
   const HandleDeleteProfile = async({slug}) => {
     try {
@@ -78,7 +81,7 @@ const Settings = observer(() => {
             classNames={{root: styles.root, section: styles.buttonSection}}
             leftSection={<PlusIcon width={18} height={18} />}
             variant="white"
-            // onClick={HandleAddCustom}
+            onClick={HandleAddProfile}
           >
             <Text fw={500} fz={14} c="elv-blue.2">
               Add Profile
@@ -96,7 +99,7 @@ const Settings = observer(() => {
               header="Profile"
               editorValue={JSON.stringify(value, null, 2)}
               HandleEditorValueChange={({value}) => profileStore.UpdateDraft(key, value)}
-              HandleReset={() => profileStore.ResetProfile(key)}
+              // HandleReset={() => profileStore.ResetProfile(key)}
               HandleDelete={() => {
                 setPendingDeleteSlug(key);
                 setShowModal(true);

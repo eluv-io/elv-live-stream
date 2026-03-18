@@ -1,7 +1,6 @@
 import {ActionIcon, Box, Flex, Group, JsonInput, Paper, Text, Title} from "@mantine/core";
 import {useState} from "react";
 import {EditIcon, TrashIcon} from "@/assets/icons/index.js";
-import {IconRestore} from "@tabler/icons-react";
 
 const TextEditorBox = ({
   columns=[],
@@ -10,10 +9,10 @@ const TextEditorBox = ({
   defaultShowEditor=false,
   hideDelete=false,
   HandleEditorValueChange,
-  HandleDelete,
-  HandleReset
+  HandleDelete
 }) => {
   const [showEditor, setShowEditor] = useState(defaultShowEditor);
+  const [localValue, setLocalValue] = useState(editorValue);
   const width = 700;
 
   return (
@@ -33,15 +32,15 @@ const TextEditorBox = ({
                 ))
               }
               <Group ml="auto">
-                <ActionIcon
-                  size={20}
-                  variant="transparent"
-                  color="elv-neutral.4"
-                  title="Reset"
-                  onClick={HandleReset}
-                >
-                  <IconRestore />
-                </ActionIcon>
+                {/*<ActionIcon*/}
+                {/*  size={20}*/}
+                {/*  variant="transparent"*/}
+                {/*  color="elv-neutral.4"*/}
+                {/*  title="Reset"*/}
+                {/*  onClick={HandleReset}*/}
+                {/*>*/}
+                {/*  <IconRestore />*/}
+                {/*</ActionIcon>*/}
                 <ActionIcon
                   size={20}
                   variant="transparent"
@@ -73,8 +72,11 @@ const TextEditorBox = ({
         {
           showEditor &&
           <JsonInput
-            value={editorValue}
-            onChange={value => HandleEditorValueChange({value})}
+            value={localValue}
+            onChange={value => {
+              setLocalValue(value);
+              HandleEditorValueChange({value});
+            }}
             autosize
             minRows={5}
             maxRows={15}

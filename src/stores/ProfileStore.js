@@ -36,6 +36,15 @@ class ProfileStore {
     }
   }
 
+  AddDraft() {
+    const draftName = `Draft Profile ${Object.keys(this.drafts).length + 1}`;
+    runInAction(() => {
+      this.drafts[draftName] = {
+        name: draftName
+      };
+    });
+  }
+
   UpdateDraft(key, jsonString) {
     try {
       this.drafts[key] = JSON.parse(jsonString);
@@ -45,8 +54,39 @@ class ProfileStore {
   }
 
   async DeleteProfile(slug) {
+    const profileName = this.profiles[slug]?.name || slug;
+    const libraryId = this.rootStore.dataStore.siteLibraryId;
+    const objectId = this.rootStore.dataStore.siteId;
+
+    const {writeToken} = await this.client.EditContentObject({
+      libraryId,
+      objectId
+    });
+
+    await this.client.DeleteFiles({
+      libraryId,
+      objectId,
+      writeToken,
+      filePaths: [`live_stream_profiles/${profileName}.json`]
+    });
+
+    await this.client.DeleteMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: `public/asset_metadata/profiles/${slug}`
+    });
+
+    await this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      commitMessage: "Delete config profile"
+    });
+
     runInAction(() => {
       delete this.drafts[slug];
+      delete this.profiles[slug];
     });
   }
 
