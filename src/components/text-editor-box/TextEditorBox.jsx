@@ -1,5 +1,5 @@
 import {ActionIcon, Box, Flex, Group, JsonInput, Paper, Text, Title} from "@mantine/core";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {EditIcon, TrashIcon} from "@/assets/icons/index.js";
 
 const TextEditorBox = ({
@@ -14,6 +14,10 @@ const TextEditorBox = ({
   const [showEditor, setShowEditor] = useState(defaultShowEditor);
   const [localValue, setLocalValue] = useState(editorValue);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLocalValue(editorValue);
+  }, [editorValue]);
   const width = 700;
 
   return (
