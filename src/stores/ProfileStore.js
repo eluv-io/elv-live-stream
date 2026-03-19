@@ -21,10 +21,14 @@ class ProfileStore {
     try {
       const profiles = await this.client.StreamConfigProfiles({resolveLinks: true});
 
+      const sorted = Object.fromEntries(
+        Object.entries(profiles).sort(([, a], [, b]) => (a.name || "").localeCompare(b.name || ""))
+      );
+
       runInAction(() => {
-        this.profiles = profiles;
+        this.profiles = sorted;
         this.drafts = Object.fromEntries(
-          Object.entries(profiles).map(([key, value]) => [key, {...value}])
+          Object.entries(sorted).map(([key, value]) => [key, {...value}])
         );
         this.state = "loaded";
       });
