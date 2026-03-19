@@ -9,7 +9,8 @@ const TextEditorBox = ({
   defaultShowEditor=false,
   hideDelete=false,
   HandleEditorValueChange,
-  HandleDelete
+  HandleDelete,
+  Validate
 }) => {
   const [showEditor, setShowEditor] = useState(defaultShowEditor);
   const [localValue, setLocalValue] = useState(editorValue);
@@ -82,14 +83,11 @@ const TextEditorBox = ({
               setLocalValue(value);
               try {
                 const parsed = JSON.parse(value);
-                if(!parsed.name) {
-                  setError("A \"name\" field is required");
-                } else {
-                  setError(null);
-                  HandleEditorValueChange({value});
-                }
+                const customError = Validate ? Validate(parsed) : null;
+                setError(customError || null);
+                if(!customError) { HandleEditorValueChange({value}); }
               } catch {
-                setError(null); // JsonInput's validationError handles invalid JSON display
+                setError(null);
               }
             }}
             autosize

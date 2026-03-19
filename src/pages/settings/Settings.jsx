@@ -9,12 +9,14 @@ import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Settings.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import {Slugify} from "@/utils/helpers.js";
 
 const Settings = observer(() => {
   // Used to provide ConfirmModal with slug to be deleted
   const [pendingDeleteSlug, setPendingDeleteSlug] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [validationError, setValidationError] = useState(false);
 
   useEffect(() => {
     profileStore.LoadProfiles();
@@ -103,6 +105,26 @@ const Settings = observer(() => {
                 setPendingDeleteSlug(key);
                 setShowModal(true);
               }}
+              Validate={parsed => {
+                let errorMessage;
+                if(!parsed.name) {
+                  errorMessage = "A \"name\" field is required";
+                  setValidationError(true);
+                }
+                  const duplicate = Object.values(profileStore.sortedDrafts)
+                    .some(d => d.name === parsed.name && Slugify(d.name) !== key);
+
+                if(duplicate) {
+                  errorMessage = "A profile with this name already exists";
+                  setValidationError(true);
+                }
+
+                if(!errorMessage) {
+                  setValidationError(false);
+                }
+
+                return errorMessage ?? null;
+              }}
             />
           ))
         }
@@ -116,7 +138,7 @@ const Settings = observer(() => {
         <Button
           variant="filled"
           onClick={HandleSave}
-          disabled={saving}
+          disabled={saving || validationError}
           loading={saving}
           mt={5}
         >
