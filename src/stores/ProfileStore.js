@@ -43,8 +43,9 @@ class ProfileStore {
 
   AddDraft() {
     const draftName = `Config Profile ${Object.keys(this.drafts).length + 1}`;
+    const draftKey = Slugify(draftName);
     runInAction(() => {
-      this.drafts[draftName] = {
+      this.drafts[draftKey] = {
         name: draftName
       };
     });
@@ -143,6 +144,10 @@ class ProfileStore {
               metadataSubtree: `public/asset_metadata/profiles/${draftKey}`
             });
           }
+
+          runInAction(() => {
+            this.profiles[draftKey] = {...toJS(draft)};
+          });
         } catch(error) {
           // eslint-disable-next-line no-console
           console.error("Failed to create content object.", error);
