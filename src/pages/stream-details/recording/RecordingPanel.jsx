@@ -3,7 +3,18 @@ import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
 import {dataStore, streamManagementStore} from "@/stores";
 import {useParams} from "react-router-dom";
-import {Box, Button, Checkbox, Divider, Loader, Select, SimpleGrid} from "@mantine/core";
+import {
+  Box,
+  Button,
+  Checkbox,
+  Divider,
+  Group,
+  Loader,
+  Radio,
+  Select,
+  SimpleGrid,
+  Collapse
+} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
@@ -27,7 +38,11 @@ const RecordingPanel = observer(({
   const [retention, setRetention] = useState("");
   const [connectionTimeout, setConnectionTimeout] = useState("");
   const [reconnectionTimeout, setReconnectionTimeout] = useState("");
+
   const [copyMpegTs, setCopyMpegTs] = useState(false);
+  const [inputPackaging, setInputPackaging] = useState("rtp_ts");
+  const [customReadLoop, setCustomReadLoop] = useState(false);
+  const [copyMode, setCopyMode] = useState("raw_only");
 
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -188,12 +203,66 @@ const RecordingPanel = observer(({
             <SectionTitle mb={8}>Transport Stream</SectionTitle>
             <SimpleGrid cols={2} spacing={150} mb={29}>
               <Checkbox
-                label="Record Transport Stream Source"
+                label="Enable Transport Stream"
                 checked={copyMpegTs}
                 onChange={(event) => setCopyMpegTs(event.target.checked)}
-                mb={12}
               />
             </SimpleGrid>
+
+            <Collapse in={copyMpegTs}>
+              <SimpleGrid cols={2} spacing={150} mb={29} ml={34}>
+                <Radio.Group
+                  name="input-packaging"
+                  label="Input Packaging"
+                  description="Defines the container format for the incoming stream. Select TS (MPEG Transport Stream) for standard broadcast signals, or RTP TS if the stream is wrapped in Real-time Transport Protocol for improved timing and jitter management over IP networks."
+                  value={inputPackaging}
+                  onChange={setInputPackaging}
+                >
+                  <Group mt={20} gap={18}>
+                    <Radio
+                      value="ts"
+                      label="TS"
+                      description=""
+                    />
+                    <Radio
+                      value="rtp_ts"
+                      label="RTP TS"
+                      description=""
+                    />
+                  </Group>
+                </Radio.Group>
+                <Radio.Group
+                  name="copy-mode"
+                  label="Copy Mode"
+                  description="Determines how data is processed as it moves through the fabric. Raw allows for basic data throughput with minimal overhead, while Raw Only ensures the stream is passed through in its original bit-for-bit state without any re-encapsulation or metadata modification."
+                  value={copyMode}
+                  onChange={setCopyMode}
+                >
+                  <Group mt={20} gap={18}>
+                    <Radio
+                      value="raw"
+                      label="Raw"
+                      description=""
+                    />
+                    <Radio
+                      value="raw_only"
+                      label="Raw Only"
+                      description=""
+                    />
+                  </Group>
+                </Radio.Group>
+              </SimpleGrid>
+              <SimpleGrid cols={2} spacing={150} mb={29} ml={34}>
+                <Box>
+                  <Checkbox
+                    label="Enable Legacy Reader"
+                    description="Enable this if you are connecting to older source hardware that requires the legacy playback engine for compatibility."
+                    checked={customReadLoop}
+                    onChange={(event) => setCustomReadLoop(event.target.checked)}
+                  />
+                </Box>
+              </SimpleGrid>
+            </Collapse>
             <Divider mb={29} />
           </DisabledTooltipWrapper>
         }

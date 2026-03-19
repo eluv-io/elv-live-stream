@@ -45,6 +45,7 @@ module.exports = [
   "ilib",
   "iq",
   "iten",
+  "jitter",
   "Kbps",
   "lang",
   "lh",
