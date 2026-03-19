@@ -90,7 +90,7 @@ const Settings = observer(() => {
         </Group>
 
         {
-          Object.entries(profileStore.drafts).map(([key, value]) => (
+          Object.entries(profileStore.sortedDrafts).map(([key, value]) => (
             <TextEditorBox
               key={`custom-${key}`}
               columns={[
@@ -99,7 +99,6 @@ const Settings = observer(() => {
               header="Profile"
               editorValue={JSON.stringify(value, null, 2)}
               HandleEditorValueChange={({value}) => profileStore.UpdateDraft(key, value)}
-              // HandleReset={() => profileStore.ResetProfile(key)}
               HandleDelete={() => {
                 setPendingDeleteSlug(key);
                 setShowModal(true);

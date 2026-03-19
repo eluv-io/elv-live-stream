@@ -17,18 +17,20 @@ class ProfileStore {
     return this.rootStore.client;
   }
 
+  get sortedDrafts() {
+    return Object.fromEntries(
+      Object.entries(this.drafts).sort(([, a], [, b]) => (a.name || "").localeCompare(b.name || ""))
+    );
+  }
+
   async LoadProfiles() {
     try {
       const profiles = await this.client.StreamConfigProfiles({resolveLinks: true});
 
-      const sorted = Object.fromEntries(
-        Object.entries(profiles).sort(([, a], [, b]) => (a.name || "").localeCompare(b.name || ""))
-      );
-
       runInAction(() => {
-        this.profiles = sorted;
+        this.profiles = profiles;
         this.drafts = Object.fromEntries(
-          Object.entries(sorted).map(([key, value]) => [key, {...value}])
+          Object.entries(profiles).map(([key, value]) => [key, {...value}])
         );
         this.state = "loaded";
       });
@@ -146,7 +148,15 @@ class ProfileStore {
           }
 
           runInAction(() => {
-            this.profiles[draftKey] = {...toJS(draft)};
+            const newKey = Slugify(draft.name);
+            if(profile && draft.name !== profile.name) {
+              delete this.profiles[draftKey];
+              delete this.drafts[draftKey];
+              this.profiles[newKey] = {...toJS(draft)};
+              this.drafts[newKey] = {...toJS(draft)};
+            } else {
+              this.profiles[draftKey] = {...toJS(draft)};
+            }
           });
         } catch(error) {
           // eslint-disable-next-line no-console
