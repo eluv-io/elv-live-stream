@@ -19,7 +19,7 @@ class ProfileStore {
 
   get sortedDrafts() {
     return Object.fromEntries(
-      Object.entries(this.drafts).sort(([, a], [, b]) => (a.name || "").localeCompare(b.name || ""))
+      Object.entries(this.drafts).sort(([a], [b]) => a.localeCompare(b))
     );
   }
 

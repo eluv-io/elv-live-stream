@@ -9,7 +9,6 @@ import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Settings.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {Slugify} from "@/utils/helpers.js";
 
 const Settings = observer(() => {
   // Used to provide ConfirmModal with slug to be deleted
@@ -111,8 +110,9 @@ const Settings = observer(() => {
                   errorMessage = "A \"name\" field is required";
                   setValidationError(true);
                 }
-                  const duplicate = Object.values(profileStore.sortedDrafts)
-                    .some(d => d.name === parsed.name && Slugify(d.name) !== key);
+
+                const duplicate = Object.entries(profileStore.drafts)
+                  .some(([dKey, d]) => d.name === parsed.name && dKey !== key);
 
                 if(duplicate) {
                   errorMessage = "A profile with this name already exists";
