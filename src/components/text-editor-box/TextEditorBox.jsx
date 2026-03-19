@@ -13,6 +13,7 @@ const TextEditorBox = ({
 }) => {
   const [showEditor, setShowEditor] = useState(defaultShowEditor);
   const [localValue, setLocalValue] = useState(editorValue);
+  const [error, setError] = useState(null);
   const width = 700;
 
   return (
@@ -75,13 +76,23 @@ const TextEditorBox = ({
             value={localValue}
             onChange={value => {
               setLocalValue(value);
-              HandleEditorValueChange({value});
+              try {
+                const parsed = JSON.parse(value);
+                if(!parsed.name) {
+                  setError("A \"name\" field is required");
+                } else {
+                  setError(null);
+                  HandleEditorValueChange({value});
+                }
+              } catch {
+                setError(null); // JsonInput's validationError handles invalid JSON display
+              }
             }}
             autosize
             minRows={5}
             maxRows={15}
             color="elv-gray.9"
-            validationError="Invalid JSON"
+            error={error}
             formatOnBlur
           />
         }

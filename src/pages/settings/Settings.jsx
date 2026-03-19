@@ -94,7 +94,7 @@ const Settings = observer(() => {
             <TextEditorBox
               key={`custom-${key}`}
               columns={[
-                {id: key, value: value.name || {}}
+                {id: key, value: value.name || "Profile"}
               ]}
               header="Profile"
               editorValue={JSON.stringify(value, null, 2)}
