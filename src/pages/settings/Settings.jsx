@@ -113,7 +113,7 @@ const Settings = observer(() => {
         }
       </Box>
       {
-        Object.keys(profileStore.profiles).length > 0 &&
+        Object.keys(profileStore.drafts).length > 0 &&
         <Button
           variant="filled"
           onClick={HandleSave}
