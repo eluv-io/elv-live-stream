@@ -59,7 +59,6 @@ class ProfileStore {
   }
 
   async DeleteProfile(slug) {
-    const profileName = this.profiles[slug]?.name || slug;
     const libraryId = this.rootStore.dataStore.siteLibraryId;
     const objectId = this.rootStore.dataStore.siteId;
 
@@ -75,7 +74,7 @@ class ProfileStore {
         libraryId,
         objectId,
         writeToken,
-        filePaths: [`live_stream_profiles/${profileName}.json`]
+        filePaths: [`live_stream_profiles/${slug}.json`]
       });
 
       await this.client.DeleteMetadata({
