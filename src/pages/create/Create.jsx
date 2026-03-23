@@ -303,9 +303,10 @@ const Create = observer(() => {
       libraryId,
       name,
       permission,
-      profileSlug: configProfile,
+      configProfile: configProfile ? profileStore.profiles[configProfile] : undefined,
       protocol,
-      retention: retention ? parseInt(retention) : null,
+      persistent: retention === "indefinite",
+      retention: retention && retention !== "indefinite" ? parseInt(retention) : null,
       url: formProtocol === "custom" ? formCustomUrl : formUrl
     });
 
@@ -323,7 +324,6 @@ const Create = observer(() => {
     setIsCreating(true);
 
     try {
-      let objectId;
       const url = formProtocol === "custom" ? formCustomUrl : formUrl;
       const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, configProfile, protocol, retention} = form.getValues();
 
@@ -338,58 +338,31 @@ const Create = observer(() => {
         }
       }
 
-      if(objectData === null) {
-        // Stream hasn't been created
-        let response;
+      const {objectId: responseObjectId} = await streamManagementStore.InitLiveStreamObject({
+        objectId: objectData?.objectId,
+        audioFormData,
+        accessGroup,
+        description,
+        displayTitle,
+        encryption,
+        libraryId,
+        name,
+        permission,
+        configProfile: configProfile ? profileStore.profiles[configProfile] : undefined,
+        protocol,
+        retention: retentionData,
+        persistent,
+        url
+      });
 
-        try {
-          response = await streamManagementStore.InitLiveStreamObject({
-            accessGroup,
-            description,
-            displayTitle,
-            encryption,
-            libraryId,
-            name,
-            permission,
-            profileSlug: configProfile,
-            protocol,
-            retention: retentionData,
-            persistent,
-            url
-          });
-
-          objectId = response.objectId;
-        } catch(error) {
-          notifications.show({
-            title: "Error",
-            color: "red",
-            message: "Unable to create live stream"
-          });
-
-          throw error;
-        }
-      } else {
-        // Stream has already been created and probed
-        objectId = objectData.objectId;
-        await streamManagementStore.UpdateLiveStreamObject({
-          objectId,
-          slug: objectData.slug,
-          audioFormData,
-          accessGroup,
-          description,
-          displayTitle,
-          encryption,
-          libraryId,
-          name,
-          configProfile,
-          protocol,
-          retention: retentionData,
-          persistent,
-          url
-        });
-      }
-
-      navigate(`/streams/${objectId}`);
+      navigate(`/streams/${responseObjectId}`);
+    } catch(error) {
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: `Unable to ${objectData?.objectId ? "update" : "create"} live stream`
+      });
+      throw error;
     } finally {
       setIsCreating(false);
     }

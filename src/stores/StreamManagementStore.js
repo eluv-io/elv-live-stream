@@ -1,7 +1,6 @@
 import {configure, flow, makeAutoObservable} from "mobx";
 import {ParseLiveConfigData, Slugify} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
-import {profileStore} from "@/stores/index.js";
 
 configure({
   enforceActions: "always"
@@ -89,7 +88,31 @@ class StreamManagementStore {
     }
   });
 
+  /**
+   * Creates a new live stream content object and registers it in the stream browse store.
+   *
+   * Builds a live recording config from the provided parameters (merging over the config
+   * profile as a baseline if one is specified), calls StreamCreate, checks the initial
+   * stream status, and loads stream metadata so the new stream is immediately available
+   * in the UI.
+   *
+   * @param {string} accessGroup - Name of the access group to grant permissions to
+   * @param {string} description - Stream description
+   * @param {string} displayTitle - Display title for the stream
+   * @param {string} encryption - DRM/encryption setting (e.g. "clear", "drm")
+   * @param {string} libraryId - Library in which to create the stream object
+   * @param {string} name - Stream name (also used to derive the slug)
+   * @param {string} permission - Object permission level
+   * @param {string} profileSlug - Slug key of the config profile to use as baseline (optional)
+   * @param {number|null} retention - Part TTL in seconds, or null if persistent
+   * @param {boolean} persistent - Whether the stream is persistent (no TTL)
+   * @param {string} url - Ingest URL for the stream
+   *
+   * @returns {{ objectId: string, slug: string }} The created object's ID and slug
+   */
   InitLiveStreamObject = flow(function * ({
+    objectId,
+    audioFormData,
     accessGroup,
     description,
     displayTitle,
@@ -97,23 +120,32 @@ class StreamManagementStore {
     libraryId,
     name,
     permission,
-    profileSlug,
+    configProfile,
     retention,
     persistent,
     url
   }) {
     try {
+      // Remove audio stream from meta if record=false
+      Object.keys(audioFormData || {}).forEach(index => {
+        if(!audioFormData[index].record) {
+          delete audioFormData[index];
+        }
+      });
+
       const config = ParseLiveConfigData({
         encryption,
-        configProfile: profileSlug ? profileStore.profiles[profileSlug] : undefined,
+        configProfile,
         retention,
-        persistent
+        persistent,
+        audioFormData
       });
 
       const groupAddress = this.rootStore.dataStore.accessGroups[accessGroup]?.address;
 
       const response = yield this.client.StreamCreate({
         libraryId,
+        objectId,
         url,
         liveRecordingConfig: config,
         options: {
@@ -128,20 +160,20 @@ class StreamManagementStore {
         }
       });
 
-      const {objectId} = response;
+      const createdObjectId = response.objectId;
 
       const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
-        objectId
+        objectId: createdObjectId
       });
 
       const streamValue = {
-        objectId,
+        objectId: createdObjectId,
         title: name,
         status: statusResponse.state,
       };
 
       const streamDetails = yield this.rootStore.dataStore.LoadStreamMetadata({
-        objectId,
+        objectId: createdObjectId,
         libraryId
       }) || {};
 
@@ -155,12 +187,13 @@ class StreamManagementStore {
       });
 
       return {
-        objectId,
+        objectId: createdObjectId,
         slug: Slugify(name)
       };
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to create stream.", error);
+      throw error;
     }
   });
 
