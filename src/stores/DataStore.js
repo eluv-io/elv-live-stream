@@ -511,7 +511,8 @@ class DataStore {
           "live_recording/recording_config/recording_params/reconnect_timeout",
           "live_recording_config/part_ttl",
           "live_recording/recording_config/recording_params/persistent",
-          "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
+          "live_recording/recording_config/recording_params/xc_params/copy_mpegts",
+          "live_recording/recording_config/recording_params/xc_params/input_cfg"
         ]
       });
 
@@ -527,7 +528,8 @@ class DataStore {
         retention: streamMeta?.live_recording_config?.part_ttl,
         connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
         reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,
-        copyMpegTs: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.copy_mpegts
+        copyMpegTs: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.copy_mpegts,
+        inputCfg: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg
       };
     } catch(error) {
       // eslint-disable-next-line no-console

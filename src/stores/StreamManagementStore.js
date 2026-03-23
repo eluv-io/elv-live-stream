@@ -462,7 +462,10 @@ class StreamManagementStore {
     dvrStartTime,
     dvrMaxDuration,
     playoutProfile,
-    copyMpegTs
+    copyMpegTs,
+    inputPackaging,
+    copyMode,
+    customReadLoop,
   }){
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -541,7 +544,15 @@ class StreamManagementStore {
       updateValue.reconnectionTimeout = parseInt(reconnectionTimeout);
     }
 
+    const existingCopyMpegTs = yield this.client.ContentObjectMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
+    });
+
     if(copyMpegTs !== undefined) {
+      let inputCfgMeta;
       yield this.client.ReplaceMetadata({
         libraryId,
         objectId,
@@ -551,18 +562,25 @@ class StreamManagementStore {
       });
 
       if(copyMpegTs) {
-        yield this.client.ReplaceMetadata({
-          libraryId,
-          objectId,
-          writeToken,
-          metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg",
-          metadata: {
-            "bypass_libav_reader": true,
-            "copy_mode": "raw",
-            "copy_packaging": "rtp_ts"
-          }
-        });
+        inputCfgMeta = {
+          "bypass_libav_reader": true,
+          "copy_mode": copyMode,
+          "copy_packaging": inputPackaging,
+          "custom_read_loop_enabled": customReadLoop,
+          "input_packaging": inputPackaging
+        };
+      } else if(existingCopyMpegTs && copyMpegTs === false) {
+        // Reset settings
+        inputCfgMeta = {};
       }
+
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg",
+        metadata: inputCfgMeta
+      });
     }
 
     if(!skipDvrSection) {
@@ -651,7 +669,7 @@ class StreamManagementStore {
 
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
 
-    const {copyMpegTs} = tsFormData;
+    const {copyMpegTs, inputPackaging, copyMode, customReadLoop} = tsFormData;
 
     yield this.rootStore.streamBrowseStore.UpdateStreamAudioSettings({
       objectId,
@@ -670,6 +688,9 @@ class StreamManagementStore {
       connectionTimeout,
       reconnectionTimeout,
       copyMpegTs,
+      inputPackaging,
+      copyMode,
+      customReadLoop,
       writeToken,
       finalize: false
     });

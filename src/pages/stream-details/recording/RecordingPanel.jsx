@@ -58,7 +58,8 @@ const RecordingPanel = observer(({
         persistent: persistentMeta,
         connectionTimeout: connectionTimeoutMeta,
         reconnectionTimeout: reconnectionTimeoutMeta,
-        copyMpegTs: copyMpegTsMeta
+        copyMpegTs: copyMpegTsMeta,
+        inputCfg
       } = await dataStore.LoadRecordingConfigData({objectId: params.id});
 
       retentionMeta = persistentMeta ? "indefinite" : retentionMeta ? retentionMeta.toString() : null;
@@ -75,6 +76,9 @@ const RecordingPanel = observer(({
         RECONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(reconnectionTimeoutMeta) ? reconnectionTimeoutMeta : null
       );
       setCopyMpegTs(copyMpegTsMeta === undefined ? false : copyMpegTsMeta);
+      setCopyMode(inputCfg?.copy_mode);
+      setInputPackaging(inputCfg?.input_packaging);
+      setCustomReadLoop(inputCfg?.custom_read_loop_enabled);
     } finally {
       setLoading(false);
     }
@@ -113,7 +117,10 @@ const RecordingPanel = observer(({
           reconnectionTimeout: reconnectionTimeout ? parseInt(reconnectionTimeout) : null
         },
         tsFormData: {
-          copyMpegTs
+          copyMpegTs,
+          inputPackaging,
+          copyMode,
+          customReadLoop
         },
         edit: true
       });
@@ -214,7 +221,7 @@ const RecordingPanel = observer(({
                 <Radio.Group
                   name="input-packaging"
                   label="Input Packaging"
-                  description="Defines the container format for the incoming stream. Select TS (MPEG Transport Stream) for standard broadcast signals, or RTP TS if the stream is wrapped in Real-time Transport Protocol for improved timing and jitter management over IP networks."
+                  description="Choose the format of your incoming stream. Use TS for standard broadcast signals or RTP TS for IP networks requiring better timing and jitter management."
                   value={inputPackaging}
                   onChange={setInputPackaging}
                 >
@@ -234,7 +241,7 @@ const RecordingPanel = observer(({
                 <Radio.Group
                   name="copy-mode"
                   label="Copy Mode"
-                  description="Determines how data is processed as it moves through the fabric. Raw allows for basic data throughput with minimal overhead, while Raw Only ensures the stream is passed through in its original bit-for-bit state without any re-encapsulation or metadata modification."
+                  description="Select Raw for high throughput with minimal overhead, or Raw Only for bit-for-bit passthrough without metadata modification."
                   value={copyMode}
                   onChange={setCopyMode}
                 >
@@ -256,7 +263,7 @@ const RecordingPanel = observer(({
                 <Box>
                   <Checkbox
                     label="Enable Legacy Reader"
-                    description="Enable this if you are connecting to older source hardware that requires the legacy playback engine for compatibility."
+                    description="Enable for compatibility with older hardware or legacy playback engines."
                     checked={customReadLoop}
                     onChange={(event) => setCustomReadLoop(event.target.checked)}
                   />

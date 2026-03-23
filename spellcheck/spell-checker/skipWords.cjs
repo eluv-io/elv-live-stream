@@ -65,6 +65,7 @@ module.exports = [
   "noreferrer",
   "nowrap",
   "passphrase",
+  "passthrough",
   "pathname",
   "playout",
   "playready",
