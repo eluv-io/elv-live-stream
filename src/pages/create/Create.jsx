@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {dataStore, streamBrowseStore, rootStore, streamManagementStore} from "@/stores";
+import {dataStore, streamBrowseStore, rootStore, streamManagementStore, profileStore} from "@/stores";
 import {useNavigate} from "react-router-dom";
 import {ENCRYPTION_OPTIONS, RETENTION_OPTIONS} from "@/utils/constants";
 import {
@@ -87,7 +87,7 @@ const AdvancedSettingsPanel = observer(({
   setShowProbeConfirmation,
   objectData,
   DisableProbeButton,
-  ladderProfilesData,
+  profilesData,
   form,
   loading
 }) => {
@@ -140,16 +140,16 @@ const AdvancedSettingsPanel = observer(({
 
       <Box mb={29}>
         <Select
-          key={ladderProfilesData}
-          label="Playout Ladder"
-          name="playoutProfile"
-          data={ladderProfilesData}
-          placeholder={loading ? "Loading Options..." : "Select Ladder Profile"}
+          key={profilesData}
+          label="Config Profile"
+          name="configProfile"
+          data={profilesData}
+          placeholder={profileStore.state === "loaded" ? "Select Ladder Profile" : "Loading Options..."}
           mb={16}
           description={
-          loading ? null : (!ladderProfilesData.length > 0) ? "No profiles are configured. Create a profile in Settings." : null
+          loading ? null : (!profilesData.length > 0) ? "No profiles are configured. Create a profile in Settings." : null
         }
-          {...form.getInputProps("playoutProfile")}
+          {...form.getInputProps("configProfile")}
         />
       </Box>
 
@@ -204,11 +204,17 @@ const Create = observer(() => {
   const [objectData, setObjectData] = useState(null);
 
   useEffect(() => {
-    Promise.all([
+    const promises = [
       dataStore.LoadAccessGroups(),
       dataStore.LoadLibraries(),
       dataStore.LoadStreamUrls()
-    ])
+    ];
+
+    if(profileStore.state !== "loaded") {
+      promises.push(profileStore.LoadProfiles());
+    }
+
+    Promise.all(promises)
       .finally(() => setLoading(false));
   }, []);
 
@@ -238,7 +244,7 @@ const Create = observer(() => {
 
   // Form data dependent on api calls
   const [urlOptions, setUrlOptions] = useState([]);
-  const [ladderProfilesData, setLadderProfilesData] = useState([]);
+  const [profilesData, setProfilesData] = useState([]);
   const [audioFormData, setAudioFormData] = useState(null);
   const [audioTracks, setAudioTracks] = useState([]);
 
@@ -253,7 +259,7 @@ const Create = observer(() => {
       name: "",
       permission: "editable",
       encryption: "clear",
-      playoutProfile: "Default",
+      configProfile: "",
       protocol: "mpegts", // Controlled by local state
       retention: "86400",
       url: "" // Controlled by local state
@@ -269,21 +275,13 @@ const Create = observer(() => {
   });
 
   useEffect(() => {
-    if(dataStore.ladderProfiles) {
-      const defaultOption = dataStore.ladderProfiles?.default ?
-        {
-          label: dataStore.ladderProfiles.default.name,
-          value: dataStore.ladderProfiles.default.name
-        } : {};
+    if(profileStore.profiles) {
+      const options = Object.keys(profileStore.sortedProfiles)
+        .map(item => ({label: profileStore.profiles[item]?.name, value: item}));
 
-      const options = [
-        defaultOption,
-        ...dataStore.ladderProfiles.custom.map(item => ({label: item.name, value: item.name}))
-      ];
-
-      setLadderProfilesData(options);
+      setProfilesData(options);
     }
-  }, [dataStore.ladderProfiles]);
+  }, [profileStore.profiles]);
 
   useEffect(() => {
     const urls = formProtocol === "custom" ?
@@ -295,7 +293,7 @@ const Create = observer(() => {
   }, [formProtocol, dataStore.liveStreamUrls]);
 
   const HandleProbeConfirm = async() => {
-    const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, playoutProfile, protocol, retention} = form.getValues();
+    const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, configProfile, protocol, retention} = form.getValues();
 
     const {objectId, slug} = await streamManagementStore.InitLiveStreamObject({
       accessGroup,
@@ -305,7 +303,7 @@ const Create = observer(() => {
       libraryId,
       name,
       permission,
-      playoutProfile,
+      profileSlug: configProfile,
       protocol,
       retention: retention ? parseInt(retention) : null,
       url: formProtocol === "custom" ? formCustomUrl : formUrl
@@ -327,7 +325,7 @@ const Create = observer(() => {
     try {
       let objectId;
       const url = formProtocol === "custom" ? formCustomUrl : formUrl;
-      const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, playoutProfile, protocol, retention} = form.getValues();
+      const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, configProfile, protocol, retention} = form.getValues();
 
       let retentionData = null;
       let persistent = false;
@@ -353,7 +351,7 @@ const Create = observer(() => {
             libraryId,
             name,
             permission,
-            playoutProfile,
+            profileSlug: configProfile,
             protocol,
             retention: retentionData,
             persistent,
@@ -383,7 +381,7 @@ const Create = observer(() => {
           encryption,
           libraryId,
           name,
-          playoutProfile,
+          configProfile,
           protocol,
           retention: retentionData,
           persistent,
@@ -583,7 +581,7 @@ const Create = observer(() => {
               setAudioFormData={setAudioFormData}
               setShowProbeConfirmation={setShowProbeConfirmation}
               objectData={objectData}
-              ladderProfilesData={ladderProfilesData}
+              profilesData={profilesData}
               loading={loading}
               DisableProbeButton={() => {
                 const {libraryId, name} = form.getValues();

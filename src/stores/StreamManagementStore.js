@@ -1,6 +1,7 @@
 import {configure, flow, makeAutoObservable} from "mobx";
 import {ParseLiveConfigData, Slugify} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
+import {profileStore} from "@/stores/index.js";
 
 configure({
   enforceActions: "always"
@@ -96,7 +97,7 @@ class StreamManagementStore {
     libraryId,
     name,
     permission,
-    playoutProfile,
+    profileSlug,
     retention,
     persistent,
     url
@@ -104,7 +105,7 @@ class StreamManagementStore {
     try {
       const config = ParseLiveConfigData({
         encryption,
-        playoutProfile,
+        configProfile: profileSlug ? profileStore.profiles[profileSlug] : undefined,
         retention,
         persistent
       });

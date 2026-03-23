@@ -1,5 +1,6 @@
 import {STATUS_MAP} from "@/utils/constants";
 import Fraction from "fraction.js";
+import {toJS} from "mobx";
 
 export const ParseLiveConfigData = ({
   encryption,
@@ -11,23 +12,36 @@ export const ParseLiveConfigData = ({
   simpleWatermark,
   imageWatermark,
   forensicWatermark,
-  copyMpegTs
+  copyMpegTs,
+  configProfile
 }) => {
+  configProfile = configProfile ? toJS(configProfile) : undefined;
+  const MergeIfDefined = (base, overrides) => ({
+    ...base ?? {},
+    ...Object.fromEntries(
+      Object.entries(overrides).filter(([, v]) => v !== undefined)
+    )
+  });
+
+  // TODO: add persistent
   return {
-    recording_config: {
+    recording_config: MergeIfDefined(configProfile?.recording_config ?? {}, {
       part_ttl: parseInt(retention || ""),
       reconnect_timeout: reconnectionTimeout,
       connectionTimeout,
       copyMpegTs
-    },
-    playout_config: {
+    }),
+    playout_config: MergeIfDefined(configProfile?.playout_config ?? {}, {
       drm: encryption,
       simpleWatermark,
       imageWatermark,
       forensicWatermark
-    },
-    recording_stream_config: audioFormData ? {audio: audioFormData} : null,
-    // TODO: add persistent
+    }),
+    recording_stream_config: audioFormData ?
+      MergeIfDefined(configProfile?.recording_stream_config ?? {}, {audio: audioFormData})
+      : (configProfile?.recording_stream_config ?? null),
+    input_stream_info: configProfile?.input_stream_info ?? null,
+    recording_params: configProfile?.recording_params ?? null
   };
 };
 

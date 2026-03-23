@@ -23,6 +23,12 @@ class ProfileStore {
     );
   }
 
+  get sortedProfiles() {
+    return Object.fromEntries(
+      Object.entries(this.profiles).sort(([a], [b]) => a.localeCompare(b))
+    );
+  }
+
   async LoadProfiles() {
     try {
       const profiles = await this.client.StreamConfigProfiles({resolveLinks: true});
