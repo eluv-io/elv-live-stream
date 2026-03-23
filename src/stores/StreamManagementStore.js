@@ -844,10 +844,10 @@ class StreamManagementStore {
 
     // Apply playout profile settings
 
-    yield this.rootStore.streamBrowseStore.UpdateLadderSpecs({
-      ...basicCallParams,
-      ...playoutProfileParams
-    });
+    // yield this.rootStore.streamBrowseStore.UpdateLadderSpecs({
+    //   ...basicCallParams,
+    //   ...playoutProfileParams
+    // });
 
     yield this.client.FinalizeContentObject({
       libraryId,

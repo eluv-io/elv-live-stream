@@ -1,7 +1,7 @@
 // Force strict mode so mutations are only allowed within actions.
 import {configure, flow, makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
-import {ENCRYPTION_OPTIONS, STATUS_MAP} from "@/utils/constants";
+import {STATUS_MAP} from "@/utils/constants";
 import {ParseLiveConfigData} from "@/utils/helpers.js";
 
 configure({
@@ -710,15 +710,13 @@ class StreamBrowseStore {
     libraryId,
     objectId,
     slug,
-    drmType,
-    existingDrmType,
+    playoutFormats,
+    existingPlayoutFormats,
     writeToken,
     status,
     finalize=true
   }) {
-    if(existingDrmType === drmType) { return; }
-
-    const drmOption = ENCRYPTION_OPTIONS.find(option => option.value === drmType);
+    if(existingPlayoutFormats === playoutFormats) { return; }
 
     libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
@@ -733,8 +731,8 @@ class StreamBrowseStore {
       objectId,
       libraryId,
       writeToken,
-      metadataSubtree: "live_recording/playout_config/drm",
-      metadata: drmType
+      metadataSubtree: "live_recording/playout_config/playout_formats",
+      metadata: playoutFormats
     });
 
     let updateValue = {}, drmNeedsInit = false;
@@ -742,8 +740,8 @@ class StreamBrowseStore {
     if(![STATUS_MAP.UNINITIALIZED, STATUS_MAP.UNCONFIGURED].includes(status)) {
       yield this.client.StreamInitialize({
         name: objectId,
-        drm: drmType === "clear" ? false : true,
-        format: drmOption.format.join(","),
+        drm: !!playoutFormats.some(format => !format.includes("clear")),
+        format: playoutFormats.join(","),
         writeToken,
         finalize: false
       });
@@ -763,7 +761,7 @@ class StreamBrowseStore {
 
       updateValue["status"] = statusResponse.state;
     } else {
-      updateValue["drm"] = drmType;
+      updateValue["drm"] = playoutFormats;
       drmNeedsInit = true;
     }
 
@@ -776,8 +774,8 @@ class StreamBrowseStore {
       drmNeedsInit,
       drmInitPayload: {
         name: objectId,
-        drm: drmType === "clear" ? false : true,
-        format: drmOption.format.join(",")
+        drm: !!playoutFormats.some(format => !format.includes("clear")),
+        format: playoutFormats.join(",")
       }
     };
   });

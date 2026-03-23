@@ -32,7 +32,7 @@ export const ParseLiveConfigData = ({
       copyMpegTs
     }),
     playout_config: MergeIfDefined(configProfile?.playout_config ?? {}, {
-      drm: encryption,
+      playout_formats: encryption,
       simpleWatermark,
       imageWatermark,
       forensicWatermark

@@ -53,22 +53,16 @@ export const DEFAULT_WATERMARK_IMAGE = {
   "wm_enabled": true
 };
 
-export const DRM_MAP = {
-  ALL: ["hls-sample-aes", "hls-aes128", "hls-fairplay", "hls-widevine-cenc", "hls-playready-cenc", "dash-widevine", "dash-playready-cenc"],
-  PUBLIC: ["hls-sample-aes", "hls-aes128", "dash-widevine", "hls-playready-cenc"],
-  FAIRPLAY: ["hls-fairplay"],
-  CLEAR: ["hls-clear", "dash-clear"],
-  HLS_WIDEVINE: ["hls-widevine-cenc"],
-  PLAYREADY: ["hls-playready-cenc"]
-};
-
-export const ENCRYPTION_OPTIONS = [
-  {value: "drm-public", label: "DRM - Public Access", title: "Playout Formats - HLS Sample AES, HLS AES-128, Dash Widevine, Dash PlayReady", format: DRM_MAP.PUBLIC, id: "drm-public"},
-  {value: "drm-all", label: "DRM - All Formats", title: "Playout Formats - HLS Sample AES, HLS AES-128, HLS Fairplay, Dash Widevine, Dash PlayReady", format: DRM_MAP.ALL, id: "drm-all"},
-  {value: "drm-fairplay", label: "DRM - Fairplay", title: "Playout Formats - HLS Fairplay", format: DRM_MAP.FAIRPLAY, id: "drm-fairplay"},
-  {value: "drm-widevine", label: "DRM - HLS Widevine", title: "Playout Formats - HLS Widevine", format: DRM_MAP.HLS_WIDEVINE, id: "drm-widevine"},
-  {value: "drm-playready", label: "DRM - HLS PlayReady", title: "Playout Formats - HLS PlayReady", format: DRM_MAP.PLAYREADY, id: "drm-playready"},
-  {value: "clear", label: "Clear", title: "Playout Formats - HLS Clear, Dash Clear", format: DRM_MAP.CLEAR, id: "clear"}
+export const PLAYOUT_FORMAT_OPTIONS = [
+  {value: "hls-clear", label: "HLS Clear"},
+  {value: "hls-aes128", label: "HLS AES-128"},
+  {value: "hls-sample-aes", label: "HLS Sample AES"},
+  {value: "hls-fairplay", label: "HLS Fairplay"},
+  {value: "hls-widevine-cenc", label: "HLS Widevine"},
+  {value: "hls-playready-cenc", label: "HLS PlayReady"},
+  {value: "dash-clear", label: "Dash Clear"},
+  {value: "dash-widevine", label: "Dash Widevine"},
+  {value: "dash-playready-cenc", label: "Dash PlayReady"},
 ];
 
 export const QUALITY_MAP = {

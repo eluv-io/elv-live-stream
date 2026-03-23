@@ -6,12 +6,10 @@ import {
   Button,
   Checkbox,
   Divider,
-  Flex,
+  MultiSelect,
   Select,
   SimpleGrid,
-  Text,
   Textarea,
-  Tooltip
 } from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {DateTimePicker} from "@mantine/dates";
@@ -19,13 +17,12 @@ import {
   DEFAULT_WATERMARK_FORENSIC,
   DEFAULT_WATERMARK_IMAGE,
   DEFAULT_WATERMARK_TEXT,
-  DVR_DURATION_OPTIONS,
+  DVR_DURATION_OPTIONS, PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants";
 import {dataStore, streamManagementStore} from "@/stores";
-import {ENCRYPTION_OPTIONS} from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {CalendarMonthIcon, CircleInfoIcon} from "@/assets/icons/index.js";
+import {CalendarMonthIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconSelector} from "@tabler/icons-react";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
@@ -92,8 +89,8 @@ const PlayoutPanel = observer(({
           existingForensicWatermark: forensicWatermark
         },
         drmParams: {
-          existingDrmType: currentDrm,
-          drmType: drm
+          existingPlayoutFormats: currentDrm,
+          playoutFormats: drm
         },
         configMetaParams: {
           dvrEnabled,
@@ -148,35 +145,10 @@ const PlayoutPanel = observer(({
           tooltipLabel="DRM configuration is disabled when the stream is active"
           disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED].includes(status)}
         >
-          <Select
-            label={
-            <Flex align="center" gap={6}>
-              DRM
-              <Tooltip
-                multiline
-                w={460}
-                label={
-                  ENCRYPTION_OPTIONS.map(({label, title, id}) =>
-                    <Flex
-                      key={`encryption-info-${id}`}
-                      gap="1rem"
-                      lh={1.25}
-                      pb={5}
-                    >
-                      <Flex flex="0 0 35%">{ label }:</Flex>
-                      <Text fz="sm">{ title }</Text>
-                    </Flex>
-                  )
-                }
-              >
-                <Flex w={16}>
-                  <CircleInfoIcon color="var(--mantine-color-elv-gray-8)" />
-                </Flex>
-              </Tooltip>
-            </Flex>
-          }
+          <MultiSelect
+            label="Playback Formats"
             name="playbackEncryption"
-            data={ENCRYPTION_OPTIONS}
+            data={PLAYOUT_FORMAT_OPTIONS}
             placeholder="Select DRM"
             value={drm}
             onChange={(value) => setDrm(value)}

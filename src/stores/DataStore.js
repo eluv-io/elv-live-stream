@@ -284,7 +284,7 @@ class DataStore {
           "live_recording_config/recording_config/reconnect_timeout",
           "live_recording_config/profile",
           "live_recording_config/playout_config/dvr",
-          "live_recording_config/playout_config/drm",
+          "live_recording_config/playout_config/playout_formats",
           "live_recording_config/playout_config/image_watermark",
           "live_recording_config/playout_config/simple_watermark",
         ]
@@ -324,7 +324,7 @@ class DataStore {
         connectionTimeout: connectionTimeout ? connectionTimeout.toString() : null,
         description: streamMeta?.public?.description,
         display_title: streamMeta?.public?.asset_metadata?.display_title,
-        drm: streamMeta?.live_recording_config?.playout_config?.drm,
+        drm: streamMeta?.live_recording_config?.playout_config?.playout_formats,
         dvrEnabled: streamMeta?.live_recording_config?.playout_config?.dvr ?? streamMeta?.live_recording?.playout_config?.dvr_enabled,
         dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
         dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),

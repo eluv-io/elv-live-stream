@@ -2,7 +2,7 @@ import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {dataStore, streamBrowseStore, rootStore, streamManagementStore, profileStore} from "@/stores";
 import {useNavigate} from "react-router-dom";
-import {ENCRYPTION_OPTIONS, RETENTION_OPTIONS} from "@/utils/constants";
+import {PLAYOUT_FORMAT_OPTIONS, RETENTION_OPTIONS} from "@/utils/constants";
 import {
   Accordion,
   Alert,
@@ -10,6 +10,7 @@ import {
   Button,
   Divider,
   Flex,
+  MultiSelect,
   Radio,
   Select,
   SimpleGrid,
@@ -103,36 +104,11 @@ const AdvancedSettingsPanel = observer(({
         {...form.getInputProps("retention")}
       />
 
-      <Select
-        label={
-          <Flex align="center" gap={6}>
-            Playback Encryption
-            <Tooltip
-              multiline
-              w={460}
-              label={
-                ENCRYPTION_OPTIONS.map(({label, title, id}) =>
-                  <Flex
-                    key={`encryption-info-${id}`}
-                    gap="1rem"
-                    lh={1.25}
-                    pb={5}
-                  >
-                    <Flex flex="0 0 35%">{label}:</Flex>
-                    <Text fz="sm">{title}</Text>
-                  </Flex>
-                )
-              }
-            >
-              <Flex w={16}>
-                <CircleInfoIcon color="var(--mantine-color-elv-gray-8)"/>
-              </Flex>
-            </Tooltip>
-          </Flex>
-        }
+      <MultiSelect
+        label="Playback Formats"
         description="Select a playback encryption option. Enable Clear or Digital Rights Management (DRM) copy protection during playback."
         name="encryption"
-        data={ENCRYPTION_OPTIONS}
+        data={PLAYOUT_FORMAT_OPTIONS}
         placeholder="Select Encryption"
         {...form.getInputProps("encryption")}
       />
@@ -258,7 +234,7 @@ const Create = observer(() => {
       libraryId: "",
       name: "",
       permission: "editable",
-      encryption: "clear",
+      encryption: ["hls-clear", "dash-clear"],
       configProfile: "",
       protocol: "mpegts", // Controlled by local state
       retention: "86400",
