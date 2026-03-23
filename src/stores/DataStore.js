@@ -151,7 +151,7 @@ class DataStore {
       async slug => {
         const stream = streamMetadata[slug];
 
-        let versionHash = stream.versionHash ?? stream?.["."]?.source;
+        let versionHash = stream?.["."]?.source ?? stream.versionHash;
 
         if(!versionHash) {
           const match = stream?.["/"].match(/(hq__[^/]+)/);
