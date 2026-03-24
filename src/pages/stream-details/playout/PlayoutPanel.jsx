@@ -99,9 +99,9 @@ const PlayoutPanel = observer(({
           playoutProfile,
           skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
         },
-        playoutProfileParams: {
-          profile: playoutProfile
-        }
+        // playoutProfileParams: {
+        //   profile: playoutProfile
+        // }
       });
 
       notifications.show({

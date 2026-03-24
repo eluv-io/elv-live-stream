@@ -802,7 +802,7 @@ class StreamManagementStore {
     watermarkParams,
     drmParams,
     configMetaParams,
-    playoutProfileParams
+    // playoutProfileParams
   }){
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
     const {writeToken} = yield this.client.EditContentObject({
