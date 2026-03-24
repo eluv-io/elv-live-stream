@@ -139,6 +139,7 @@ const PlayoutPanel = observer(({
             value={playoutProfile}
             onChange={(value) => setPlayoutProfile(value)}
             allowDeselect={false}
+            disabled={true}
           />
         </DisabledTooltipWrapper>
         <DisabledTooltipWrapper

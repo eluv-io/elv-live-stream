@@ -120,7 +120,7 @@ const AdvancedSettingsPanel = observer(({
           label="Config Profile"
           name="configProfile"
           data={profilesData}
-          placeholder={profileStore.state === "loaded" ? "Select Ladder Profile" : "Loading Options..."}
+          placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Options..."}
           mb={16}
           description={
           loading ? null : (!profilesData.length > 0) ? "No profiles are configured. Create a profile in Settings." : null
