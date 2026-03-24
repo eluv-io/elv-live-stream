@@ -149,36 +149,41 @@ class DataStore {
       10,
       Object.keys(streamMetadata),
       async slug => {
-        const stream = streamMetadata[slug];
+        try {
+          const stream = streamMetadata[slug];
 
-        let versionHash = stream?.["."]?.source ?? stream.versionHash;
+          let versionHash = stream?.["."]?.source ?? stream.versionHash;
 
-        if(!versionHash) {
-          const match = stream?.["/"].match(/(hq__[^/]+)/);
-          versionHash = match ? match[1] : undefined;
-        }
+          if(!versionHash) {
+            const match = stream?.["/"].match(/(hq__[^/]+)/);
+            versionHash = match ? match[1] : undefined;
+          }
 
-        if(versionHash) {
-          const objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
-          const libraryId = await this.client.ContentObjectLibraryId({objectId});
+          if(versionHash) {
+            const objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
+            const libraryId = await this.client.ContentObjectLibraryId({objectId});
 
-          streamMetadata[slug].slug = slug;
-          streamMetadata[slug].objectId = objectId;
-          streamMetadata[slug].versionHash = versionHash;
-          streamMetadata[slug].libraryId = libraryId;
-          streamMetadata[slug].embedUrl = await this.EmbedUrl({objectId});
+            streamMetadata[slug].slug = slug;
+            streamMetadata[slug].objectId = objectId;
+            streamMetadata[slug].versionHash = versionHash;
+            streamMetadata[slug].libraryId = libraryId;
+            streamMetadata[slug].embedUrl = await this.EmbedUrl({objectId});
 
-          const streamDetails = await this.LoadStreamMetadata({
-            objectId,
-            libraryId
-          }) || {};
+            const streamDetails = await this.LoadStreamMetadata({
+              objectId,
+              libraryId
+            }) || {};
 
-          Object.keys(streamDetails).forEach(detail => {
-            streamMetadata[slug][detail] = streamDetails[detail];
-          });
-        } else {
+            Object.keys(streamDetails).forEach(detail => {
+              streamMetadata[slug][detail] = streamDetails[detail];
+            });
+          } else {
+            // eslint-disable-next-line no-console
+            console.error(`No version hash for ${slug}`);
+          }
+        } catch(error) {
           // eslint-disable-next-line no-console
-          console.error(`No version hash for ${slug}`);
+          console.error(`Failed to load stream ${slug}`, error);
         }
       }
     );
