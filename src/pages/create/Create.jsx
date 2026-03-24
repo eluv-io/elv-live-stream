@@ -103,7 +103,8 @@ const AdvancedSettingsPanel = observer(({
         placeholder="Select Retention"
         {...form.getInputProps("retention")}
       />
-
+    </SimpleGrid>
+    <SimpleGrid spacing={150} mb={20}>
       <MultiSelect
         label="Playback Formats"
         description="Select a playback encryption option. Enable Clear or Digital Rights Management (DRM) copy protection during playback."
@@ -338,7 +339,6 @@ const Create = observer(() => {
         color: "red",
         message: `Unable to ${objectData?.objectId ? "update" : "create"} live stream`
       });
-      throw error;
     } finally {
       setIsCreating(false);
     }
