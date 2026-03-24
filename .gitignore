@@ -1,16 +1,26 @@
+# IDE
 .idea/
 
+# macOS
 **.DS_STORE
 
+# Dependencies
 node_modules/
 
+# Build output
 dist/*
 !*/.keep
 
+# Local config (not committed — copy from configuration.js.example)
 config/configuration.js
 configuration.js
 
+# Deployment script (environment-specific)
 deploy.sh
 
+# Local scratch files
 scratch/
 !.keep
+
+# Test coverage
+coverage/
