@@ -20,7 +20,9 @@ module.exports = {
     {
       files: ["**/*.test.js", "**/*.test.jsx", "**/test/setup.js"],
       rules: {
-        "spellcheck/spell-checker": "off"
+        "spellcheck/spell-checker": "off",
+        "no-console": "off",
+        "no-undef": "off"
       }
     }
   ],

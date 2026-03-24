@@ -8,6 +8,10 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
+    onConsoleLog(log) {
+      if(log.includes("non-boolean attribute `inert`")) { return false; }
+      if(log.includes("React Router Future Flag Warning")) { return false; }
+    },
   },
   resolve: {
     alias: {
