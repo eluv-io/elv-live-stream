@@ -89,12 +89,23 @@ const AdvancedSettingsPanel = observer(({
   objectData,
   DisableProbeButton,
   profilesData,
-  form,
-  loading
+  form
 }) => {
   return (
     <Box mt={15}>
     <SimpleGrid cols={2} spacing={150} mb={20}>
+      <Select
+        key={profilesData}
+        label="Config Profile"
+        name="configProfile"
+        data={profilesData}
+        placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Options..."}
+        mb={16}
+        description={
+          profileStore.state !== "loaded" ? "Apply a predefined set of configuration settings to this stream." : (!profilesData.length > 0) ? "No profiles are configured. Create a profile in Settings." : "Apply a predefined set of configuration settings to this stream."
+        }
+        {...form.getInputProps("configProfile")}
+      />
       <Select
         label="Retention"
         description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
@@ -114,21 +125,6 @@ const AdvancedSettingsPanel = observer(({
         {...form.getInputProps("encryption")}
       />
     </SimpleGrid>
-
-      <Box mb={29}>
-        <Select
-          key={profilesData}
-          label="Config Profile"
-          name="configProfile"
-          data={profilesData}
-          placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Options..."}
-          mb={16}
-          description={
-          loading ? null : (!profilesData.length > 0) ? "No profiles are configured. Create a profile in Settings." : null
-        }
-          {...form.getInputProps("configProfile")}
-        />
-      </Box>
 
       <Divider mb={29} />
 
@@ -176,7 +172,6 @@ const AdvancedSettingsPanel = observer(({
 
 const Create = observer(() => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [objectData, setObjectData] = useState(null);
 
@@ -192,7 +187,7 @@ const Create = observer(() => {
     }
 
     Promise.all(promises)
-      .finally(() => setLoading(false));
+      .then(() => {});
   }, []);
 
   useEffect(() => {
@@ -531,7 +526,6 @@ const Create = observer(() => {
               setShowProbeConfirmation={setShowProbeConfirmation}
               objectData={objectData}
               profilesData={profilesData}
-              loading={loading}
               DisableProbeButton={() => {
                 const {libraryId, name} = form.getValues();
 
