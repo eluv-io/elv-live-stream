@@ -71,7 +71,7 @@ const PlayoutPanel = observer(({
 
       setProfilesData(options);
     }
-  }, [profileStore.profiles]);
+  }, [profileStore.sortedProfiles]);
 
   const HandleSubmit = async () => {
     const objectId = params.id;

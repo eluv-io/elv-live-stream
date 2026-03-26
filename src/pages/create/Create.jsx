@@ -102,7 +102,7 @@ const AdvancedSettingsPanel = observer(({
         placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
         mb={16}
         description={
-          profileStore.state !== "loaded" ? "Apply a predefined set of configuration settings to this stream." : (!profilesData.length > 0) ? "No profiles are configured. Create a profile in Settings." : "Apply a predefined set of configuration settings to this stream."
+          profileStore.state !== "loaded" ? "Apply a predefined set of configuration settings to this stream." : (profilesData.length === 0) ? "No profiles are configured. Create a profile in Settings." : "Apply a predefined set of configuration settings to this stream."
         }
         {...form.getInputProps("configProfile")}
       />

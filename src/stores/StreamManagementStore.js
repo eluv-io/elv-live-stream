@@ -775,7 +775,7 @@ class StreamManagementStore {
       objectId,
       writeToken,
       finalize: false,
-      liveRecordingConfig: toJS(this.rootStore.profileStore.profiles[configProfileParams.configProfile])
+      liveRecordingConfig: configProfileParams?.configProfile ? toJS(this.rootStore.profileStore.profiles[configProfileParams.configProfile]) : undefined
     });
 
     yield this.client.FinalizeContentObject({
