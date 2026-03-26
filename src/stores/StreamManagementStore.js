@@ -804,13 +804,16 @@ class StreamManagementStore {
     });
   });
 
-  DeleteStream = flow(function * ({objectId}) {
+  DeleteStream = flow(function * ({objectId, slug}) {
     const streams = Object.assign({}, this.rootStore.streamBrowseStore.streams);
-    const slug = Object.keys(streams).find(streamSlug => {
-      return streams[streamSlug].objectId === objectId;
-    });
 
-    yield this.client.StreamRemoveLinkToSite({objectId});
+    if(!slug) {
+      slug = Object.keys(streams).find(streamSlug => {
+        return streams[streamSlug].objectId === objectId;
+      });
+    }
+
+    yield this.client.StreamRemoveLinkToSite({objectId, slug});
 
     try {
       yield this.client.DeleteContentObject({
