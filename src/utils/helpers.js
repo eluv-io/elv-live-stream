@@ -25,6 +25,7 @@ export const ParseLiveConfigData = ({
 
   // TODO: add persistent
   return {
+    name: configProfile?.name,
     recording_config: MergeIfDefined(configProfile?.recording_config ?? {}, {
       part_ttl: parseInt(retention || ""),
       reconnect_timeout: reconnectionTimeout,

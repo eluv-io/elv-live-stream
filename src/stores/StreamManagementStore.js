@@ -1,4 +1,4 @@
-import {configure, flow, makeAutoObservable} from "mobx";
+import {configure, flow, makeAutoObservable, toJS} from "mobx";
 import {ParseLiveConfigData, Slugify} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
 
@@ -728,7 +728,7 @@ class StreamManagementStore {
     watermarkParams,
     drmParams,
     configMetaParams,
-    // playoutProfileParams
+    configProfileParams
   }){
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
     const {writeToken} = yield this.client.EditContentObject({
@@ -768,12 +768,15 @@ class StreamManagementStore {
       skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
     });
 
-    // Apply playout profile settings
+    // Apply config profile settings
 
-    // yield this.rootStore.streamBrowseStore.UpdateLadderSpecs({
-    //   ...basicCallParams,
-    //   ...playoutProfileParams
-    // });
+    yield this.client.StreamUpdateConfig({
+      libraryId,
+      objectId,
+      writeToken,
+      finalize: false,
+      liveRecordingConfig: toJS(this.rootStore.profileStore.profiles[configProfileParams.configProfile])
+    });
 
     yield this.client.FinalizeContentObject({
       libraryId,
@@ -781,15 +784,6 @@ class StreamManagementStore {
       writeToken,
       commitMessage: "Apply playout settings"
     });
-
-    // Initialize stream after DRM update
-
-    // if(drmResponse?.drmNeedsInit) {
-    //   yield this.client.StreamInitialize({
-    //     finalize: false,
-    //     ...drmResponse?.drmInitPayload
-    //   });
-    // }
 
     // Update status
     const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
@@ -802,44 +796,6 @@ class StreamManagementStore {
         status: statusResponse.state
       }
     });
-  });
-
-
-  SaveLadderProfiles = flow(function * ({profileData}) {
-    try {
-      if(!this.rootStore.dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.rootStore.dataStore.siteId});
-      const {writeToken} = yield this.client.EditContentObject({
-        libraryId,
-        objectId: this.rootStore.dataStore.siteId
-      });
-
-      profileData.default = JSON.parse(profileData.default || {});
-      profileData.custom = profileData.custom.map(item => JSON.parse(item || {}));
-
-      yield this.client.ReplaceMetadata({
-        libraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        writeToken,
-        metadataSubtree: "public/asset_metadata/profiles",
-        metadata: profileData
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        writeToken,
-        commitMessage: "Update playout ladder profiles",
-        awaitCommitConfirmation: true
-      });
-
-      this.rootStore.dataStore.UpdateLadderProfiles({profiles: profileData});
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to save ladder profiles", error);
-
-      throw error;
-    }
   });
 
   DeleteStream = flow(function * ({objectId}) {

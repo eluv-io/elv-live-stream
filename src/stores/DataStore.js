@@ -1,6 +1,7 @@
 // Force strict mode so mutations are only allowed within actions.
 import {configure, flow, makeAutoObservable, runInAction, toJS} from "mobx";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
+import {Slugify} from "@/utils/helpers.js";
 
 configure({
   enforceActions: "always"
@@ -283,7 +284,7 @@ class DataStore {
           "public/name",
           "public/asset_metadata/display_title",
           "live_recording_config/part_ttl",
-          "live_recording_config/playout_ladder_profile",
+          "live_recording_config/name",
           //   New live_recording_config paths
           "live_recording_config/recording_config/connection_timeout",
           "live_recording_config/recording_config/reconnect_timeout",
@@ -320,6 +321,7 @@ class DataStore {
       const imageWatermark = streamMeta?.live_recording_config?.playout_config?.image_watermark ?? streamMeta?.live_recording?.playout_config?.image_watermark;
       const forensicWatermark = streamMeta?.live_recording?.playout_config?.forensic_watermark;
       const connectionTimeout = streamMeta?.live_recording_config?.recording_config?.connection_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
+      const configProfileName = streamMeta?.live_recording_config?.profile ?? streamMeta?.live_recording_config?.name;
       const reconnectionTimeout = streamMeta?.live_recording_config?.recording_config?.reconnect_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
       const partTtl = streamMeta?.live_recording_config?.part_ttl;
       const dvrMaxDuration = streamMeta?.live_recording?.playout_config?.dvr_max_duration;
@@ -327,6 +329,7 @@ class DataStore {
       return {
         codecName: videoStream?.codec_name,
         connectionTimeout: connectionTimeout ? connectionTimeout.toString() : null,
+        configProfile: Slugify(configProfileName),
         description: streamMeta?.public?.description,
         display_title: streamMeta?.public?.asset_metadata?.display_title,
         drm: streamMeta?.live_recording_config?.playout_config?.playout_formats,
@@ -340,7 +343,6 @@ class DataStore {
         originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
         partTtl: partTtl ? partTtl.toString() : null,
         persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
-        playoutLadderProfile: streamMeta?.live_recording_config?.profile ?? streamMeta?.live_recording_config?.playout_ladder_profile,
         reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
         referenceUrl: streamMeta?.live_recording_config?.reference_url,
         simpleWatermark,

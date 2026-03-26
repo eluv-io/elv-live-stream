@@ -190,7 +190,7 @@ const StreamDetailsPage = observer(() => {
                   currentDvrEnabled={stream.dvrEnabled}
                   currentDvrMaxDuration={stream.dvrMaxDuration}
                   currentDvrStartTime={stream.dvrStartTime}
-                  currentPlayoutProfile={stream.playoutLadderProfile}
+                  currentConfigProfile={stream.configProfile}
                   libraryId={stream.libraryId}
                   currentWatermarkType={stream.watermarkType}
                   PageVersionCallback={setPageVersion}

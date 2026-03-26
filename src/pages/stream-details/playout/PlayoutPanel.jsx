@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {useParams} from "react-router-dom";
 import {observer} from "mobx-react-lite";
 import {
@@ -20,7 +20,7 @@ import {
   DVR_DURATION_OPTIONS, PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants";
-import {dataStore, streamManagementStore} from "@/stores";
+import {profileStore, streamManagementStore} from "@/stores";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {CalendarMonthIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
@@ -39,10 +39,10 @@ const PlayoutPanel = observer(({
   currentDvrEnabled,
   currentDvrMaxDuration,
   currentDvrStartTime,
-  currentPlayoutProfile
+  currentConfigProfile
 }) => {
   const [drm, setDrm] = useState(currentDrm);
-  const [playoutProfile, setPlayoutProfile] = useState(currentPlayoutProfile || "");
+  const [configProfile, setConfigProfile] = useState(currentConfigProfile || "");
   const [formWatermarks, setFormWatermarks] = useState(
     {
       image: imageWatermark ? JSON.stringify(imageWatermark, null, 2) : undefined,
@@ -55,19 +55,23 @@ const PlayoutPanel = observer(({
   const [dvrStartTime, setDvrStartTime] = useState(currentDvrStartTime !== undefined ? new Date(currentDvrStartTime) : null);
   const [dvrMaxDuration, setDvrMaxDuration] = useState(currentDvrMaxDuration !== undefined ? currentDvrMaxDuration : "0");
 
+  const [profilesData, setProfilesData] = useState([]);
+
   const [applyingChanges, setApplyingChanges] = useState(false);
   const params = useParams();
 
-  const defaultOption = dataStore.ladderProfiles?.default ?
-    {
-      label: dataStore.ladderProfiles.default.name,
-      value: dataStore.ladderProfiles.default.name
-    } : {};
-  const ladderProfilesData = dataStore.ladderProfiles ?
-    [
-      defaultOption,
-      ...dataStore.ladderProfiles.custom.map(item => ({label: item.name, value: item.name}))
-    ] : [];
+  useEffect(() => {
+    if(profileStore.state !== "loaded") {
+      profileStore.LoadProfiles().then(() => {});
+    }
+
+    if(profileStore.profiles) {
+      const options = Object.keys(profileStore.sortedProfiles)
+        .map(item => ({label: profileStore.profiles[item]?.name, value: item}));
+
+      setProfilesData(options);
+    }
+  }, [profileStore.profiles]);
 
   const HandleSubmit = async () => {
     const objectId = params.id;
@@ -96,12 +100,11 @@ const PlayoutPanel = observer(({
           dvrEnabled,
           dvrMaxDuration,
           dvrStartTime,
-          playoutProfile,
           skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
         },
-        // playoutProfileParams: {
-        //   profile: playoutProfile
-        // }
+        configProfileParams: {
+          configProfile
+        }
       });
 
       notifications.show({
@@ -131,15 +134,14 @@ const PlayoutPanel = observer(({
           disabled={[STATUS_MAP.RUNNING].includes(status)}
         >
           <Select
-            label="Playout Ladder"
-            name="playoutLadder"
-            data={ladderProfilesData}
-            placeholder="Select Ladder Profile"
-            description={ladderProfilesData.length > 0 ? null : "No profiles are configured. Create a profile in Settings."}
-            value={playoutProfile}
-            onChange={(value) => setPlayoutProfile(value)}
+            label="Config Profile"
+            name="configProfile"
+            data={profilesData}
+            placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
+            description={(profilesData.length > 0 || profileStore.state !== "loaded") ? null : "No profiles are configured. Create a profile in Settings."}
+            value={configProfile}
+            onChange={(value) => setConfigProfile(value)}
             allowDeselect={false}
-            disabled={true}
           />
         </DisabledTooltipWrapper>
         <DisabledTooltipWrapper
