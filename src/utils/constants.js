@@ -62,7 +62,7 @@ export const PLAYOUT_FORMAT_OPTIONS = [
   {value: "hls-playready-cenc", label: "HLS PlayReady"},
   {value: "dash-clear", label: "Dash Clear"},
   {value: "dash-widevine", label: "Dash Widevine"},
-  {value: "dash-playready-cenc", label: "Dash PlayReady"},
+  // {value: "dash-playready-cenc", label: "Dash PlayReady"},
 ];
 
 export const QUALITY_MAP = {
