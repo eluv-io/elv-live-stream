@@ -785,6 +785,12 @@ class StreamManagementStore {
       commitMessage: "Apply playout settings"
     });
 
+    // Update site object with stream/profile
+    yield this.StreamAssignProfile({
+      profileSlug: configProfileParams.configProfile,
+      streamObjectId: objectId
+    });
+
     // Update status
     const statusResponse = yield this.rootStore.streamBrowseStore.CheckStatus({
       objectId
