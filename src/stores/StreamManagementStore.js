@@ -421,11 +421,11 @@ class StreamManagementStore {
     dvrEnabled,
     dvrStartTime,
     dvrMaxDuration,
-    playoutProfile,
     copyMpegTs,
     inputPackaging,
     copyMode,
     customReadLoop,
+    // configProfile
   }){
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -437,155 +437,55 @@ class StreamManagementStore {
       }));
     }
 
-    const updateValue = {};
-
-    if(retention !== undefined) {
-      yield this.client.ReplaceMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadataSubtree: "live_recording_config/part_ttl",
-        metadata: parseInt(retention)
-      });
-
-      yield this.client.ReplaceMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/part_ttl",
-        metadata: parseInt(retention)
-      });
-
-      updateValue.partTtl = parseInt(retention);
-    }
-
-    if(persistent !== undefined) {
-      yield this.client.ReplaceMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/persistent",
-        metadata: persistent
-      });
-    }
-
-    if(playoutProfile !== undefined) {
-      yield this.client.ReplaceMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadataSubtree: "live_recording_config/playout_ladder_profile",
-        metadata: playoutProfile
-      });
-      updateValue.playoutLadderProfile = playoutProfile;
-    }
-
-    if(connectionTimeout !== undefined) {
-      yield this.client.ReplaceMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/connection_timeout",
-        metadata: parseInt(connectionTimeout)
-      });
-
-      updateValue.connectionTimeout = parseInt(connectionTimeout);
-    }
-
-    if(reconnectionTimeout !== undefined) {
-      yield this.client.ReplaceMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/reconnect_timeout",
-        metadata: parseInt(reconnectionTimeout)
-      });
-
-      updateValue.reconnectionTimeout = parseInt(reconnectionTimeout);
-    }
-
-    const existingCopyMpegTs = yield this.client.ContentObjectMetadata({
+    const liveRecordingConfigMeta = yield this.client.ContentObjectMetadata({
       libraryId,
       objectId,
       writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
+      metadataSubtree: "live_recording_config"
     });
 
-    if(copyMpegTs !== undefined) {
-      let inputCfgMeta;
-      yield this.client.ReplaceMetadata({
+    const config = ParseLiveConfigData({
+      retention,
+      persistent,
+      connectionTimeout,
+      reconnectionTimeout,
+      skipDvrSection,
+      dvrEnabled,
+      dvrStartTime,
+      dvrMaxDuration,
+      copyMpegTs,
+      inputPackaging,
+      copyMode,
+      customReadLoop
+    });
+
+    try {
+      yield this.client.StreamUpdateConfig({
         libraryId,
         objectId,
         writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/copy_mpegts",
-        metadata: copyMpegTs
+        finalize: false,
+        liveRecordingConfig: liveRecordingConfigMeta,
+        overrideSettings: config
       });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to update config", error);
+    }
 
-      if(copyMpegTs) {
-        inputCfgMeta = {
-          "bypass_libav_reader": true,
-          "copy_mode": copyMode,
-          "copy_packaging": inputPackaging,
-          "custom_read_loop_enabled": customReadLoop,
-          "input_packaging": inputPackaging
-        };
-      } else if(existingCopyMpegTs && copyMpegTs === false) {
-        // Reset settings
-        inputCfgMeta = {};
-      }
-
-      yield this.client.ReplaceMetadata({
-        libraryId,
-        objectId,
+    try {
+      yield this.client.StreamConfig({
+        name: objectId,
         writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg",
-        metadata: inputCfgMeta
+        finalize: false,
+        inputStreamInfo: liveRecordingConfigMeta?.input_stream_info || liveRecordingConfigMeta?.probe_info
       });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to configure stream", error);
     }
 
-    if(!skipDvrSection) {
-      if(dvrEnabled !== undefined) {
-        const playoutMeta = yield this.client.ContentObjectMetadata({
-          libraryId,
-          objectId,
-          writeToken,
-          metadataSubtree: "live_recording/playout_config"
-        });
-
-        if(dvrEnabled === true) {
-          playoutMeta.dvr_enabled = dvrEnabled;
-          if(![undefined, null].includes(dvrStartTime)) {
-            playoutMeta.dvr_start_time = new Date(dvrStartTime).toISOString();
-          } else {
-            delete playoutMeta.dvr_start_time;
-          }
-
-          if(![undefined, null].includes(dvrMaxDuration)) {
-            playoutMeta.dvr_max_duration = parseInt(dvrMaxDuration);
-          } else {
-            delete playoutMeta.dvr_max_duration;
-          }
-        } else if(dvrEnabled === false) {
-          playoutMeta.dvr_enabled = dvrEnabled;
-          delete playoutMeta.dvr_max_duration;
-          delete playoutMeta.dvr_start_time;
-        }
-
-        yield this.client.ReplaceMetadata({
-          libraryId,
-          objectId,
-          writeToken,
-          metadataSubtree: "live_recording/playout_config",
-          metadata: playoutMeta
-        });
-
-        updateValue.dvrEnabled = dvrEnabled;
-        updateValue.dvrMaxDuration = [undefined, null].includes(dvrMaxDuration) ? undefined : (dvrMaxDuration);
-        updateValue.dvrStartTime = dvrStartTime ? new Date(dvrStartTime).toISOString() : undefined;
-      }
-    }
-
-    if(finalize && Object.keys(updateValue || {}).length > 0) {
+    if(finalize) {
       yield this.client.FinalizeContentObject({
         libraryId,
         objectId,
@@ -597,7 +497,14 @@ class StreamManagementStore {
 
     this.rootStore.streamBrowseStore.UpdateStream({
       key: slug,
-      value: updateValue
+      value: {
+        connectionTimeout: connectionTimeout !== undefined ? parseInt(connectionTimeout) : undefined,
+        dvrEnabled,
+        dvrMaxDuration: dvrMaxDuration != null ? dvrMaxDuration : undefined,
+        dvrStartTime: dvrStartTime ? new Date(dvrStartTime).toISOString() : undefined,
+        partTtl: retention !== undefined ? parseInt(retention) : undefined,
+        reconnectionTimeout: reconnectionTimeout !== undefined ? parseInt(reconnectionTimeout) : undefined
+      }
     });
 
     return {

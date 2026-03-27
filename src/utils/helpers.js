@@ -3,46 +3,68 @@ import Fraction from "fraction.js";
 import {toJS} from "mobx";
 
 export const ParseLiveConfigData = ({
-  encryption,
-  retention,
-  // persistent,
   audioFormData,
-  reconnectionTimeout=600,
+  configProfile,
   connectionTimeout,
-  simpleWatermark,
-  imageWatermark,
-  forensicWatermark,
+  copyMode,
   copyMpegTs,
-  configProfile
+  customReadLoop,
+  dvrEnabled,
+  dvrMaxDuration,
+  dvrStartTime,
+  encryption,
+  forensicWatermark,
+  imageWatermark,
+  inputPackaging,
+  persistent,
+  reconnectionTimeout=600,
+  retention,
+  simpleWatermark,
+  skipDvrSection=false
 }) => {
-  configProfile = configProfile ? toJS(configProfile) : undefined;
-  const MergeIfDefined = (base, overrides) => ({
-    ...base ?? {},
-    ...Object.fromEntries(
-      Object.entries(overrides).filter(([, v]) => v !== undefined)
-    )
-  });
+  if(configProfile) {
+    configProfile = toJS(configProfile);
+    return {
+      name: configProfile.name,
+      recording_config: configProfile.recording_config ?? null,
+      playout_config: configProfile.playout_config ?? null,
+      recording_stream_config: audioFormData ? {audio: audioFormData} : (configProfile.recording_stream_config ?? null),
+      input_stream_info: configProfile.input_stream_info ?? null,
+      recording_params: configProfile.recording_params ?? null
+    };
+  }
 
-  // TODO: add persistent
+  const inputCfg = copyMpegTs ? {
+    bypass_libav_reader: true,
+    copy_mode: copyMode,
+    copy_packaging: inputPackaging,
+    custom_read_loop_enabled: customReadLoop,
+    input_packaging: inputPackaging
+  } : copyMpegTs === false ? {} : undefined;
+
+  const dvrConfig = !skipDvrSection && dvrEnabled !== undefined ? {
+    dvr: dvrEnabled,
+    ...(dvrEnabled && dvrStartTime != null ? {dvr_start_time: new Date(dvrStartTime).toISOString()} : {}),
+    ...(dvrEnabled && dvrMaxDuration != null ? {dvr_max_duration: parseInt(dvrMaxDuration)} : {})
+  } : undefined;
+
   return {
-    name: configProfile?.name,
-    recording_config: MergeIfDefined(configProfile?.recording_config ?? {}, {
-      part_ttl: parseInt(retention || ""),
-      reconnect_timeout: reconnectionTimeout,
-      connectionTimeout,
-      copyMpegTs
-    }),
-    playout_config: MergeIfDefined(configProfile?.playout_config ?? {}, {
+    recording_config: {
+      connection_timeout: connectionTimeout !== undefined ? parseInt(connectionTimeout) : undefined,
+      copy_mpegts: copyMpegTs,
+      input_cfg: inputCfg,
+      part_ttl: retention !== undefined ? parseInt(retention) : undefined,
+      persistent,
+      reconnect_timeout: reconnectionTimeout
+    },
+    playout_config: {
+      ...dvrConfig,
+      forensic_watermark: forensicWatermark,
+      image_watermark: imageWatermark,
       playout_formats: encryption,
-      simpleWatermark,
-      imageWatermark,
-      forensicWatermark
-    }),
-    recording_stream_config: audioFormData ?
-      MergeIfDefined(configProfile?.recording_stream_config ?? {}, {audio: audioFormData})
-      : (configProfile?.recording_stream_config ?? null),
-    input_stream_info: configProfile?.input_stream_info ?? null,
-    recording_params: configProfile?.recording_params ?? null
+      simple_watermark: simpleWatermark
+    },
+    recording_stream_config: audioFormData ? {audio: audioFormData} : null
   };
 };
 
