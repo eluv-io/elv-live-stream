@@ -76,9 +76,9 @@ const RecordingPanel = observer(({
         RECONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(reconnectionTimeoutMeta) ? reconnectionTimeoutMeta : null
       );
       setCopyMpegTs(copyMpegTsMeta === undefined ? false : copyMpegTsMeta);
-      setCopyMode(inputCfg?.copy_mode);
-      setInputPackaging(inputCfg?.input_packaging);
-      setCustomReadLoop(inputCfg?.custom_read_loop_enabled);
+      setCopyMode(inputCfg?.copy_mode ?? "raw");
+      setInputPackaging(inputCfg?.input_packaging ?? "rtp_ts");
+      setCustomReadLoop(inputCfg?.custom_read_loop_enabled ?? true);
     } finally {
       setLoading(false);
     }
