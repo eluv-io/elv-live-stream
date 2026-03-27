@@ -430,18 +430,20 @@ const Create = observer(() => {
           mb={29}
           {...form.getInputProps("description")}
         />
-        <Select
-          key={profilesData}
-          label="Config Profile"
-          name="configProfile"
-          data={profilesData}
-          placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
-          mb={29}
-          description={
-            profileStore.state !== "loaded" ? "Apply a predefined set of configuration settings to this stream." : (profilesData.length === 0) ? "No profiles are configured. Create a profile in Settings." : "Apply a predefined set of configuration settings to this stream."
-          }
-          {...form.getInputProps("configProfile")}
-        />
+        <SimpleGrid cols={2} spacing={150} mb={29}>
+          <Select
+            key={profilesData}
+            label="Config Profile"
+            name="configProfile"
+            data={profilesData}
+            placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
+            description={
+              profileStore.state !== "loaded" ? "Apply a predefined set of configuration settings to this stream." : (profilesData.length === 0) ? "No profiles are configured. Create a profile in Settings." : "Apply a predefined set of configuration settings to this stream. If no profile is selected, built-in settings will be applied."
+            }
+            {...form.getInputProps("configProfile")}
+            clearable
+          />
+        </SimpleGrid>
 
         <Divider mb={29} />
         <SectionTitle mb={10}>Access</SectionTitle>
