@@ -131,7 +131,7 @@ const RecordingPanel = observer(({
 
       notifications.show({
         title: <NotificationMessage>Updated {title || params.id}</NotificationMessage>,
-        message: "Settings have been applied successfully"
+        message: "Settings have been saved successfully"
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -140,7 +140,7 @@ const RecordingPanel = observer(({
       notifications.show({
         title: "Error",
         color: "red",
-        message: "Unable to apply settings"
+        message: "Unable to save settings"
       });
     } finally {
       setApplyingChanges(false);
@@ -292,7 +292,7 @@ const RecordingPanel = observer(({
             loading={applyingChanges}
             disabled={applyingChanges || ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
           >
-            Apply
+            Save
           </Button>
         </Box>
       </form>

@@ -89,17 +89,17 @@ const PlayoutPanel = observer(({
 
       notifications.show({
         title: <NotificationMessage>Updated {title || params.id}</NotificationMessage>,
-        message: "Settings have been applied successfully"
+        message: "Settings have been saved successfully"
       });
     } catch(error) {
       notifications.show({
         title: "Error",
         color: "red",
-        message: "Unable to apply settings"
+        message: "Unable to save settings"
       });
 
       // eslint-disable-next-line no-console
-      console.error("Unable to apply settings", error);
+      console.error("Unable to save settings", error);
     } finally {
       setApplyingChanges(false);
     }
@@ -255,7 +255,7 @@ const PlayoutPanel = observer(({
         onClick={HandleSubmit}
         loading={applyingChanges}
       >
-        Apply
+        Save
       </Button>
     </Box>
   );
