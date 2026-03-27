@@ -219,8 +219,8 @@ const Create = observer(() => {
       url: (value, values) => values.protocol === "custom" ? null : value ? null : "URL is required",
       customUrl: (value, values) => values.protocol === "custom" ? value ? null : "Custom URL is required" : null,
       libraryId: isNotEmpty("Library is required"),
-      description: (value) => ValidateTextField({value, key: "Description"}),
-      displayTitle: (value) => ValidateTextField({value, key: "Display Title"})
+      description: (value) => value ? ValidateTextField({value, key: "Description"}) : null,
+      displayTitle: (value) => value ? ValidateTextField({value, key: "Display Title"}) : null
     }
   });
 
