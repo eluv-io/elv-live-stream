@@ -577,6 +577,7 @@ class StreamManagementStore {
     formData,
     writeToken,
     slug,
+    configProfile,
     updatePermission=false,
     updateAccessGroup=false,
     removeAccessGroup
@@ -604,6 +605,25 @@ class StreamManagementStore {
       writeToken,
       finalize: false
     });
+
+    if(configProfile) {
+      // Update site object with stream/profile
+      const {siteWriteToken} = yield this.StreamApplyProfile({
+        profileSlug: configProfile,
+        objectId,
+        writeToken,
+        finalize: false
+      });
+
+      if(siteWriteToken) {
+        yield this.client.FinalizeContentObject({
+          libraryId: this.rootStore.dataStore.siteLibraryId,
+          objectId: this.rootStore.dataStore.siteId,
+          writeToken: siteWriteToken,
+          commitMessage: "Update profile streams"
+        });
+      }
+    }
 
     if(updatePermission) {
       yield this.SetPermission({
@@ -690,12 +710,6 @@ class StreamManagementStore {
       objectId,
       writeToken,
       commitMessage: "Apply playout settings"
-    });
-
-    // Update site object with stream/profile
-    yield this.StreamAssignProfile({
-      profileSlug: configProfileParams.configProfile,
-      streamObjectId: objectId
     });
 
     // Update status
