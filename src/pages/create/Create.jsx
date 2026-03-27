@@ -2,7 +2,7 @@ import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {dataStore, streamBrowseStore, rootStore, streamManagementStore, profileStore} from "@/stores";
 import {useNavigate} from "react-router-dom";
-import {PLAYOUT_FORMAT_OPTIONS, RETENTION_OPTIONS} from "@/utils/constants";
+import {PLAYOUT_FORMAT_OPTIONS} from "@/utils/constants";
 import {
   Accordion,
   Alert,
@@ -88,33 +88,11 @@ const AdvancedSettingsPanel = observer(({
   setShowProbeConfirmation,
   objectData,
   DisableProbeButton,
-  profilesData,
   form
 }) => {
   return (
     <Box mt={15}>
-    <SimpleGrid cols={2} spacing={150} mb={20}>
-      <Select
-        key={profilesData}
-        label="Config Profile"
-        name="configProfile"
-        data={profilesData}
-        placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
-        mb={16}
-        description={
-          profileStore.state !== "loaded" ? "Apply a predefined set of configuration settings to this stream." : (profilesData.length === 0) ? "No profiles are configured. Create a profile in Settings." : "Apply a predefined set of configuration settings to this stream."
-        }
-        {...form.getInputProps("configProfile")}
-      />
-      <Select
-        label="Retention"
-        description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
-        name="retention"
-        data={RETENTION_OPTIONS}
-        placeholder="Select Retention"
-        {...form.getInputProps("retention")}
-      />
-    </SimpleGrid>
+
     <SimpleGrid spacing={150} mb={20}>
       <MultiSelect
         label="Playback Formats"
@@ -451,6 +429,18 @@ const Create = observer(() => {
           description="Enter a description to provide more details and context."
           mb={29}
           {...form.getInputProps("description")}
+        />
+        <Select
+          key={profilesData}
+          label="Config Profile"
+          name="configProfile"
+          data={profilesData}
+          placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
+          mb={29}
+          description={
+            profileStore.state !== "loaded" ? "Apply a predefined set of configuration settings to this stream." : (profilesData.length === 0) ? "No profiles are configured. Create a profile in Settings." : "Apply a predefined set of configuration settings to this stream."
+          }
+          {...form.getInputProps("configProfile")}
         />
 
         <Divider mb={29} />

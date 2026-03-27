@@ -178,7 +178,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile}) => {
                 allowDeselect={false}
               />
             </SimpleGrid>
-            <Button mb={25}>Apply</Button>
+            <Button mb={25}>Re-apply</Button>
 
             <Divider mb={29} />
 
