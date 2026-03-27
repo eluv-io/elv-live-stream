@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useState} from "react";
 import {useParams} from "react-router-dom";
 import {observer} from "mobx-react-lite";
 import {
@@ -20,7 +20,7 @@ import {
   DVR_DURATION_OPTIONS, PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants";
-import {profileStore, streamManagementStore} from "@/stores";
+import {streamManagementStore} from "@/stores";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {CalendarMonthIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
@@ -38,11 +38,9 @@ const PlayoutPanel = observer(({
   title,
   currentDvrEnabled,
   currentDvrMaxDuration,
-  currentDvrStartTime,
-  currentConfigProfile
+  currentDvrStartTime
 }) => {
   const [drm, setDrm] = useState(currentDrm);
-  const [configProfile, setConfigProfile] = useState(currentConfigProfile || "");
   const [formWatermarks, setFormWatermarks] = useState(
     {
       image: imageWatermark ? JSON.stringify(imageWatermark, null, 2) : undefined,
@@ -55,23 +53,8 @@ const PlayoutPanel = observer(({
   const [dvrStartTime, setDvrStartTime] = useState(currentDvrStartTime !== undefined ? new Date(currentDvrStartTime) : null);
   const [dvrMaxDuration, setDvrMaxDuration] = useState(currentDvrMaxDuration !== undefined ? currentDvrMaxDuration : "0");
 
-  const [profilesData, setProfilesData] = useState([]);
-
   const [applyingChanges, setApplyingChanges] = useState(false);
   const params = useParams();
-
-  useEffect(() => {
-    if(profileStore.state !== "loaded") {
-      profileStore.LoadProfiles().then(() => {});
-    }
-
-    if(profileStore.profiles) {
-      const options = Object.keys(profileStore.sortedProfiles)
-        .map(item => ({label: profileStore.profiles[item]?.name, value: item}));
-
-      setProfilesData(options);
-    }
-  }, [profileStore.sortedProfiles]);
 
   const HandleSubmit = async () => {
     const objectId = params.id;
@@ -101,9 +84,6 @@ const PlayoutPanel = observer(({
           dvrMaxDuration,
           dvrStartTime,
           skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
-        },
-        configProfileParams: {
-          configProfile
         }
       });
 
@@ -128,22 +108,7 @@ const PlayoutPanel = observer(({
   return (
     <Box maw="80%">
       <SectionTitle mb={12}>Playout</SectionTitle>
-      <SimpleGrid cols={2} spacing={150} mb={29}>
-        <DisabledTooltipWrapper
-          tooltipLabel="Playout Ladder configuration is disabled when the stream is running"
-          disabled={[STATUS_MAP.RUNNING].includes(status)}
-        >
-          <Select
-            label="Config Profile"
-            name="configProfile"
-            data={profilesData}
-            placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
-            description={(profilesData.length > 0 || profileStore.state !== "loaded") ? null : "No profiles are configured. Create a profile in Settings."}
-            value={configProfile}
-            onChange={(value) => setConfigProfile(value)}
-            allowDeselect={false}
-          />
-        </DisabledTooltipWrapper>
+      <SimpleGrid cols={1} spacing={150} mb={29}>
         <DisabledTooltipWrapper
           tooltipLabel="DRM configuration is disabled when the stream is active"
           disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED].includes(status)}
@@ -151,6 +116,7 @@ const PlayoutPanel = observer(({
           <MultiSelect
             label="Playback Formats"
             name="playbackEncryption"
+            description="Select a playback encryption option. Enable Clear or Digital Rights Management (DRM) copy protection during playback."
             data={PLAYOUT_FORMAT_OPTIONS}
             placeholder="Select DRM"
             value={drm}

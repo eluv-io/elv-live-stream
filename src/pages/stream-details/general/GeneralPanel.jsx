@@ -1,14 +1,14 @@
 import {observer} from "mobx-react-lite";
 import {Box, Button, Divider, Flex, Loader, Select, SimpleGrid, Text, TextInput, Tooltip} from "@mantine/core";
 import {useEffect, useState} from "react";
-import {dataStore, rootStore, streamManagementStore, streamBrowseStore} from "@/stores";
+import {dataStore, rootStore, streamManagementStore, streamBrowseStore, profileStore} from "@/stores";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import {CircleInfoIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
-const GeneralPanel = observer(({slug}) => {
+const GeneralPanel = observer(({slug, currentConfigProfile}) => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -17,6 +17,9 @@ const GeneralPanel = observer(({slug}) => {
     permission: "",
     url: ""
   });
+  const [configProfile, setConfigProfile] = useState(currentConfigProfile || "");
+  const [profilesData, setProfilesData] = useState([]);
+
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [currentSettings, setCurrentSettings] = useState({
     accessGroup: "",
@@ -62,6 +65,19 @@ const GeneralPanel = observer(({slug}) => {
       LoadDetails();
     }
   }, [params.id, streamBrowseStore.streams]);
+
+  useEffect(() => {
+    if(profileStore.state !== "loaded") {
+      profileStore.LoadProfiles().then(() => {});
+    }
+
+    if(profileStore.profiles) {
+      const options = Object.keys(profileStore.sortedProfiles)
+        .map(item => ({label: profileStore.profiles[item]?.name, value: item}));
+
+      setProfilesData(options);
+    }
+  }, [profileStore.sortedProfiles]);
 
   const HandleFormChange = (event) => {
     const {name, value} = event.target;
@@ -149,6 +165,20 @@ const GeneralPanel = observer(({slug}) => {
               onChange={HandleFormChange}
               mb={29}
             />
+
+            <SimpleGrid cols={1} spacing={150} mb={25}>
+              <Select
+                label="Config Profile"
+                name="configProfile"
+                data={profilesData}
+                placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
+                description={(profilesData.length > 0 || profileStore.state !== "loaded") ? null : "No profiles are configured. Create a profile in Settings."}
+                value={configProfile}
+                onChange={(value) => setConfigProfile(value)}
+                allowDeselect={false}
+              />
+            </SimpleGrid>
+            <Button mb={25}>Apply</Button>
 
             <Divider mb={29} />
 
