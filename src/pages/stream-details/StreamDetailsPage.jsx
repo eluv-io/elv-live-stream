@@ -104,7 +104,7 @@ const StreamDetailsPage = observer(() => {
       hidden: ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(streamBrowseStore.streams?.[streamSlug]?.status),
       onClick: async() => {
         const url = await streamBrowseStore.client.ContentObjectMetadata({
-          libraryId: streamBrowseStore.streams?.[streamSlug].libraryId,
+          libraryId: await streamBrowseStore.client.ContentObjectLibraryId({objectId: streamBrowseStore.streams?.[streamSlug].objectId}),
           objectId: streamBrowseStore.streams?.[streamSlug].objectId,
           metadataSubtree: "live_recording_config/url"
         });
