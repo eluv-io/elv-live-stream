@@ -391,7 +391,7 @@ const Create = observer(() => {
                       value: url
                     }
                   ))}
-                  placeholder="Select URL"
+                  placeholder={dataStore.loadedUrls ? "Select URL" : "Loading URLs..."}
                   value={formUrl}
                   onChange={(value) => {
                     setFormUrl(value);

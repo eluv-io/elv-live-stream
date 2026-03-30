@@ -661,6 +661,15 @@ class StreamManagementStore {
       writeToken,
       commitMessage: "Apply general config"
     });
+
+    if(configProfile) {
+      this.rootStore.streamBrowseStore.UpdateStream({
+        key: slug,
+        value: {
+          configProfile
+        }
+      });
+    }
   });
 
   UpdatePlayoutConfig = flow(function * ({

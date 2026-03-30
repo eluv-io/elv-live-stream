@@ -438,6 +438,7 @@ class DataStore {
 
   LoadStreamUrls = flow(function * () {
     this.UpdateStreamUrls({});
+    this.loadedUrls = false;
     try {
       const response = yield this.client.StreamListUrls({siteId: this.siteId});
 
@@ -452,6 +453,7 @@ class DataStore {
       });
 
       this.UpdateStreamUrls({urls});
+      this.loadedUrls = true;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to load stream URLs", error);
