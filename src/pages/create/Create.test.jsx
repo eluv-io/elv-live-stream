@@ -137,7 +137,11 @@ describe("Create", () => {
 
     it("resolves profile slug to profile object before calling InitLiveStreamObject", async () => {
       const {profileStore} = await import("@/stores");
-      profileStore.profiles["my-profile"] = {name: "My Profile", recording_config: {part_ttl: 3600}};
+      profileStore.profiles["my-profile"] = {
+        name: "My Profile",
+        recording_config: {part_ttl: 3600},
+        playout_config: {playout_formats: ["hls-clear"]}
+      };
       profileStore.sortedProfiles["my-profile"] = profileStore.profiles["my-profile"];
 
       mockInitLiveStreamObject.mockResolvedValue({objectId: "iq__123", slug: "test-stream"});
@@ -153,7 +157,11 @@ describe("Create", () => {
       await waitFor(() => {
         expect(mockInitLiveStreamObject).toHaveBeenCalledWith(
           expect.objectContaining({
-            configProfile: {name: "My Profile", recording_config: {part_ttl: 3600}},
+            configProfile: expect.objectContaining({
+              name: "My Profile",
+              recording_config: expect.objectContaining({part_ttl: 3600}),
+              playout_config: expect.objectContaining({playout_formats: ["hls-clear"]}),
+            }),
           })
         );
       });
