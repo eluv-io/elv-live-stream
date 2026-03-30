@@ -98,6 +98,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile}) => {
         objectId: params.id,
         slug,
         formData,
+        configProfile,
         updatePermission: currentSettings.permission !== formData.permission,
         updateAccessGroup: currentSettings.accessGroup !== formData.accessGroup,
         removeAccessGroup: currentSettings.accessGroup
@@ -178,7 +179,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile}) => {
                 clearable
               />
             </SimpleGrid>
-            <Button mb={25}>Re-apply</Button>
+            <Button mb={25} variant="outline">Re-apply</Button>
 
             <Divider mb={29} />
 
