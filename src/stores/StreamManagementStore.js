@@ -444,6 +444,21 @@ class StreamManagementStore {
       metadataSubtree: "live_recording_config"
     });
 
+    const hasOverrides = [
+      retention,
+      persistent,
+      connectionTimeout,
+      reconnectionTimeout,
+      skipDvrSection,
+      dvrEnabled,
+      dvrStartTime,
+      dvrMaxDuration,
+      copyMpegTs,
+      inputPackaging,
+      copyMode,
+      customReadLoop
+    ].some(item => item !== undefined);
+
     const config = ParseLiveConfigData({
       retention,
       persistent,
@@ -466,7 +481,7 @@ class StreamManagementStore {
         writeToken,
         finalize: false,
         liveRecordingConfig: liveRecordingConfigMeta,
-        overrideSettings: config
+        overrideSettings: hasOverrides ? config : undefined
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -608,10 +623,10 @@ class StreamManagementStore {
 
     if(configProfile) {
       // Update site object with stream/profile
-      const {siteWriteToken} = yield this.StreamApplyProfile({
-        profileSlug: configProfile,
+      const {siteWriteToken} = yield this.client.StreamApplyProfile({
+        profile: toJS(this.rootStore.profileStore.profiles[configProfile]),
         objectId,
-        writeToken,
+        streamWriteToken: writeToken,
         finalize: false
       });
 
