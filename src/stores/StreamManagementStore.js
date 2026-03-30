@@ -437,68 +437,56 @@ class StreamManagementStore {
       }));
     }
 
-    const liveRecordingConfigMeta = yield this.client.ContentObjectMetadata({
+    const existing = yield this.client.ContentObjectMetadata({
       libraryId,
       objectId,
       writeToken,
       metadataSubtree: "live_recording_config"
     });
 
-    const hasOverrides = [
-      retention,
-      persistent,
-      connectionTimeout,
-      reconnectionTimeout,
-      skipDvrSection,
-      dvrEnabled,
-      dvrStartTime,
-      dvrMaxDuration,
-      copyMpegTs,
-      inputPackaging,
-      copyMode,
-      customReadLoop
-    ].some(item => item !== undefined);
+    const recordingConfig = {...existing?.recording_config};
+    if(retention !== undefined)           recordingConfig.part_ttl = parseInt(retention);
+    if(persistent !== undefined)          recordingConfig.persistent = persistent;
+    if(connectionTimeout !== undefined)   recordingConfig.connection_timeout = parseInt(connectionTimeout);
+    if(reconnectionTimeout !== undefined) recordingConfig.reconnect_timeout = parseInt(reconnectionTimeout);
+    if(copyMpegTs !== undefined) {
+      recordingConfig.input_cfg = copyMpegTs ? {
+        bypass_libav_reader: true,
+        copy_mode: copyMode,
+        copy_packaging: inputPackaging,
+        custom_read_loop_enabled: customReadLoop,
+        input_packaging: inputPackaging
+      } : {};
+    }
 
-    const config = ParseLiveConfigData({
-      retention,
-      persistent,
-      connectionTimeout,
-      reconnectionTimeout,
-      skipDvrSection,
-      dvrEnabled,
-      dvrStartTime,
-      dvrMaxDuration,
-      copyMpegTs,
-      inputPackaging,
-      copyMode,
-      customReadLoop
+    const playoutConfig = {...existing?.playout_config};
+    if(!skipDvrSection && dvrEnabled !== undefined) {
+      playoutConfig.dvr = dvrEnabled;
+      if(dvrEnabled) {
+        if(dvrStartTime != null) { playoutConfig.dvr_start_time = new Date(dvrStartTime).toISOString(); }
+        if(dvrMaxDuration != null) { playoutConfig.dvr_max_duration = parseInt(dvrMaxDuration); }
+      } else {
+        delete playoutConfig.dvr_start_time;
+        delete playoutConfig.dvr_max_duration;
+      }
+    }
+
+    const newMetadata = {...existing, recording_config: recordingConfig, playout_config: playoutConfig};
+
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording_config",
+      metadata: {...existing, recording_config: recordingConfig, playout_config: playoutConfig}
     });
 
-    try {
-      yield this.client.StreamUpdateConfig({
-        libraryId,
-        objectId,
-        writeToken,
-        finalize: false,
-        liveRecordingConfig: liveRecordingConfigMeta,
-        overrideSettings: hasOverrides ? config : undefined
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to update config", error);
-    }
-
-    try {
-      yield this.client.StreamConfig({
-        name: objectId,
-        writeToken,
-        finalize: false,
-        inputStreamInfo: liveRecordingConfigMeta?.input_stream_info || liveRecordingConfigMeta?.probe_info
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to configure stream", error);
-    }
+    yield this.client.StreamConfig({
+      name: objectId,
+      writeToken,
+      liveRecordingConfig: newMetadata,
+      finalize: false
+    });
 
     if(finalize) {
       yield this.client.FinalizeContentObject({
@@ -678,8 +666,7 @@ class StreamManagementStore {
     status,
     watermarkParams,
     drmParams,
-    configMetaParams,
-    configProfileParams
+    configMetaParams
   }){
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
     const {writeToken} = yield this.client.EditContentObject({
@@ -717,16 +704,6 @@ class StreamManagementStore {
       ...basicCallParams,
       ...configMetaParams,
       skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
-    });
-
-    // Apply config profile settings
-
-    yield this.client.StreamUpdateConfig({
-      libraryId,
-      objectId,
-      writeToken,
-      finalize: false,
-      liveRecordingConfig: configProfileParams?.configProfile ? toJS(this.rootStore.profileStore.profiles[configProfileParams.configProfile]) : undefined
     });
 
     yield this.client.FinalizeContentObject({

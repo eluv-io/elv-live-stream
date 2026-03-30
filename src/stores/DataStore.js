@@ -283,9 +283,9 @@ class DataStore {
           "public/description",
           "public/name",
           "public/asset_metadata/display_title",
-          "live_recording_config/part_ttl",
           "live_recording_config/name",
           //   New live_recording_config paths
+          "live_recording_config/recording_config/part_ttl",
           "live_recording_config/recording_config/connection_timeout",
           "live_recording_config/recording_config/reconnect_timeout",
           "live_recording_config/profile",
@@ -323,7 +323,7 @@ class DataStore {
       const connectionTimeout = streamMeta?.live_recording_config?.recording_config?.connection_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
       const configProfileName = streamMeta?.live_recording_config?.profile ?? streamMeta?.live_recording_config?.name;
       const reconnectionTimeout = streamMeta?.live_recording_config?.recording_config?.reconnect_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
-      const partTtl = streamMeta?.live_recording_config?.part_ttl;
+      const partTtl = streamMeta?.live_recording_config?.recording_config?.part_ttl;
       const dvrMaxDuration = streamMeta?.live_recording?.playout_config?.dvr_max_duration;
 
       return {
@@ -518,12 +518,13 @@ class DataStore {
         select: [
           "live_recording/recording_config/recording_params/xc_params/connection_timeout",
           "live_recording/recording_config/recording_params/reconnect_timeout",
-          "live_recording_config/part_ttl",
+          "live_recording_config/recording_config/part_ttl",
           "live_recording/recording_config/recording_params/persistent",
           "live_recording/recording_config/recording_params/xc_params/copy_mpegts",
           "live_recording/recording_config/recording_params/xc_params/input_cfg"
         ]
       });
+
 
       const {audioStreams, audioData} = yield this.LoadStreamProbeData({
         libraryId,
@@ -534,7 +535,7 @@ class DataStore {
         audioStreams,
         audioData,
         persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
-        retention: streamMeta?.live_recording_config?.part_ttl,
+        retention: streamMeta?.live_recording_config?.recording_config?.part_ttl,
         connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
         reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,
         copyMpegTs: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.copy_mpegts,
