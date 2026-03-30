@@ -2,7 +2,6 @@
 import {configure, flow, makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {STATUS_MAP} from "@/utils/constants";
-import {ParseLiveConfigData} from "@/utils/helpers.js";
 
 configure({
   enforceActions: "always"
@@ -56,140 +55,23 @@ class StreamBrowseStore {
   }) {
     try {
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
       const liveRecordingConfig = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
-        metadataSubtree: "live_recording_config",
-        select: [
-          "input/audio/stream_index",
-          "input/audio/stream",
-          "output/audio/bitrate",
-          "output/audio/channel_layout",
-          "part_ttl",
-          "persistent",
-          "drm",
-          "drm_type",
-          "audio",
-          "playout_ladder_profile",
-          "reconnect_timeout"
-        ]
+        metadataSubtree: "live_recording_config"
       });
-
-      const recordingConfig = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/recording_config",
-        select: [
-          "recording_params/xc_params/connection_timeout",
-          "recording_params/reconnect_timeout",
-          "recording_params/xc_params/copy_mpegts"
-        ]
-      });
-
-      const playoutConfig = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/playout_config",
-        select: [
-          "simple_watermark",
-          "image_watermark",
-          "forensic_watermark"
-        ]
-      });
-
-      const configSettings = {};
-
-      // Config api will override meta containing edge write token
-      // if(edgeWriteToken) {
-      //   customSettings.metaPathValues["live_recording.fabric_config.edge_write_token = customSettings.edge_write_token"] = edgeWriteToken;
-      // }
-
-      if(liveRecordingConfig.part_ttl) {
-        configSettings.retention = liveRecordingConfig.part_ttl;
-      }
-
-      if(Object.hasOwn(liveRecordingConfig, "persistent")) {
-        // TODO: Add persistent
-      }
-
-      if(recordingConfig?.recording_params?.xc_params?.connection_timeout) {
-        configSettings.connectionTimeout = recordingConfig.recording_params.xc_params.connection_timeout;
-      }
-
-      if(
-        recordingConfig?.recording_params?.reconnect_timeout ||
-        liveRecordingConfig?.reconnect_timeout
-      ) {
-        configSettings.reconnectionTimeout = recordingConfig?.recording_params?.reconnect_timeout || liveRecordingConfig?.reconnect_timeout;
-      }
-
-      if(playoutConfig?.simple_watermark) {
-        configSettings.simpleWatermark = playoutConfig.simple_watermark;
-      }
-
-      if(playoutConfig?.image_watermark) {
-        configSettings.imageWatermark = playoutConfig.image_watermark;
-      }
-
-      if(playoutConfig?.forensic_watermark) {
-        configSettings.forensicWatermark = playoutConfig.forensic_watermark;
-      }
-
-      if(Object.hasOwn(recordingConfig?.recording_params?.xc_params || {}, "copy_mpegts")) {
-        configSettings.copyMpegTs = recordingConfig.recording_params.xc_params.copy_mpegts;
-      }
-
-      if(liveRecordingConfig.playout_ladder_profile) {
-        const allProfiles = yield this.client.ContentObjectMetadata({
-          libraryId: yield this.client.ContentObjectLibraryId({objectId: this.rootStore.dataStore.siteId}),
-          objectId: this.rootStore.dataStore.siteId,
-          metadataSubtree: "public/asset_metadata/profiles"
-        });
-
-        if(allProfiles) {
-          let profileData;
-          if(liveRecordingConfig.playout_ladder_profile.toLowerCase() === "default") {
-            profileData = allProfiles.default;
-          } else {
-            profileData = allProfiles.custom.find(item => item.name === liveRecordingConfig.playout_ladder_profile);
-          }
-
-          if(profileData) {
-            configSettings.playoutProfile = profileData.ladder_specs;
-          } else {
-            // eslint-disable-next-line no-console
-            console.warn(`Ladder profile ${liveRecordingConfig.playout_ladder_profile} not found. Defaulting to the built-in profile.`);
-          }
-        }
-      }
-
-      if(liveRecordingConfig.audio) {
-        // Remove audio tracks with a falsey record property
-        Object.keys(liveRecordingConfig.audio).forEach(audioIndex => {
-          if(!liveRecordingConfig.audio[audioIndex].record) {
-            delete liveRecordingConfig.audio[audioIndex];
-          }
-        });
-      }
-
-      if(liveRecordingConfig.drm_type) {
-        configSettings.encryption = liveRecordingConfig.drm_type;
-      }
-
-      configSettings.audioFormData = liveRecordingConfig.audio ? liveRecordingConfig.audio : undefined;
 
       const {writeToken} = yield this.client.EditContentObject({
         libraryId,
         objectId
       });
 
-      const config = ParseLiveConfigData(configSettings);
-
       yield this.client.StreamConfig({
         name: objectId,
         writeToken,
         finalize: false,
-        liveRecordingConfig: config,
+        liveRecordingConfig,
         probeMetadata
       });
 
