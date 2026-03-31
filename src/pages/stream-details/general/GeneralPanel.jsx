@@ -167,19 +167,40 @@ const GeneralPanel = observer(({slug, currentConfigProfile}) => {
               mb={29}
             />
 
-            <SimpleGrid cols={2} spacing={150} mb={25}>
-              <Select
-                label="Config Profile"
-                name="configProfile"
-                data={profilesData}
-                placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
-                description={(profilesData.length > 0 || profileStore.state !== "loaded") ? "Apply a predefined set of configuration settings to this stream. If no profile is selected, built-in settings will be applied." : "No profiles are configured. Create a profile in Settings."}
-                value={configProfile}
-                onChange={(value) => setConfigProfile(value)}
-                clearable
-              />
-            </SimpleGrid>
-            <Button mb={25} variant="outline">Re-apply</Button>
+            <Box mb={29}>
+              <SimpleGrid cols={2} spacing={150}>
+                <Select
+                  label="Config Profile"
+                  name="configProfile"
+                  data={profilesData}
+                  placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
+                  description={(profilesData.length > 0 || profileStore.state !== "loaded") ? "Apply a predefined set of configuration settings to this stream. If no profile is selected, built-in settings will be applied." : "No profiles are configured. Create a profile in Settings."}
+                  value={configProfile}
+                  onChange={(value) => setConfigProfile(value)}
+                  clearable
+                />
+              </SimpleGrid>
+              {
+                (profileStore.profiles[currentConfigProfile]?.last_updated > streamBrowseStore.streams[slug]?.profileLastUpdated) ?
+                  <Box>
+                    <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
+                    <Button
+                      variant="outline"
+                      onClick={async() => {
+                        await streamManagementStore.ApplyStreamProfile({
+                          objectId: params.id,
+                          profileSlug: currentConfigProfile
+                        });
+                        await dataStore.LoadDetails({
+                          objectId: params.id,
+                          slug
+                        });
+                      }}
+                    >Re-apply
+                    </Button>
+                  </Box> : null
+              }
+            </Box>
 
             <Divider mb={29} />
 

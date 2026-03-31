@@ -357,17 +357,11 @@ class StreamManagementStore {
     }
   });
 
+  ApplyStreamProfile = flow(function * ({objectId, writeToken, profileSlug}) {
+    const profile = this.rootStore.profileStore.profiles[profileSlug];
 
-  UpdateRetention = flow(function * ({
-    objectId,
-    libraryId,
-    slug,
-    retention,
-    writeToken
-  }) {
-    if(!libraryId) {
-      libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    }
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
     if(!writeToken) {
       ({writeToken} = yield this.client.EditContentObject({
         libraryId,
@@ -375,35 +369,11 @@ class StreamManagementStore {
       }));
     }
 
-    yield this.client.ReplaceMetadata({
-      libraryId,
+    yield this.client.StreamApplyProfile({
+      profile: toJS(profile),
       objectId,
-      writeToken,
-      metadataSubtree: "live_recording_config/part_ttl",
-      metadata: parseInt(retention)
-    });
-
-    yield this.client.ReplaceMetadata({
-      libraryId,
-      objectId,
-      writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/part_ttl",
-      metadata: parseInt(retention)
-    });
-
-    yield this.client.FinalizeContentObject({
-      libraryId,
-      objectId,
-      writeToken,
-      commitMessage: "Update retention",
-      awaitCommitConfirmation: true
-    });
-
-    this.rootStore.streamBrowseStore.UpdateStream({
-      key: slug,
-      value: {
-        partTtl: retention
-      }
+      streamWriteToken: writeToken,
+      finalize: true
     });
   });
 

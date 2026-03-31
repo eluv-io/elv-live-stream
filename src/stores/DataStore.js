@@ -264,6 +264,7 @@ class DataStore {
         objectId,
         libraryId,
         select: [
+          "public/asset_metadata/profile_last_updated",
           "live_recording_config/probe_info/format/filename",
           "live_recording_config/probe_info/streams",
           "live_recording_config/srt_egress_enabled",
@@ -343,6 +344,7 @@ class DataStore {
         originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
         partTtl: partTtl ? partTtl.toString() : null,
         persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
+        profileLastUpdated: streamMeta?.public?.asset_metadata?.profile_last_updated,
         reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
         referenceUrl: streamMeta?.live_recording_config?.reference_url,
         simpleWatermark,
