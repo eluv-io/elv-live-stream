@@ -569,9 +569,9 @@ class DataStore {
         ]
       });
 
-      let probeMetadata = probeMetadataOptions?.probe_info ?? probeMetadataOptions?.input_stream_info;
+      let probeMetadata =  probeMetadataOptions?.input_stream_info ?? probeMetadataOptions?.probe_info;
 
-      // Phase out as new streams will have live_recording_config/probe_info
+      // Phase out as new streams will have live_recording_config/input_stream_info or /probe_info
       if(!probeMetadata) {
         probeMetadata = yield this.client.ContentObjectMetadata({
           libraryId,
@@ -583,15 +583,6 @@ class DataStore {
       if(!probeMetadata) {
         return {audioStreams: [], audioData: {}};
       }
-
-      const recordingParamsMetadata = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/recording_config/recording_params",
-        select: [
-          "ladder_specs"
-        ]
-      });
 
       const audioConfig = yield this.client.ContentObjectMetadata({
         libraryId,
@@ -606,7 +597,6 @@ class DataStore {
       const audioData = {};
       audioStreams.forEach((spec, i) => {
         const audioConfigForIndex = audioConfig && audioConfig[spec.stream_index] ? audioConfig[spec.stream_index] : {};
-        const ladderSpecsForIndex = recordingParamsMetadata && (recordingParamsMetadata.ladder_specs).find(i => (i.stream_index === spec.stream_index) && i.representation.includes("audio"));
 
         const initBitrate = RECORDING_BITRATE_OPTIONS.map(option => option.value).includes(spec.bit_rate) ? spec.bit_rate : 192000;
 
@@ -619,7 +609,7 @@ class DataStore {
           playout: Object.hasOwn(audioConfigForIndex, "playout") ? audioConfigForIndex.playout : true,
           playout_label: audioConfigForIndex.playout_label || `Audio ${i + 1}`,
           lang: audioConfigForIndex?.lang,
-          default: ladderSpecsForIndex?.default
+          default: audioConfigForIndex?.default
         };
       });
 
