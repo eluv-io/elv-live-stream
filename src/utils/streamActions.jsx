@@ -19,6 +19,7 @@ export const GetStreamActions = ({record, view}) => {
       label: "Check",
       title: "Check Stream",
       icon: <IconListCheck />,
+      primary: [STATUS_MAP.UNINITIALIZED, STATUS_MAP.UNCONFIGURED].includes(record.status),
       iconVariant: "subtle",
       buttonVariant: "outline",
       iconColor: "gray.6",
@@ -60,8 +61,9 @@ export const GetStreamActions = ({record, view}) => {
       label: "Start",
       title: "Start Stream",
       icon: <IconPlayerPlay />,
+      primary: [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status),
       iconVariant: "subtle",
-      buttonVariant: "outline",
+      buttonVariant: "filled",
       iconColor: "gray.6",
       hidden: !record.status || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status),
       onClick: () => {
@@ -117,8 +119,9 @@ export const GetStreamActions = ({record, view}) => {
       label: "Stop",
       title: "Stop Stream",
       icon: <IconPlayerStop />,
+      primary: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(record.status),
       iconVariant: "subtle",
-      buttonVariant: "outline",
+      buttonVariant: "filled",
       iconColor: "gray.6",
       hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
       onClick: () => {
@@ -156,6 +159,7 @@ export const GetStreamActions = ({record, view}) => {
       icon: <IconTrash />,
       iconVariant: "subtle",
       iconColor: "gray.6",
+      buttonVariant: "outline",
       disabled: StreamIsActive(record.status),
       onClick: () => {
         modalStore.SetModal({

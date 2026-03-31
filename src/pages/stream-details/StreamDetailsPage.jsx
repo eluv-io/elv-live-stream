@@ -69,6 +69,12 @@ const StreamDetailsPage = observer(() => {
   }
 
   const streamActions = GetStreamActions({record: streamBrowseStore.streams?.[streamSlug], view: "details"});
+  const primaryActions = streamActions.filter(a => a.primary && !a.hidden)
+    .map(a => {
+      a.buttonVariant = "filled";
+      return a;
+    });
+  const secondaryActions = streamActions.filter(a => !a.primary && !a.hidden);
 
   const actions = [
     {
@@ -82,7 +88,8 @@ const StreamDetailsPage = observer(() => {
       buttonVariant: "outline",
       onClick: DebouncedRefresh
     },
-    ...streamActions,
+    ...secondaryActions,
+    ...primaryActions
   ]
     .filter(item => !item.hidden);
 
