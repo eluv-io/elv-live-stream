@@ -1,15 +1,14 @@
 import {useEffect, useState} from "react";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {streamBrowseStore, dataStore, modalStore} from "@/stores";
+import {streamBrowseStore, dataStore} from "@/stores";
 import {observer} from "mobx-react-lite";
-import {Loader, Stack, Tabs, Text, Title} from "@mantine/core";
+import {Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
-import {DETAILS_TABS, STATUS_MAP} from "@/utils/constants";
+import {DETAILS_TABS} from "@/utils/constants";
 import styles from "@/pages/stream-details/StreamDetails.module.css";
-import {SanitizeUrl, StreamIsActive} from "@/utils/helpers";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import {notifications} from "@mantine/notifications";
+import {GetStreamActions} from "@/utils/streamActions.jsx";
 
 const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
@@ -69,106 +68,21 @@ const StreamDetailsPage = observer(() => {
     return <Loader />;
   }
 
+  const streamActions = GetStreamActions({record: streamBrowseStore.streams?.[streamSlug], view: "details"});
+
   const actions = [
     {
       label: "Back",
-      variant: "filled",
+      buttonVariant: "filled",
       color: "elv-gray.6",
       onClick: () => navigate("/streams")
     },
     {
-      label: "Delete",
-      variant: "outline",
-      disabled: StreamIsActive(streamBrowseStore.streams?.[streamSlug]?.status),
-      onClick: () => {
-        modalStore.SetModal({
-          data: {
-            objectId: streamBrowseStore.streams?.[streamSlug].objectId,
-            name: streamBrowseStore.streams?.[streamSlug].title,
-          },
-          slug: streamSlug,
-          Callback: () => navigate("/streams"),
-          op: "DELETE",
-          notifications
-        });
-      }
-    },
-    {
       label: "Refresh",
-      variant: "outline",
+      buttonVariant: "outline",
       onClick: DebouncedRefresh
     },
-    {
-      label: "Check",
-      variant: streamBrowseStore.streams?.[streamSlug]?.status === STATUS_MAP.UNINITIALIZED ? "filled" : "outline",
-      hidden: ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(streamBrowseStore.streams?.[streamSlug]?.status),
-      onClick: async() => {
-        const url = await streamBrowseStore.client.ContentObjectMetadata({
-          libraryId: await streamBrowseStore.client.ContentObjectLibraryId({objectId: streamBrowseStore.streams?.[streamSlug].objectId}),
-          objectId: streamBrowseStore.streams?.[streamSlug].objectId,
-          metadataSubtree: "live_recording_config/url"
-        });
-        modalStore.SetModal({
-          data: {
-            objectId: streamBrowseStore.streams?.[streamSlug].objectId,
-            name: streamBrowseStore.streams?.[streamSlug].title,
-            loadingText: (
-              <Stack mt={16} gap={5}>
-                <Text>
-                  Please send your stream to:
-                </Text>
-                <Text>
-                  {
-                    SanitizeUrl({url, removeQueryParams: ["mode"]}) || "the URL you specified"
-                  }
-                </Text>
-              </Stack>
-            ),
-          },
-          slug: stream.slug,
-          op: "CHECK",
-          Callback: async() => {
-            const streamDetails = await dataStore.LoadStreamMetadata({objectId: params.id});
-            streamBrowseStore.UpdateStream({key: streamSlug, value: streamDetails});
-          },
-          notifications
-        });
-      }
-    },
-    {
-      label: "Start",
-      variant: "filled",
-      hidden: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(streamBrowseStore.streams?.[streamSlug]?.status),
-      onClick: () => {
-        modalStore.SetModal({
-          data: {
-            objectId: streamBrowseStore.streams?.[streamSlug].objectId,
-            name: streamBrowseStore.streams?.[streamSlug].title
-          },
-          Callback: () => LoadEdgeWriteTokenMeta(),
-          op: "START",
-          slug: stream.slug,
-          notifications
-        });
-      }
-    },
-    {
-      label: "Stop",
-      variant: "filled",
-      hidden: ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(streamBrowseStore.streams?.[streamSlug]?.status),
-      onClick: () => {
-        modalStore.SetModal({
-          data: {
-            objectId: streamBrowseStore.streams?.[streamSlug].objectId,
-            name: streamBrowseStore.streams?.[streamSlug].title,
-          },
-          Callback: () => DebouncedRefresh(),
-          op: "STOP",
-          slug: stream.slug,
-          notifications
-        });
-      }
-    }
+    ...streamActions,
   ]
     .filter(item => !item.hidden);
 

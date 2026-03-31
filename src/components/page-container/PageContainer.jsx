@@ -36,10 +36,10 @@ const TopActions = ({showSearchBar, actions=[]}) => {
           (
             <Flex direction="row" gap="sm">
               {
-                actions.map(({label, variant="filled", onClick, disabled, leftSection, iconOnly, color}, i) => (
+                actions.map(({label, buttonVariant="filled", iconVariant, onClick, disabled, leftSection, iconOnly, color}, i) => (
                   iconOnly ?
                     (
-                      <ActionIcon key={`top-action-${i}`} variant={variant} size="36">
+                      <ActionIcon key={`top-action-${i}`} variant={iconVariant} size="36">
                         { leftSection }
                       </ActionIcon>
                     ) :
@@ -49,7 +49,7 @@ const TopActions = ({showSearchBar, actions=[]}) => {
                         key={`top-action-${label}`}
                         disabled={disabled}
                         leftSection={leftSection}
-                        variant={variant}
+                        variant={buttonVariant}
                         color={color}
                       >
                         { label ? label : null }

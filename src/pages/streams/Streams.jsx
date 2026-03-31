@@ -3,31 +3,21 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {Link, useNavigate} from "react-router-dom";
-import {
-  IconPlayerPlay,
-  IconPlayerStop,
-  IconTrash,
-  IconExternalLink,
-  IconDeviceAnalytics,
-  IconListCheck,
-  IconCircleX
-} from "@tabler/icons-react";
 
-import {dataStore, modalStore, streamBrowseStore} from "@/stores";
-import {SanitizeUrl, SortTable, VideoBitrateReadable, StreamIsActive} from "@/utils/helpers";
-import {STATUS_MAP} from "@/utils/constants";
+import {dataStore, streamBrowseStore} from "@/stores";
+import {SanitizeUrl, SortTable, VideoBitrateReadable} from "@/utils/helpers";
 import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
 
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import {DataTable} from "mantine-datatable";
-import {notifications} from "@mantine/notifications";
-import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton, Text} from "@mantine/core";
+import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton} from "@mantine/core";
 
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "./Streams.module.css";
+import {GetStreamActions} from "@/utils/streamActions.jsx";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -164,162 +154,23 @@ const Streams = observer(() => {
                 return (
                   <Group gap={7} justify="right" wrap="nowrap">
                     {
-                      ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status) ? null :
-                        <ActionIcon
-                          title="Check Stream"
-                          variant="subtle"
-                          color="gray.6"
-                          onClick={async () => {
-                            const url = await streamBrowseStore.client.ContentObjectMetadata({
-                              libraryId: await streamBrowseStore.client.ContentObjectLibraryId({objectId: record.objectId}),
-                              objectId: record.objectId,
-                              metadataSubtree: "live_recording_config/url"
-                            });
-
-                            modalStore.SetModal({
-                              data: {
-                                objectId: record.objectId,
-                                name: record.title,
-                                loadingText: (
-                                  <Stack mt={16} gap={5}>
-                                    <Text>
-                                      Please send your stream to:
-                                    </Text>
-                                    <Text>
-                                      {
-                                        SanitizeUrl({url, removeQueryParams: ["mode"]}) || "the URL you specified"
-                                      }
-                                    </Text>
-                                  </Stack>
-                                )
-                              },
-                              op: "CHECK",
-                              slug: record.slug,
-                              activeMessage: record.status !== STATUS_MAP.INACTIVE,
-                              notifications
-                            });
-                          }}
-                        >
-                          <IconListCheck />
-                        </ActionIcon>
-                    }
-                    {
-                      !record.status || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status) ? null :
-                        <ActionIcon
-                          title="Start Stream"
-                          variant="subtle"
-                          color="gray.6"
-                          onClick={() => {
-                            modalStore.SetModal({
-                              data: {
-                                objectId: record.objectId,
-                                name: record.title
-                              },
-                              op: "START",
-                              slug: record.slug,
-                              notifications
-                            });
-                          }}
-                        >
-                          <IconPlayerPlay />
-                        </ActionIcon>
-                    }
-                    {
-                      !record.status || record.status !== STATUS_MAP.STOPPED ? null :
-                        <ActionIcon
-                          title="Deactivate Stream"
-                          variant="subtle"
-                          color="gray.6"
-                          onClick={() => {
-                            modalStore.SetModal({
-                              data: {
-                                objectId: record.objectId,
-                                name: record.title,
-                                customMessage: (
-                                  <Stack gap={0} mb={8}>
-                                    <Text c="elv-gray.9">Are you sure you want to deactivate the stream?</Text>
-                                    <Text fw={700} c="elv-gray.9">You will lose all recording media. Be sure to save a VoD copy first.</Text>
-                                  </Stack>
-                                )
-                              },
-                              op: "DEACTIVATE",
-                              slug: record.slug,
-                              notifications
-                            });
-                          }}
-                        >
-                          <IconCircleX />
-                        </ActionIcon>
-                    }
-                    {
-                      !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status) ? null :
-                        <>
+                      GetStreamActions({record})
+                        .filter(item => !item.hidden)
+                        .map(item => (
                           <ActionIcon
-                            component={Link}
-                            to={`/streams/${record.objectId}/preview`}
-                            title="View Stream"
-                            variant="subtle"
-                            color="gray.6"
+                            key={`action-${record.title}`}
+                            variant={item.iconVariant}
+                            component={item.component}
+                            to={item.to}
+                            title={item.title}
+                            color={item.iconColor}
+                            onClick={item.onClick}
+                            disabled={item.disabled}
                           >
-                            <IconDeviceAnalytics />
+                            {item.icon}
                           </ActionIcon>
-                          <ActionIcon
-                            title="Stop Stream"
-                            variant="subtle"
-                            color="gray.6"
-                            onClick={() => {
-                              modalStore.SetModal({
-                                data: {
-                                  objectId: record.objectId,
-                                  name: record.title
-                                },
-                                op: "STOP",
-                                slug: record.slug,
-                                notifications
-                              });
-                            }}
-                          >
-                            <IconPlayerStop />
-                          </ActionIcon>
-                        </>
+                        ))
                     }
-                    {
-                      !!record.objectId &&
-                      <ActionIcon
-                        title="Open in Fabric Browser"
-                        variant="subtle"
-                        color="gray.6"
-                        onClick={() => streamBrowseStore.client.SendMessage({
-                          options: {
-                            operation: "OpenLink",
-                            libraryId: record.libraryId,
-                            objectId: record.objectId
-                          },
-                          noResponse: true
-                        })}
-                      >
-                        <IconExternalLink />
-                      </ActionIcon>
-                    }
-                    <ActionIcon
-                      title="Delete Stream"
-                      variant="subtle"
-                      color="gray.6"
-                      disabled={StreamIsActive(record.status)}
-                      onClick={() => {
-                        modalStore.SetModal({
-                          data: {
-                            objectId: record.objectId,
-                            name: record.title
-                          },
-                          op: "DELETE",
-                          slug: record.slug,
-                          notifications
-                        });
-                      }}
-                    >
-                      <IconTrash />
-                    </ActionIcon>
                   </Group>
                 );
               }
