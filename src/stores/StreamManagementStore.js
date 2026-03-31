@@ -395,6 +395,7 @@ class StreamManagementStore {
     inputPackaging,
     copyMode,
     customReadLoop,
+    audioData
     // configProfile
   }){
     if(!libraryId) {
@@ -429,6 +430,11 @@ class StreamManagementStore {
       } : {};
     }
 
+    const recordingStreamConfig = {...existing?.recording_stream_config};
+    if(audioData !== undefined) {
+      recordingStreamConfig.audio = audioData;
+    }
+
     const playoutConfig = {...existing?.playout_config};
     if(!skipDvrSection && dvrEnabled !== undefined) {
       playoutConfig.dvr = dvrEnabled;
@@ -441,14 +447,14 @@ class StreamManagementStore {
       }
     }
 
-    const newMetadata = {...existing, recording_config: recordingConfig, playout_config: playoutConfig};
+    const newMetadata = {...existing, recording_config: recordingConfig, playout_config: playoutConfig, recording_stream_config: recordingStreamConfig};
 
     yield this.client.ReplaceMetadata({
       libraryId,
       objectId,
       writeToken,
       metadataSubtree: "live_recording_config",
-      metadata: {...existing, recording_config: recordingConfig, playout_config: playoutConfig}
+      metadata: {...existing, recording_config: recordingConfig, playout_config: playoutConfig, recording_stream_config: recordingStreamConfig}
     });
 
     yield this.client.StreamConfig({
@@ -493,8 +499,7 @@ class StreamManagementStore {
     writeToken,
     audioFormData,
     configFormData,
-    tsFormData,
-    edit=false
+    tsFormData
   }) {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -511,14 +516,14 @@ class StreamManagementStore {
 
     const {copyMpegTs, inputPackaging, copyMode, customReadLoop} = tsFormData;
 
-    yield this.rootStore.streamBrowseStore.UpdateStreamAudioSettings({
-      objectId,
-      writeToken,
-      slug,
-      audioData: audioFormData,
-      finalize: false,
-      edit
-    });
+    // yield this.rootStore.streamBrowseStore.UpdateStreamAudioSettings({
+    //   objectId,
+    //   writeToken,
+    //   slug,
+    //   audioData: audioFormData,
+    //   finalize: false,
+    //   edit
+    // });
 
     yield this.UpdateConfigMetadata({
       objectId,
@@ -531,6 +536,7 @@ class StreamManagementStore {
       inputPackaging,
       copyMode,
       customReadLoop,
+      audioData: audioFormData,
       writeToken,
       finalize: false
     });

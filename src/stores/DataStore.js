@@ -559,11 +559,17 @@ class DataStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      let probeMetadata = yield this.client.ContentObjectMetadata({
+      let probeMetadataOptions = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
-        metadataSubtree: "live_recording_config/probe_info",
+        metadataSubtree: "live_recording_config",
+        select: [
+          "probe_info",
+          "input_stream_info"
+        ]
       });
+
+      let probeMetadata = probeMetadataOptions?.probe_info ?? probeMetadataOptions?.input_stream_info;
 
       // Phase out as new streams will have live_recording_config/probe_info
       if(!probeMetadata) {
@@ -590,7 +596,7 @@ class DataStore {
       const audioConfig = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
-        metadataSubtree: "live_recording_config/audio"
+        metadataSubtree: "live_recording_config/recording_stream_config/audio"
       });
 
       const audioStreams = (probeMetadata.streams || [])
@@ -612,7 +618,7 @@ class DataStore {
           recording_channels: spec.channels,
           playout: Object.hasOwn(audioConfigForIndex, "playout") ? audioConfigForIndex.playout : true,
           playout_label: audioConfigForIndex.playout_label || `Audio ${i + 1}`,
-          lang: ladderSpecsForIndex?.lang,
+          lang: audioConfigForIndex?.lang,
           default: ladderSpecsForIndex?.default
         };
       });

@@ -679,7 +679,7 @@ class StreamBrowseStore {
         libraryId,
         objectId,
         writeToken,
-        metadataSubtree: "live_recording_config/audio"
+        metadataSubtree: "live_recording_config/recording_stream_config/audio"
       });
     }
 
@@ -747,116 +747,6 @@ class StreamBrowseStore {
       audioLadderSpecs,
       audioIndexMeta
     };
-  });
-
-  UpdateLadderSpecs = flow(function * ({
-    objectId,
-    libraryId,
-    profile="",
-    writeToken,
-    finalize=true
-  }) {
-    let profileData;
-    let topLadderRate = 0;
-    let ladderSpecs = [];
-
-    if(!libraryId) {
-      libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    }
-
-    if(!writeToken) {
-      ({writeToken} = yield this.client.EditContentObject({
-        libraryId,
-        objectId
-      }));
-    }
-
-    const ladderProfiles = yield this.rootStore.dataStore.LoadLadderProfiles();
-
-    let audioData = yield this.client.ContentObjectMetadata({
-      libraryId,
-      objectId,
-      metadataSubtree: "live_recording_config/audio"
-    });
-
-    if(!audioData || Object.keys(audioData || {}).length === 0) {
-      ({audioData} = yield this.rootStore.dataStore.LoadStreamProbeData({
-        objectId
-      }));
-    }
-
-    if(!ladderProfiles) {
-      throw Error("Unable to update ladder specs. No profiles were found.");
-    }
-
-    if(!!profile && profile.toLowerCase() !== "default") {
-      profileData = ladderProfiles.custom.find(item => item.name === profile);
-    } else {
-      profileData = ladderProfiles.default;
-    }
-
-    // Add fully-formed video specs
-    profileData.ladder_specs.video.forEach(spec => {
-      if(spec.bit_rate > topLadderRate) {
-        topLadderRate = spec.bit_rate;
-      }
-
-      const videoSpec = {
-        ...spec,
-        media_type: 1,
-        representation: `videovideo_${spec.width}x${spec.height}_h264@${spec.bit_rate}`,
-        stream_index: 0,
-        stream_name: "video"
-      };
-
-      ladderSpecs.push(videoSpec);
-    });
-
-    const {nAudio, globalAudioBitrate, audioLadderSpecs, audioIndexMeta} = yield this.UpdateAudioLadderSpecs({
-      libraryId,
-      objectId,
-      ladderSpecs: profileData.ladder_specs,
-      audioData
-    });
-
-    ladderSpecs = ladderSpecs.concat(audioLadderSpecs);
-
-    yield this.client.MergeMetadata({
-      libraryId,
-      objectId,
-      writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
-      metadata: {
-        audio_bitrate: globalAudioBitrate,
-        video_bitrate: topLadderRate,
-        n_audio: nAudio
-      }
-    });
-
-    yield this.client.ReplaceMetadata({
-      libraryId,
-      objectId,
-      writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/ladder_specs",
-      metadata: ladderSpecs
-    });
-
-    yield this.client.ReplaceMetadata({
-      libraryId,
-      objectId,
-      writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/xc_params/audio_index",
-      metadata: audioIndexMeta
-    });
-
-    if(finalize) {
-      yield this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        commitMessage: "Update ladder_specs"
-      });
-    }
   });
 
   FetchLiveRecordingCopies = flow(function * ({objectId, libraryId}) {
@@ -1072,7 +962,13 @@ class StreamBrowseStore {
     return audioStreams;
   };
 
-  UpdateStreamAudioSettings = flow(function * ({objectId, writeToken, finalize=true, audioData, edit=false}) {
+  UpdateStreamAudioSettings = flow(function * ({
+    objectId,
+    writeToken,
+    finalize=true,
+    audioData,
+    edit=false
+  }) {
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
     if(!writeToken) {
@@ -1086,7 +982,7 @@ class StreamBrowseStore {
       libraryId,
       objectId,
       writeToken,
-      metadataSubtree: "live_recording_config/audio",
+      metadataSubtree: "live_recording_config/recording_stream_config/audio",
       metadata: audioData
     });
 
@@ -1173,11 +1069,11 @@ class StreamBrowseStore {
         metadataSubtree: "live_recording_config",
         select: [
           "probe_info/streams",
-          "audio"
+          "recording_stream_config/audio"
         ]
       });
 
-      const audioConfig = liveRecordingMetadata?.audio || {};
+      const audioConfig = liveRecordingMetadata?.recording_stream_config?.audio || {};
       const probeAudioStreams = (liveRecordingMetadata?.probe_info?.streams || [])
         .filter(stream => stream.codec_type === "audio");
       const audioIndexes = probeAudioStreams.map(stream => stream.stream_index);
