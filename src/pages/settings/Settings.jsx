@@ -13,6 +13,7 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 const Settings = observer(() => {
   // Used to provide ConfirmModal with slug to be deleted
   const [pendingDeleteSlug, setPendingDeleteSlug] = useState(null);
+  const [newProfileKey, setNewProfileKey] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [validationError, setValidationError] = useState(false);
@@ -22,7 +23,8 @@ const Settings = observer(() => {
   }, []);
 
   const HandleAddProfile = () => {
-    profileStore.AddDraft();
+    const key = profileStore.AddDraft();
+    setNewProfileKey(key);
   };
 
   const HandleDeleteProfile = async({slug}) => {
@@ -98,6 +100,7 @@ const Settings = observer(() => {
                 {id: key, value: value.name || "Profile"}
               ]}
               header="Profile"
+              defaultShowEditor={key === newProfileKey}
               editorValue={JSON.stringify(value, null, 2)}
               HandleEditorValueChange={({value}) => profileStore.UpdateDraft(key, value)}
               HandleDelete={() => {

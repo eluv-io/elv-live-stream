@@ -38,15 +38,6 @@ const TextEditorBox = ({
                 ))
               }
               <Group ml="auto">
-                {/*<ActionIcon*/}
-                {/*  size={20}*/}
-                {/*  variant="transparent"*/}
-                {/*  color="elv-neutral.4"*/}
-                {/*  title="Reset"*/}
-                {/*  onClick={HandleReset}*/}
-                {/*>*/}
-                {/*  <IconRestore />*/}
-                {/*</ActionIcon>*/}
                 <ActionIcon
                   size={20}
                   variant="transparent"

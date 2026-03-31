@@ -57,6 +57,7 @@ class ProfileStore {
         name: draftName
       };
     });
+    return draftKey;
   }
 
   UpdateDraft(key, jsonString) {
