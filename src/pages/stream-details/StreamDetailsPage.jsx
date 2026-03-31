@@ -127,6 +127,10 @@ const StreamDetailsPage = observer(() => {
           },
           slug: stream.slug,
           op: "CHECK",
+          Callback: async() => {
+            const streamDetails = await dataStore.LoadStreamMetadata({objectId: params.id});
+            streamBrowseStore.UpdateStream({key: streamSlug, value: streamDetails});
+          },
           notifications
         });
       }
