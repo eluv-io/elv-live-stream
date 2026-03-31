@@ -21,6 +21,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile}) => {
   const [profilesData, setProfilesData] = useState([]);
 
   const [applyingChanges, setApplyingChanges] = useState(false);
+  const [applyingProfileChanges, setApplyingProfileChanges] = useState(false);
   const [currentSettings, setCurrentSettings] = useState({
     accessGroup: "",
     permission: ""
@@ -186,16 +187,22 @@ const GeneralPanel = observer(({slug, currentConfigProfile}) => {
                     <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
                     <Button
                       variant="outline"
+                      disabled={applyingProfileChanges}
                       onClick={async() => {
-                        await streamManagementStore.ApplyStreamProfile({
-                          objectId: params.id,
-                          profileSlug: currentConfigProfile
-                        });
-                        await dataStore.LoadDetails({
-                          objectId: params.id,
-                          slug
-                        });
-                      }}
+                        try {
+                          setApplyingProfileChanges(true);
+                          await streamManagementStore.ApplyStreamProfile({
+                            objectId: params.id,
+                            profileSlug: currentConfigProfile
+                          });
+                          await dataStore.LoadDetails({
+                            objectId: params.id,
+                            slug
+                          });
+                      } finally {
+                        setApplyingProfileChanges(false);
+                      }
+                    }}
                     >Re-apply
                     </Button>
                   </Box> : null
