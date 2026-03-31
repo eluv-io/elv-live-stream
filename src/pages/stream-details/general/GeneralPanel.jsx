@@ -7,8 +7,10 @@ import {notifications} from "@mantine/notifications";
 import {CircleInfoIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
+import {STATUS_MAP} from "@/utils/constants.js";
 
-const GeneralPanel = observer(({slug, currentConfigProfile}) => {
+const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -168,46 +170,51 @@ const GeneralPanel = observer(({slug, currentConfigProfile}) => {
               mb={29}
             />
 
-            <Box mb={29}>
-              <SimpleGrid cols={2} spacing={150}>
-                <Select
-                  label="Config Profile"
-                  name="configProfile"
-                  data={profilesData}
-                  placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
-                  description={(profilesData.length > 0 || profileStore.state !== "loaded") ? "Apply a predefined set of configuration settings to this stream. If no profile is selected, built-in settings will be applied." : "No profiles are configured. Create a profile in Settings."}
-                  value={configProfile}
-                  onChange={(value) => setConfigProfile(value)}
-                  clearable
-                />
-              </SimpleGrid>
-              {
-                (profileStore.profiles[currentConfigProfile]?.last_updated > streamBrowseStore.streams[slug]?.profileLastUpdated) ?
-                  <Box>
-                    <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
-                    <Button
-                      variant="outline"
-                      disabled={applyingProfileChanges}
-                      onClick={async() => {
-                        try {
-                          setApplyingProfileChanges(true);
-                          await streamManagementStore.ApplyStreamProfile({
-                            objectId: params.id,
-                            profileSlug: currentConfigProfile
-                          });
-                          await dataStore.LoadDetails({
-                            objectId: params.id,
-                            slug
-                          });
-                      } finally {
-                        setApplyingProfileChanges(false);
-                      }
-                    }}
-                    >Re-apply
-                    </Button>
-                  </Box> : null
-              }
-            </Box>
+            <DisabledTooltipWrapper
+              disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+              tooltipLabel="Profile configuration is disabled while the stream is running"
+            >
+              <Box mb={29}>
+                <SimpleGrid cols={2} spacing={150}>
+                  <Select
+                    label="Config Profile"
+                    name="configProfile"
+                    data={profilesData}
+                    placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
+                    description={(profilesData.length > 0 || profileStore.state !== "loaded") ? "Apply a predefined set of configuration settings to this stream. If no profile is selected, built-in settings will be applied." : "No profiles are configured. Create a profile in Settings."}
+                    value={configProfile}
+                    onChange={(value) => setConfigProfile(value)}
+                    clearable
+                  />
+                </SimpleGrid>
+                {
+                  (profileStore.profiles[currentConfigProfile]?.last_updated > streamBrowseStore.streams[slug]?.profileLastUpdated) ?
+                    <Box>
+                      <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
+                      <Button
+                        variant="outline"
+                        disabled={applyingProfileChanges}
+                        onClick={async() => {
+                          try {
+                            setApplyingProfileChanges(true);
+                            await streamManagementStore.ApplyStreamProfile({
+                              objectId: params.id,
+                              profileSlug: currentConfigProfile
+                            });
+                            await dataStore.LoadDetails({
+                              objectId: params.id,
+                              slug
+                            });
+                        } finally {
+                          setApplyingProfileChanges(false);
+                        }
+                      }}
+                      >Re-apply
+                      </Button>
+                    </Box> : null
+                }
+              </Box>
+            </DisabledTooltipWrapper>
 
             <Divider mb={29} />
 
