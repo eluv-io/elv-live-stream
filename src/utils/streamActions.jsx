@@ -1,7 +1,7 @@
 import {SanitizeUrl, StreamIsActive} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
 import {Stack, Text} from "@mantine/core";
-import {dataStore, modalStore, streamBrowseStore} from "@/stores/index.js";
+import {modalStore, streamBrowseStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import {
   IconCircleX,
@@ -13,7 +13,7 @@ import {
 } from "@tabler/icons-react";
 import {Link} from "react-router-dom";
 
-export const GetStreamActions = ({record, view}) => {
+export const GetStreamActions = ({record, onCheckComplete}) => {
   return [
     {
       label: "Check",
@@ -48,10 +48,7 @@ export const GetStreamActions = ({record, view}) => {
           },
           op: "CHECK",
           slug: record.slug,
-          Callback: (view === "details") ? async() => {
-            const streamDetails = await dataStore.LoadStreamMetadata({objectId: record.id});
-            streamBrowseStore.UpdateStream({key: record.slug, value: streamDetails});
-          } : null,
+          Callback: onCheckComplete,
           activeMessage: record.status !== STATUS_MAP.INACTIVE,
           notifications
         });

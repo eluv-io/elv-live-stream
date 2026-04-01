@@ -1,11 +1,11 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {useParams} from "react-router-dom";
 import {observer} from "mobx-react-lite";
 import {
   Box,
   Button,
   Checkbox,
-  Divider,
+  Divider, Loader,
   MultiSelect,
   Select,
   SimpleGrid,
@@ -17,10 +17,11 @@ import {
   DEFAULT_WATERMARK_FORENSIC,
   DEFAULT_WATERMARK_IMAGE,
   DEFAULT_WATERMARK_TEXT,
-  DVR_DURATION_OPTIONS, PLAYOUT_FORMAT_OPTIONS,
+  DVR_DURATION_OPTIONS,
+  PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants";
-import {streamManagementStore} from "@/stores";
+import {dataStore, streamManagementStore} from "@/stores";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {CalendarMonthIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
@@ -34,27 +35,58 @@ const PlayoutPanel = observer(({
   simpleWatermark,
   imageWatermark,
   forensicWatermark,
-  currentWatermarkType,
   title,
-  currentDvrEnabled,
-  currentDvrMaxDuration,
-  currentDvrStartTime
+  checkVersion
 }) => {
-  const [drm, setDrm] = useState(currentDrm);
-  const [formWatermarks, setFormWatermarks] = useState(
-    {
-      image: imageWatermark ? JSON.stringify(imageWatermark, null, 2) : undefined,
-      text: simpleWatermark ? JSON.stringify(simpleWatermark, null, 2) : undefined,
-      forensic: forensicWatermark ? JSON.stringify(forensicWatermark, null, 2) : undefined
-    }
-  );
-  const [watermarkType, setWatermarkType] = useState(currentWatermarkType || "");
-  const [dvrEnabled, setDvrEnabled] = useState(currentDvrEnabled || false);
-  const [dvrStartTime, setDvrStartTime] = useState(currentDvrStartTime !== undefined ? new Date(currentDvrStartTime) : null);
-  const [dvrMaxDuration, setDvrMaxDuration] = useState(currentDvrMaxDuration !== undefined ? currentDvrMaxDuration : "0");
+  const [drm, setDrm] = useState([]);
+  const [formWatermarks, setFormWatermarks] = useState({});
+  const [watermarkType, setWatermarkType] = useState("");
+  const [dvrEnabled, setDvrEnabled] = useState(false);
+  const [dvrStartTime, setDvrStartTime] = useState(null);
+  const [dvrMaxDuration, setDvrMaxDuration] = useState("");
 
+  const [loading, setLoading] = useState(false);
   const [applyingChanges, setApplyingChanges] = useState(false);
   const params = useParams();
+
+  const LoadConfigData = async () => {
+    try {
+      setLoading(true);
+
+      let {
+        drm: drmMeta,
+        dvrEnabled: dvrEnabledMeta,
+        dvrMaxDuration: dvrMaxDurationMeta,
+        dvrStartTime: dvrStartTimeMeta,
+        forensicWatermark: forensicWatermarkMeta,
+        imageWatermark: imageWatermarkMeta,
+        simpleWatermark: simpleWatermarkMeta,
+        watermarkType: watermarkTypeMeta
+      } = await dataStore.LoadPlayoutConfigData({objectId: params.id});
+
+      setDrm(drmMeta ?? []);
+      setDvrEnabled(dvrEnabledMeta);
+      setDvrMaxDuration(dvrMaxDurationMeta !== undefined ? dvrMaxDurationMeta : "0");
+      setDvrStartTime(dvrStartTimeMeta);
+      setWatermarkType(watermarkTypeMeta);
+      if(forensicWatermarkMeta || imageWatermarkMeta || simpleWatermarkMeta) {
+        setFormWatermarks({
+          image: imageWatermarkMeta ? JSON.stringify(imageWatermarkMeta, null, 2) : undefined,
+          forensic: forensicWatermarkMeta ? JSON.stringify(forensicWatermarkMeta, null, 2) : undefined,
+          simple: simpleWatermarkMeta ? JSON.stringify(simpleWatermarkMeta, null, 2) : undefined,
+        });
+      }
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if(params.id) {
+      LoadConfigData();
+    }
+  }, [params.id, checkVersion]);
 
   const HandleSubmit = async () => {
     const objectId = params.id;
@@ -104,6 +136,8 @@ const PlayoutPanel = observer(({
       setApplyingChanges(false);
     }
   };
+
+  if(loading) { return <Loader />; }
 
   return (
     <Box maw="80%">

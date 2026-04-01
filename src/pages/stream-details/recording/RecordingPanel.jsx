@@ -30,7 +30,8 @@ const RecordingPanel = observer(({
   slug,
   status,
   PageVersionCallback,
-  url
+  url,
+  checkVersion
 }) => {
   const params = useParams();
   const [audioTracks, setAudioTracks] = useState([]);
@@ -88,7 +89,7 @@ const RecordingPanel = observer(({
     if(params.id) {
       LoadConfigData();
     }
-  }, [params.id]);
+  }, [params.id, checkVersion]);
 
   const HandleSubmit = async(event) => {
     event.preventDefault();

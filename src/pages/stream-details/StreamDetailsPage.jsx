@@ -17,6 +17,7 @@ const StreamDetailsPage = observer(() => {
   const [pageVersion, setPageVersion] = useState(0);
   const [activeTab, setActiveTab] = useState(DETAILS_TABS[0].value);
   const [recordingInfo, setRecordingInfo] = useState(null);
+  const [checkVersion, setCheckVersion] = useState(0);
 
   if(!streamSlug) {
     streamSlug = Object.keys(streamBrowseStore.streams || {}).find(slug => (
@@ -68,7 +69,11 @@ const StreamDetailsPage = observer(() => {
     return <Loader />;
   }
 
-  const streamActions = GetStreamActions({record: streamBrowseStore.streams?.[streamSlug], view: "details"});
+  const streamActions = GetStreamActions({
+    record: streamBrowseStore.streams?.[streamSlug],
+    onCheckComplete: () => setCheckVersion(prev => prev + 1)
+  });
+
   const primaryActions = streamActions.filter(a => a.primary && !a.hidden)
     .map(a => {
       a.buttonVariant = "filled";
@@ -126,6 +131,7 @@ const StreamDetailsPage = observer(() => {
               {
                 stream.status ?
                 <tab.Component
+                  checkVersion={checkVersion}
                   active={activeTab === tab.value}
                   status={stream.status}
                   slug={stream.slug}

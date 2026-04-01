@@ -260,43 +260,31 @@ class DataStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const streamMeta = yield this.client.ContentObjectMetadata({
-        objectId,
+      const liveRecordingConfigMeta = yield this.client.ContentObjectMetadata({
         libraryId,
+        objectId,
+        metadataSubtree: "live_recording_config"
+      });
+
+      const liveRecordingMeta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording"
+      });
+
+      const generalMeta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "public",
         select: [
-          "public/asset_metadata/profile_last_updated",
-          "live_recording_config/probe_info/format/filename",
-          "live_recording_config/probe_info/streams",
-          "live_recording_config/srt_egress_enabled",
-          "live_recording/recording_config/recording_params/origin_url",
-          "live_recording/playout_config/simple_watermark",
-          "live_recording/playout_config/image_watermark",
-          "live_recording/playout_config/forensic_watermark",
-          "live_recording/recording_config/recording_params/xc_params/connection_timeout",
-          "live_recording/recording_config/recording_params/reconnect_timeout",
-          "live_recording/recording_config/recording_params/persistent",
-          "live_recording/playout_config/dvr_enabled",
-          "live_recording/playout_config/dvr_start_time",
-          "live_recording/playout_config/dvr_max_duration",
-          "live_recording_config/reference_url",
-          "live_recording_config/url",
-          "live_recording_config/drm_type",
-          "public/description",
-          "public/name",
-          "public/asset_metadata/display_title",
-          "live_recording_config/name",
-          //   New live_recording_config paths
-          "live_recording_config/recording_config/part_ttl",
-          "live_recording_config/recording_config/connection_timeout",
-          "live_recording_config/recording_config/reconnect_timeout",
-          "live_recording_config/profile",
-          "live_recording_config/playout_config/dvr",
-          "live_recording_config/playout_config/playout_formats",
-          "live_recording_config/playout_config/image_watermark",
-          "live_recording_config/playout_config/simple_watermark",
+          "asset_metadata/display_title",
+          "asset_metadata/profile_last_updated",
+          "description",
+          "name"
         ]
       });
-      let probeMeta = streamMeta?.live_recording_config?.probe_info;
+
+      let probeMeta = liveRecordingConfigMeta?.probe_info;
 
       // Phase out as new streams will have live_recording_config/probe_info
       if(!probeMeta) {
@@ -316,42 +304,54 @@ class DataStore {
         probeType = "srt-caller";
       }
 
-      const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
+      // Stream Table Details
       const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
-      const simpleWatermark = streamMeta?.live_recording_config?.playout_config?.simple_watermark ?? streamMeta?.live_recording?.playout_config?.simple_watermark;
-      const imageWatermark = streamMeta?.live_recording_config?.playout_config?.image_watermark ?? streamMeta?.live_recording?.playout_config?.image_watermark;
-      const forensicWatermark = streamMeta?.live_recording?.playout_config?.forensic_watermark;
-      const connectionTimeout = streamMeta?.live_recording_config?.recording_config?.connection_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
-      const configProfileName = streamMeta?.live_recording_config?.profile ?? streamMeta?.live_recording_config?.name;
-      const reconnectionTimeout = streamMeta?.live_recording_config?.recording_config?.reconnect_timeout ?? streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
-      const partTtl = streamMeta?.live_recording_config?.recording_config?.part_ttl;
-      const dvrMaxDuration = streamMeta?.live_recording?.playout_config?.dvr_max_duration;
+      const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
+
+      // General Config
+      const configProfileName = liveRecordingConfigMeta?.name;
+
+      // Recording Config
+      const connectionTimeout = liveRecordingConfigMeta?.recording_config?.connection_timeout ?? liveRecordingMeta?.recording_config?.recording_params?.xc_params?.connection_timeout;
+      const partTtl = liveRecordingConfigMeta?.recording_config?.part_ttl ?? liveRecordingMeta?.recording_config?.recording_params?.part_ttl;
+      const reconnectionTimeout = liveRecordingConfigMeta?.recording_config?.reconnect_timeout ?? liveRecordingMeta?.recording_config?.recording_params?.reconnect_timeout;
+
+      // Playout Config
+      const dvrMaxDuration = liveRecordingMeta?.playout_config?.dvr_max_duration;
+      const imageWatermark = liveRecordingConfigMeta?.playout_config?.image_watermark ?? liveRecordingMeta?.playout_config?.image_watermark;
+      const forensicWatermark = liveRecordingConfigMeta?.playout_config?.forensic_watermark ?? liveRecordingMeta?.playout_config?.forensic_watermark;
+      const simpleWatermark = liveRecordingConfigMeta?.playout_config?.simple_watermark ?? liveRecordingMeta?.playout_config?.simple_watermark;
 
       return {
-        codecName: videoStream?.codec_name,
-        connectionTimeout: connectionTimeout ? connectionTimeout.toString() : null,
-        configProfile: Slugify(configProfileName),
-        description: streamMeta?.public?.description,
-        display_title: streamMeta?.public?.asset_metadata?.display_title,
-        drm: streamMeta?.live_recording_config?.playout_config?.playout_formats,
-        dvrEnabled: streamMeta?.live_recording_config?.playout_config?.dvr ?? streamMeta?.live_recording?.playout_config?.dvr_enabled,
-        dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
-        dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
-        egressEnabled: streamMeta?.live_recording_config?.srt_egress_enabled,
-        forensicWatermark,
-        format: probeType,
-        imageWatermark,
-        originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
-        partTtl: partTtl ? partTtl.toString() : null,
-        persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
-        profileLastUpdated: streamMeta?.public?.asset_metadata?.profile_last_updated,
-        reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
-        referenceUrl: streamMeta?.live_recording_config?.reference_url,
-        simpleWatermark,
-        title: streamMeta?.public?.name,
-        videoBitrate: videoStream?.bit_rate,
+        // Stream Table Details
         audioStreamCount,
-        watermarkType: simpleWatermark ? "TEXT" : imageWatermark ? "IMAGE" : forensicWatermark ? "FORENSIC" : ""
+        codecName: videoStream?.codec_name,
+        format: probeType,
+        videoBitrate: videoStream?.bit_rate,
+        // General Config
+        configProfile: Slugify(configProfileName),
+        description: generalMeta?.description,
+        display_title: generalMeta?.asset_metadata?.display_title,
+        originUrl: liveRecordingConfigMeta?.url ?? liveRecordingMeta?.recording_config?.recording_params?.origin_url,
+        referenceUrl: liveRecordingConfigMeta?.reference_url,
+        title: generalMeta?.name,
+        // Recording Config
+        connectionTimeout: connectionTimeout ? connectionTimeout.toString() : null,
+        partTtl: partTtl ? partTtl.toString() : null,
+        persistent: liveRecordingMeta?.recording_config?.recording_params?.persistent,
+        reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
+        // Playout Config
+        drm: liveRecordingConfigMeta?.playout_config?.playout_formats ?? liveRecordingMeta?.playout_config?.playout_formats,
+        dvrEnabled: liveRecordingConfigMeta?.playout_config?.dvr ?? liveRecordingMeta?.playout_config?.dvr_enabled,
+        dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
+        dvrStartTime: liveRecordingMeta?.playout_config?.dvr_start_time,
+        forensicWatermark,
+        imageWatermark,
+        simpleWatermark,
+        watermarkType: simpleWatermark ? "TEXT" : imageWatermark ? "IMAGE" : forensicWatermark ? "FORENSIC" : "",
+        // Other Details
+        egressEnabled: liveRecordingConfigMeta?.srt_egress_enabled,
+        profileLastUpdated: generalMeta?.asset_metadata?.profile_last_updated,
       };
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -514,19 +514,24 @@ class DataStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const streamMeta = yield this.client.ContentObjectMetadata({
-        objectId,
+      const liveRecordingMeta = yield this.client.ContentObjectMetadata({
         libraryId,
-        select: [
-          "live_recording/recording_config/recording_params/xc_params/connection_timeout",
-          "live_recording/recording_config/recording_params/reconnect_timeout",
-          "live_recording_config/recording_config/part_ttl",
-          "live_recording/recording_config/recording_params/persistent",
-          "live_recording/recording_config/recording_params/xc_params/copy_mpegts",
-          "live_recording/recording_config/recording_params/xc_params/input_cfg"
-        ]
+        objectId,
+        metadataSubtree: "live_recording/recording_config"
       });
 
+      const liveRecordingConfigMeta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording_config/recording_config"
+      });
+
+      const connectionTimeout = liveRecordingConfigMeta?.connection_timeout ?? liveRecordingMeta?.recording_params?.xc_params?.connection_timeout;
+      const copyMpegTs = liveRecordingMeta?.recording_params?.xc_params?.copy_mpegts;
+      const inputCfg = liveRecordingMeta?.recording_params?.xc_params?.input_cfg;
+      const persistent = liveRecordingMeta?.recording_params?.persistent;
+      const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
+      const reconnectionTimeout = liveRecordingConfigMeta?.reconnect_timeout ?? liveRecordingMeta?.recording_params?.reconnect_timeout;
 
       const {audioStreams, audioData} = yield this.LoadStreamProbeData({
         libraryId,
@@ -536,16 +541,60 @@ class DataStore {
       return {
         audioStreams,
         audioData,
-        persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
-        retention: streamMeta?.live_recording_config?.recording_config?.part_ttl,
-        connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
-        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,
-        copyMpegTs: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.copy_mpegts,
-        inputCfg: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg
+        connectionTimeout,
+        copyMpegTs,
+        inputCfg,
+        persistent,
+        reconnectionTimeout,
+        retention
       };
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to load recording config data", error);
+      return {};
+    }
+  });
+
+  LoadPlayoutConfigData = flow(function * ({libraryId, objectId}) {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const liveRecordingMeta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording/playout_config"
+      });
+
+      const liveRecordingConfigMeta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording_config/playout_config"
+      });
+
+      const drm = liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats;
+      const dvrEnabled = liveRecordingConfigMeta?.dvr ?? liveRecordingMeta?.dvr_enabled;
+      const dvrMaxDuration = liveRecordingMeta?.dvr_max_duration === undefined ? null : (liveRecordingMeta.dvr_max_duration).toString();
+      const dvrStartTime = liveRecordingMeta?.dvr_start_time;
+      const imageWatermark = liveRecordingConfigMeta?.image_watermark ?? liveRecordingMeta?.image_watermark;
+      const forensicWatermark = liveRecordingConfigMeta?.forensic_watermark ?? liveRecordingMeta?.forensic_watermark;
+      const simpleWatermark = liveRecordingConfigMeta?.simple_watermark ?? liveRecordingMeta?.simple_watermark;
+      const watermarkType = simpleWatermark ? "TEXT" : imageWatermark ? "IMAGE" : forensicWatermark ? "FORENSIC" : "";
+
+      return {
+        drm,
+        dvrEnabled,
+        dvrMaxDuration,
+        dvrStartTime,
+        forensicWatermark,
+        imageWatermark,
+        simpleWatermark,
+        watermarkType
+      };
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load playout config data", error);
       return {};
     }
   });
