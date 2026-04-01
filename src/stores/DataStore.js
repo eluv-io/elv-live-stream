@@ -1,13 +1,8 @@
-// Force strict mode so mutations are only allowed within actions.
-import {configure, flow, makeAutoObservable, runInAction, toJS} from "mobx";
+// Handles all metadata reads — tenant info, stream metadata, recording/playout config, probe data, permissions, and ladder profiles.
+import {flow, makeAutoObservable, runInAction, toJS} from "mobx";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 import {Slugify} from "@/utils/helpers.js";
 
-configure({
-  enforceActions: "always"
-});
-
-// Manages fetching and caching raw data from the backend, handling static or unchanging information.
 class DataStore {
   rootStore;
   loaded = false;

@@ -1,13 +1,9 @@
+// Handles stream listing, status polling, and stream-level operations (start, stop, watermark, DRM, audio, VOD copy).
 // Force strict mode so mutations are only allowed within actions.
-import {configure, flow, makeAutoObservable} from "mobx";
+import {flow, makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {STATUS_MAP} from "@/utils/constants";
 
-configure({
-  enforceActions: "always"
-});
-
-// Focuses on the viewer's experience, loading and providing access to all browsable streams.
 class StreamBrowseStore {
   streams;
   streamFrameUrls = {};

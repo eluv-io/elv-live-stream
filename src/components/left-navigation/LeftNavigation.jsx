@@ -11,6 +11,7 @@ const iconDimensions = {
 const NAV_LINKS = [
   {path: "/create", label: "Create", icon: <VideoPlusIcon width={iconDimensions.width} height={iconDimensions.height} />},
   {path: "/streams", label: "Streams", icon: <StreamIcon width={iconDimensions.width} height={iconDimensions.height} />},
+  {path: "/outputs", label: "Outputs", icon: <StreamIcon width={iconDimensions.width} height={iconDimensions.height} />},
   {path: "/monitor", label: "Monitor", icon: <MediaIcon width={iconDimensions.width} height={iconDimensions.height} />},
   {path: "/settings", label: "Settings", icon: <SettingsIcon width={iconDimensions.width} height={iconDimensions.height} />}
 ];

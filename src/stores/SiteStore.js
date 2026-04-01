@@ -1,6 +1,6 @@
+// Manages the live stream platform's core "site" object, including its properties and actions related to platform-level administration.
 import {flow} from "mobx";
 
-// Manages the live stream platform's core "site" object, including its properties and actions related to platform-level administration.
 class SiteStore {
   constructor(rootStore) {
     this.rootStore = rootStore;

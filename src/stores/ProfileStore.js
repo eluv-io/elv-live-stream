@@ -1,4 +1,4 @@
-// Manages the Live Recording Config profiles
+// Manages live recording config profiles — loading, creating, and applying reusable stream configuration templates.
 import {makeAutoObservable, runInAction, toJS} from "mobx";
 import {Slugify} from "@/utils/helpers.js";
 

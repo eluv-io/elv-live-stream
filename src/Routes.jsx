@@ -6,6 +6,7 @@ import Monitor from "@/pages/monitor/Monitor.jsx";
 import StreamPreview from "@/components/stream-preview/StreamPreview.jsx";
 import StreamDetailsPage from "@/pages/stream-details/StreamDetailsPage";
 import Settings from "@/pages/settings/Settings.jsx";
+import Outputs from "@/pages/outputs/Outputs.jsx";
 
 const AppRoutes = observer(() => {
   return (
@@ -17,6 +18,8 @@ const AppRoutes = observer(() => {
       <Route path="/streams/:id" element={<StreamDetailsPage />} />
       <Route path="/streams" element={<Streams />} />
       <Route path="/streams/:id/preview" element={<StreamPreview />} />
+
+      <Route path="/outputs" element={<Outputs />} />
 
       <Route path="/settings" element={<Settings />} />
     </Routes>

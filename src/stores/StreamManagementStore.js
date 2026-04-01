@@ -1,12 +1,8 @@
-import {configure, flow, makeAutoObservable, toJS} from "mobx";
+// Handles stream creation, configuration writes, and profile application — anything that modifies stream metadata or objects.
+import {flow, makeAutoObservable, toJS} from "mobx";
 import {ParseLiveConfigData, Slugify} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
 
-configure({
-  enforceActions: "always"
-});
-
-// Handles the business logic for stream creators, covering creation, editing, and live stream control.
 class StreamManagementStore {
   constructor(rootStore) {
     makeAutoObservable(this);
