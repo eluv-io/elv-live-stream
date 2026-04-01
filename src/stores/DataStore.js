@@ -514,6 +514,11 @@ class DataStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
+      const streams = this.rootStore.streamBrowseStore.streams || {};
+      const slug = Object.keys(streams).find(slug => (
+        streams[slug].objectId === objectId
+      ));
+
       const liveRecordingMeta = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
@@ -538,7 +543,7 @@ class DataStore {
         objectId
       });
 
-      return {
+      const recordingData = {
         audioStreams,
         audioData,
         connectionTimeout,
@@ -548,6 +553,10 @@ class DataStore {
         reconnectionTimeout,
         retention
       };
+
+      this.rootStore.streamBrowseStore.UpdateStream({key: slug, value: recordingData});
+
+      return recordingData;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to load recording config data", error);
@@ -560,6 +569,11 @@ class DataStore {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
+
+      const streams = this.rootStore.streamBrowseStore.streams || {};
+      const slug = Object.keys(streams).find(slug => (
+        streams[slug].objectId === objectId
+      ));
 
       const liveRecordingMeta = yield this.client.ContentObjectMetadata({
         libraryId,
@@ -582,7 +596,7 @@ class DataStore {
       const simpleWatermark = liveRecordingConfigMeta?.simple_watermark ?? liveRecordingMeta?.simple_watermark;
       const watermarkType = simpleWatermark ? "TEXT" : imageWatermark ? "IMAGE" : forensicWatermark ? "FORENSIC" : "";
 
-      return {
+      const playoutData = {
         drm,
         dvrEnabled,
         dvrMaxDuration,
@@ -592,6 +606,10 @@ class DataStore {
         simpleWatermark,
         watermarkType
       };
+
+      this.rootStore.streamBrowseStore.UpdateStream({key: slug, value: playoutData});
+
+      return playoutData;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to load playout config data", error);
