@@ -5,8 +5,7 @@ import {observer} from "mobx-react-lite";
 import {Link, useNavigate} from "react-router-dom";
 
 import {dataStore, streamBrowseStore} from "@/stores";
-import {SanitizeUrl, SortTable, VideoBitrateReadable} from "@/utils/helpers";
-import {CODEC_TEXT} from "@/utils/constants";
+import {SanitizeUrl, SortTable} from "@/utils/helpers";
 
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import {DataTable} from "mantine-datatable";
@@ -110,21 +109,21 @@ const Streams = observer(() => {
               )
             },
             {
+              accessor: "packaging",
+              title: "Packaging",
+              render: record => (
+                (record.packaging || []).map(el => (
+                  <Text key={`packaging-${el}`} tt="uppercase" fz={14}>{el}</Text>
+                ))
+              )
+            },
+            {
               accessor: "source",
               title: "Source",
               render: record => (
                 (record.source || []).map(el => (
                   <Text key={`source-${el}`} tt="uppercase" fz={14}>{el}</Text>
                 ))
-              )
-            },
-            {
-              accessor: "video",
-              title: "Video",
-              render: record => (
-                <BasicTableRowText style={{textWrap: "nowrap"}}>
-                  {CODEC_TEXT[record.codecName]} {VideoBitrateReadable(record.videoBitrate)}
-                </BasicTableRowText>
               )
             },
             {

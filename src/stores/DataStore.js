@@ -299,12 +299,6 @@ class DataStore {
       //   probeType = "srt-caller";
       // }
 
-      // Stream Table Details
-      const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
-      const tsEnabled = liveRecordingConfigMeta?.recording_config?.copy_mpegts;
-      const source = tsEnabled ? [probeType, "ts"] : probeType ? [probeType] : [];
-      const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
-
       // General Config
       const configProfileName = liveRecordingConfigMeta?.name;
 
@@ -314,10 +308,20 @@ class DataStore {
       const reconnectionTimeout = liveRecordingConfigMeta?.recording_config?.reconnect_timeout ?? liveRecordingMeta?.recording_config?.recording_params?.reconnect_timeout;
 
       // Playout Config
+      const drm = liveRecordingConfigMeta?.playout_config?.playout_formats ?? liveRecordingMeta?.playout_config?.playout_formats;
       const dvrMaxDuration = liveRecordingMeta?.playout_config?.dvr_max_duration;
       const imageWatermark = liveRecordingConfigMeta?.playout_config?.image_watermark ?? liveRecordingMeta?.playout_config?.image_watermark;
       const forensicWatermark = liveRecordingConfigMeta?.playout_config?.forensic_watermark ?? liveRecordingMeta?.playout_config?.forensic_watermark;
       const simpleWatermark = liveRecordingConfigMeta?.playout_config?.simple_watermark ?? liveRecordingMeta?.playout_config?.simple_watermark;
+
+      // Stream Table Details
+      const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
+      const tsEnabled = liveRecordingConfigMeta?.recording_config?.copy_mpegts;
+      const source = tsEnabled ? [probeType, "ts"] : probeType ? [probeType] : [];
+      const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
+      const hasHlsDash = (drm ?? []).some(item => item.toLowerCase().includes("hls")) && (drm ?? []).some(item => item.toLowerCase().includes("dash"));
+      const hasTs = ["srt", "rtmp", "rtp"].includes(probeType);
+      const packaging = (hasTs && hasHlsDash) ? ["fmp4", "ts"] : hasTs ? ["ts"] : ["fmp4"];
 
       return {
         // Stream Table Details
@@ -330,6 +334,7 @@ class DataStore {
         description: generalMeta?.description,
         display_title: generalMeta?.asset_metadata?.display_title,
         originUrl: liveRecordingConfigMeta?.url ?? liveRecordingMeta?.recording_config?.recording_params?.origin_url,
+        packaging,
         referenceUrl: liveRecordingConfigMeta?.reference_url,
         title: generalMeta?.name,
         // Recording Config
@@ -338,7 +343,7 @@ class DataStore {
         persistent: liveRecordingMeta?.recording_config?.recording_params?.persistent,
         reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
         // Playout Config
-        drm: liveRecordingConfigMeta?.playout_config?.playout_formats ?? liveRecordingMeta?.playout_config?.playout_formats,
+        drm,
         dvrEnabled: liveRecordingConfigMeta?.playout_config?.dvr ?? liveRecordingMeta?.playout_config?.dvr_enabled,
         dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
         dvrStartTime: liveRecordingMeta?.playout_config?.dvr_start_time,
