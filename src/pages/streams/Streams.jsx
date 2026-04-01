@@ -6,11 +6,11 @@ import {Link, useNavigate} from "react-router-dom";
 
 import {dataStore, streamBrowseStore} from "@/stores";
 import {SanitizeUrl, SortTable, VideoBitrateReadable} from "@/utils/helpers";
-import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
+import {CODEC_TEXT} from "@/utils/constants";
 
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import {DataTable} from "mantine-datatable";
-import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton} from "@mantine/core";
+import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton, Text} from "@mantine/core";
 
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -110,12 +110,12 @@ const Streams = observer(() => {
               )
             },
             {
-              accessor: "format",
-              title: "Format",
+              accessor: "source",
+              title: "Source",
               render: record => (
-                <BasicTableRowText style={{textWrap: "nowrap"}}>
-                  {FORMAT_TEXT[record.format]}
-                </BasicTableRowText>
+                (record.source || []).map(el => (
+                  <Text key={`source-${el}`} tt="uppercase" fz={14}>{el}</Text>
+                ))
               )
             },
             {
@@ -158,7 +158,7 @@ const Streams = observer(() => {
                         .filter(item => !item.hidden)
                         .map(item => (
                           <ActionIcon
-                            key={`action-${record.title}`}
+                            key={`action-${item.title}`}
                             variant={item.iconVariant}
                             component={item.component}
                             to={item.to}

@@ -294,13 +294,15 @@ class DataStore {
         });
       }
 
-      let probeType = (probeMeta?.format?.filename)?.split("://")[0];
-      if(probeType === "srt" && !probeMeta.format?.filename?.includes("listener")) {
-        probeType = "srt-caller";
-      }
+      let probeType = (liveRecordingConfigMeta?.url)?.split("://")[0];
+      // if(probeType === "srt" && !probeMeta.format?.filename?.includes("listener")) {
+      //   probeType = "srt-caller";
+      // }
 
       // Stream Table Details
       const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
+      const tsEnabled = liveRecordingConfigMeta?.recording_config?.copy_mpegts;
+      const source = tsEnabled ? [probeType, "ts"] : probeType ? [probeType] : [];
       const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
 
       // General Config
@@ -321,7 +323,7 @@ class DataStore {
         // Stream Table Details
         audioStreamCount,
         codecName: videoStream?.codec_name,
-        format: probeType,
+        source,
         videoBitrate: videoStream?.bit_rate,
         // General Config
         configProfile: Slugify(configProfileName),
