@@ -158,7 +158,7 @@ const Streams = observer(() => {
                         .filter(item => !item.hidden)
                         .map(item => (
                           <ActionIcon
-                            key={`action-${record.title}`}
+                            key={`action-${item.title}`}
                             variant={item.iconVariant}
                             component={item.component}
                             to={item.to}
