@@ -39,6 +39,7 @@ module.exports = [
   "fairplay",
   "falsey",
   "flexbox",
+  "fmp4",
   "helvetica",
   "hls",
   "iat",
