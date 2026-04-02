@@ -587,7 +587,11 @@ class DataStore {
         metadataSubtree: "live_recording_config/playout_config"
       });
 
-      const drm = liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats;
+      let drm = liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats;
+      // Playout formats must be an array of values from PLAYOUT_FORMAT_OPTIONS
+      if(!Array.isArray(drm)) {
+        drm = [];
+      }
       const dvrEnabled = liveRecordingConfigMeta?.dvr ?? liveRecordingMeta?.dvr_enabled;
       const dvrMaxDuration = liveRecordingMeta?.dvr_max_duration === undefined ? null : (liveRecordingMeta.dvr_max_duration).toString();
       const dvrStartTime = liveRecordingMeta?.dvr_start_time;
