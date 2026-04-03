@@ -4,9 +4,9 @@ import {useEffect, useState} from "react";
 import {dataStore, rootStore, streamManagementStore, streamBrowseStore} from "@/stores";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
-import {CircleInfoIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import {IconInfoCircle} from "@tabler/icons-react";
 
 const GeneralPanel = observer(({slug}) => {
   const [formData, setFormData] = useState({
@@ -195,7 +195,7 @@ const GeneralPanel = observer(({slug}) => {
                       }
                     >
                       <Flex w={16}>
-                        <CircleInfoIcon color="var(--mantine-color-elv-gray-8)" />
+                        <IconInfoCircle color="var(--mantine-color-elv-gray-8)" />
                       </Flex>
                     </Tooltip>
                   </Flex>

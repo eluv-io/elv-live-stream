@@ -4,13 +4,13 @@ import {useEffect, useState} from "react";
 import {DefaultLadderProfile} from "@/utils/profiles.js";
 import {observer} from "mobx-react-lite";
 import {dataStore, streamManagementStore} from "@/stores/index.js";
-import {PlusIcon} from "@/assets/icons/index.js";
 import {rootStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Settings.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import {IconPlus} from "@tabler/icons-react";
 
 const Settings = observer(() => {
   const [profileFormData, setProfileFormData] = useState(({default: JSON.stringify({}, null, 2), custom: []}));
@@ -164,7 +164,7 @@ const Settings = observer(() => {
           <SectionTitle>Playout Profiles</SectionTitle>
           <Button
             classNames={{root: styles.root, section: styles.buttonSection}}
-            leftSection={<PlusIcon width={18} height={18} />}
+            leftSection={<IconPlus width={18} height={18} />}
             variant="white"
             onClick={HandleAddCustom}
           >

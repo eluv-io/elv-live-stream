@@ -10,7 +10,7 @@ import {
   IconExternalLink,
   IconDeviceAnalytics,
   IconListCheck,
-  IconCircleX
+  IconCircleX, IconSearch
 } from "@tabler/icons-react";
 
 import {dataStore, modalStore, streamBrowseStore} from "@/stores";
@@ -25,7 +25,6 @@ import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledB
 
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import styles from "./Streams.module.css";
 
@@ -58,7 +57,7 @@ const Streams = observer(() => {
           maw={400}
           classNames={{input: styles.searchBar}}
           placeholder="Search by object name or ID"
-          leftSection={<MagnifyingGlassIcon width={15} height={15} />}
+          leftSection={<IconSearch width={15} height={15} />}
           mb={14}
           value={streamBrowseStore.streamFilter}
           onChange={event => streamBrowseStore.SetStreamFilter({filter: event.target.value})}

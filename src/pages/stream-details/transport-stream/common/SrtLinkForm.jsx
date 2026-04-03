@@ -4,8 +4,7 @@ import {DataTable} from "mantine-datatable";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {dataStore} from "@/stores/index.js";
 import {DateTimePicker} from "@mantine/dates";
-import {CalendarMonthIcon} from "@/assets/icons/index.js";
-import {IconSelector} from "@tabler/icons-react";
+import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
 import {useState} from "react";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
@@ -116,7 +115,7 @@ const SrtLinkForm = ({
               popoverProps: {withinPortal: false},
               format: "24h",
             }}
-            leftSection={<CalendarMonthIcon/>}
+            leftSection={<IconCalendarEvent />}
             rightSection={formData.startDate ? null : <IconSelector height={16}/>}
           />
           <DateTimePicker
@@ -134,7 +133,7 @@ const SrtLinkForm = ({
               popoverProps: {withinPortal: false},
               format: "24h",
             }}
-            leftSection={<CalendarMonthIcon/>}
+            leftSection={<IconCalendarEvent />}
             rightSection={formData.endDate ? null : <IconSelector height={16}/>}
           />
         </Group>

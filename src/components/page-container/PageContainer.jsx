@@ -1,8 +1,8 @@
 import {ActionIcon, Box, Button, Flex, Group, TextInput, Title} from "@mantine/core";
 import {useState} from "react";
-import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 import searchBarStyles from "./SearchBar.module.css";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
+import {IconSearch} from "@tabler/icons-react";
 
 const SearchBar = () => {
   const [value, setValue] = useState("");
@@ -17,7 +17,7 @@ const SearchBar = () => {
         }}
         size="xs"
         placeholder="Search"
-        leftSection={<MagnifyingGlassIcon className={searchBarStyles.icon} />}
+        leftSection={<IconSearch className={searchBarStyles.icon} />}
         value={value}
         onChange={(event) => setValue(event.target.value)}
       />
