@@ -1,7 +1,8 @@
-import {VideoPlusIcon, StreamIcon, MediaIcon, SettingsIcon} from "@/assets/icons/index.js";
+import {VideoPlusIcon, StreamIcon} from "@/assets/icons/index.js";
 import {AppShell, NavLink} from "@mantine/core";
 import {useLocation, useNavigate} from "react-router-dom";
 import styles from "@/components/left-navigation/LeftNavigation.module.css";
+import {IconDeviceTv, IconRoute, IconSettings} from "@tabler/icons-react";
 
 const iconDimensions = {
   width: 22,
@@ -11,9 +12,9 @@ const iconDimensions = {
 const NAV_LINKS = [
   {path: "/create", label: "Create", icon: <VideoPlusIcon width={iconDimensions.width} height={iconDimensions.height} />},
   {path: "/streams", label: "Streams", icon: <StreamIcon width={iconDimensions.width} height={iconDimensions.height} />},
-  {path: "/outputs", label: "Outputs", icon: <StreamIcon width={iconDimensions.width} height={iconDimensions.height} />},
-  {path: "/monitor", label: "Monitor", icon: <MediaIcon width={iconDimensions.width} height={iconDimensions.height} />},
-  {path: "/settings", label: "Settings", icon: <SettingsIcon width={iconDimensions.width} height={iconDimensions.height} />}
+  {path: "/outputs", label: "Outputs", icon: <IconRoute width={iconDimensions.width} height={iconDimensions.height} />},
+  {path: "/monitor", label: "Monitor", icon: <IconDeviceTv width={iconDimensions.width} height={iconDimensions.height} />},
+  {path: "/settings", label: "Settings", icon: <IconSettings width={iconDimensions.width} height={iconDimensions.height} />}
 ];
 
 const LeftNavigation = () => {
