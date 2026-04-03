@@ -63,6 +63,9 @@ class StreamBrowseStore {
         objectId
       });
 
+      delete liveRecordingConfig.input_stream_info;
+      delete liveRecordingConfig.probe_info;
+
       yield this.client.StreamConfig({
         name: objectId,
         writeToken,
