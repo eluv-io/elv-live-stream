@@ -1,8 +1,10 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
-import {makeAutoObservable} from "mobx";
+import {makeAutoObservable, runInAction} from "mobx";
 
 class OutputStore {
+  state = "pending";
   outputs = {};
+  tableFilter = "";
 
   constructor(rootStore) {
     makeAutoObservable(this);
@@ -15,12 +17,42 @@ class OutputStore {
   }
 
   get outputList() {
-    return Object.entries(this.outputs)
+    const list = Object.entries(this.outputs)
       .map(([slug, output]) => ({
         slug,
         ...output
       }));
+
+    if(!this.tableFilter) { return list; }
+
+    const filter = this.tableFilter.toLowerCase();
+    return list.filter(output =>
+      output.name?.toLowerCase().includes(filter) ||
+      output.description?.toLowerCase().includes(filter)
+    );
   }
+
+  async LoadOutputs() {
+    try {
+      const outputs = await this.client.OutputsList({
+      });
+
+      runInAction(() => {
+        this.outputs = outputs;
+        this.state = "loaded";
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load outputs.", error);
+      runInAction(() => {
+        this.state = "error";
+      });
+    }
+  }
+
+  SetTableFilter = ({filter}) => {
+    this.tableFilter = filter;
+  };
 }
 
 export default OutputStore;
