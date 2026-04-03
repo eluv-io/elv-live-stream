@@ -25,9 +25,8 @@ import {
 import {dataStore, streamManagementStore} from "@/stores";
 import {ENCRYPTION_OPTIONS} from "@/utils/constants";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {CalendarMonthIcon, CircleInfoIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {IconSelector} from "@tabler/icons-react";
+import {IconCalendarEvent, IconInfoCircle, IconSelector} from "@tabler/icons-react";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const PlayoutPanel = observer(({
@@ -170,7 +169,7 @@ const PlayoutPanel = observer(({
                 }
               >
                 <Flex w={16}>
-                  <CircleInfoIcon color="var(--mantine-color-elv-gray-8)" />
+                  <IconInfoCircle color="var(--mantine-color-elv-gray-8)" />
                 </Flex>
               </Tooltip>
             </Flex>
@@ -217,7 +216,7 @@ const PlayoutPanel = observer(({
                   popoverProps: {withinPortal: false},
                   format: "24h",
                 }}
-                leftSection={<CalendarMonthIcon/>}
+                leftSection={<IconCalendarEvent />}
                 rightSection={dvrStartTime ? null : <IconSelector height={16}/>}
                 clearable
               />
