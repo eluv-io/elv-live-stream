@@ -3,12 +3,12 @@ import TextEditorBox from "@/components/text-editor-box/TextEditorBox.jsx";
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {profileStore} from "@/stores/index.js";
-import {PlusIcon} from "@/assets/icons/index.js";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Settings.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import {IconPlus} from "@tabler/icons-react";
 
 const Settings = observer(() => {
   // Used to provide ConfirmModal with slug to be deleted
@@ -82,7 +82,7 @@ const Settings = observer(() => {
           <SectionTitle>Config Profiles</SectionTitle>
           <Button
             classNames={{root: styles.root, section: styles.buttonSection}}
-            leftSection={<PlusIcon width={18} height={18} />}
+            leftSection={<IconPlus width={18} height={18} />}
             variant="white"
             onClick={HandleAddProfile}
           >

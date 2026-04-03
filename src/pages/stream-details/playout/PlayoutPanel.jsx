@@ -23,9 +23,8 @@ import {
 } from "@/utils/constants";
 import {dataStore, streamManagementStore} from "@/stores";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {CalendarMonthIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {IconSelector} from "@tabler/icons-react";
+import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const PlayoutPanel = observer(({
@@ -192,7 +191,7 @@ const PlayoutPanel = observer(({
                   popoverProps: {withinPortal: false},
                   format: "24h",
                 }}
-                leftSection={<CalendarMonthIcon/>}
+                leftSection={<IconCalendarEvent />}
                 rightSection={dvrStartTime ? null : <IconSelector height={16}/>}
                 clearable
               />

@@ -7,12 +7,11 @@ import {DateFormat, FormatTime} from "@/utils/helpers";
 import {STATUS_MAP, QUALITY_TEXT, RETENTION_TEXT} from "@/utils/constants";
 import RecordingPeriodsTable from "@/pages/stream-details/details/components/RecordingPeriodsTable.jsx";
 import RecordingCopiesTable from "@/pages/stream-details/details/components/RecordingCopiesTable.jsx";
-import {IconAlertCircle} from "@tabler/icons-react";
+import {IconAlertCircle, IconLink} from "@tabler/icons-react";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import styles from "./DetailsPanel.module.css";
 import {useClipboard} from "@mantine/hooks";
-import {LinkIcon} from "@/assets/icons/index.js";
 
 export const Runtime = ({
   startTime,
@@ -207,7 +206,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                           color="elv-gray.5"
                           mt={8}
                           onClick={() => clipboard.copy(item.value)}
-                          leftSection={<LinkIcon color="var(--mantine-color-elv-gray-8)" />}
+                          leftSection={<IconLink color="var(--mantine-color-elv-gray-8)" />}
                         >
                           <Text c="elv-gray.8" fz={12} fw={500}>
                             { item.label }

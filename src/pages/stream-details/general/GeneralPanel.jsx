@@ -4,11 +4,11 @@ import {useEffect, useState} from "react";
 import {dataStore, rootStore, streamManagementStore, streamBrowseStore, profileStore} from "@/stores";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
-import {CircleInfoIcon} from "@/assets/icons/index.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {STATUS_MAP} from "@/utils/constants.js";
+import {IconInfoCircle} from "@tabler/icons-react";
 
 const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
   const [formData, setFormData] = useState({
@@ -261,7 +261,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                       }
                     >
                       <Flex w={16}>
-                        <CircleInfoIcon color="var(--mantine-color-elv-gray-8)" />
+                        <IconInfoCircle color="var(--mantine-color-elv-gray-8)" />
                       </Flex>
                     </Tooltip>
                   </Flex>
