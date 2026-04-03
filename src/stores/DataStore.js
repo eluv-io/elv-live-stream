@@ -640,7 +640,7 @@ class DataStore {
         ]
       });
 
-      let probeMetadata =  probeMetadataOptions?.input_stream_info ?? probeMetadataOptions?.probe_info;
+      let probeMetadata = probeMetadataOptions?.probe_info ?? probeMetadataOptions?.input_stream_info;
 
       // Phase out as new streams will have live_recording_config/input_stream_info or /probe_info
       if(!probeMetadata) {
