@@ -21,6 +21,7 @@ import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx
 import {IconSearch, IconTrash} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
 import {useDebouncedCallback} from "@mantine/hooks";
+import StatusText from "@/components/status-text/StatusText.jsx";
 
 const Outputs = observer(() => {
   const [loading, setLoading] = useState(false);
@@ -99,6 +100,9 @@ const Outputs = observer(() => {
               accessor: "srt_url",
               title: "URL",
               width: "30%",
+              render: record => (
+                <BasicTableRowText lineClamp={1}>{ record.srt_url }</BasicTableRowText>
+              )
             },
             {
               accessor: "stream",
@@ -113,21 +117,30 @@ const Outputs = observer(() => {
                   );
                 }
                 return (
-                  <BasicTableRowText title={SanitizeUrl({url: record.originUrl})} lineClamp={1}>
-                    {record.input?.stream}
-                  </BasicTableRowText>
+                  <Stack gap={3}>
+                    <BasicTableRowText title={SanitizeUrl({url: record.originUrl})} lineClamp={1}>
+                      {record.input?.name}
+                    </BasicTableRowText>
+                    <StatusText status={record.input.status} size="xs" />
+                  </Stack>
                 );
               }
             },
             {
               accessor: "clients",
               title: "Clients",
-              width: 80
+              width: 150,
+              render: record => (
+                <BasicTableRowText textWrap="nowrap">
+                  {record.state?.connected_clients ?? 0} Connections
+                </BasicTableRowText>
+              )
             },
             {
               accessor: "enabled",
               title: "Status",
-              width: 110,
+              width: 160,
+              sortable: true,
               render: record => (
                 <Switch
                   label={record.enabled ? "Enabled" : "Disabled"}

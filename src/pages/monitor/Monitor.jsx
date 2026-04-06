@@ -201,7 +201,7 @@ const GridItem = observer(({stream, index}) => {
           <Flex align="flex-end" justify="space-between">
             {
               stream.status &&
-              <StatusText status={stream.status} size="xs" />
+              <StatusText status={stream.status} size="sm" />
             }
           </Flex>
         </Flex>

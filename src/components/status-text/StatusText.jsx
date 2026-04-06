@@ -8,12 +8,19 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
   if(!status) { return null; }
   const SIZE_MAPPINGS = {
     "xs": {
+      size: 4.5,
+      ml: 10,
+      fz: "0.5625rem"
+    },
+    "sm": {
       size: 5,
-      ml: 13
+      ml: 13,
+      fz: 14
     },
     "md": {
       size: 7,
-      ml: 16
+      ml: 16,
+      fz: 14
     }
   };
 
@@ -27,7 +34,7 @@ const StatusText = ({status, quality, withBorder=false, size="sm"}) => {
           offset={4}
         >
           <Text
-            fz={14}
+            fz={SIZE_MAPPINGS[size].fz}
             ml={SIZE_MAPPINGS[size].ml}
             fw={500}
             lh={1}
