@@ -35,6 +35,10 @@ class OutputStore {
   async LoadOutputs() {
     try {
       const outputs = await this.client.OutputsList({
+        // eslint-disable-next-line no-undef
+        objectId: EluvioConfiguration.outputId,
+        // eslint-disable-next-line no-undef
+        srtEndpoints: EluvioConfiguration.srtEndpoints
       });
 
       runInAction(() => {

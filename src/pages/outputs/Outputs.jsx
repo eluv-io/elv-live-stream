@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Flex,
-  Loader,
   Stack,
   Switch,
   Text,
@@ -22,6 +21,30 @@ import {IconSearch, IconTrash} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
 import {useDebouncedCallback} from "@mantine/hooks";
 import StatusText from "@/components/status-text/StatusText.jsx";
+
+const Actions = ({onRefreshClick}) => {
+  return (
+    <Flex w="100%" align="center" mb={16}>
+      <TextInput
+        flex={2}
+        maw={400}
+        classNames={{input: styles.searchBar}}
+        placeholder="Search by object name or ID"
+        leftSection={<IconSearch width={15} height={15} />}
+        mb={14}
+        value={outputStore.tableFilter}
+        onChange={event => outputStore.SetTableFilter({filter: event.target.value})}
+      />
+      <Button
+        onClick={onRefreshClick}
+        variant="outline"
+        ml="auto"
+      >
+        Refresh
+      </Button>
+    </Flex>
+  );
+};
 
 const Outputs = observer(() => {
   const [loading, setLoading] = useState(false);
@@ -46,37 +69,17 @@ const Outputs = observer(() => {
 
   const records = outputStore.outputList;
 
-  if(loading) { return <Loader />; }
-
   return (
     <PageContainer
       title="Outputs"
     >
-      <Flex w="100%" align="center" mb={16}>
-        <TextInput
-          flex={2}
-          maw={400}
-          classNames={{input: styles.searchBar}}
-          placeholder="Search by object name or ID"
-          leftSection={<IconSearch width={15} height={15} />}
-          mb={14}
-          value={outputStore.tableFilter}
-          onChange={event => outputStore.SetTableFilter({filter: event.target.value})}
-        />
-        <Button
-          onClick={DebouncedRefresh}
-          variant="outline"
-          ml="auto"
-        >
-          Refresh
-        </Button>
-      </Flex>
-
+      <Actions onRefreshClick={DebouncedRefresh} />
       <Box className={styles.tableWrapper}>
         <DataTable
           idAccessor=""
           minHeight={(!records || records.length === 0) ? 130 : 75}
           sortStatus={sortStatus}
+          fetching={loading}
           onSortStatusChange={setSortStatus}
           records={records || []}
           columns={[
