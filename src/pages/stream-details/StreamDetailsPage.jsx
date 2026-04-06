@@ -87,7 +87,7 @@ const StreamDetailsPage = observer(() => {
       label: "Back",
       buttonVariant: "filled",
       color: "elv-gray.6",
-      onClick: () => navigate("/streams")
+      onClick: () => navigate(-1)
     },
     {
       label: "Refresh",
