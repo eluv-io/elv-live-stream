@@ -1,3 +1,7 @@
 .modalHeader {
   padding: 24px 19px 0 24px;
 }
+
+.switchLabel {
+  color: var(--mantine-color-elv-gray-9);
+}

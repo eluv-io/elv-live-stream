@@ -233,7 +233,7 @@ const Outputs = observer(() => {
               width: "25%",
               render: record => (
                 <Stack gap={0} maw="100%">
-                  <Title order={3} lineClamp={1} title={record.name} style={{wordBreak: "break-all"}}>
+                  <Title order={3} lineClamp={1} title={record.name} style={{wordBreak: "break-all"}} c="elv-gray.9">
                     {record.name}
                   </Title>
                   <Title order={6} c="elv-gray.6" lineClamp={1}>
@@ -247,7 +247,7 @@ const Outputs = observer(() => {
               title: "URL",
               width: "30%",
               render: record => (
-                <BasicTableRowText lineClamp={1}>{ record.srt_url }</BasicTableRowText>
+                <Text fz={14} lineClamp={1} c="elv-gray.9" style={{wordBreak: "break-all"}}>{ record.srt_url }</Text>
               )
             },
             {
@@ -289,6 +289,7 @@ const Outputs = observer(() => {
               sortable: true,
               render: record => (
                 <Switch
+                  classNames={{label: styles.switchLabel}}
                   label={record.enabled ? "Enabled" : "Disabled"}
                   checked={record.enabled}
                 />
