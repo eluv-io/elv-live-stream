@@ -7,7 +7,7 @@ import {dataStore, modalStore, rootStore, streamBrowseStore} from "@/stores";
 import {SortTable, StreamIsActive} from "@/utils/helpers";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import {ExternalLinkIcon, MagnifyingGlassIcon, TrashIcon} from "@/assets/icons/index.js";
+import {ExternalLinkIcon, TrashIcon} from "@/assets/icons/index.js";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {
   IconCircleX,
@@ -16,7 +16,7 @@ import {
   IconDotsVertical,
   IconListCheck,
   IconPlayerPlay,
-  IconPlayerStop
+  IconPlayerStop, IconSearch
 } from "@tabler/icons-react";
 import {STATUS_MAP} from "@/utils/constants.js";
 import {notifications} from "@mantine/notifications";
@@ -235,7 +235,7 @@ const Monitor = observer(() => {
           maw={400}
           classNames={{input: styles.searchBar}}
           placeholder="Search by object name or ID"
-          leftSection={<MagnifyingGlassIcon width="18px" height="18px" />}
+          leftSection={<IconSearch width="18px" height="18px" />}
           value={filter}
           onChange={event => setFilter(event.target.value)}
         />

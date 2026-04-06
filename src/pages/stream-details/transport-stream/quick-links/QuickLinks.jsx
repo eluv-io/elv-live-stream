@@ -4,7 +4,6 @@ import {SortTable} from "@/utils/helpers.js";
 import {ActionIcon, Box, Button, Group, Select, SimpleGrid, Title, Tooltip} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
-import {LinkIcon, PencilIcon} from "@/assets/icons/index.js";
 import {useEffect, useState} from "react";
 import {useForm} from "@mantine/form";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
@@ -12,6 +11,7 @@ import {dataStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import {IconLink, IconPencil} from "@tabler/icons-react";
 
 const QuickLinks = observer(({objectId, regions={}, active}) => {
   const [sortStatus, setSortStatus] = useState({
@@ -243,13 +243,13 @@ const QuickLinks = observer(({objectId, regions={}, active}) => {
                             regionLabel: record.region?.label
                           }
                         }),
-                        Icon: <PencilIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
+                        Icon: <IconPencil color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
                       },
                       {
                         id: "copy-action",
                         label: clipboard.copied ? "Copied" : "Copy",
                         HandleClick: () => clipboard.copy(record.url),
-                        Icon: <LinkIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
+                        Icon: <IconLink color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
                       }
                     ].map(action => (
                       <Tooltip

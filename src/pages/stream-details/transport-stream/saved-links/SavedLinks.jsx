@@ -2,7 +2,6 @@ import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Group, Text, Title, Tooltip} from "@mantine/core";
 import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
 import {DataTable} from "mantine-datatable";
-import {LinkIcon, PencilIcon, TrashIcon} from "@/assets/icons/index.js";
 import {useState} from "react";
 import {SortTable} from "@/utils/helpers.js";
 import {useClipboard} from "@mantine/hooks";
@@ -11,6 +10,7 @@ import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import {dataStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import {IconLink, IconPencil, IconTrash} from "@tabler/icons-react";
 
 const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}) => {
   const [sortStatus, setSortStatus] = useState({
@@ -216,13 +216,13 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
                             }
                           }));
                         },
-                        Icon: <PencilIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
+                        Icon: <IconPencil color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
                       },
                       {
                         id: "copy-action",
                         label: clipboard.copied ? "Copied" : "Copy",
                         HandleClick: () => clipboard.copy(record.value),
-                        Icon: <LinkIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
+                        Icon: <IconLink color="var(--mantine-color-elv-gray-6)" height={22} width={22} />
                       },
                       {
                         id: "delete-action",
@@ -235,7 +235,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
                           url: record.value,
                           label: record.label
                         })),
-                        Icon: <TrashIcon color="var(--mantine-color-elv-gray-6)" height={22} width={22} />,
+                        Icon: <IconTrash color="var(--mantine-color-elv-gray-6)" height={22} width={22} />,
                         disabled: record.label.includes("Anonymous")
                       }
                     ].map(action => (

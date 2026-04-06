@@ -22,9 +22,8 @@ import {
 } from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {isNotEmpty, useForm} from "@mantine/form";
-import {IconAlertCircle} from "@tabler/icons-react";
+import {IconAlertCircle, IconInfoCircle, IconPlus} from "@tabler/icons-react";
 
-import {CircleInfoIcon, PlusIcon} from "@/assets/icons/index.js";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
@@ -59,7 +58,7 @@ const Permissions = observer(({form}) => {
             }
           >
             <Flex w={16}>
-              <CircleInfoIcon color="var(--mantine-color-elv-gray-8)" />
+              <IconInfoCircle color="var(--mantine-color-elv-gray-8)" />
             </Flex>
           </Tooltip>
         </Flex>
@@ -495,7 +494,7 @@ const Create = observer(() => {
         <Accordion
           value={useAdvancedSettings}
           onChange={setUseAdvancedSettings}
-          chevron={<PlusIcon color="var(--mantine-color-elv-blue-3)" />}
+          chevron={<IconPlus color="var(--mantine-color-elv-blue-3)" />}
           classNames={{
             item: styles.accordionItem,
             control: styles.accordionControl,

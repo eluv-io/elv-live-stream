@@ -90,6 +90,7 @@ module.exports = [
   "textarea",
   "tooltip",
   "ttl",
+  "Tv",
   "tw",
   "udp",
   "unconfigured",

@@ -1,6 +1,7 @@
 import {ActionIcon, Box, Flex, Group, JsonInput, Paper, Text, Title} from "@mantine/core";
+import {TrashIcon} from "@/assets/icons/index.js";
+import {IconPencil} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
-import {EditIcon, TrashIcon} from "@/assets/icons/index.js";
 
 const TextEditorBox = ({
   columns=[],
@@ -45,7 +46,7 @@ const TextEditorBox = ({
                   title="Edit"
                   onClick={() => setShowEditor(prevState => !prevState)}
                 >
-                  <EditIcon />
+                  <IconPencil />
                 </ActionIcon>
               </Group>
             </Group>
