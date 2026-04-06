@@ -49,6 +49,7 @@ const Actions = ({onRefreshClick}) => {
 const Outputs = observer(() => {
   const [loading, setLoading] = useState(false);
   const [sortStatus, setSortStatus] = useState({columnAccessor: "name", direction: "asc"});
+  const [selectedRecords, setSelectedRecords] = useState([]);
 
   const LoadData = async() => {
     try {
@@ -76,12 +77,16 @@ const Outputs = observer(() => {
       <Actions onRefreshClick={DebouncedRefresh} />
       <Box className={styles.tableWrapper}>
         <DataTable
-          idAccessor=""
+          idAccessor="slug"
+          // TODO: idAccessor should be external_id
+          // idAccessor="external_id"
           minHeight={(!records || records.length === 0) ? 130 : 75}
           sortStatus={sortStatus}
           fetching={loading}
           onSortStatusChange={setSortStatus}
           records={records || []}
+          selectedRecords={selectedRecords}
+          onSelectedRecordsChange={setSelectedRecords}
           columns={[
             {
               accessor: "name",
