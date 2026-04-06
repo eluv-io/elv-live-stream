@@ -42,6 +42,7 @@ module.exports = [
   "fmp4",
   "fz",
   "geo",
+  "geos",
   "helvetica",
   "hls",
   "iat",

@@ -16,6 +16,11 @@ class OutputStore {
     return this.rootStore.client;
   }
 
+  get outputId() {
+    // eslint-disable-next-line no-undef
+    return EluvioConfiguration.outputId;
+  }
+
   get outputList() {
     const list = Object.entries(this.outputs)
       .map(([slug, output]) => ({
@@ -31,6 +36,10 @@ class OutputStore {
       output.description?.toLowerCase().includes(filter)
     );
   }
+
+  SetTableFilter = ({filter}) => {
+    this.tableFilter = filter;
+  };
 
   async LoadOutputs() {
     try {
@@ -54,9 +63,35 @@ class OutputStore {
     }
   }
 
-  SetTableFilter = ({filter}) => {
-    this.tableFilter = filter;
-  };
+  async CreateOutput({
+    name,
+    description,
+    externalId,
+    geos,
+    passphrase,
+    encryption,
+    stripRtp
+  }) {
+    try {
+      if(!name) {
+        name = new Date();
+      }
+
+      await this.client.OutputsCreate({
+        objectId: this.outputId,
+        name,
+        description,
+        externalId,
+        geos,
+        passphrase,
+        stripRtp,
+        srtConfig: encryption ? {enforced_encryption: encryption} : undefined
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to create output.", error);
+    }
+  }
 }
 
 export default OutputStore;
