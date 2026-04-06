@@ -15,7 +15,7 @@ import {DataTable} from "mantine-datatable";
 import CopyToVodModal from "@/pages/stream-details/details/components/CopyToVodModal.jsx";
 import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
-import styles from "../../../streams/Streams.module.css";
+import sharedStyles from "@/assets/shared.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
@@ -154,7 +154,7 @@ const RecordingPeriodsTable = observer(({
         </Flex>
       </Group>
 
-      <Box className={styles.tableWrapper} mb="4rem">
+      <Box className={sharedStyles.tableWrapper} mb="4rem">
         <DataTable
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}

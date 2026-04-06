@@ -1,5 +1,5 @@
 import {Box, Button, Group, Loader, Select, Text, TextInput} from "@mantine/core";
-import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
+import sharedStyles from "@/assets/shared.module.css";
 import {DataTable} from "mantine-datatable";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {dataStore} from "@/stores/index.js";
@@ -193,10 +193,10 @@ const SrtLinkForm = ({
     <>
       {
         showLinkConfig &&
-        <Box className={styles.tableWrapper} mb={mb}>
+        <Box className={sharedStyles.tableWrapper} mb={mb}>
           {/* Form table to generate links */}
           <DataTable
-            classNames={{header: styles.tableHeader}}
+            classNames={{header: sharedStyles.tableHeader}}
             records={[
               {id: "link-form-row", ...formData}
             ]}
@@ -210,9 +210,9 @@ const SrtLinkForm = ({
       {/* Node form */}
       {
         showNodeConfig &&
-        <Box className={styles.tableWrapper} mb={29}>
+        <Box className={sharedStyles.tableWrapper} mb={29}>
           <DataTable
-            classNames={{header: styles.tableHeader}}
+            classNames={{header: sharedStyles.tableHeader}}
             records={[
               {id: "node-form-row", url: originUrl, node: formData.fabricNode, region: formData.region}
             ]}

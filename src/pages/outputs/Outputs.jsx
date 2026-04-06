@@ -7,6 +7,7 @@ import {
   Checkbox,
   Flex,
   Group,
+  Input,
   Modal,
   Stack,
   Switch,
@@ -15,7 +16,6 @@ import {
   Title,
   UnstyledButton
 } from "@mantine/core";
-import styles from "@/pages/streams/Streams.module.css";
 import {outputStore} from "@/stores/index.js";
 import {DataTable} from "mantine-datatable";
 import {SanitizeUrl} from "@/utils/helpers.js";
@@ -25,6 +25,8 @@ import {useEffect, useState} from "react";
 import {useDebouncedCallback} from "@mantine/hooks";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useForm} from "@mantine/form";
+import styles from "./Outputs.module.css";
+import sharedStyles from "@/assets/shared.module.css";
 
 const CreateModal = ({show, onCloseModal}) => {
   const form = useForm({
@@ -46,33 +48,44 @@ const CreateModal = ({show, onCloseModal}) => {
       padding="24px"
       radius="6px"
       size="lg"
+      classNames={{header: styles.modalHeader}}
       centered
     >
       <Stack gap={20}>
-        <Text>Create a new output to configure how the stream is delivered.</Text>
+        <Text fz="0.875rem" c="elv-gray.8">Create a new output to configure how the stream is delivered.</Text>
         <TextInput
           label="Name"
           placeholder="Sample Name"
           key={form.key("name")}
           {...form.getInputProps("name")}
         />
-        <Checkbox
-          label="Enable Encryption"
-          description="If enabled, encryption will be applied to the stream. A passphrase is required to complete setup."
-          key={form.key("encryption")}
-          {...form.getInputProps("encryption")}
-        />
-        <TextInput
-          name="Passphrase"
-          key={form.key("passphrase")}
-          {...form.getInputProps("passphrase")}
-        />
-        <Checkbox
-          label="Enable Strip RTP"
-          description="TBD"
-          key={form.key("encryption")}
-          {...form.getInputProps("encryption")}
-        />
+        <Stack gap={12}>
+          <Input.Label>Encryption</Input.Label>
+          <Checkbox
+            label="Enable Encryption"
+            description="If enabled, encryption will be applied to the stream. A passphrase is required to complete setup."
+            key={form.key("encryption")}
+            {...form.getInputProps("encryption")}
+          />
+        </Stack>
+        {
+          form.getValues().encryption &&
+          <TextInput
+            name="Passphrase"
+            label="Passphrase"
+            key={form.key("passphrase")}
+            {...form.getInputProps("passphrase")}
+          />
+        }
+        <Stack gap={12}>
+          <Input.Label>Strip RTP</Input.Label>
+          <Checkbox
+            label="Enable Strip RTP"
+            description="TBD"
+            key={form.key("encryption")}
+            {...form.getInputProps("encryption")}
+          />
+        </Stack>
       </Stack>
     </Modal>
   );
@@ -146,7 +159,7 @@ const Outputs = observer(() => {
       title="Outputs"
     >
       <Actions onRefreshClick={DebouncedRefresh} />
-      <Box className={styles.tableWrapper}>
+      <Box className={sharedStyles.tableWrapper}>
         <DataTable
           idAccessor="slug"
           // TODO: idAccessor should be external_id

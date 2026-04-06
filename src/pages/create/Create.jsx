@@ -189,7 +189,6 @@ const Create = observer(() => {
   return (
     <PageContainer
       title="Create Live Stream"
-      className={(dataStore.tenantId && !rootStore.errorMessage) ? "" : styles.disabledContainer}
     >
       <form onSubmit={form.onSubmit(HandleSubmit)} className={styles.form}>
         <SectionTitle mb={2}>Streaming Protocol</SectionTitle>

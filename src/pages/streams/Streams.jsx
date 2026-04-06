@@ -17,8 +17,9 @@ import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledB
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
-import styles from "./Streams.module.css";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
+import styles from "./Streams.module.css";
+import sharedStyles from "@/assets/shared.module.css";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -63,7 +64,7 @@ const Streams = observer(() => {
         </Button>
       </Flex>
 
-      <Box className={styles.tableWrapper}>
+      <Box className={sharedStyles.tableWrapper}>
         <DataTable
           highlightOnHover
           idAccessor="objectId"

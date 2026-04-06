@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Group, Text, Title, Tooltip} from "@mantine/core";
-import styles from "@/pages/stream-details/transport-stream/TransportStreamPanel.module.css";
+import sharedStyles from "@/assets/shared.module.css";
 import {DataTable} from "mantine-datatable";
 import {useState} from "react";
 import {SortTable} from "@/utils/helpers.js";
@@ -93,10 +93,10 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
         formData={formData}
         mb={10}
       />
-      <Box className={styles.tableWrapper} mb={29}>
+      <Box className={sharedStyles.tableWrapper} mb={29}>
         {/* Table to display links */}
         <DataTable
-          classNames={{header: styles.tableHeader}}
+          classNames={{header: sharedStyles.tableHeader}}
           idAccessor="label"
           records={records || []}
           sortStatus={sortStatus}

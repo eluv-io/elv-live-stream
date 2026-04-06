@@ -5,9 +5,8 @@ import {AudioBitrateReadable} from "@/utils/helpers.js";
 import {AudioCodec} from "@/utils/constants.js";
 import {IconCircleCheck, IconCircleCheckFilled} from "@tabler/icons-react";
 import styles from "./AudioTracksTable.module.css";
-import tableStyles from "../../streams/Streams.module.css";
+import sharedStyles from "@/assets/shared.module.css";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
-
 
 const AudioTracksTable = observer(({
   records,
@@ -47,9 +46,9 @@ const AudioTracksTable = observer(({
   };
 
   return (
-    <Box className={tableStyles.tableWrapper}>
+    <Box className={sharedStyles.tableWrapper}>
       <DataTable
-        classNames={{header: styles.tableHeader}}
+        classNames={{header: sharedStyles.tableHeader}}
         idAccessor="stream_index"
         noRecordsText="No audio tracks found"
         minHeight={(records.length > 0) ? 150 : 170}

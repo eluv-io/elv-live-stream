@@ -10,7 +10,7 @@ import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
-import styles from "../../../streams/Streams.module.css";
+import sharedStyles from "@/assets/shared.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
@@ -29,7 +29,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
   return (
     <Box mb="24px" maw="100%">
       <SectionTitle mb={7}>Live Recording Copies</SectionTitle>
-      <Box className={styles.tableWrapper}>
+      <Box className={sharedStyles.tableWrapper}>
         <DataTable
           idAccessor="_id"
           noRecordsText="No live recording copies found"
