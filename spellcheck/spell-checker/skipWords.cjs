@@ -40,6 +40,7 @@ module.exports = [
   "falsey",
   "flexbox",
   "fmp4",
+  "fz",
   "helvetica",
   "hls",
   "iat",
