@@ -5,7 +5,7 @@ import {streamBrowseStore, dataStore} from "@/stores";
 import {observer} from "mobx-react-lite";
 import {Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
-import {DETAILS_TABS} from "@/utils/constants";
+import {DETAILS_TABS} from "@/utils/tabs";
 import styles from "@/pages/stream-details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
