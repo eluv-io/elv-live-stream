@@ -41,6 +41,7 @@ module.exports = [
   "flexbox",
   "fmp4",
   "fz",
+  "geo",
   "helvetica",
   "hls",
   "iat",
