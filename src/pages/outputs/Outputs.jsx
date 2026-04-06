@@ -14,12 +14,11 @@ import {
   UnstyledButton
 } from "@mantine/core";
 import styles from "@/pages/streams/Streams.module.css";
-import {MagnifyingGlassIcon} from "@/assets/icons/index.js";
 import {outputStore} from "@/stores/index.js";
 import {DataTable} from "mantine-datatable";
 import {SanitizeUrl} from "@/utils/helpers.js";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
-import {IconTrash} from "@tabler/icons-react";
+import {IconSearch, IconTrash} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
 import {useDebouncedCallback} from "@mantine/hooks";
 
@@ -58,7 +57,7 @@ const Outputs = observer(() => {
           maw={400}
           classNames={{input: styles.searchBar}}
           placeholder="Search by object name or ID"
-          leftSection={<MagnifyingGlassIcon width={15} height={15} />}
+          leftSection={<IconSearch width={15} height={15} />}
           mb={14}
           value={outputStore.tableFilter}
           onChange={event => outputStore.SetTableFilter({filter: event.target.value})}
