@@ -4,7 +4,10 @@ import {
   ActionIcon,
   Box,
   Button,
+  Checkbox,
   Flex,
+  Group,
+  Modal,
   Stack,
   Switch,
   Text,
@@ -21,28 +24,96 @@ import {IconSearch, IconTrash} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
 import {useDebouncedCallback} from "@mantine/hooks";
 import StatusText from "@/components/status-text/StatusText.jsx";
+import {useForm} from "@mantine/form";
+
+const CreateModal = ({show, onCloseModal}) => {
+  const form = useForm({
+    mode: "uncontrolled",
+    initialValues: {
+      name: "",
+      geo: "",
+      encryption: false,
+      passphrase: "",
+      stripRtp: true
+    }
+  });
+
+  return (
+    <Modal
+      opened={show}
+      onClose={onCloseModal}
+      title="Create New Output"
+      padding="24px"
+      radius="6px"
+      size="lg"
+      centered
+    >
+      <Stack gap={20}>
+        <Text>Create a new output to configure how the stream is delivered.</Text>
+        <TextInput
+          label="Name"
+          placeholder="Sample Name"
+          key={form.key("name")}
+          {...form.getInputProps("name")}
+        />
+        <Checkbox
+          label="Enable Encryption"
+          description="If enabled, encryption will be applied to the stream. A passphrase is required to complete setup."
+          key={form.key("encryption")}
+          {...form.getInputProps("encryption")}
+        />
+        <TextInput
+          name="Passphrase"
+          key={form.key("passphrase")}
+          {...form.getInputProps("passphrase")}
+        />
+        <Checkbox
+          label="Enable Strip RTP"
+          description="TBD"
+          key={form.key("encryption")}
+          {...form.getInputProps("encryption")}
+        />
+      </Stack>
+    </Modal>
+  );
+};
 
 const Actions = ({onRefreshClick}) => {
+  const [showModal, setShowModal] = useState(false);
+
   return (
-    <Flex w="100%" align="center" mb={16}>
-      <TextInput
-        flex={2}
-        maw={400}
-        classNames={{input: styles.searchBar}}
-        placeholder="Search by object name or ID"
-        leftSection={<IconSearch width={15} height={15} />}
-        mb={14}
-        value={outputStore.tableFilter}
-        onChange={event => outputStore.SetTableFilter({filter: event.target.value})}
+    <>
+      <Flex w="100%" align="center" mb={16}>
+        <TextInput
+          flex={2}
+          maw={400}
+          classNames={{input: styles.searchBar}}
+          placeholder="Search by object name or ID"
+          leftSection={<IconSearch width={15} height={15} />}
+          mb={14}
+          value={outputStore.tableFilter}
+          onChange={event => outputStore.SetTableFilter({filter: event.target.value})}
+        />
+        <Group ml="auto" gap={8}>
+          <Button
+            onClick={onRefreshClick}
+            variant="outline"
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="filled"
+            onClick={() => setShowModal(true)}
+          >
+            Create
+          </Button>
+        </Group>
+      </Flex>
+      <CreateModal
+        show={showModal}
+        onCloseModal={() => setShowModal(false)}
       />
-      <Button
-        onClick={onRefreshClick}
-        variant="outline"
-        ml="auto"
-      >
-        Refresh
-      </Button>
-    </Flex>
+    </>
   );
 };
 
