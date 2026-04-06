@@ -71,7 +71,8 @@ const StreamDetailsPage = observer(() => {
 
   const streamActions = GetStreamActions({
     record: streamBrowseStore.streams?.[streamSlug],
-    onCheckComplete: () => setCheckVersion(prev => prev + 1)
+    onCheckComplete: () => setCheckVersion(prev => prev + 1),
+    onDeleteComplete: () => navigate("/streams")
   });
 
   const primaryActions = streamActions.filter(a => a.primary && !a.hidden)

@@ -13,7 +13,7 @@ import {
 } from "@tabler/icons-react";
 import {Link} from "react-router-dom";
 
-export const GetStreamActions = ({record, onCheckComplete}) => {
+export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete}) => {
   return [
     {
       label: "Check",
@@ -166,7 +166,8 @@ export const GetStreamActions = ({record, onCheckComplete}) => {
           },
           op: "DELETE",
           slug: record.slug,
-          notifications
+          notifications,
+          Callback: onDeleteComplete
         });
       }
     }
