@@ -7,10 +7,8 @@ import {
   Button,
   Divider,
   Flex,
-  Radio,
   Select,
   SimpleGrid,
-  Stack,
   Text,
   TextInput,
   Tooltip
@@ -195,43 +193,28 @@ const Create = observer(() => {
     >
       <form onSubmit={form.onSubmit(HandleSubmit)} className={styles.form}>
         <SectionTitle mb={2}>Streaming Protocol</SectionTitle>
-        <Radio.Group
+        <Text fz={12} c="elv-gray.6" mb={10}>Select a protocol to see available pre-allocated URLs.</Text>
+        <Select
           name="protocol"
-          description="Select a protocol to see available pre-allocated URLs."
-          mb={29}
+          label="Nodes"
+          required={true}
           value={formProtocol}
+          data={[
+            {label: "MPEG-TS", value: "mpegts"},
+            {label: "RTMP", value: "rtmp"},
+            {label: "SRT", value: "srt"},
+            {label: "Custom", value: "custom"}
+          ]}
           onChange={(value) => {
             setFormProtocol(value);
             form.setFieldValue("protocol", value);
             setFormUrl("");
             form.setFieldValue("url", "");
           }}
-        >
-          <Stack mt={20} gap={18}>
-            <Radio
-              value="mpegts"
-              label="MPEG-TS"
-              description="Perfect for low-latency and interactive streams, widely used in live broadcasting applications."
-            />
-            <Radio
-              value="rtmp"
-              label="RTMP"
-              description="Reliable for stable broadcasts, ensuring high-quality video and audio transmission."
-            />
-            <Radio
-              value="srt"
-              label="SRT"
-              description="Secure and adaptive, ideal for streaming over unpredictable networks with error recovery features."
-            />
-            <Radio
-              value="custom"
-              label="Custom"
-              description="Enter a custom URL."
-            />
-          </Stack>
-        </Radio.Group>
+          mb={18}
+        />
 
-        <Box w={460} mb={29}>
+        <Box mb={29}>
           {
             formProtocol === "custom" ?
               (
