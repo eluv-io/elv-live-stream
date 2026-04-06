@@ -1,36 +1,28 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {dataStore, streamBrowseStore, rootStore, streamManagementStore, profileStore} from "@/stores";
+import {dataStore, rootStore, streamManagementStore, profileStore} from "@/stores";
 import {useNavigate} from "react-router-dom";
-import {PLAYOUT_FORMAT_OPTIONS} from "@/utils/constants";
 import {
-  Accordion,
-  Alert,
   Box,
   Button,
   Divider,
   Flex,
-  MultiSelect,
   Radio,
   Select,
   SimpleGrid,
   Stack,
   Text,
   TextInput,
-  Title,
   Tooltip
 } from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {isNotEmpty, useForm} from "@mantine/form";
-import {IconAlertCircle, IconInfoCircle, IconPlus} from "@tabler/icons-react";
+import {IconInfoCircle} from "@tabler/icons-react";
 
-import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
 import styles from "./Create.module.css";
 import {ValidateTextField} from "@/utils/validators.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {SanitizeUrl} from "@/utils/helpers.js";
 
 const Permissions = observer(({form}) => {
   const permissionLevels = rootStore.client.permissionLevels;
@@ -79,78 +71,9 @@ const Permissions = observer(({form}) => {
   );
 });
 
-const AdvancedSettingsPanel = observer(({
-  objectProbed=false,
-  audioTracks,
-  audioFormData,
-  setAudioFormData,
-  setShowProbeConfirmation,
-  objectData,
-  DisableProbeButton,
-  form
-}) => {
-  return (
-    <Box mt={15}>
-
-    <SimpleGrid spacing={150} mb={20}>
-      <MultiSelect
-        label="Playback Formats"
-        description="Select a playback encryption option. Enable Clear or Digital Rights Management (DRM) copy protection during playback."
-        name="encryption"
-        data={PLAYOUT_FORMAT_OPTIONS}
-        placeholder="Select Encryption"
-        {...form.getInputProps("encryption")}
-      />
-    </SimpleGrid>
-
-      <Divider mb={29} />
-
-      {
-        !objectProbed &&
-        <Alert
-          variant="light"
-          bg="elv-blue.0"
-          mt={24}
-          mb={29}
-          icon={<IconAlertCircle height={20} width={20} color="var(--mantine-color-elv-blue-5)" />}
-          classNames={{
-            wrapper: styles.alertRoot
-          }}
-        >
-          <Flex justify="space-between" align="center">
-            <Title order={3} fw={500} c="elv-gray.9">
-              To apply audio stream settings, the object must be probed first.
-            </Title>
-            <Button
-              variant="transparent"
-              onClick={() => setShowProbeConfirmation(true)}
-              disabled={
-                objectData !== null ||
-                DisableProbeButton()
-              }
-            >
-              <Text fw={500} size={14} c="elv-blue.2">
-                Probe
-              </Text>
-            </Button>
-          </Flex>
-        </Alert>
-      }
-      <SectionTitle mb={16}>Audio</SectionTitle>
-      <AudioTracksTable
-        records={audioTracks}
-        audioFormData={audioFormData}
-        setAudioFormData={setAudioFormData}
-        disabled={!objectProbed}
-      />
-    </Box>
-  );
-});
-
 const Create = observer(() => {
   const navigate = useNavigate();
   const [isCreating, setIsCreating] = useState(false);
-  const [objectData, setObjectData] = useState(null);
 
   useEffect(() => {
     const promises = [
@@ -167,35 +90,14 @@ const Create = observer(() => {
       .then(() => {});
   }, []);
 
-  useEffect(() => {
-    const LoadConfigData = async () => {
-      const {audioStreams, audioData} = await dataStore.LoadStreamProbeData({
-        objectId: objectData.objectId
-      });
-
-      setAudioTracks(audioStreams);
-      setAudioFormData(audioData);
-    };
-
-    if(objectData !== null) {
-      LoadConfigData();
-    }
-  }, [objectData, streamBrowseStore.streams]);
-
   // Controlled form values that need state variables
   const [formProtocol, setFormProtocol] = useState("mpegts");
   const [formUrl, setFormUrl] = useState("");
   const [formCustomUrl, setFormCustomUrl] = useState("");
 
-  // Toggle values
-  const [useAdvancedSettings, setUseAdvancedSettings] = useState("");
-  const [showProbeConfirmation, setShowProbeConfirmation] = useState(false);
-
   // Form data dependent on api calls
   const [urlOptions, setUrlOptions] = useState([]);
   const [profilesData, setProfilesData] = useState([]);
-  const [audioFormData, setAudioFormData] = useState(null);
-  const [audioTracks, setAudioTracks] = useState([]);
 
   const form = useForm({
     mode: "uncontrolled",
@@ -241,34 +143,6 @@ const Create = observer(() => {
     setUrlOptions(urls);
   }, [formProtocol, dataStore.liveStreamUrls]);
 
-  const HandleProbeConfirm = async() => {
-    const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, configProfile, protocol, retention} = form.getValues();
-
-    const {objectId, slug} = await streamManagementStore.InitLiveStreamObject({
-      accessGroup,
-      description,
-      displayTitle,
-      encryption,
-      libraryId,
-      name,
-      permission,
-      configProfile: configProfile ? profileStore.profiles[configProfile] : undefined,
-      protocol,
-      persistent: retention === "indefinite",
-      retention: retention && retention !== "indefinite" ? parseInt(retention) : null,
-      url: formProtocol === "custom" ? formCustomUrl : formUrl
-    });
-
-    await streamBrowseStore.ConfigureStream({objectId, slug});
-
-    setObjectData({objectId, slug});
-
-    notifications.show({
-      title: "Probed stream",
-      message: "Stream object was successfully created and probed"
-    });
-  };
-
   const HandleSubmit = async () => {
     setIsCreating(true);
 
@@ -288,8 +162,6 @@ const Create = observer(() => {
       }
 
       const {objectId: responseObjectId} = await streamManagementStore.InitLiveStreamObject({
-        objectId: objectData?.objectId,
-        audioFormData,
         accessGroup,
         description,
         displayTitle,
@@ -309,7 +181,7 @@ const Create = observer(() => {
       notifications.show({
         title: "Error",
         color: "red",
-        message: `Unable to ${objectData?.objectId ? "update" : "create"} live stream`
+        message: "Unable to create live stream"
       });
     } finally {
       setIsCreating(false);
@@ -367,7 +239,6 @@ const Create = observer(() => {
                   label="URL"
                   name="customUrl"
                   placeholder="Enter a custom URL"
-                  disabled={objectData !== null}
                   value={formCustomUrl}
                   onChange={event => {
                     const {value} = event.target;
@@ -383,7 +254,6 @@ const Create = observer(() => {
                   key={formProtocol}
                   label="URL"
                   name="url"
-                  disabled={objectData !== null}
                   data={urlOptions.map(url => (
                     {
                       label: url,
@@ -451,7 +321,6 @@ const Create = observer(() => {
           <Select
             label="Access Group"
             name="accessGroup"
-            disabled={objectData !== null}
             description="Access Group responsible for managing your live stream object."
             data={
               Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
@@ -473,7 +342,6 @@ const Create = observer(() => {
         <Select
           label="Library"
           name="libraryId"
-          disabled={objectData !== null}
           description="Select the library where your live stream object will be stored."
           required={true}
           data={
@@ -489,83 +357,12 @@ const Create = observer(() => {
           {...form.getInputProps("libraryId")}
         />
 
-        <Divider mb={29} />
-
-        <Accordion
-          value={useAdvancedSettings}
-          onChange={setUseAdvancedSettings}
-          chevron={<IconPlus color="var(--mantine-color-elv-blue-3)" />}
-          classNames={{
-            item: styles.accordionItem,
-            control: styles.accordionControl,
-            label: styles.accordionControlLabel,
-            content: styles.accordionContent,
-            chevron: styles.accordionChevron
-        }}
-        >
-          <Accordion.Item value="advanced-item">
-            <Accordion.Control>
-              <SectionTitle>Advanced</SectionTitle>
-            </Accordion.Control>
-            <Accordion.Panel>
-            <AdvancedSettingsPanel
-              form={form}
-              objectProbed={objectData !== null}
-              audioTracks={audioTracks}
-              audioFormData={audioFormData}
-              setAudioFormData={setAudioFormData}
-              setShowProbeConfirmation={setShowProbeConfirmation}
-              objectData={objectData}
-              profilesData={profilesData}
-              DisableProbeButton={() => {
-                const {libraryId, name} = form.getValues();
-
-                return !(
-                  (formCustomUrl || formUrl) &&
-                  name &&
-                  libraryId
-                );
-              }}
-            />
-            </Accordion.Panel>
-          </Accordion.Item>
-        </Accordion>
-
         <Box mt={25} mb="2.5rem">
           <Button disabled={isCreating} type="submit" size="sm">
             { isCreating ? "Submitting..." : "Save" }
           </Button>
         </Box>
       </form>
-
-      <ConfirmModal
-        show={showProbeConfirmation}
-        CloseCallback={() => setShowProbeConfirmation(false)}
-        title="Create and Probe Stream"
-        message="Are you sure you want to probe the stream? This will also create the content object."
-        loadingText={
-        <Stack mt={16} gap={5}>
-          <Text>
-            Please send your stream to:
-          </Text>
-          <Text>
-            {
-              SanitizeUrl({url: (formProtocol === "custom" ? formCustomUrl : formUrl), removeQueryParams: ["mode"]}) || "the URL you specified"
-            }
-          </Text>
-        </Stack>
-      }
-        ConfirmCallback={async () => {
-          try {
-            await HandleProbeConfirm();
-            setShowProbeConfirmation(false);
-          } catch(error) {
-            // eslint-disable-next-line no-console
-            console.error("Unable to probe stream", error);
-            throw Error(error);
-          }
-        }}
-      />
     </PageContainer>
   );
 });
