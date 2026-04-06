@@ -71,7 +71,8 @@ const StreamDetailsPage = observer(() => {
 
   const streamActions = GetStreamActions({
     record: streamBrowseStore.streams?.[streamSlug],
-    onCheckComplete: () => setCheckVersion(prev => prev + 1)
+    onCheckComplete: () => setCheckVersion(prev => prev + 1),
+    onDeleteComplete: () => navigate("/streams")
   });
 
   const primaryActions = streamActions.filter(a => a.primary && !a.hidden)
@@ -86,7 +87,7 @@ const StreamDetailsPage = observer(() => {
       label: "Back",
       buttonVariant: "filled",
       color: "elv-gray.6",
-      onClick: () => navigate("/streams")
+      onClick: () => navigate(-1)
     },
     {
       label: "Refresh",

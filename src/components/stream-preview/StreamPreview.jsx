@@ -48,7 +48,7 @@ const StreamPreview = observer(() => {
       titleLeftSection={
       <Button
         color="elv-gray.6"
-        onClick={() => navigate("/streams")}
+        onClick={() => navigate(-1)}
       >
         Back
       </Button>

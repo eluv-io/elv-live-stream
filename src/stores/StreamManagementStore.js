@@ -353,7 +353,12 @@ class StreamManagementStore {
     }
   });
 
-  ApplyStreamProfile = flow(function * ({objectId, writeToken, profileSlug}) {
+  ApplyStreamProfile = flow(function * ({
+    objectId,
+    writeToken,
+    profileSlug,
+    finalize=true
+  }) {
     const profile = this.rootStore.profileStore.profiles[profileSlug];
 
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -365,12 +370,79 @@ class StreamManagementStore {
       }));
     }
 
-    yield this.client.StreamApplyProfile({
+    const response = yield this.client.StreamApplyProfile({
       profile: toJS(profile),
       objectId,
       streamWriteToken: writeToken,
-      finalize: true
+      finalize: false  // always false — we finalize below after syncing live_recording
     });
+
+    // Sync live_recording to new live_recording_config values
+    const existing = yield this.client.ContentObjectMetadata({
+      objectId,
+      libraryId,
+      metadataSubtree: "live_recording"
+    });
+
+    const config = yield this.client.ContentObjectMetadata({
+      objectId,
+      libraryId,
+      writeToken,
+      metadataSubtree: "live_recording_config"
+    });
+
+    const updated = {
+      ...existing,
+      playout_config: {
+        ...existing?.playout_config,
+        dvr_enabled: config?.playout_config?.dvr,
+        simple_watermark: config?.playout_config?.simple_watermark,
+        image_watermark: config?.playout_config?.image_watermark,
+        forensic_watermark: config?.playout_config?.forensic_watermark,
+      },
+      recording_config: {
+        ...existing?.recording_config,
+        recording_params: {
+          ...existing?.recording_config?.recording_params,
+          reconnect_timeout: config?.recording_config?.reconnect_timeout,
+          part_ttl: config?.recording_config?.part_ttl,
+          xc_params: {
+            ...existing?.recording_config?.recording_params?.xc_params,
+            connection_timeout: config?.recording_config?.connection_timeout,
+          }
+        }
+      }
+    };
+
+    yield this.client.ReplaceMetadata({
+      objectId,
+      libraryId,
+      writeToken,
+      metadataSubtree: "live_recording",
+      metadata: updated
+    });
+
+    if(finalize) {
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Apply stream profile",
+        awaitCommitConfirmation: true
+      });
+
+      if(response?.siteWriteToken) {
+        yield this.client.FinalizeContentObject({
+          libraryId: this.rootStore.dataStore.siteLibraryId,
+          objectId: this.rootStore.dataStore.siteId,
+          writeToken: response.siteWriteToken,
+          commitMessage: "Apply stream profile",
+          awaitCommitConfirmation: true
+        });
+      }
+    }
+
+    return response;
   });
 
   UpdateConfigMetadata = flow(function * ({
@@ -583,10 +655,10 @@ class StreamManagementStore {
 
     if(configProfile) {
       // Update site object with stream/profile
-      const {siteWriteToken} = yield this.client.StreamApplyProfile({
-        profile: toJS(this.rootStore.profileStore.profiles[configProfile]),
+      const {siteWriteToken} = yield this.ApplyStreamProfile({
         objectId,
-        streamWriteToken: writeToken,
+        writeToken,
+        profileSlug: configProfile,
         finalize: false
       });
 
