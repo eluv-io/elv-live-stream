@@ -213,7 +213,11 @@ const Outputs = observer(() => {
     <PageContainer
       title="Outputs"
     >
-      <BatchActions selectedRecords={selectedRecords} />
+      <BatchActions
+        selectedRecords={selectedRecords}
+        SelectAll={() => setSelectedRecords(records)}
+        ClearSelection={() => setSelectedRecords([])}
+      />
       <Actions onRefreshClick={DebouncedRefresh} />
       <Box className={sharedStyles.tableWrapper}>
         <DataTable
