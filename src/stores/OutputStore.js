@@ -92,6 +92,35 @@ class OutputStore {
       console.error("Failed to create output.", error);
     }
   }
+
+  async MapStreamToOutput({outputs, streamObjectId}) {
+    try {
+      await Promise.all(
+        outputs.map(outputId => {
+          const output = this.outputs[outputId];
+
+          return this.client.OutputsModify({
+            // eslint-disable-next-line no-undef
+            objectId: EluvioConfiguration.outputId,
+            outputId,
+            streamObjectId,
+            name: output.name,
+            description: output.description,
+            enabled: output.enabled,
+            reset: output.reset,
+            geos: output.geos,
+            passphrase: output.srt_pull?.passphrase,
+            stripRtp: output.srt_pull?.strip_rtp,
+            srtConfig: output.srt_pull?.connection
+          });
+        })
+      );
+
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to map stream to output.", error);
+    }
+  }
 }
 
 export default OutputStore;

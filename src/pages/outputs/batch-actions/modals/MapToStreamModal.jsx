@@ -5,16 +5,41 @@ import {DataTable} from "mantine-datatable";
 import {SanitizeUrl, SortTable} from "@/utils/helpers.js";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useState} from "react";
-import {streamBrowseStore} from "@/stores/index.js";
+import {outputStore, streamBrowseStore} from "@/stores/index.js";
 import sharedStyles from "@/assets/shared.module.css";
 import modalStyles from "./modals.module.css";
+import {notifications} from "@mantine/notifications";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
-const MapToStreamModal = observer(({show, onCloseModal}) => {
+const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
 
   const records = Object.values(streamBrowseStore.streams || {})
     .sort(SortTable({sortStatus}));
+
+  const HandleSubmit = async() => {
+    try {
+      await outputStore.MapStreamToOutput({
+        outputId: outputs,
+        streamObjectId: selectedRecords[0].record.objectId
+      });
+
+      notifications.show({
+      title: "New stream mapped",
+      message: <NotificationMessage>Successfully mapped stream to output</NotificationMessage>
+    });
+  } catch(error) {
+    // eslint-disable-next-line no-console
+    console.error("Unable to map stream to output", error);
+
+    notifications.show({
+      title: "Error",
+      color: "red",
+      message: "Unable to map stream to output"
+    });
+  }
+  };
 
   return (
     <Modal
@@ -105,7 +130,7 @@ const MapToStreamModal = observer(({show, onCloseModal}) => {
         />
       </Box>
       <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
-        <Button type="submit">Map</Button>
+        <Button onClick={HandleSubmit}>Map</Button>
       </Flex>
     </Modal>
   );

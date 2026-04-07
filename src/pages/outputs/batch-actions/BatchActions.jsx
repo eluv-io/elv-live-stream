@@ -63,7 +63,11 @@ const BatchActions = ({selectedRecords, SelectAll, ClearSelection, mb}) => {
           </Group>
         </Flex>
       </Box>
-      <MapToStreamModal show={activeModal === "map"} onCloseModal={() => setActiveModal(null) }/>
+      <MapToStreamModal
+        show={activeModal === "map"}
+        onCloseModal={() => setActiveModal(null) }
+        outputs={selectedRecords}
+      />
     </>
   );
 };
