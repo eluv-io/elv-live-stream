@@ -112,20 +112,20 @@ const Streams = observer(() => {
               )
             },
             {
-              accessor: "packaging",
-              title: "Packaging",
-              render: record => (
-                (record.packaging || []).map(el => (
-                  <Text key={`packaging-${el}`} tt="uppercase" fz={14}>{el}</Text>
-                ))
-              )
-            },
-            {
               accessor: "source",
               title: "Source",
               render: record => (
                 (record.source || []).map(el => (
                   <Text key={`source-${el}`} tt="uppercase" fz={14}>{el}</Text>
+                ))
+              )
+            },
+            {
+              accessor: "packaging",
+              title: "Packaging",
+              render: record => (
+                (record.packaging || []).map(el => (
+                  <Text key={`packaging-${el}`} tt="uppercase" fz={14}>{el}</Text>
                 ))
               )
             },

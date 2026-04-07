@@ -56,7 +56,7 @@ const theme = createTheme({
       "#380c61", // eluvio color
     ],
     "elv-gray": [
-      "#f5f5f5",
+      "#f2f3f5", // eluvio color
       "#e3e3e3", // eluvio color
       "#d7d7d7", // eluvio color
       "#bdbdbd", // eluvio color
