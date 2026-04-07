@@ -59,6 +59,7 @@ module.exports = [
   "Mezz",
   "mb",
   "mbps",
+  "mobiledata",
   "monospace",
   "moz",
   "mpeg",

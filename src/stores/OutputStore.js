@@ -74,7 +74,7 @@ class OutputStore {
   }) {
     try {
       if(!name) {
-        name = new Date();
+        name = `Output ${this.outputList?.length + 1}`;
       }
 
       await this.client.OutputsCreate({

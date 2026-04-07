@@ -31,6 +31,7 @@ import sharedStyles from "@/assets/shared.module.css";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import BatchActions from "@/pages/outputs/batch-actions/BatchActions.jsx";
 
 const CreateModal = ({show, onCloseModal}) => {
   const form = useForm({
@@ -212,6 +213,7 @@ const Outputs = observer(() => {
     <PageContainer
       title="Outputs"
     >
+      <BatchActions selectedRecords={selectedRecords} />
       <Actions onRefreshClick={DebouncedRefresh} />
       <Box className={sharedStyles.tableWrapper}>
         <DataTable
