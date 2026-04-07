@@ -146,19 +146,18 @@ const CreateModal = ({show, onCloseModal}) => {
   );
 };
 
-const Actions = ({onRefreshClick}) => {
+const Actions = ({onRefreshClick, mb}) => {
   const [showModal, setShowModal] = useState(false);
 
   return (
     <>
-      <Flex w="100%" align="center" mb={16}>
+      <Flex w="100%" align="start" mb={mb}>
         <TextInput
           flex={2}
           maw={400}
           classNames={{input: styles.searchBar}}
           placeholder="Search by object name or ID"
           leftSection={<IconSearch width={15} height={15} />}
-          mb={14}
           value={outputStore.tableFilter}
           onChange={event => outputStore.SetTableFilter({filter: event.target.value})}
         />
@@ -213,12 +212,16 @@ const Outputs = observer(() => {
     <PageContainer
       title="Outputs"
     >
-      <BatchActions
-        selectedRecords={selectedRecords}
-        SelectAll={() => setSelectedRecords(records)}
-        ClearSelection={() => setSelectedRecords([])}
-      />
-      <Actions onRefreshClick={DebouncedRefresh} />
+      {
+        selectedRecords.length ?
+          <BatchActions
+            selectedRecords={selectedRecords}
+            SelectAll={() => setSelectedRecords(records)}
+            ClearSelection={() => setSelectedRecords([])}
+            mb={20}
+          /> :
+          <Actions onRefreshClick={DebouncedRefresh} mb={20} />
+      }
       <Box className={sharedStyles.tableWrapper}>
         <DataTable
           idAccessor="slug"
