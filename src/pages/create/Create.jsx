@@ -196,7 +196,7 @@ const Create = observer(() => {
         <Text fz={12} c="elv-gray.6" mb={10}>Select a protocol to see available pre-allocated URLs.</Text>
         <Select
           name="protocol"
-          label="Nodes"
+          label="Protocol"
           required={true}
           value={formProtocol}
           data={[
