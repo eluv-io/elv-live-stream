@@ -216,6 +216,12 @@ class ModalStore {
         customMessage: data.customMessage
       }),
       ...data,
+      detailData: {
+        id: data.objectId,
+        idKey: "Stream ID:",
+        name: data.name,
+        nameKey: "Stream Name:"
+      },
       ConfirmCallback: () => this.HandleStreamAction({
         objectId: data.objectId,
         op,
@@ -238,6 +244,7 @@ class ModalStore {
         title: "",
         message: "",
         name: "",
+        detailData: null,
         ConfirmCallback: null,
         CloseCallback: null,
         confirmText: "",
