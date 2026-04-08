@@ -70,14 +70,15 @@ const renderCreate = () => {
 
 // Fills all required fields using the "custom" protocol so URL is a plain TextInput
 const fillRequiredFields = async (user) => {
-  await user.click(screen.getByRole("radio", {name: "Custom"}));
+  await user.click(screen.getByDisplayValue("MPEG-TS"));
+  await user.click(await screen.findByText("Custom"));
   await user.type(await screen.findByPlaceholderText("Enter a custom URL"), "udp://host.example.com:1234");
   await user.type(screen.getByPlaceholderText("Enter stream name"), "Test Stream");
   await user.type(screen.getByPlaceholderText("Enter a title"), "Test Stream Title");
   await user.type(screen.getByPlaceholderText("Enter a description"), "A test description");
 
-  await user.click(screen.getByPlaceholderText("Select Library"));
-  await user.click(await screen.findByText("Test Library"));
+  fireEvent.click(screen.getByPlaceholderText("Select Library"));
+  fireEvent.click(await screen.findByText("Test Library"));
 };
 
 describe("Create", () => {
@@ -148,7 +149,6 @@ describe("Create", () => {
       const {user} = renderCreate();
       await fillRequiredFields(user);
 
-      fireEvent.click(await screen.findByText("Advanced"));
       fireEvent.click(await screen.findByPlaceholderText("Select Config Profile"));
       fireEvent.click(await screen.findByText("My Profile"));
 

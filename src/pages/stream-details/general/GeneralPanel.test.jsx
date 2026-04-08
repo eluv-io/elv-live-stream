@@ -10,7 +10,15 @@ const {mockUpdateGeneralConfig, mockNotificationShow} = vi.hoisted(() => ({
 }));
 
 vi.mock("@/stores", () => ({
-  rootStore: {errorMessage: null},
+  rootStore: {
+    errorMessage: null,
+    client: {
+      permissionLevels: {
+        editable: {short: "Editable", description: "Can edit content"},
+        owner: {short: "Owner", description: "Full owner access"},
+      }
+    }
+  },
   dataStore: {
     LoadDetails: vi.fn().mockResolvedValue(undefined),
     LoadPermission: vi.fn().mockResolvedValue("editable"),

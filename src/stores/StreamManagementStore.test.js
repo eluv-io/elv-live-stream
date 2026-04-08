@@ -2,7 +2,14 @@ import {describe, it, expect, vi, beforeEach} from "vitest";
 
 vi.mock("mobx", async () => ({
   ...(await vi.importActual("mobx")),
+  configure: vi.fn(),
   toJS: (val) => val
+}));
+
+vi.mock("@/stores", () => ({}));
+vi.mock("@/utils/constants", () => ({
+  STATUS_MAP: {},
+  DETAILS_TABS: []
 }));
 
 import StreamManagementStore from "./StreamManagementStore";
@@ -16,14 +23,16 @@ const mockProfile = {
 const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => {
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib123"),
+    ContentObjectMetadata: vi.fn().mockResolvedValue({}),
     EditContentObject: vi.fn().mockResolvedValue({writeToken: "wtoken123"}),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
+    MergeMetadata: vi.fn().mockResolvedValue(undefined),
+    ReplaceMetadata: vi.fn().mockResolvedValue(undefined),
     StreamApplyProfile: vi.fn().mockResolvedValue({siteWriteToken: "site-wtoken"}),
   };
 
-  const store = new StreamManagementStore();
-  store.client = mockClient;
-  store.rootStore = {
+  const mockRootStore = {
+    client: mockClient,
     dataStore: {siteId: "site123", siteLibraryId: "ilib-site"},
     profileStore: {
       profiles: {[profileSlug]: profile}
@@ -33,6 +42,8 @@ const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => 
       UpdateDetailMetadata: vi.fn().mockResolvedValue(undefined)
     }
   };
+
+  const store = new StreamManagementStore(mockRootStore);
 
   // Stub internal methods that aren't under test
   store.UpdateDetailMetadata = vi.fn().mockResolvedValue(undefined);
