@@ -24,7 +24,7 @@ const StreamUrlPanelContent = observer(({
         showNodeSelector &&
         <Select
           name="nodes"
-          label="Nodes"
+          label="Node"
           placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
           required={showNodeSelector}
           value={node}
