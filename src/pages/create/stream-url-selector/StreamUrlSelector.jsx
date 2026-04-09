@@ -135,7 +135,10 @@ const StreamUrlSelector = observer(({
       }}
     >
       <Tabs.List w="fit-content" mb={12}>
-        <Tabs.Tab value="dedicated">Dedicated</Tabs.Tab>
+        {
+          dataStore.dedicatedNodes &&
+          <Tabs.Tab value="dedicated">Dedicated</Tabs.Tab>
+        }
         <Tabs.Tab value="public">Public</Tabs.Tab>
       </Tabs.List>
 

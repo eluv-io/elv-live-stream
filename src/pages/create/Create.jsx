@@ -7,6 +7,7 @@ import {
   Button,
   Divider,
   Flex,
+  Loader,
   Select,
   SimpleGrid,
   Text,
@@ -73,7 +74,8 @@ const PermissionSelector = observer(({form}) => {
 const Create = observer(() => {
   const navigate = useNavigate();
   const [isCreating, setIsCreating] = useState(false);
-  const [activeUrlTypeTab, setActiveUrlTypeTab] = useState("public");
+  const [activeUrlTypeTab, setActiveUrlTypeTab] = useState("");
+  const [loadedDedicatedNodes, setLoadedDedicatedNodes] = useState(false);
 
   useEffect(() => {
     const promises = [
@@ -131,6 +133,13 @@ const Create = observer(() => {
       setProfilesData(options);
     }
   }, [profileStore.profiles]);
+
+  useEffect(() => {
+    if(dataStore.loadedDedicatedNodes) {
+      setActiveUrlTypeTab(dataStore.dedicatedNodesList.length > 0 ? "dedicated" : "public");
+      setLoadedDedicatedNodes(true);
+    }
+  }, [dataStore.dedicatedNodes, dataStore.loadedDedicatedNodes]);
 
   const HandleSubmit = async () => {
     setIsCreating(true);
@@ -200,19 +209,22 @@ const Create = observer(() => {
       <form onSubmit={form.onSubmit(HandleSubmit)} className={styles.form}>
         <SectionTitle mb={2}>Streaming Protocol</SectionTitle>
         <Text fz={12} c="elv-gray.6" mb={10}>Select a protocol to see available pre-allocated URLs.</Text>
-        <StreamUrlSelector
-          activeTab={activeUrlTypeTab}
-          onActiveTabChange={setActiveUrlTypeTab}
-          onProtocolChange={(value) => {
-            form.setFieldValue("protocol", value);
-            form.setFieldValue("url", "");
-          }}
-          onUrlChange={(value) => form.setFieldValue("url", value)}
-          onCustomUrlChange={(value) => form.setFieldValue("customUrl", value)}
-          onNodeChange={(value) => form.setFieldValue("node", value)}
-          urlError={form.errors.url}
-          customUrlError={form.errors.customUrl}
-        />
+        {
+          loadedDedicatedNodes ?
+          <StreamUrlSelector
+            activeTab={activeUrlTypeTab}
+            onActiveTabChange={setActiveUrlTypeTab}
+            onProtocolChange={(value) => {
+              form.setFieldValue("protocol", value);
+              form.setFieldValue("url", "");
+            }}
+            onUrlChange={(value) => form.setFieldValue("url", value)}
+            onCustomUrlChange={(value) => form.setFieldValue("customUrl", value)}
+            onNodeChange={(value) => form.setFieldValue("node", value)}
+            urlError={form.errors.url}
+            customUrlError={form.errors.customUrl}
+          /> : <Flex mb={25} mt={25}><Loader /></Flex>
+        }
 
         <Divider mb={29} />
         <SectionTitle mb={10}>General</SectionTitle>
