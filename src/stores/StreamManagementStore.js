@@ -119,6 +119,7 @@ class StreamManagementStore {
     encryption,
     libraryId,
     name,
+    nodeId,
     permission,
     configProfile,
     retention,
@@ -149,14 +150,13 @@ class StreamManagementStore {
         url,
         liveRecordingConfig: config,
         options: {
-          name,
+          accessGroups: groupAddress ? [groupAddress] : undefined,
           displayTitle,
           description,
-          accessGroups: groupAddress ? [groupAddress] : undefined,
-          permission,
+          ingressNodeApi: nodeId,
           linkToSite: true,
-          // TODO: Add ingress node api for non-public nodes
-          // ingressNodeApi
+          name,
+          permission
         }
       });
 

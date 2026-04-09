@@ -19,8 +19,10 @@ class DataStore {
   siteId;
   siteLibraryId;
   liveStreamUrls;
+  dedicatedNodes;
   ladderProfiles;
   srtUrlsByStream;
+  loadedDedicatedNodes = false;
 
   constructor(rootStore) {
     makeAutoObservable(this);
@@ -32,6 +34,17 @@ class DataStore {
 
   get client() {
     return this.rootStore.client;
+  }
+
+  get dedicatedNodesList() {
+    return Object.entries(this.dedicatedNodes ?? {})
+      .map(([key, value]) => ({label: value.name, value: key}));
+  }
+
+  DedicatedNodeUrls({nodeId, protocol}) {
+    if(!this.dedicatedNodes) { return []; }
+
+    return this.dedicatedNodes?.[nodeId]?.urls?.[protocol] ?? [];
   }
 
   Initialize = flow(function * (reload=false) {
@@ -438,6 +451,27 @@ class DataStore {
     }
   });
 
+  LoadDedicatedNodes = flow(function * (){
+    this.loadedDedicatedNodes = false;
+    try {
+      if(!this.siteLibraryId) {
+        const tenantContractId = yield this.LoadTenantInfo();
+        yield this.LoadTenantData({tenantContractId});
+      }
+
+      const nodes = yield this.client.ContentObjectMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        metadataSubtree: "/dedicated_nodes"
+      });
+      this.UpdateDedicatedNodes({nodes});
+      this.loadedDedicatedNodes = true;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load dedicated stream URLs", error);
+    }
+  });
+
   LoadStreamUrls = flow(function * () {
     this.UpdateStreamUrls({});
     this.loadedUrls = false;
@@ -818,6 +852,10 @@ class DataStore {
 
   UpdateStreamUrls = ({urls}) => {
     this.liveStreamUrls = urls;
+  };
+
+  UpdateDedicatedNodes = ({nodes}) => {
+    this.dedicatedNodes = nodes;
   };
 
   UpdateSrtUrls({objectId, newData={}, removeData={}}) {
