@@ -621,7 +621,14 @@ class DataStore {
         metadataSubtree: "live_recording_config/playout_config"
       });
 
-      let drm = liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats;
+      // Special case to retrieve playout formats in case profile has no specification and is created with a default value
+      const playoutFormatMeta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "offerings/default/playout/playout_formats"
+      });
+
+      let drm = liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats ?? Object.keys(playoutFormatMeta ?? {});
       // Playout formats must be an array of values from PLAYOUT_FORMAT_OPTIONS
       if(!Array.isArray(drm)) {
         drm = [];
