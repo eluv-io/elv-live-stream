@@ -48,7 +48,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
       title={
         <Stack gap={0} mb={20}>
           <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>Map to A Stream</Title>
-          <Text fz="0.875rem" c="elv-gray.8">Choose the stream this output will send to.</Text>
+          <Text fz="0.875rem" c="elv-gray.8">Select the stream you want to map to (TS stream only).</Text>
         </Stack>
       }
       padding="24px"

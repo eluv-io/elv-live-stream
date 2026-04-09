@@ -132,14 +132,6 @@ const Outputs = observer(() => {
               )
             },
             {
-              accessor: "srt_url",
-              title: "URL",
-              width: "30%",
-              render: record => (
-                <Text fz={14} lineClamp={1} c="elv-gray.9" style={{wordBreak: "break-all"}}>{ record.srt_url }</Text>
-              )
-            },
-            {
               accessor: "stream",
               title: "Stream",
               width: "20%",
@@ -162,24 +154,31 @@ const Outputs = observer(() => {
               }
             },
             {
+              accessor: "srt_url",
+              title: "Output URL",
+              width: "30%",
+              render: record => (
+                <Text fz={14} lineClamp={1} c="elv-gray.9" style={{wordBreak: "break-all"}}>{ record.srt_url }</Text>
+              )
+            },
+            {
               accessor: "clients",
               title: "Clients",
               width: 150,
               render: record => (
                 <BasicTableRowText textWrap="nowrap">
-                  {record.state?.connected_clients ?? 0} Connections
+                  {record.state?.connected_clients ?? 0}
                 </BasicTableRowText>
               )
             },
             {
               accessor: "enabled",
-              title: "Status",
-              width: 160,
+              title: "Enabled",
+              width: 90,
               sortable: true,
               render: record => (
                 <Switch
                   classNames={{label: styles.switchLabel}}
-                  label={record.enabled ? "Enabled" : "Disabled"}
                   checked={record.enabled}
                 />
               )
