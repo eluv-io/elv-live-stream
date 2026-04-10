@@ -40,6 +40,7 @@ module.exports = [
   "falsey",
   "flexbox",
   "fmp4",
+  "fw",
   "fz",
   "geo",
   "geos",
