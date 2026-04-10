@@ -1,5 +1,17 @@
 import {observer} from "mobx-react-lite";
-import {Box, Button, Divider, Flex, Loader, Select, SimpleGrid, Text, TextInput, Tooltip} from "@mantine/core";
+import {
+  Box,
+  Button,
+  Checkbox,
+  Divider,
+  Flex,
+  Loader,
+  Select,
+  SimpleGrid,
+  Text,
+  TextInput,
+  Tooltip
+} from "@mantine/core";
 import {useEffect, useState} from "react";
 import {dataStore, rootStore, streamManagementStore, streamBrowseStore, profileStore} from "@/stores";
 import {useParams} from "react-router-dom";
@@ -17,9 +29,10 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
     displayTitle: "",
     accessGroup: "",
     permission: "",
-    url: ""
+    url: "",
   });
   const [configProfile, setConfigProfile] = useState(currentConfigProfile || "");
+  const [applyConfigProfile, setApplyConfigProfile] = useState(false);
   const [profilesData, setProfilesData] = useState([]);
 
   const [applyingChanges, setApplyingChanges] = useState(false);
@@ -180,6 +193,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                     label="Config Profile"
                     name="configProfile"
                     data={profilesData}
+                    mb={12}
                     placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
                     description={(profilesData.length > 0 || profileStore.state !== "loaded") ? "Apply a predefined set of configuration settings to this stream. If no profile is selected, built-in settings will be applied." : "No profiles are configured. Create a profile in Settings."}
                     value={configProfile}
@@ -187,6 +201,12 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                     clearable
                   />
                 </SimpleGrid>
+                <Checkbox
+                  label="Apply profile settings and overwrite current stream configuration"
+                  size="xs"
+                  checked={applyConfigProfile}
+                  onChange={(event) => setApplyConfigProfile(event.target.checked)}
+                />
                 {
                   (profileStore.profiles[currentConfigProfile]?.last_updated > streamBrowseStore.streams[slug]?.profileLastUpdated) ?
                     <Box>
@@ -285,7 +305,15 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
               />
             </SimpleGrid>
           </Box>
-          <Button type="submit" disabled={!formData.name || !formData.url || applyingChanges} loading={applyingChanges}>
+          <Button
+            type="submit"
+            disabled={
+            !formData.name ||
+              !formData.url ||
+              applyingChanges ||
+              (!!configProfile && configProfile !== currentConfigProfile && !applyConfigProfile)}
+            loading={applyingChanges}
+          >
             Save
           </Button>
         </form>

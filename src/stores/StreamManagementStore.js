@@ -426,6 +426,13 @@ class StreamManagementStore {
       metadata: updated
     });
 
+    // Update ladder specs
+    yield this.rootStore.streamBrowseStore.UpdateStreamAudioSettings({
+      objectId,
+      writeToken,
+      finalize: false
+    });
+
     if(finalize) {
       yield this.client.FinalizeContentObject({
         libraryId,
