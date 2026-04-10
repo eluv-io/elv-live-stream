@@ -8,7 +8,7 @@ const ValueSection = ({value, copyable=false, lineClamp}) => {
 
   if(typeof value === "string") {
     return (
-      <Flex gap={4} align="center" flex={1} miw={0}>
+      <Flex gap={4} align="center" miw={0}>
         <Text c="elv-gray.7" fw={400} fz="0.875rem" truncate={lineClamp ? "end" : undefined} flex={1} miw={0}>{ value }</Text>
         {
           copyable ?
@@ -39,7 +39,7 @@ const DetailCard = ({
   details=[]
 }) => {
   return (
-    <Box w={383} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
+    <Box w={380} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
       <Box p={12}>
         <Group>
           <Text fw={600} fz="0.875rem" c="elv-gray.7">{ title }</Text>
