@@ -138,6 +138,13 @@ export const QUALITY_TEXT = {
   "degraded": "Degraded"
 };
 
+export const COLOR_MAP = {
+  srt: "elv-blue-gray.1",
+  rtp: "elv-violet.0",
+  ts: "elv-green.0",
+  fmp4: "elv-orange.0"
+};
+
 export const AudioCodec = (value) => {
   if(value === "aac") {
     return "aac";

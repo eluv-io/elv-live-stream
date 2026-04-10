@@ -12,7 +12,18 @@ import {SanitizeUrl, SortTable} from "@/utils/helpers";
 
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import {DataTable} from "mantine-datatable";
-import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton, Text} from "@mantine/core";
+import {
+  ActionIcon,
+  Group,
+  TextInput,
+  Stack,
+  Title,
+  Box,
+  Flex,
+  Button,
+  UnstyledButton,
+  Badge
+} from "@mantine/core";
 
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -20,6 +31,7 @@ import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import styles from "./Streams.module.css";
 import sharedStyles from "@/assets/shared.module.css";
+import {COLOR_MAP} from "@/utils/constants.js";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -115,9 +127,8 @@ const Streams = observer(() => {
               accessor: "source",
               title: "Source",
               render: record => (
-                (record.source || []).map(el => (
-                  <Text key={`source-${el}`} tt="uppercase" fz={14}>{el}</Text>
-                ))
+                record.source?.map(el => <Badge key={`source-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>
+                )
               )
             },
             {
@@ -125,7 +136,7 @@ const Streams = observer(() => {
               title: "Packaging",
               render: record => (
                 (record.packaging || []).map(el => (
-                  <Text key={`packaging-${el}`} tt="uppercase" fz={14}>{el}</Text>
+                  <Badge key={`packaging-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>
                 ))
               )
             },

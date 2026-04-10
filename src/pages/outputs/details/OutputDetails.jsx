@@ -9,7 +9,7 @@ import {IconCopy} from "@tabler/icons-react";
 import DetailCard from "@/components/detail-card/DetailCard.jsx";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useClipboard} from "@mantine/hooks";
-import {STATUS_MAP} from "@/utils/constants.js";
+import {COLOR_MAP, STATUS_MAP} from "@/utils/constants.js";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 
 const OutputDetails = observer(() => {
@@ -54,13 +54,6 @@ const OutputDetails = observer(() => {
       buttonVariant: "outline",
     }
   ];
-
-  const COLOR_MAP = {
-    srt: "elv-blue-gray.1",
-    rtp: "elv-violet.0",
-    ts: "elv-green.0",
-    fmp4: "elv-orange.0"
-  };
 
   const inputDetails = [
     {label: "Name", value: <Text c="elv-gray.9" fw={600} fz="0.875rem">{ output?.input?.name }</Text>},

@@ -117,15 +117,17 @@ class OutputStore {
         packaging
       };
 
-      this.UpdateOutput({
-        slug,
-        updates: {
-          input: {
-            ...this.outputs[slug].input,
-            ...streamInfo
+      if(slug) {
+        this.UpdateOutput({
+          slug,
+          updates: {
+            input: {
+              ...this.outputs[slug].input,
+              ...streamInfo
+            }
           }
-        }
-      });
+        });
+      }
 
       return streamInfo;
     } catch(error) {

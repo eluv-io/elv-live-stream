@@ -307,13 +307,10 @@ class DataStore {
         });
       }
 
-      let probeType = (liveRecordingConfigMeta?.url)?.split("://")[0];
-      // if(probeType === "srt" && !probeMeta.format?.filename?.includes("listener")) {
-      //   probeType = "srt-caller";
-      // }
-
       // General Config
       const configProfileName = liveRecordingConfigMeta?.name;
+
+      const {source, packaging} = yield this.rootStore.outputStore.LoadOutputStreamInfo({streamObjectId: objectId});
 
       // Recording Config
       const connectionTimeout = liveRecordingConfigMeta?.recording_config?.connection_timeout ?? liveRecordingMeta?.recording_config?.recording_params?.xc_params?.connection_timeout;
@@ -329,17 +326,13 @@ class DataStore {
 
       // Stream Table Details
       const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
-      const tsEnabled = liveRecordingConfigMeta?.recording_config?.copy_mpegts;
-      const source = tsEnabled ? [probeType, "ts"] : probeType ? [probeType] : [];
       const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
-      const hasHlsDash = (drm ?? []).some(item => item.toLowerCase().includes("hls")) && (drm ?? []).some(item => item.toLowerCase().includes("dash"));
-      const hasTs = ["srt", "rtmp", "rtp"].includes(probeType);
-      const packaging = (hasTs && hasHlsDash) ? ["fmp4", "ts"] : hasTs ? ["ts"] : ["fmp4"];
 
       return {
         // Stream Table Details
         audioStreamCount,
         codecName: videoStream?.codec_name,
+        packaging,
         source,
         videoBitrate: videoStream?.bit_rate,
         // General Config
@@ -347,7 +340,6 @@ class DataStore {
         description: generalMeta?.description,
         display_title: generalMeta?.asset_metadata?.display_title,
         originUrl: liveRecordingConfigMeta?.url ?? liveRecordingMeta?.recording_config?.recording_params?.origin_url,
-        packaging,
         referenceUrl: liveRecordingConfigMeta?.reference_url,
         title: generalMeta?.name,
         // Recording Config
