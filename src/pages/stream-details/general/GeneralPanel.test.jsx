@@ -24,6 +24,9 @@ vi.mock("@/stores", () => ({
     LoadPermission: vi.fn().mockResolvedValue("editable"),
     LoadAccessGroupPermissions: vi.fn().mockResolvedValue(""),
     LoadAccessGroups: vi.fn().mockResolvedValue(undefined),
+    LoadDedicatedNodes: vi.fn().mockResolvedValue(undefined),
+    loadedDedicatedNodes: true,
+    dedicatedNodesList: [],
     accessGroups: {},
   },
   streamManagementStore: {UpdateGeneralConfig: mockUpdateGeneralConfig},
@@ -97,6 +100,7 @@ describe("GeneralPanel", () => {
       await user.click(await screen.findByPlaceholderText("Select Config Profile"));
       await user.click(await screen.findByText("My Profile"));
 
+      fireEvent.click(screen.getByRole("checkbox"));
       fireEvent.click(screen.getByRole("button", {name: "Save"}));
 
       await waitFor(() => {
