@@ -2,22 +2,33 @@ import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {useNavigate, useParams} from "react-router-dom";
 import {outputStore} from "@/stores/index.js";
-import {Divider, Group, Loader, Select} from "@mantine/core";
+import {ActionIcon, Badge, Divider, Flex, Group, Loader, Select, Text, TextInput, Tooltip} from "@mantine/core";
 import {useEffect} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
-import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
+import DetailCard from "@/components/detail-card/DetailCard.jsx";
+import StatusText from "@/components/status-text/StatusText.jsx";
+import {useClipboard} from "@mantine/hooks";
 
 const OutputDetails = observer(() => {
   const {id} = useParams();
   const navigate = useNavigate();
+  const clipboard = useClipboard();
   const output = outputStore.outputs[id];
 
   useEffect(() => {
-    if(!outputStore.state !== "loaded") {
-      outputStore.LoadOutputs();
+    if(outputStore.state !== "loaded") {
+      outputStore.LoadOutputs()
+        .then(() => {});
     }
   }, []);
+
+  useEffect(() => {
+    if(output?.input?.stream) {
+      outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output?.input?.stream})
+        .then(() => {});
+    }
+  }, [output?.input?.stream]);
 
   if(!output) { return <Loader />; }
 
@@ -42,28 +53,65 @@ const OutputDetails = observer(() => {
     }
   ];
 
+  const COLOR_MAP = {
+    srt: "elv-blue-gray.1",
+    rtp: "elv-violet.0",
+    ts: "elv-green.0",
+    fmp4: "elv-orange.0"
+  };
+
+  const inputDetails = [
+    {label: "Name", value: <Text c="elv-gray.9" fw={600} fz="0.875rem">{ output?.input?.name }</Text>},
+    {label: "Object ID", value: output.input?.stream, copyable: true},
+    {label: "URL", value: output.input?.url, lineClamp: 1, copyable: true},
+    {label: "Source", value: output?.input?.source?.map(el => <Badge key={`source-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>)},
+    {label: "Packaging", value: output?.input?.packaging?.map(el => <Badge key={`packaging-${el}`} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12}>{el}</Badge>)},
+  ];
+
   return (
     <PageContainer
       title={output.name}
       subtitle={id}
       actions={actions}
     >
+      <Flex direction="row" mb={36} gap={6}>
+        <DetailCard
+          title="Input"
+          titleRightSection={<StatusText status={output?.input?.status} fw={400} />}
+          details={inputDetails}
+        />
+        <DetailCard
+          title="Output"
+        />
+      </Flex>
+
       <SectionTitle mb={12}>
-        <Group>
+        <Group gap={8}>
           Embeddable URL
-          <IconCopy />
+          <Tooltip
+            label={clipboard.copied ? "Copied" : "Copy"}
+            position="bottom"
+          >
+            <ActionIcon
+              variant="transparent"
+              c="elv-gray.6"
+              size={18}
+              onClick={() => clipboard.copy(output.input?.embedUrl)}
+            >
+              <IconCopy size={16} />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       </SectionTitle>
+      <TextInput value={output.input?.embedUrl} />
 
-      <Divider mb={29} />
+      <Divider mb={20} mt={30} />
 
       <SectionTitle mb={12}>Fabric Geo</SectionTitle>
       <Select
         label="Geo"
         withAsterisk
-        data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
-        placeholder="Select Geo"
-        clearable
+        onChange={() => {}}
         value={output.geos?.[0] ?? ""}
       />
 

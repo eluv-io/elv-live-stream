@@ -1,0 +1,12 @@
+.boxWrapper {
+  border-radius: 5px;
+}
+
+.noWrapText {
+  white-space: nowrap;
+}
+
+.valueText {
+  flex: 1;
+  min-width: 0;
+}

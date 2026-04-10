@@ -42,8 +42,20 @@ const theme = createTheme({
       "#0648b6",
       "#003ea2"
     ],
+    "elv-blue-gray": [
+      "#edf5fe",
+      "#e4ebf3", // eluvio color
+      "#bcccde",
+      "#97afcc",
+      "#7897bc",
+      "#6488b3",
+      "#5981b0",
+      "#496e9b",
+      "#3e628b",
+      "#2f557d"
+    ],
     "elv-violet": [
-      "#f9e9ff",
+      "#e6e4ff", // eluvio color
       "#ebcfff",
       "#d29cff",
       "#b964ff", // eluvio color
@@ -86,7 +98,7 @@ const theme = createTheme({
       "#594c66"
     ],
     "elv-orange": [
-      "#fff6e1",
+      "#ffede4", // eluvio color
       "#ffeccc",
       "#ffd79b",
       "#ffc164",
@@ -122,7 +134,7 @@ const theme = createTheme({
       "#ad9c00"
     ],
     "elv-green": [
-      "#e4fdf4",
+      "#ddf3ee", // eluvio color
       "#d6f6e8",
       "#b0e8d1",
       "#88dab8",

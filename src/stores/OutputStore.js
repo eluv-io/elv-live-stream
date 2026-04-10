@@ -41,6 +41,10 @@ class OutputStore {
     this.tableFilter = filter;
   };
 
+  UpdateOutput = ({slug, updates}) => {
+    this.outputs[slug] = {...this.outputs[slug], ...updates};
+  };
+
   async LoadOutputs() {
     try {
       const outputs = await this.client.OutputsList({
@@ -60,6 +64,73 @@ class OutputStore {
       runInAction(() => {
         this.state = "error";
       });
+    }
+  }
+
+  async LoadOutputStreamInfo({slug, streamObjectId}) {
+    try {
+      const metadata = await this.client.ContentObjectMetadata({
+        libraryId: await this.client.ContentObjectLibraryId({objectId: streamObjectId}),
+        objectId: streamObjectId,
+        select: [
+          "live_recording_config/url",
+          "input_cfg/copy_packaging",
+          "input_cfg/copy_mode",
+          "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
+        ]
+      });
+
+      const copyMode = metadata?.input_cfg?.copy_mode;
+      const copyPackaging = metadata?.input_cfg?.copy_packaging;
+      const copyMpegTs = metadata?.live_recording?.recording_config?.recording_params?.xc_params?.copy_mpegts;
+      const url = metadata?.live_recording_config?.url;
+      const protocol = url.replace(/^\w+:\/\//, "");
+
+      const embedUrl = await this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
+
+      const packaging = [], source = [];
+
+      if(copyPackaging === "rtp_ts") {
+        packaging.push("rtp");
+      }
+
+      if(copyMode === "raw") {
+        packaging.push("ts", "fmp4");
+      } else if(copyMode === "raw_only") {
+        packaging.push("ts");
+      }
+
+      if(protocol === "srt") {
+        source.push(protocol);
+      } else if(protocol === "rtmp") {
+        source.push("rtp");
+      }
+
+      if(copyMpegTs) {
+        source.push("ts");
+      }
+
+      const streamInfo = {
+        url,
+        embedUrl,
+        source,
+        packaging
+      };
+
+      this.UpdateOutput({
+        slug,
+        updates: {
+          input: {
+            ...this.outputs[slug].input,
+            ...streamInfo
+          }
+        }
+      });
+
+      return streamInfo;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load stream info for output.", error);
     }
   }
 
