@@ -977,6 +977,15 @@ class StreamBrowseStore {
       }));
     }
 
+    if(!audioData) {
+      audioData = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording_config/recording_stream_config/audio"
+      });
+    }
+
     yield this.client.ReplaceMetadata({
       libraryId,
       objectId,

@@ -1,4 +1,4 @@
-import {render, screen, fireEvent, waitFor} from "@testing-library/react";
+import {render, screen, fireEvent, waitFor, within} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {vi, describe, it, expect, beforeEach} from "vitest";
 import {MemoryRouter} from "react-router-dom";
@@ -27,9 +27,12 @@ vi.mock("@/stores", () => ({
     accessGroups: {},
     liveStreamUrls: {},
     LoadAccessGroups: vi.fn().mockResolvedValue(undefined),
+    LoadDedicatedNodes: vi.fn().mockResolvedValue(undefined),
     LoadLibraries: vi.fn().mockResolvedValue(undefined),
     LoadStreamUrls: vi.fn().mockResolvedValue(undefined),
     LoadStreamProbeData: vi.fn().mockResolvedValue({audioStreams: [], audioData: {}}),
+    loadedDedicatedNodes: true,
+    dedicatedNodesList: [],
   },
   streamManagementStore: {InitLiveStreamObject: mockInitLiveStreamObject},
   streamBrowseStore: {ConfigureStream: mockConfigureStream},
@@ -70,14 +73,17 @@ const renderCreate = () => {
 
 // Fills all required fields using the "custom" protocol so URL is a plain TextInput
 const fillRequiredFields = async (user) => {
-  await user.click(screen.getByRole("radio", {name: "Custom"}));
+  await user.click(await screen.findByRole("tab", {name: "Public"}));
+  await user.click(screen.getAllByDisplayValue("MPEG-TS")[0]);
+  const protocolDropdown = await screen.findByRole("listbox");
+  await user.click(within(protocolDropdown).getByText("Custom"));
   await user.type(await screen.findByPlaceholderText("Enter a custom URL"), "udp://host.example.com:1234");
   await user.type(screen.getByPlaceholderText("Enter stream name"), "Test Stream");
   await user.type(screen.getByPlaceholderText("Enter a title"), "Test Stream Title");
   await user.type(screen.getByPlaceholderText("Enter a description"), "A test description");
 
-  await user.click(screen.getByPlaceholderText("Select Library"));
-  await user.click(await screen.findByText("Test Library"));
+  fireEvent.click(screen.getByPlaceholderText("Select Library"));
+  fireEvent.click(await screen.findByText("Test Library"));
 };
 
 describe("Create", () => {
@@ -148,7 +154,6 @@ describe("Create", () => {
       const {user} = renderCreate();
       await fillRequiredFields(user);
 
-      fireEvent.click(await screen.findByText("Advanced"));
       fireEvent.click(await screen.findByPlaceholderText("Select Config Profile"));
       fireEvent.click(await screen.findByText("My Profile"));
 

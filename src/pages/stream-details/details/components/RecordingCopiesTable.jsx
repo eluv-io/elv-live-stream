@@ -126,9 +126,13 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
       </Box>
       <ConfirmModal
         show={showDeleteModal}
-        title="Delete Live Recording Copy"
-        confirmText="Delete"
-        message="Are you sure you want to delete the live recording copy? This action cannot be undone."
+        title="Delete Live Recording Copy Confirmation"
+        confirmText="Delete Copy"
+        message="Are you sure you want to delete the live recording copy?"
+        detailData={{
+          idKey: "Live Recording Copy ID:",
+          id: deleteId
+        }}
         danger
         ConfirmCallback={async () => {
           await streamBrowseStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: deleteId});

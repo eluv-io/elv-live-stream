@@ -7,8 +7,7 @@ const ConfirmModal = observer(({
   message,
   customMessage,
   title,
-  name,
-  objectId,
+  detailData={},
   ConfirmCallback,
   CloseCallback,
   show,
@@ -43,24 +42,30 @@ const ConfirmModal = observer(({
             )
         }
         {
-          name && objectId &&
+          (Object.keys(detailData ?? {}).length > 0) &&
           <Box mt={16}>
-            <Grid gutter={2}>
-              <Grid.Col span={3}>
-                <Text>Stream Name:</Text>
-              </Grid.Col>
-              <Grid.Col span={9}>
-                <Text c="elv-gray.9" fw={700}>{ name || "" }</Text>
-              </Grid.Col>
-            </Grid>
-            <Grid>
-              <Grid.Col span={3}>
-                <Text>Stream ID:</Text>
-              </Grid.Col>
-              <Grid.Col span={9}>
-                <Text>{ objectId || "" }</Text>
-              </Grid.Col>
-            </Grid>
+            {
+              detailData.name &&
+              <Grid gutter={2}>
+                <Grid.Col span={3}>
+                  <Text>{ detailData.nameKey ?? "Name:" }</Text>
+                </Grid.Col>
+                <Grid.Col span={9}>
+                  <Text c="elv-gray.9" fw={700}>{ detailData.name ?? "" }</Text>
+                </Grid.Col>
+              </Grid>
+            }
+            {
+              detailData.id &&
+              <Grid>
+                <Grid.Col span={3}>
+                  <Text>{ detailData.idKey }</Text>
+                </Grid.Col>
+                <Grid.Col span={9}>
+                  <Text>{ detailData.id }</Text>
+                </Grid.Col>
+              </Grid>
+            }
           </Box>
         }
         {

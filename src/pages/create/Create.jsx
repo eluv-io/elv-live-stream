@@ -7,6 +7,7 @@ import {
   Button,
   Divider,
   Flex,
+  Loader,
   Select,
   SimpleGrid,
   Text,
@@ -21,8 +22,9 @@ import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Create.module.css";
 import {ValidateTextField} from "@/utils/validators.js";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import StreamUrlSelector from "@/pages/create/stream-url-selector/StreamUrlSelector.jsx";
 
-const Permissions = observer(({form}) => {
+const PermissionSelector = observer(({form}) => {
   const permissionLevels = rootStore.client.permissionLevels;
 
   return (
@@ -72,6 +74,8 @@ const Permissions = observer(({form}) => {
 const Create = observer(() => {
   const navigate = useNavigate();
   const [isCreating, setIsCreating] = useState(false);
+  const [activeUrlTypeTab, setActiveUrlTypeTab] = useState("");
+  const [loadedDedicatedNodes, setLoadedDedicatedNodes] = useState(false);
 
   useEffect(() => {
     const promises = [
@@ -84,17 +88,14 @@ const Create = observer(() => {
       promises.push(profileStore.LoadProfiles());
     }
 
+    if(!dataStore.loadedDedicatedNodes) {
+      promises.push(dataStore.LoadDedicatedNodes());
+    }
+
     Promise.all(promises)
       .then(() => {});
   }, []);
 
-  // Controlled form values that need state variables
-  const [formProtocol, setFormProtocol] = useState("mpegts");
-  const [formUrl, setFormUrl] = useState("");
-  const [formCustomUrl, setFormCustomUrl] = useState("");
-
-  // Form data dependent on api calls
-  const [urlOptions, setUrlOptions] = useState([]);
   const [profilesData, setProfilesData] = useState([]);
 
   const form = useForm({
@@ -109,6 +110,7 @@ const Create = observer(() => {
       permission: "editable",
       encryption: ["hls-clear", "dash-clear"],
       configProfile: "",
+      node: "",
       protocol: "mpegts", // Controlled by local state
       retention: "86400",
       url: "" // Controlled by local state
@@ -133,20 +135,32 @@ const Create = observer(() => {
   }, [profileStore.profiles]);
 
   useEffect(() => {
-    const urls = formProtocol === "custom" ?
-      [] :
-      Object.keys(dataStore.liveStreamUrls || {})
-        .filter(url => dataStore.liveStreamUrls[url].protocol === formProtocol && !dataStore.liveStreamUrls[url].active);
-
-    setUrlOptions(urls);
-  }, [formProtocol, dataStore.liveStreamUrls]);
+    if(dataStore.loadedDedicatedNodes) {
+      setActiveUrlTypeTab(dataStore.dedicatedNodesList.length > 0 ? "dedicated" : "public");
+      setLoadedDedicatedNodes(true);
+    }
+  }, [dataStore.dedicatedNodes, dataStore.loadedDedicatedNodes]);
 
   const HandleSubmit = async () => {
     setIsCreating(true);
 
     try {
-      const url = formProtocol === "custom" ? formCustomUrl : formUrl;
-      const {accessGroup, description, displayTitle, encryption, libraryId, name, permission, configProfile, protocol, retention} = form.getValues();
+      const {
+        accessGroup,
+        configProfile,
+        customUrl,
+        description,
+        displayTitle,
+        encryption,
+        libraryId,
+        name,
+        node: nodeId,
+        permission,
+        protocol,
+        retention,
+        url: formUrl
+      } = form.getValues();
+      const url = protocol === "custom" ? customUrl : formUrl;
 
       let retentionData = null;
       let persistent = false;
@@ -166,6 +180,7 @@ const Create = observer(() => {
         encryption,
         libraryId,
         name,
+        nodeId: activeUrlTypeTab === "dedicated" ? nodeId : undefined,
         permission,
         configProfile: configProfile ? profileStore.profiles[configProfile] : undefined,
         protocol,
@@ -193,67 +208,22 @@ const Create = observer(() => {
       <form onSubmit={form.onSubmit(HandleSubmit)} className={styles.form}>
         <SectionTitle mb={2}>Streaming Protocol</SectionTitle>
         <Text fz={12} c="elv-gray.6" mb={10}>Select a protocol to see available pre-allocated URLs.</Text>
-        <Select
-          name="protocol"
-          label="Nodes"
-          required={true}
-          value={formProtocol}
-          data={[
-            {label: "MPEG-TS", value: "mpegts"},
-            {label: "RTMP", value: "rtmp"},
-            {label: "SRT", value: "srt"},
-            {label: "Custom", value: "custom"}
-          ]}
-          onChange={(value) => {
-            setFormProtocol(value);
-            form.setFieldValue("protocol", value);
-            setFormUrl("");
-            form.setFieldValue("url", "");
-          }}
-          mb={18}
-        />
-
-        <Box mb={29}>
-          {
-            formProtocol === "custom" ?
-              (
-                <TextInput
-                  label="URL"
-                  name="customUrl"
-                  placeholder="Enter a custom URL"
-                  value={formCustomUrl}
-                  onChange={event => {
-                    const {value} = event.target;
-                    setFormCustomUrl(value);
-                    form.setFieldValue("customUrl", value);
-                  }}
-                  error={formProtocol === "custom" ? form.errors.customUrl : null}
-                  withAsterisk={formProtocol === "custom"}
-                />
-              ) :
-              (
-                <Select
-                  key={formProtocol}
-                  label="URL"
-                  name="url"
-                  data={urlOptions.map(url => (
-                    {
-                      label: url,
-                      value: url
-                    }
-                  ))}
-                  placeholder={dataStore.loadedUrls ? "Select URL" : "Loading URLs..."}
-                  value={formUrl}
-                  onChange={(value) => {
-                    setFormUrl(value);
-                    form.setFieldValue("url", value);
-                  }}
-                  error={formProtocol !== "custom" ? form.errors.url : null}
-                  withAsterisk={formProtocol !== "custom"}
-                />
-              )
-          }
-        </Box>
+        {
+          loadedDedicatedNodes ?
+          <StreamUrlSelector
+            activeTab={activeUrlTypeTab}
+            onActiveTabChange={setActiveUrlTypeTab}
+            onProtocolChange={(value) => {
+              form.setFieldValue("protocol", value);
+              form.setFieldValue("url", "");
+            }}
+            onUrlChange={(value) => form.setFieldValue("url", value)}
+            onCustomUrlChange={(value) => form.setFieldValue("customUrl", value)}
+            onNodeChange={(value) => form.setFieldValue("node", value)}
+            urlError={form.errors.url}
+            customUrlError={form.errors.customUrl}
+          /> : <Flex mb={25} mt={25}><Loader /></Flex>
+        }
 
         <Divider mb={29} />
         <SectionTitle mb={10}>General</SectionTitle>
@@ -316,9 +286,7 @@ const Create = observer(() => {
             {...form.getInputProps("accessGroup")}
           />
 
-          <Permissions
-            form={form}
-          />
+          <PermissionSelector form={form} />
         </SimpleGrid>
 
         <Select

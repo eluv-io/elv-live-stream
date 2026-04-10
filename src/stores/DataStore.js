@@ -14,8 +14,10 @@ class DataStore {
   siteId;
   siteLibraryId;
   liveStreamUrls;
+  dedicatedNodes;
   ladderProfiles;
   srtUrlsByStream;
+  loadedDedicatedNodes = false;
 
   constructor(rootStore) {
     makeAutoObservable(this);
@@ -27,6 +29,17 @@ class DataStore {
 
   get client() {
     return this.rootStore.client;
+  }
+
+  get dedicatedNodesList() {
+    return Object.entries(this.dedicatedNodes ?? {})
+      .map(([key, value]) => ({label: value.name, value: key}));
+  }
+
+  DedicatedNodeUrls({nodeId, protocol}) {
+    if(!this.dedicatedNodes) { return []; }
+
+    return this.dedicatedNodes?.[nodeId]?.urls?.[protocol] ?? [];
   }
 
   Initialize = flow(function * (reload=false) {
@@ -440,6 +453,27 @@ class DataStore {
     }
   });
 
+  LoadDedicatedNodes = flow(function * (){
+    this.loadedDedicatedNodes = false;
+    try {
+      if(!this.siteLibraryId) {
+        const tenantContractId = yield this.LoadTenantInfo();
+        yield this.LoadTenantData({tenantContractId});
+      }
+
+      const nodes = yield this.client.ContentObjectMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        metadataSubtree: "/dedicated_nodes"
+      });
+      this.UpdateDedicatedNodes({nodes});
+      this.loadedDedicatedNodes = true;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load dedicated stream URLs", error);
+    }
+  });
+
   LoadStreamUrls = flow(function * () {
     this.UpdateStreamUrls({});
     this.loadedUrls = false;
@@ -589,7 +623,14 @@ class DataStore {
         metadataSubtree: "live_recording_config/playout_config"
       });
 
-      let drm = liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats;
+      // Special case to retrieve playout formats in case profile has no specification and is created with a default value
+      const playoutFormatMeta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "offerings/default/playout/playout_formats"
+      });
+
+      let drm = liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats ?? Object.keys(playoutFormatMeta ?? {});
       // Playout formats must be an array of values from PLAYOUT_FORMAT_OPTIONS
       if(!Array.isArray(drm)) {
         drm = [];
@@ -820,6 +861,10 @@ class DataStore {
 
   UpdateStreamUrls = ({urls}) => {
     this.liveStreamUrls = urls;
+  };
+
+  UpdateDedicatedNodes = ({nodes}) => {
+    this.dedicatedNodes = nodes;
   };
 
   UpdateSrtUrls({objectId, newData={}, removeData={}}) {

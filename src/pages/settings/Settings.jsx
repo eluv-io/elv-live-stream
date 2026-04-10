@@ -12,7 +12,7 @@ import {IconPlus} from "@tabler/icons-react";
 
 const Settings = observer(() => {
   // Used to provide ConfirmModal with slug to be deleted
-  const [pendingDeleteSlug, setPendingDeleteSlug] = useState(null);
+  const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
   const [newProfileKey, setNewProfileKey] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -104,7 +104,7 @@ const Settings = observer(() => {
               editorValue={JSON.stringify(value, null, 2)}
               HandleEditorValueChange={({value}) => profileStore.UpdateDraft(key, value)}
               HandleDelete={() => {
-                setPendingDeleteSlug(key);
+                setPendingDeleteItem({slug: key, name: value.name});
                 setShowModal(true);
               }}
               Validate={parsed => {
@@ -149,16 +149,20 @@ const Settings = observer(() => {
         </Button>
       }
       <ConfirmModal
-        title="Delete Profile"
-        message="Are you sure you want to delete the profile? This action cannot be undone."
-        confirmText="Delete"
+        title="Delete Profile Confirmation"
+        message="Are you sure you want to delete the profile?"
+        detailData={{
+          nameKey: "Profile Name:",
+          name: pendingDeleteItem?.name
+        }}
+        confirmText="Delete Profile"
         danger
         show={showModal}
         CloseCallback={() => setShowModal(false)}
         ConfirmCallback={async() => {
-          await HandleDeleteProfile({slug: pendingDeleteSlug});
-          profileStore.DeleteProfile(pendingDeleteSlug);
-          setPendingDeleteSlug(null);
+          await HandleDeleteProfile({slug: pendingDeleteItem.slug});
+          profileStore.DeleteProfile(pendingDeleteItem?.slug);
+          setPendingDeleteItem(null);
           setShowModal(false);
         }}
       />

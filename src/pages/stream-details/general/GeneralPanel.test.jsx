@@ -10,12 +10,23 @@ const {mockUpdateGeneralConfig, mockNotificationShow} = vi.hoisted(() => ({
 }));
 
 vi.mock("@/stores", () => ({
-  rootStore: {errorMessage: null},
+  rootStore: {
+    errorMessage: null,
+    client: {
+      permissionLevels: {
+        editable: {short: "Editable", description: "Can edit content"},
+        owner: {short: "Owner", description: "Full owner access"},
+      }
+    }
+  },
   dataStore: {
     LoadDetails: vi.fn().mockResolvedValue(undefined),
     LoadPermission: vi.fn().mockResolvedValue("editable"),
     LoadAccessGroupPermissions: vi.fn().mockResolvedValue(""),
     LoadAccessGroups: vi.fn().mockResolvedValue(undefined),
+    LoadDedicatedNodes: vi.fn().mockResolvedValue(undefined),
+    loadedDedicatedNodes: true,
+    dedicatedNodesList: [],
     accessGroups: {},
   },
   streamManagementStore: {UpdateGeneralConfig: mockUpdateGeneralConfig},
@@ -89,6 +100,7 @@ describe("GeneralPanel", () => {
       await user.click(await screen.findByPlaceholderText("Select Config Profile"));
       await user.click(await screen.findByText("My Profile"));
 
+      fireEvent.click(screen.getByRole("checkbox"));
       fireEvent.click(screen.getByRole("button", {name: "Save"}));
 
       await waitFor(() => {
