@@ -22,32 +22,32 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
     mode: "uncontrolled",
     initialValues: {
       name: "",
-      region: "",
+      geo: "",
       encryption: false,
       passphrase: "",
       stripRtp: false
     },
     validate: {
-      region: isNotEmpty("Region is required")
+      geo: isNotEmpty("Geo is required")
     }
   });
 
   const HandleSubmit = async() => {
     try {
-      const {name, region, encryption, passphrase, stripRtp} = form.getValues();
+      const {name, geo, encryption, passphrase, stripRtp} = form.getValues();
       await outputStore.CreateOutput({
         name,
-        geos: [region],
+        geos: [geo],
         passphrase,
         encryption,
         stripRtp
       });
 
-      const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === region)?.label || "";
+      const geoLabel = FABRIC_NODE_REGIONS.find(data => data.value === geo)?.label || "";
 
       notifications.show({
         title: "New output created",
-        message: <NotificationMessage>Successfully created output for {regionLabel}</NotificationMessage>
+        message: <NotificationMessage>Successfully created output for {geoLabel}</NotificationMessage>
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -89,13 +89,13 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             {...form.getInputProps("name")}
           />
           <Select
-            label="Region"
+            label="Geo"
             withAsterisk
             data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
-            placeholder="Select Region"
+            placeholder="Select Geo"
             clearable
-            key={form.key("region")}
-            {...form.getInputProps("region")}
+            key={form.key("geo")}
+            {...form.getInputProps("geo")}
           />
 
           <Stack gap={12}>

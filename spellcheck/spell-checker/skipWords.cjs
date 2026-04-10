@@ -69,6 +69,7 @@ module.exports = [
   "neue",
   "noreferrer",
   "nowrap",
+  "unmap",
   "passphrase",
   "passthrough",
   "pathname",

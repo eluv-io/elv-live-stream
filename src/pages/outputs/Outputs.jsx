@@ -25,6 +25,7 @@ import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
 import BatchActions from "@/pages/outputs/batch-actions/BatchActions.jsx";
 import CreateOutputModal from "@/pages/outputs/batch-actions/modals/CreateOutputModal.jsx";
+import {useNavigate} from "react-router-dom";
 
 const Actions = ({onRefreshClick, mb}) => {
   const [showModal, setShowModal] = useState(false);
@@ -68,6 +69,8 @@ const Outputs = observer(() => {
   const [loading, setLoading] = useState(false);
   const [sortStatus, setSortStatus] = useState({columnAccessor: "name", direction: "asc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
+
+  const navigate = useNavigate();
 
   const LoadData = async() => {
     try {
@@ -122,11 +125,13 @@ const Outputs = observer(() => {
               width: "25%",
               render: record => (
                 <Stack gap={0} maw="100%">
-                  <Title order={3} lineClamp={1} title={record.name} style={{wordBreak: "break-all"}} c="elv-gray.9">
-                    {record.name}
-                  </Title>
+                  <UnstyledButton onClick={() => navigate(`/outputs/${record.slug}`)}>
+                    <Title order={3} lineClamp={1} title={record.name} style={{wordBreak: "break-all"}} c="elv-gray.9">
+                      {record.name}
+                    </Title>
+                  </UnstyledButton>
                   <Title order={6} c="elv-gray.6" lineClamp={1}>
-                    {record.external_id}
+                    {record.slug}
                   </Title>
                 </Stack>
               )
