@@ -24,7 +24,6 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       name: "",
       geo: "",
       encryption: false,
-      passphrase: "",
       stripRtp: false
     },
     validate: {
@@ -34,11 +33,10 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
 
   const HandleSubmit = async() => {
     try {
-      const {name, geo, encryption, passphrase, stripRtp} = form.getValues();
+      const {name, geo, encryption, stripRtp} = form.getValues();
       await outputStore.CreateOutput({
         name,
         geos: [geo],
-        passphrase,
         encryption,
         stripRtp
       });
@@ -107,15 +105,6 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
               {...form.getInputProps("encryption")}
             />
           </Stack>
-          {
-            form.getValues().encryption &&
-            <TextInput
-              name="Passphrase"
-              label="Passphrase"
-              key={form.key("passphrase")}
-              {...form.getInputProps("passphrase")}
-            />
-          }
           <Stack gap={12}>
             <Input.Label>Strip RTP</Input.Label>
             <Checkbox
