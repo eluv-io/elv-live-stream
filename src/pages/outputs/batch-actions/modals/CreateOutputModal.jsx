@@ -16,8 +16,11 @@ import {
   TextInput, Title
 } from "@mantine/core";
 import styles from "./modals.module.css";
+import {useState} from "react";
 
 const CreateOutputModal = observer(({show, onCloseModal}) => {
+  const [isSaving, setIsSaving] = useState(false);
+
   const form = useForm({
     mode: "uncontrolled",
     initialValues: {
@@ -33,6 +36,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
 
   const HandleSubmit = async() => {
     try {
+      setIsSaving(true);
       const {name, geo, encryption, stripRtp} = form.getValues();
       await outputStore.CreateOutput({
         name,
@@ -47,6 +51,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
         title: "New output created",
         message: <NotificationMessage>Successfully created output for {geoLabel}</NotificationMessage>
       });
+      onCloseModal();
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to create output", error);
@@ -56,6 +61,8 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
         color: "red",
         message: "Unable to create output"
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -87,7 +94,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             {...form.getInputProps("name")}
           />
           <Select
-            label="Geo"
+            label="Fabric Geo"
             withAsterisk
             data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
             placeholder="Select Geo"
@@ -116,7 +123,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
           </Stack>
         </Stack>
         <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
-          <Button type="submit">Create</Button>
+          <Button type="submit" loading={isSaving} disabled={isSaving}>Create</Button>
         </Flex>
       </form>
     </Modal>

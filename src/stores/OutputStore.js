@@ -155,6 +155,7 @@ class OutputStore {
         name,
         description,
         externalId,
+        enabled: false,
         geos,
         passphrase,
         stripRtp,
