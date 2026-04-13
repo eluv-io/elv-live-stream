@@ -63,7 +63,6 @@ const Streams = observer(() => {
           classNames={{input: styles.searchBar}}
           placeholder="Search by object name or ID"
           leftSection={<IconSearch width={15} height={15} />}
-          mb={14}
           value={streamBrowseStore.streamFilter}
           onChange={event => streamBrowseStore.SetStreamFilter({filter: event.target.value})}
         />
