@@ -9,7 +9,7 @@ const StatusText = ({
   quality,
   withBorder=false,
   size="sm",
-  fz="0.75rem",
+  fz,
   fw=500,
   c="elv-gray.9"
 }) => {

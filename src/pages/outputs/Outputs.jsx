@@ -149,7 +149,7 @@ const Outputs = observer(() => {
                   );
                 }
                 return (
-                  <Stack gap={3}>
+                  <Stack gap={0}>
                     <Group gap={8}>
                       <BasicTableRowText title={SanitizeUrl({url: record.originUrl})} lineClamp={1}>
                         { record.input?.name }
@@ -166,9 +166,9 @@ const Outputs = observer(() => {
                       </ActionIcon>
                     </Group>
                     <Group wrap="nowrap" gap={6}>
-                      <StatusText status={record.input.status} size="xs" fw={400} c="elv-gray.6" />
+                      <StatusText status={record.input.status} size="xs" fw={400} c="elv-gray.6" fz="0.75rem" />
                       <Box h={10}>
-                        <Divider orientation="vertical" c="elv-gray.6" size="xs" h="100%" />
+                        <Divider orientation="vertical" c="elv-gray.6" size="sm" h="100%" />
                       </Box>
                       <Text fz="0.75rem" fw={400} c="elv-gray.6">{ record.input?.stream }</Text>
                     </Group>

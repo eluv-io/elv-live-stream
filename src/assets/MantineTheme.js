@@ -123,7 +123,7 @@ const theme = createTheme({
     ],
     "elv-yellow": [
       "#fffde2",
-      "#fffacc",
+      "#eef1d6", // eluvio color
       "#fff59b",
       "#ffef64",
       "#ffeb39",
@@ -161,6 +161,19 @@ const theme = createTheme({
       styles: () => ({
         root: {
           "--app-shell-border-color": "var(--mantine-color-elv-neutral-0)"
+        }
+      })
+    },
+    Badge: {
+      styles: () => ({
+        root: {
+          padding: "2px 6px",
+          height: "auto"
+        },
+        label: {
+          display: "flex",
+          alignItems: "center",
+          lineHeight: 1
         }
       })
     },

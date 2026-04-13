@@ -4,12 +4,11 @@ import {Stack, Text} from "@mantine/core";
 import {rootStore, modalStore, streamBrowseStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import {
-  IconCircleX,
   IconDeviceAnalytics,
   IconExternalLink,
   IconListCheck,
   IconPlayerPlay,
-  IconPlayerStop, IconTrash
+  IconPlayerStop, IconTrash, IconX
 } from "@tabler/icons-react";
 import {Link} from "react-router-dom";
 
@@ -78,7 +77,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete}) =>
     {
       label: "Deactivate",
       title: "Deactivate Stream",
-      icon: <IconCircleX />,
+      icon: <IconX />,
       iconVariant: "subtle",
       buttonVariant: "outline",
       iconColor: "gray.6",

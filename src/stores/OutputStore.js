@@ -72,16 +72,17 @@ class OutputStore {
       const metadata = await this.client.ContentObjectMetadata({
         libraryId: await this.client.ContentObjectLibraryId({objectId: streamObjectId}),
         objectId: streamObjectId,
+        metadataSubtree: "live_recording_config",
         select: [
-          "live_recording_config/url",
-          "input_cfg",
+          "url",
+          "recording_config/input_cfg",
         ]
       });
 
-      const copyMode = metadata?.input_cfg?.copy_mode;
-      const copyPackaging = metadata?.input_cfg?.copy_packaging;
-      const url = metadata?.live_recording_config?.url;
-      const protocol = url.replace(/^\w+:\/\//, "");
+      const copyMode = metadata?.recording_config?.input_cfg?.copy_mode;
+      const copyPackaging = metadata?.recording_config?.input_cfg?.copy_packaging;
+      const url = metadata?.url;
+      const protocol = url.match(/^(\w+):\/\//)?.[1];
 
       const embedUrl = await this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
 

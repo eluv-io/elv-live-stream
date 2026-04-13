@@ -1,8 +1,6 @@
-// "use client";
-
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Link, useNavigate} from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import {
   IconSearch
 } from "@tabler/icons-react";
@@ -18,6 +16,7 @@ import {
   TextInput,
   Stack,
   Title,
+  Text,
   Box,
   Flex,
   Button,
@@ -27,7 +26,6 @@ import {
 
 import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import styles from "./Streams.module.css";
 import sharedStyles from "@/assets/shared.module.css";
@@ -82,22 +80,6 @@ const Streams = observer(() => {
           minHeight={(!records || records.length === 0) ? 130 : 75}
           fetching={!dataStore.loaded}
           records={records}
-          emptyState={
-            // Mantine bug where empty state link still present underneath table rows
-            !records &&
-            <div className={styles.emptyDataTable}>
-              <div className={styles.emptyDataTableText}>
-                No streams available
-              </div>
-              <Link className="button button__primary" to="/create">
-                <div className="button__link-inner">
-                  <span className="button__link-text">
-                    Create New Stream
-                  </span>
-                </div>
-              </Link>
-            </div>
-          }
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
           columns={[
@@ -116,36 +98,36 @@ const Streams = observer(() => {
             {
               accessor: "originUrl",
               title: "URL",
+              width: "30%",
               render: record => (
-                <BasicTableRowText title={SanitizeUrl({url: record.originUrl})} lineClamp={1}>
-                  {SanitizeUrl({url: record.originUrl})}
-                </BasicTableRowText>
+                <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>
+                  { SanitizeUrl({url: record.originUrl}) }
+                </Text>
               )
             },
             {
               accessor: "source",
               title: "Source",
               render: record => (
-                record.source?.map(el => <Badge key={`source-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>
-                )
+                <Group gap={4} wrap="nowrap">
+                  {
+                    record.source?.map(el => <Badge key={`source-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: styles.badgeLabel}}>{el}</Badge>
+                    )
+                  }
+                </Group>
               )
             },
             {
               accessor: "packaging",
               title: "Packaging",
               render: record => (
-                (record.packaging || []).map(el => (
-                  <Badge key={`packaging-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>
-                ))
-              )
-            },
-            {
-              accessor: "audioStreams",
-              title: "Audio",
-              render: record => (
-                <BasicTableRowText miw="100%" textWrap="nowrap">
-                  {record.audioStreamCount ? `${record.audioStreamCount} ${record.audioStreamCount > 1 ? "streams" : "stream"}` : ""}
-                </BasicTableRowText>
+                <Group gap={4} wrap="nowrap">
+                  {
+                    (record.packaging || []).map(el => (
+                      <Badge key={`packaging-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: styles.badgeLabel}}>{el}</Badge>
+                    ))
+                  }
+                </Group>
               )
             },
             {
@@ -157,6 +139,7 @@ const Streams = observer(() => {
                   status={record.status}
                   quality={record.quality}
                   size="md"
+                  fw={400}
                 />
             },
             {

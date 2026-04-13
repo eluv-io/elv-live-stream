@@ -141,6 +141,7 @@ export const QUALITY_TEXT = {
 export const COLOR_MAP = {
   srt: "elv-blue-gray.1",
   rtp: "elv-violet.0",
+  rtmp: "elv-yellow.1",
   ts: "elv-green.0",
   fmp4: "elv-orange.0"
 };
