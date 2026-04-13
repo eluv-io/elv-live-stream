@@ -42,6 +42,7 @@ const StreamUrlPanelContent = observer(({
         data={[
           {label: "MPEG-TS", value: "mpegts"},
           {label: "RTMP", value: "rtmp"},
+          {label: "RTP", value: "rtp"},
           {label: "SRT", value: "srt"},
           {label: "Custom", value: "custom"}
         ]}
