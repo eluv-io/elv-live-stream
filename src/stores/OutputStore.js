@@ -150,7 +150,7 @@ class OutputStore {
         name = `Output ${this.outputList?.length + 1}`;
       }
 
-      await this.client.OutputsCreate({
+      const outputs = await this.client.OutputsCreate({
         objectId: this.outputId,
         name,
         description,
@@ -160,6 +160,10 @@ class OutputStore {
         passphrase,
         stripRtp,
         srtConfig: encryption ? {enforced_encryption: encryption} : undefined
+      });
+
+      runInAction(() => {
+        this.outputs = outputs;
       });
     } catch(error) {
       // eslint-disable-next-line no-console

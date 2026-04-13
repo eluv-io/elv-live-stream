@@ -51,6 +51,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
         title: "New output created",
         message: <NotificationMessage>Successfully created output for {geoLabel}</NotificationMessage>
       });
+
       onCloseModal();
     } catch(error) {
       // eslint-disable-next-line no-console

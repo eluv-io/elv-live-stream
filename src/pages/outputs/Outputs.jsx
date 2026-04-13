@@ -44,16 +44,16 @@ const Actions = ({onRefreshClick, mb}) => {
         />
         <Group ml="auto" gap={8}>
           <Button
-            onClick={onRefreshClick}
-            variant="outline"
-          >
-            Refresh
-          </Button>
-          <Button
             variant="filled"
             onClick={() => setShowModal(true)}
           >
             Create
+          </Button>
+          <Button
+            onClick={onRefreshClick}
+            variant="outline"
+          >
+            Refresh
           </Button>
         </Group>
       </Flex>
