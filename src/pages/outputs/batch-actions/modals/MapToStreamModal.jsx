@@ -1,15 +1,13 @@
 import {observer} from "mobx-react-lite";
-import {Box, Button, Flex, Modal, Stack, Text, Title, UnstyledButton} from "@mantine/core";
+import {Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
 import styles from "./modals.module.css";
-import {DataTable} from "mantine-datatable";
-import {SanitizeUrl, SortTable} from "@/utils/helpers.js";
-import StatusText from "@/components/status-text/StatusText.jsx";
+import {SortTable} from "@/utils/helpers.js";
 import {useState} from "react";
 import {outputStore, streamBrowseStore} from "@/stores/index.js";
-import sharedStyles from "@/assets/shared.module.css";
-import modalStyles from "./modals.module.css";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import {IconSearch} from "@tabler/icons-react";
+import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 
 const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -47,7 +45,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
       onClose={onCloseModal}
       title={
         <Stack gap={0} mb={20}>
-          <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>Map to A Stream</Title>
+          <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>Select Input Stream</Title>
           <Text fz="0.875rem" c="elv-gray.8">Select the stream you want to map to (TS stream only).</Text>
         </Stack>
       }
@@ -57,78 +55,27 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
       classNames={{header: styles.modalHeader}}
       centered
     >
-      <Box className={`${sharedStyles.tableWrapper} ${modalStyles.modalRoot}`}>
-        <DataTable
-          highlightOnHover
-          idAccessor="objectId"
-          minHeight={(!records || records.length === 0) ? 130 : 75}
-          sortStatus={sortStatus}
-          onSortStatusChange={setSortStatus}
-          records={records}
-          onRowClick={record => setSelectedRecords([record])}
-          rowStyle={record => (selectedRecords?.[0]?.record?.objectId === record.objectId) ? {backgroundColor: "var(--mantine-color-elv-gray-0)"} : undefined}
-          columns={[
-            {
-              accessor: "title",
-              title: "Name",
-              sortable: true,
-              width: "25%",
-              render: record => (
-                <Stack gap={0}>
-                  <UnstyledButton onClick={() => {}} disabled={!record.objectId} style={{pointerEvents: record.objectId ? "auto" : "none"}}>
-                    <Title order={3} lineClamp={1} title={record.title || record.slug} style={{wordBreak: "break-all"}}>
-                      {record.title || record.slug}
-                    </Title>
-                  </UnstyledButton>
-                  <Title order={6} c="elv-gray.6" lineClamp={1}>
-                    {record.objectId}
-                  </Title>
-                </Stack>
-              )},
-            {
-              accessor: "originUrl",
-              title: "URL",
-              render: record => (
-                <Text fz={14} lineClamp={1} c="elv-gray.9" style={{wordBreak: "break-all"}}>
-                  { SanitizeUrl({url: record.originUrl}) }
-                </Text>
-              )
-            },
-            {
-              accessor: "source",
-              title: "Source",
-              width: "80px",
-              render: record => (
-                (record.source || []).map(el => (
-                  <Text key={`source-${el}`} tt="uppercase" fz={14}>{el}</Text>
-                ))
-              )
-            },
-            {
-              accessor: "packaging",
-              title: "Packaging",
-              width: "100px",
-              render: record => (
-                (record.packaging || []).map(el => (
-                  <Text key={`packaging-${el}`} tt="uppercase" fz={14}>{el}</Text>
-                ))
-              )
-            },
-            {
-              accessor: "status",
-              title: "Status",
-              sortable: true,
-              width: "125px",
-              render: record => !record.status ? null :
-                <StatusText
-                  status={record.status}
-                  quality={record.quality}
-                  size="md"
-                />
-            }
-          ]}
+      <Flex w="100%" align="center" mb={20}>
+        <TextInput
+          flex={2}
+          maw={400}
+          classNames={{input: styles.searchBar}}
+          placeholder="Search by object name or ID"
+          leftSection={<IconSearch width={15} height={15} />}
+          value={streamBrowseStore.streamFilter}
+          onChange={event => streamBrowseStore.SetStreamFilter({filter: event.target.value})}
         />
-      </Box>
+      </Flex>
+
+      <StreamsTable
+        records={records}
+        sortStatus={sortStatus}
+        onSortStatusChange={setSortStatus}
+        onRowClick={record => setSelectedRecords([record])}
+        rowStyle={record => selectedRecords?.[0]?.record?.objectId === record.objectId ? {backgroundColor: "var(--mantine-color-elv-blue-0)"} : undefined}
+        showActions={false}
+        maxHeight={600}
+      />
       <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
         <Button onClick={HandleSubmit}>Map</Button>
       </Flex>

@@ -1,35 +1,14 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
-import {
-  IconSearch
-} from "@tabler/icons-react";
-
+import {IconSearch} from "@tabler/icons-react";
 import {dataStore, streamBrowseStore} from "@/stores";
-import {SanitizeUrl, SortTable} from "@/utils/helpers";
-
+import {SortTable} from "@/utils/helpers";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
-import {DataTable} from "mantine-datatable";
-import {
-  ActionIcon,
-  Group,
-  TextInput,
-  Stack,
-  Title,
-  Text,
-  Box,
-  Flex,
-  Button,
-  UnstyledButton,
-  Badge
-} from "@mantine/core";
-
-import StatusText from "@/components/status-text/StatusText.jsx";
+import {TextInput, Flex, Button} from "@mantine/core";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import {GetStreamActions} from "@/utils/streamActions.jsx";
 import styles from "./Streams.module.css";
-import sharedStyles from "@/assets/shared.module.css";
-import {COLOR_MAP} from "@/utils/constants.js";
+import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -72,107 +51,13 @@ const Streams = observer(() => {
           Refresh
         </Button>
       </Flex>
-
-      <Box className={sharedStyles.tableWrapper}>
-        <DataTable
-          highlightOnHover
-          idAccessor="objectId"
-          minHeight={(!records || records.length === 0) ? 130 : 75}
-          fetching={!dataStore.loaded}
-          records={records}
-          sortStatus={sortStatus}
-          onSortStatusChange={setSortStatus}
-          columns={[
-            { accessor: "title", title: "Name", sortable: true, render: record => (
-              <Stack gap={0} maw="100%">
-                <UnstyledButton onClick={() => navigate(`/streams/${record.objectId || record.slug}`)} disabled={!record.objectId} style={{pointerEvents: record.objectId ? "auto" : "none"}}>
-                  <Title order={3} lineClamp={1} title={record.title || record.slug} style={{wordBreak: "break-all"}}>
-                    {record.title || record.slug}
-                  </Title>
-                </UnstyledButton>
-                <Title order={6} c="elv-gray.6" lineClamp={1}>
-                  {record.objectId}
-                </Title>
-              </Stack>
-            )},
-            {
-              accessor: "originUrl",
-              title: "URL",
-              width: "30%",
-              render: record => (
-                <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>
-                  { SanitizeUrl({url: record.originUrl}) }
-                </Text>
-              )
-            },
-            {
-              accessor: "source",
-              title: "Source",
-              render: record => (
-                <Group gap={4} wrap="nowrap">
-                  {
-                    record.source?.map(el => <Badge key={`source-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: styles.badgeLabel}}>{el}</Badge>
-                    )
-                  }
-                </Group>
-              )
-            },
-            {
-              accessor: "packaging",
-              title: "Packaging",
-              render: record => (
-                <Group gap={4} wrap="nowrap">
-                  {
-                    (record.packaging || []).map(el => (
-                      <Badge key={`packaging-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: styles.badgeLabel}}>{el}</Badge>
-                    ))
-                  }
-                </Group>
-              )
-            },
-            {
-              accessor: "status",
-              title: "Status",
-              sortable: true,
-              render: record => !record.status ? null :
-                <StatusText
-                  status={record.status}
-                  quality={record.quality}
-                  size="md"
-                  fw={400}
-                />
-            },
-            {
-              accessor: "actions",
-              title: "",
-              render: record => {
-                return (
-                  <Group gap={7} justify="right" wrap="nowrap">
-                    {
-                      GetStreamActions({record})
-                        .filter(item => !item.hidden)
-                        .map(item => (
-                          <ActionIcon
-                            key={`action-${item.title}`}
-                            variant={item.iconVariant}
-                            component={item.component}
-                            to={item.to}
-                            title={item.title}
-                            color={item.iconColor}
-                            onClick={item.onClick}
-                            disabled={item.disabled}
-                          >
-                            {item.icon}
-                          </ActionIcon>
-                        ))
-                    }
-                  </Group>
-                );
-              }
-            }
-          ]}
-        />
-      </Box>
+      <StreamsTable
+        records={records}
+        sortStatus={sortStatus}
+        onSortStatusChange={setSortStatus}
+        fetching={!dataStore.loaded}
+        onRowClick={record => navigate(`/streams/${record.record.objectId || record.record.slug}`)}
+      />
     </PageContainer>
   );
 });

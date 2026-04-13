@@ -10,3 +10,8 @@
     color: var(--mantine-color-elv-black-3);
   }
 }
+
+.badgeLabel {
+  overflow: visible;
+  text-overflow: unset;
+}
