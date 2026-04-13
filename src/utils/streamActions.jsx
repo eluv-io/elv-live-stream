@@ -1,7 +1,7 @@
 import {SanitizeUrl, StreamIsActive} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
 import {Stack, Text} from "@mantine/core";
-import {modalStore, streamBrowseStore} from "@/stores/index.js";
+import {rootStore, modalStore, streamBrowseStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import {
   IconCircleX,
@@ -141,13 +141,9 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete}) =>
       buttonVariant: "outline",
       iconColor: "gray.6",
       hidden: !record.objectId,
-      onClick: () => streamBrowseStore.client.SendMessage({
-        options: {
-          operation: "OpenLink",
-          libraryId: record.libraryId,
-          objectId: record.objectId
-        },
-        noResponse: true
+      onClick: () => rootStore.OpenInFabricBrowser({
+        libraryId: record.libraryId,
+        objectId: record.objectId
       })
     },
     {

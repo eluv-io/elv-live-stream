@@ -7,6 +7,7 @@ import StreamManagementStore from "@/stores/StreamManagementStore.js";
 import SiteStore from "@/stores/SiteStore.js";
 import ProfileStore from "@/stores/ProfileStore.js";
 import OutputStore from "@/stores/OutputStore.js";
+import {streamBrowseStore} from "@/stores/index.js";
 
 // Force strict mode so mutations are only allowed within actions.
 configure({
@@ -60,6 +61,21 @@ class RootStore {
 
   SetErrorMessage(message) {
     this.errorMessage = message;
+  }
+
+  async OpenInFabricBrowser({libraryId, objectId}) {
+    if(!libraryId) {
+      libraryId = await this.client.ContentObjectLibraryId({objectId});
+    }
+
+    streamBrowseStore.client.SendMessage({
+      options: {
+        operation: "OpenLink",
+        libraryId,
+        objectId
+      },
+      noResponse: true
+    });
   }
 }
 

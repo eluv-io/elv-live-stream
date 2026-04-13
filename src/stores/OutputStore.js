@@ -75,13 +75,11 @@ class OutputStore {
         select: [
           "live_recording_config/url",
           "input_cfg",
-          "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
         ]
       });
 
       const copyMode = metadata?.input_cfg?.copy_mode;
       const copyPackaging = metadata?.input_cfg?.copy_packaging;
-      const copyMpegTs = metadata?.live_recording?.recording_config?.recording_params?.xc_params?.copy_mpegts;
       const url = metadata?.live_recording_config?.url;
       const protocol = url.replace(/^\w+:\/\//, "");
 
@@ -114,16 +112,6 @@ class OutputStore {
         case "rtmp":
           source = ["rtmp"];
           break;
-      }
-
-      if(protocol === "srt") {
-        source.push(protocol);
-      } else if(protocol === "rtmp") {
-        source.push("rtp");
-      }
-
-      if(copyMpegTs) {
-        source.push("ts");
       }
 
       const streamInfo = {

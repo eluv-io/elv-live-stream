@@ -4,6 +4,7 @@ import {
   ActionIcon,
   Box,
   Button,
+  Divider,
   Flex,
   Group,
   Stack,
@@ -13,13 +14,13 @@ import {
   Title,
   UnstyledButton
 } from "@mantine/core";
-import {outputStore} from "@/stores/index.js";
+import {outputStore, rootStore} from "@/stores/index.js";
 import {DataTable} from "mantine-datatable";
 import {SanitizeUrl} from "@/utils/helpers.js";
 import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
-import {IconSearch, IconTrash} from "@tabler/icons-react";
+import {IconCheck, IconCopy, IconExternalLink, IconSearch, IconTrash} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
-import {useDebouncedCallback} from "@mantine/hooks";
+import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
@@ -71,6 +72,7 @@ const Outputs = observer(() => {
   const [selectedRecords, setSelectedRecords] = useState([]);
 
   const navigate = useNavigate();
+  const clipboard = useClipboard();
 
   const LoadData = async() => {
     try {
@@ -150,26 +152,58 @@ const Outputs = observer(() => {
                 }
                 return (
                   <Stack gap={3}>
-                    <BasicTableRowText title={SanitizeUrl({url: record.originUrl})} lineClamp={1}>
-                      {record.input?.name}
-                    </BasicTableRowText>
-                    <StatusText status={record.input.status} size="xs" />
+                    <Group gap={8}>
+                      <BasicTableRowText title={SanitizeUrl({url: record.originUrl})} lineClamp={1}>
+                        { record.input?.name }
+                      </BasicTableRowText>
+                      <ActionIcon
+                        variant="transparent"
+                        c="elv-gray.6"
+                        size={18}
+                        onClick={() => rootStore.OpenInFabricBrowser({
+                          objectId: record.input.stream
+                        })}
+                      >
+                        <IconExternalLink />
+                      </ActionIcon>
+                    </Group>
+                    <Group wrap="nowrap" gap={6}>
+                      <StatusText status={record.input.status} size="xs" fw={400} c="elv-gray.6" />
+                      <Box h={10}>
+                        <Divider orientation="vertical" c="elv-gray.6" size="xs" h="100%" />
+                      </Box>
+                      <Text fz="0.75rem" fw={400} c="elv-gray.6">{ record.input?.stream }</Text>
+                    </Group>
                   </Stack>
                 );
               }
             },
             {
               accessor: "srt_url",
-              title: "Output URL",
+              title: "URL",
               width: "30%",
               render: record => (
-                <Text fz={14} lineClamp={1} c="elv-gray.9" style={{wordBreak: "break-all"}}>{ record.srt_url }</Text>
+                <Group gap={0} wrap="nowrap">
+                  <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>{ record.srt_url }</Text>
+                  <ActionIcon
+                    variant="transparent"
+                    c="elv-gray.6"
+                    size={18}
+                    onClick={() => clipboard.copy(record.srt_url)}
+                  >
+                    {
+                      clipboard.copied ?
+                        <IconCheck /> :
+                        <IconCopy />
+                    }
+                  </ActionIcon>
+                </Group>
               )
             },
             {
               accessor: "clients",
               title: "Clients",
-              width: 150,
+              width: 90,
               render: record => (
                 <BasicTableRowText textWrap="nowrap">
                   {record.state?.connected_clients ?? 0}

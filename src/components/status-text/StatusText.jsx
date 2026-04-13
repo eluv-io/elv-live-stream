@@ -4,7 +4,15 @@ import styles from "./StatusText.module.css";
 import {QUALITY_MAP, STATUS_TEXT} from "@/utils/constants.js";
 import {IconAlertCircle} from "@tabler/icons-react";
 
-const StatusText = ({status, quality, withBorder=false, size="sm", fw=500}) => {
+const StatusText = ({
+  status,
+  quality,
+  withBorder=false,
+  size="sm",
+  fz="0.75rem",
+  fw=500,
+  c="elv-gray.9"
+}) => {
   if(!status) { return null; }
   const SIZE_MAPPINGS = {
     "xs": {
@@ -34,11 +42,11 @@ const StatusText = ({status, quality, withBorder=false, size="sm", fw=500}) => {
           offset={4}
         >
           <Text
-            fz={SIZE_MAPPINGS[size].fz}
+            fz={fz ?? SIZE_MAPPINGS[size].fz}
             ml={SIZE_MAPPINGS[size].ml}
             fw={fw}
             lh={1}
-            c="elv-gray.9"
+            c={c}
           >
             { STATUS_TEXT[status] }
           </Text>
