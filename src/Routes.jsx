@@ -7,7 +7,7 @@ import StreamPreview from "@/components/stream-preview/StreamPreview.jsx";
 import StreamDetailsPage from "@/pages/stream-details/StreamDetailsPage";
 import Settings from "@/pages/settings/Settings.jsx";
 import Outputs from "@/pages/outputs/Outputs.jsx";
-import OutputDetails from "@/pages/outputs/details/OutputDetails.jsx";
+import OutputDetails from "@/pages/output-details/OutputDetails.jsx";
 
 const AppRoutes = observer(() => {
   return (
