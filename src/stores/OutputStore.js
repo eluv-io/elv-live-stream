@@ -74,8 +74,7 @@ class OutputStore {
         objectId: streamObjectId,
         select: [
           "live_recording_config/url",
-          "input_cfg/copy_packaging",
-          "input_cfg/copy_mode",
+          "input_cfg",
           "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
         ]
       });
@@ -88,7 +87,8 @@ class OutputStore {
 
       const embedUrl = await this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
 
-      const packaging = [], source = [];
+      const packaging = [];
+      let source;
 
       if(copyPackaging === "rtp_ts") {
         packaging.push("rtp");
@@ -98,6 +98,22 @@ class OutputStore {
         packaging.push("ts", "fmp4");
       } else if(copyMode === "raw_only") {
         packaging.push("ts");
+      }
+
+      switch(protocol) {
+        case "srt":
+          source = ["srt", "ts"];
+          if(metadata?.input_cfg?.input_packaging?.rtp_ts) {source = source.splice(1, 0, "rtp");}
+          break;
+        case "udp":
+          source = ["ts"];
+          break;
+        case "rtp":
+          source = ["rtp", "ts"];
+          break;
+        case "rtmp":
+          source = ["rtmp"];
+          break;
       }
 
       if(protocol === "srt") {
