@@ -4,6 +4,7 @@ module.exports = [
   "24zm40",
   "8zm",
   "aac",
+  "acc",
   "accessor",
   "aes",
   "algo",

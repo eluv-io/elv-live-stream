@@ -223,10 +223,14 @@ export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
     });
 
     return urlObject.toString();
-  } catch(error) {
-    // eslint-disable-next-line no-console
-    console.error(`Unable to sanitize ${url}`, error);
-    return false;
+  } catch(_e) {
+    // Fallback for URLs with out-of-range ports (e.g. rtp://) that new URL() rejects
+    const paramsToRemove = ["passphrase", ...removeQueryParams];
+    return paramsToRemove.reduce((acc, param) => {
+      return acc.replace(new RegExp(`([?&])${param}=[^&]*(&?)`, "g"), (_, prefix, suffix) => {
+        return suffix ? prefix : "";
+      });
+    }, url);
   }
 };
 
