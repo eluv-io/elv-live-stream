@@ -1,10 +1,10 @@
-import {ActionIcon, Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/core";
-import {IconCheck, IconMobiledata, IconCancel, IconRotateClockwise, IconX} from "@tabler/icons-react";
+import {Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/core";
+import {IconCheck, IconMobiledata, IconCancel, IconRotateClockwise} from "@tabler/icons-react";
 import styles from "./BatchActions.module.css";
 import {useState} from "react";
 import MapToStreamModal from "@/pages/outputs/batch-actions/modals/MapToStreamModal.jsx";
 
-const BatchActions = ({selectedRecords, SelectAll, ClearSelection, mb}) => {
+const BatchActions = ({selectedRecords, SelectAll, mb}) => {
   // activeModal states: map | enable | disable | reset | null
   const [activeModal, setActiveModal] = useState(null);
 
@@ -19,26 +19,25 @@ const BatchActions = ({selectedRecords, SelectAll, ClearSelection, mb}) => {
 
   return (
     <>
-      <Box bg="elv-blue.0" p="3px 12px" radius={4} mb={mb}>
+      <Box bg="elv-blue.0" p="3px 12px" mb={mb} className={styles.boxRounded}>
         <Flex direction="row">
-          <Group gap={16}>
-            <ActionIcon
-              variant="subtle"
-              c="elv-gray.9"
-              onClick={ClearSelection}
-            >
-              { IconDisplay(IconX) }
-            </ActionIcon>
             <Group gap={0}>
-              <Text fw={400} c="elv-gray.9" fz="0.875rem" miw={70}>{selectedRecords.length} selected</Text>
-              <UnstyledButton onClick={SelectAll}>
-                <Group gap={0}>
-                  <Text fw={400} c="elv-gray.9" fz="0.875rem">&nbsp;(</Text>
-                  <Text td="underline" fw={400} c="elv-gray.9" fz="0.875rem">Select All</Text>
-                  <Text fw={400} c="elv-gray.9" fz="0.875rem">)</Text>
-                </Group>
-              </UnstyledButton>
-            </Group>
+              {
+                selectedRecords.length === 0 ?
+                  <UnstyledButton onClick={SelectAll}>
+                    <Text td="underline" fw={400} c="elv-gray.9" fz="0.875rem">Select All</Text>
+                  </UnstyledButton> :
+                  <Group gap={4}>
+                    <Text fw={400} c="elv-gray.9" fz="0.875rem" miw={70}>{selectedRecords.length} selected</Text>
+                    <UnstyledButton onClick={SelectAll}>
+                      <Group gap={0}>
+                        <Text fw={400} c="elv-gray.9" fz="0.875rem">&nbsp;(</Text>
+                        <Text td="underline" fw={400} c="elv-gray.9" fz="0.875rem">Select All</Text>
+                        <Text fw={400} c="elv-gray.9" fz="0.875rem">)</Text>
+                      </Group>
+                    </UnstyledButton>
+                  </Group>
+              }
           </Group>
           <Divider orientation="vertical" color="elv-gray.2" ml={16} mr={16} />
           <Group gap={12}>

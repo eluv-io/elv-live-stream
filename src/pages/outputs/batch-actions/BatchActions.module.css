@@ -3,3 +3,7 @@
     background: rgb(0 0 0 / 3%);
   }
 }
+
+.boxRounded {
+  border-radius: 4px;
+}

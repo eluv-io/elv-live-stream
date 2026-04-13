@@ -97,22 +97,20 @@ const Outputs = observer(() => {
     <PageContainer
       title="Outputs"
     >
-      {
-        selectedRecords.length ?
-          <BatchActions
-            selectedRecords={selectedRecords}
-            SelectAll={() => setSelectedRecords(records)}
-            ClearSelection={() => setSelectedRecords([])}
-            mb={20}
-          /> :
-          <Actions onRefreshClick={DebouncedRefresh} mb={20} />
-      }
+      <Stack gap={0}>
+        <Actions onRefreshClick={DebouncedRefresh} mb={20} />
+        <BatchActions
+          selectedRecords={selectedRecords}
+          SelectAll={() => setSelectedRecords(records)}
+          ClearSelection={() => setSelectedRecords([])}
+          mb={20}
+        />
+      </Stack>
       <Box className={sharedStyles.tableWrapper}>
         <DataTable
           idAccessor="slug"
-          // TODO: idAccessor should be external_id
-          // idAccessor="external_id"
           minHeight={(!records || records.length === 0) ? 130 : 75}
+          highlightOnHover
           sortStatus={sortStatus}
           fetching={loading}
           onSortStatusChange={setSortStatus}
