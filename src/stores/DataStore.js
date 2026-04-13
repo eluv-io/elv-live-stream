@@ -1,7 +1,7 @@
 // Handles all metadata reads — tenant info, stream metadata, recording/playout config, probe data, permissions, and ladder profiles.
 import {flow, makeAutoObservable, runInAction, toJS} from "mobx";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
-import {Slugify} from "@/utils/helpers.js";
+import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 
 class DataStore {
   rootStore;
@@ -336,7 +336,7 @@ class DataStore {
         source,
         videoBitrate: videoStream?.bit_rate,
         // General Config
-        configProfile: Slugify(configProfileName),
+        configProfile: slugify(configProfileName),
         description: generalMeta?.description,
         display_title: generalMeta?.asset_metadata?.display_title,
         originUrl: liveRecordingConfigMeta?.url ?? liveRecordingMeta?.recording_config?.recording_params?.origin_url,

@@ -68,15 +68,6 @@ export const ParseLiveConfigData = ({
   };
 };
 
-export const Slugify = (string) => {
-  return (string || "")
-    .toLowerCase()
-    .trim()
-    .replace(/ /g, "-")
-    .replace(/[^a-z0-9-]/g,"")
-    .replace(/-+/g, "-");
-};
-
 export const VideoBitrateReadable = (bitrate) => {
   if(!bitrate) { return ""; }
   const denominator = 1000000;
