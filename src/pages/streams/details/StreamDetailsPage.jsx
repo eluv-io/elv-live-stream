@@ -1,12 +1,12 @@
 import {useEffect, useState} from "react";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {streamBrowseStore, dataStore} from "@/stores";
+import {streamBrowseStore, dataStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
-import {DETAILS_TABS} from "@/utils/tabs";
-import styles from "@/pages/stream-details/StreamDetails.module.css";
+import {DETAILS_TABS} from "@/utils/tabs.js";
+import styles from "@/pages/streams/details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 

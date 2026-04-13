@@ -68,7 +68,7 @@ vi.mock("@/components/notification-message/NotificationMessage.jsx", () => ({
   default: ({children}) => <div>{children}</div>
 }));
 
-import GeneralPanel from "./GeneralPanel";
+import GeneralPanel from "@/pages/streams/details/general/GeneralPanel.jsx";
 
 const renderGeneralPanel = (props = {}) => {
   const user = userEvent.setup();

@@ -5,7 +5,7 @@ import {DataTable} from "mantine-datatable";
 import {useState} from "react";
 import {SortTable} from "@/utils/helpers.js";
 import {useClipboard} from "@mantine/hooks";
-import SrtLinkForm from "@/pages/stream-details/transport-stream/common/SrtLinkForm.jsx";
+import SrtLinkForm from "@/pages/streams/details/transport-stream/common/SrtLinkForm.jsx";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import {dataStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";

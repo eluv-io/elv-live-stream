@@ -1,5 +1,5 @@
 import {Title} from "@mantine/core";
-import styles from "./DetailsCommon.module.css";
+import styles from "@/pages/streams/details/common/DetailsCommon.module.css";
 
 export const BasicTableRowText = ({children, ...props}) => {
   return (

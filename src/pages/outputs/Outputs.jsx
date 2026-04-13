@@ -17,7 +17,7 @@ import {
 import {outputStore, rootStore} from "@/stores/index.js";
 import {DataTable} from "mantine-datatable";
 import {SanitizeUrl} from "@/utils/helpers.js";
-import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
+import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {IconCheck, IconCopy, IconExternalLink, IconSearch, IconTrash} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
 import {useClipboard, useDebouncedCallback} from "@mantine/hooks";

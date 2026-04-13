@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
-import {dataStore, streamManagementStore} from "@/stores";
+import {dataStore, streamManagementStore} from "@/stores/index.js";
 import {useParams} from "react-router-dom";
 import {
   Box,
@@ -20,7 +20,7 @@ import {
   CONNECTION_TIMEOUT_OPTIONS,
   RECONNECTION_TIMEOUT_OPTIONS,
   RETENTION_OPTIONS, STATUS_MAP
-} from "@/utils/constants";
+} from "@/utils/constants.js";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";

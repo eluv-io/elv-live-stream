@@ -14,8 +14,8 @@ import {useParams} from "react-router-dom";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {CheckExpiration} from "@/utils/helpers.js";
-import SavedLinks from "@/pages/stream-details/transport-stream/saved-links/SavedLinks.jsx";
-import QuickLinks from "@/pages/stream-details/transport-stream/quick-links/QuickLinks.jsx";
+import SavedLinks from "@/pages/streams/details/transport-stream/saved-links/SavedLinks.jsx";
+import QuickLinks from "@/pages/streams/details/transport-stream/quick-links/QuickLinks.jsx";
 
 const TransportStreamPanel = observer(({url, active}) => {
   const params = useParams();

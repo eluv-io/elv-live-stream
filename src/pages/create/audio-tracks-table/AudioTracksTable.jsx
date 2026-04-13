@@ -6,7 +6,7 @@ import {AudioCodec} from "@/utils/constants.js";
 import {IconCircleCheck, IconCircleCheckFilled} from "@tabler/icons-react";
 import styles from "./AudioTracksTable.module.css";
 import sharedStyles from "@/assets/shared.module.css";
-import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
+import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 
 const AudioTracksTable = observer(({
   records,

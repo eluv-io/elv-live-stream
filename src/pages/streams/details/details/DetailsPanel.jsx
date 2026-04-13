@@ -1,16 +1,16 @@
 import {useEffect, useState} from "react";
 import {Box, Button, Code, Flex, Grid, Group, Skeleton, Stack, Text, Title, Tooltip} from "@mantine/core";
-import {dataStore, streamBrowseStore} from "@/stores";
+import {dataStore, streamBrowseStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
-import {DateFormat, FormatTime} from "@/utils/helpers";
-import {STATUS_MAP, QUALITY_TEXT, RETENTION_TEXT} from "@/utils/constants";
-import RecordingPeriodsTable from "@/pages/stream-details/details/components/RecordingPeriodsTable.jsx";
-import RecordingCopiesTable from "@/pages/stream-details/details/components/RecordingCopiesTable.jsx";
+import {DateFormat, FormatTime} from "@/utils/helpers.js";
+import {STATUS_MAP, QUALITY_TEXT, RETENTION_TEXT} from "@/utils/constants.js";
+import RecordingPeriodsTable from "@/pages/streams/details/details/components/RecordingPeriodsTable.jsx";
+import RecordingCopiesTable from "@/pages/streams/details/details/components/RecordingCopiesTable.jsx";
 import {IconAlertCircle, IconLink} from "@tabler/icons-react";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import styles from "./DetailsPanel.module.css";
+import styles from "@/pages/streams/details/details/DetailsPanel.module.css";
 import {useClipboard} from "@mantine/hooks";
 
 export const Runtime = ({

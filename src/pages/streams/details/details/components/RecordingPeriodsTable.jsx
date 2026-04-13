@@ -12,9 +12,9 @@ import {
   SortTable
 } from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
-import CopyToVodModal from "@/pages/stream-details/details/components/CopyToVodModal.jsx";
-import {Runtime} from "@/pages/stream-details/details/DetailsPanel.jsx";
-import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
+import CopyToVodModal from "@/pages/streams/details/details/components/CopyToVodModal.jsx";
+import {Runtime} from "@/pages/streams/details/details/DetailsPanel.jsx";
+import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";

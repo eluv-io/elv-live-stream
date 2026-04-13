@@ -13,7 +13,7 @@ import {
   Tooltip
 } from "@mantine/core";
 import {useEffect, useState} from "react";
-import {dataStore, rootStore, streamManagementStore, streamBrowseStore, profileStore} from "@/stores";
+import {dataStore, rootStore, streamManagementStore, streamBrowseStore, profileStore} from "@/stores/index.js";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
