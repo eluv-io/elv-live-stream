@@ -153,7 +153,7 @@ class StreamManagementStore {
           accessGroups: groupAddress ? [groupAddress] : undefined,
           displayTitle,
           description,
-          ingressNodeApi: nodeId,
+          ingressNodeId: nodeId,
           linkToSite: true,
           name,
           permission
