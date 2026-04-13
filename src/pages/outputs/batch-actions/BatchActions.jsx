@@ -1,5 +1,5 @@
 import {Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/core";
-import {IconCheck, IconMobiledata, IconCancel, IconRotateClockwise} from "@tabler/icons-react";
+import {IconCheck, IconCancel, IconRotateClockwise, IconRouteOff, IconRoute} from "@tabler/icons-react";
 import styles from "./BatchActions.module.css";
 import {useState} from "react";
 import MapToStreamModal from "@/pages/outputs/batch-actions/modals/MapToStreamModal.jsx";
@@ -9,7 +9,8 @@ const BatchActions = ({selectedRecords, SelectAll, mb}) => {
   const [activeModal, setActiveModal] = useState(null);
 
   const actions = [
-    {icon: IconMobiledata, label: "Map to a stream", id: "batch-map-stream", onClick: () => setActiveModal("map")},
+    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => setActiveModal("map")},
+    {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => setActiveModal("unmap")},
     {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => setActiveModal("enable")},
     {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => setActiveModal("disable")},
     {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => setActiveModal("reset")},
@@ -52,8 +53,9 @@ const BatchActions = ({selectedRecords, SelectAll, mb}) => {
                   miw={0}
                   h={30}
                   leftSection={IconDisplay(action.icon)}
-                  classNames={{root: styles.button}}
+                  classNames={{root: styles.button, inner: styles.buttonInner}}
                   onClick={action.onClick}
+                  disabled={selectedRecords.length === 0}
                 >
                   { action.label }
                 </Button>
