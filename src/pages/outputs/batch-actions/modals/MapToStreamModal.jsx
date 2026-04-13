@@ -8,12 +8,19 @@ import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {IconSearch} from "@tabler/icons-react";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
+import {useDebouncedValue} from "@mantine/hooks";
 
 const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
+  const [filter, setFilter] = useState("");
+  const [debouncedFilter] = useDebouncedValue(filter, 200);
   const [selectedRecords, setSelectedRecords] = useState([]);
 
   const records = Object.values(streamBrowseStore.streams || {})
+    .filter(record => (
+      record.title?.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
+      record.objectId?.toLowerCase().includes(debouncedFilter.toLowerCase())
+    ))
     .sort(SortTable({sortStatus}));
 
   const HandleSubmit = async() => {
@@ -52,33 +59,35 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
       padding="24px"
       radius="6px"
       size="75%"
+      styles={{body: {minHeight: 700, display: "flex", flexDirection: "column"}}}
       classNames={{header: styles.modalHeader}}
       centered
     >
-      <Flex w="100%" align="center" mb={20}>
-        <TextInput
-          flex={2}
-          maw={400}
-          classNames={{input: styles.searchBar}}
-          placeholder="Search by object name or ID"
-          leftSection={<IconSearch width={15} height={15} />}
-          value={streamBrowseStore.streamFilter}
-          onChange={event => streamBrowseStore.SetStreamFilter({filter: event.target.value})}
-        />
-      </Flex>
+      <Stack style={{flex: 1}}>
+        <Flex w="100%" align="center" mb={20}>
+          <TextInput
+            flex={2}
+            maw={400}
+            placeholder="Search by object name or ID"
+            leftSection={<IconSearch width={15} height={15} />}
+            value={filter}
+            onChange={event => setFilter(event.target.value)}
+          />
+        </Flex>
 
-      <StreamsTable
-        records={records}
-        sortStatus={sortStatus}
-        onSortStatusChange={setSortStatus}
-        onRowClick={record => setSelectedRecords([record])}
-        rowStyle={record => selectedRecords?.[0]?.record?.objectId === record.objectId ? {backgroundColor: "var(--mantine-color-elv-blue-0)"} : undefined}
-        showActions={false}
-        maxHeight={600}
-      />
-      <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
-        <Button onClick={HandleSubmit}>Map</Button>
-      </Flex>
+        <StreamsTable
+          records={records}
+          sortStatus={sortStatus}
+          onSortStatusChange={setSortStatus}
+          onRowClick={record => setSelectedRecords([record])}
+          rowStyle={record => selectedRecords?.[0]?.record?.objectId === record.objectId ? {backgroundColor: "var(--mantine-color-elv-blue-0)"} : undefined}
+          showActions={false}
+          maxHeight={600}
+        />
+        <Flex direction="row" align="center" mt="auto" pt="1.5rem" justify="flex-end">
+          <Button onClick={HandleSubmit}>Map</Button>
+        </Flex>
+      </Stack>
     </Modal>
   );
 });
