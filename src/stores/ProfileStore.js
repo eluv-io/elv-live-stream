@@ -1,6 +1,6 @@
 // Manages the Live Recording Config profiles
 import {makeAutoObservable, runInAction, toJS} from "mobx";
-import {Slugify} from "@/utils/helpers.js";
+import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 
 class ProfileStore {
   state = "pending";
@@ -51,7 +51,7 @@ class ProfileStore {
 
   AddDraft() {
     const draftName = `Config Profile ${Object.keys(this.drafts).length + 1}`;
-    const draftKey = Slugify(draftName);
+    const draftKey = slugify(draftName);
     runInAction(() => {
       this.drafts[draftKey] = {
         name: draftName
@@ -143,7 +143,7 @@ class ProfileStore {
               libraryId: this.rootStore.dataStore.siteLibraryId,
               objectId: this.rootStore.dataStore.siteId,
               writeToken,
-              filePaths: [`live_stream_profiles/${Slugify(profile.name)}.json`]
+              filePaths: [`live_stream_profiles/${slugify(profile.name)}.json`]
             });
 
             await this.client.DeleteMetadata({
@@ -155,7 +155,7 @@ class ProfileStore {
           }
 
           runInAction(() => {
-            const newKey = Slugify(draft.name);
+            const newKey = slugify(draft.name);
             if(profile && draft.name !== profile.name) {
               delete this.profiles[draftKey];
               delete this.drafts[draftKey];

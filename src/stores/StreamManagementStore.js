@@ -1,6 +1,7 @@
 import {configure, flow, makeAutoObservable, toJS} from "mobx";
-import {ParseLiveConfigData, Slugify} from "@/utils/helpers.js";
+import {ParseLiveConfigData} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
+import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 
 configure({
   enforceActions: "always"
@@ -182,13 +183,13 @@ class StreamManagementStore {
       });
 
       this.rootStore.streamBrowseStore.UpdateStream({
-        key: Slugify(name),
+        key: slugify(name),
         value: streamValue
       });
 
       return {
         objectId: createdObjectId,
-        slug: Slugify(name)
+        slug: slugify(name)
       };
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -243,7 +244,7 @@ class StreamManagementStore {
             title: name || displayTitle,
             title_type: "live_stream",
             video_type: "live",
-            slug: Slugify(name)
+            slug: slugify(name)
           }
         },
         "live_recording_config": config

@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  Slugify,
   VideoBitrateReadable,
   AudioBitrateReadable,
   StreamIsActive,
@@ -12,33 +11,6 @@ import {
   ParseLiveConfigData,
 } from "./helpers";
 import { STATUS_MAP } from "./constants";
-
-describe("Slugify", () => {
-  it("converts string to lowercase slug", () => {
-    expect(Slugify("Hello World")).toBe("hello-world");
-  });
-
-  it("removes special characters", () => {
-    expect(Slugify("Hello@World#123")).toBe("helloworld123");
-  });
-
-  it("replaces multiple spaces with single dash", () => {
-    expect(Slugify("Hello   World")).toBe("hello-world");
-  });
-
-  it("removes leading/trailing whitespace", () => {
-    expect(Slugify("  Hello World  ")).toBe("hello-world");
-  });
-
-  it("handles empty string", () => {
-    expect(Slugify("")).toBe("");
-  });
-
-  it("handles null/undefined", () => {
-    expect(Slugify(null)).toBe("");
-    expect(Slugify(undefined)).toBe("");
-  });
-});
 
 describe("VideoBitrateReadable", () => {
   it("converts bitrate to Mbps", () => {
