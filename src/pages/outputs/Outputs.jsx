@@ -20,7 +20,7 @@ import {SanitizeUrl} from "@/utils/helpers.js";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {IconCheck, IconCopy, IconExternalLink, IconSearch, IconTrash} from "@tabler/icons-react";
 import {useEffect, useRef, useState} from "react";
-import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
+import {useDebouncedCallback} from "@mantine/hooks";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
@@ -117,9 +117,9 @@ const Outputs = observer(() => {
     setActiveModal(modal);
   };
   const [modalRecords, setModalRecords] = useState([]);
+  const [copiedSlug, setCopiedSlug] = useState(null);
 
   const navigate = useNavigate();
-  const clipboard = useClipboard();
 
   const LoadData = async() => {
     try {
@@ -251,10 +251,14 @@ const Outputs = observer(() => {
                       variant="transparent"
                       c="elv-gray.6"
                       size={18}
-                      onClick={() => clipboard.copy(record.srt_pull?.urls?.[0])}
+                      onClick={() => {
+                        navigator.clipboard.writeText(record.srt_pull?.urls?.[0]);
+                        setCopiedSlug(record.slug);
+                        setTimeout(() => setCopiedSlug(null), 2000);
+                      }}
                     >
                       {
-                        clipboard.copied ?
+                        copiedSlug === record.slug ?
                           <IconCheck /> :
                           <IconCopy />
                       }
