@@ -11,8 +11,8 @@ const BatchActions = ({
   const noSelectedRecords = selectedRecords.length === 0;
   // activeModal states: map | enable | disable | reset | null
   const actions = [
-    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => onSetActiveModal("map"), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.input.stream))},
-    {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => onSetActiveModal("unmap"), disabled: (noSelectedRecords || !selectedRecords.some(r => r.input.stream))},
+    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => onSetActiveModal("map"), disabled: noSelectedRecords},
+    {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => onSetActiveModal("unmap"), disabled: noSelectedRecords},
     {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => onSetActiveModal("enable"), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.enabled))},
     {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => onSetActiveModal("disable"), disabled: (noSelectedRecords || !selectedRecords.some(r => r.enabled))},
     {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => onSetActiveModal("reset"), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.reset))},

@@ -25,9 +25,43 @@ import StatusText from "@/components/status-text/StatusText.jsx";
 import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
 import BatchActions from "@/pages/outputs/batch-actions/BatchActions.jsx";
-import CreateOutputModal from "@/pages/outputs/batch-actions/modals/CreateOutputModal.jsx";
+import CreateOutputModal from "@/pages/outputs/modals/CreateOutputModal.jsx";
 import {useNavigate} from "react-router-dom";
-import MapToStreamModal from "@/pages/outputs/batch-actions/modals/MapToStreamModal.jsx";
+import MapToStreamModal from "@/pages/outputs/modals/MapToStreamModal.jsx";
+import OutputConfirmModal from "@/pages/outputs/modals/OutputConfirmModal.jsx";
+
+const MODAL_CONFIG = {
+  remap: {
+    title: "Remapping Stream Confirmation",
+    descriptionSingular: "This output is already mapped to a stream. Continuing will replace the existing mapping with the new one.",
+    descriptionPlural: "One or more selected outputs are already mapped to a stream. Continuing will replace the existing mapping with the new one.",
+    confirmLabel: "Continue"
+  },
+  unmap: {
+    title: "Unmap Stream Confirmation",
+    descriptionSingular: "Are you sure you want to unmap this output? It will be disconnected from its stream and any ongoing activity will be interrupted.",
+    descriptionPlural: "Are you sure you want to unmap these outputs? They will be disconnected from their streams and any ongoing activity will be interrupted.",
+    confirmLabel: "Unmap"
+  },
+  enable: {
+    title: "Enable Output Confirmation",
+    descriptionSingular: "Are you sure you want to enable this output? It will become available for streaming.",
+    descriptionPlural: "Are you sure you want to enable these outputs? They will become available for streaming.",
+    confirmLabel: "Enable"
+  },
+  disable: {
+    title: "Disable Output Confirmation",
+    descriptionSingular: "Are you sure you want to disable this output? Any ongoing activity will be interrupted.",
+    descriptionPlural: "Are you sure you want to disable these outputs? Any ongoing activity will be interrupted.",
+    confirmLabel: "Disable"
+  },
+  reset: {
+    title: "Reset Output Confirmation",
+    descriptionSingular: "Are you sure you want to reset this output? Any ongoing activity will be interrupted.",
+    descriptionPlural: "Are you sure you want to reset these outputs? Any ongoing activity will be interrupted.",
+    confirmLabel: "Reset"
+  }
+};
 
 const Actions = ({onRefreshClick, mb, onSetActiveModal}) => {
   return (
@@ -108,8 +142,13 @@ const Outputs = observer(() => {
             ClearSelection={() => setSelectedRecords([])}
             mb={20}
             onSetActiveModal={(modal) => {
-              if(modal === "map") { setModalRecords(selectedRecords.map(r => r.slug)); }
-              setActiveModal(modal);
+              if(modal === "map") {
+                setModalRecords(selectedRecords.map(r => r.slug));
+                const hasExistingMappings = selectedRecords.some(r => r.input?.stream);
+                setActiveModal(hasExistingMappings ? "remap" : "map");
+              } else {
+                setActiveModal(modal);
+              }
             }}
           />
         </Stack>
@@ -258,6 +297,17 @@ const Outputs = observer(() => {
         show={activeModal === "map"}
         onCloseModal={() => setActiveModal(null) }
         outputs={modalRecords}
+      />
+      <OutputConfirmModal
+        show={activeModal in MODAL_CONFIG}
+        title={MODAL_CONFIG[activeModal]?.title}
+        description={modalRecords.length === 1
+          ? MODAL_CONFIG[activeModal]?.descriptionSingular
+          : MODAL_CONFIG[activeModal]?.descriptionPlural
+        }
+        confirmLabel={MODAL_CONFIG[activeModal]?.confirmLabel}
+        onConfirm={async () => {}}
+        onClose={() => setActiveModal(null)}
       />
     </>
   );
