@@ -22,7 +22,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@eluvio/elv-client-js": "github:eluv-io/elv-client-js#outputs",
+    "@eluvio/elv-client-js": "github:eluv-io/elv-client-js#stream-apis",
     "@eluvio/elv-player-js": "2.1.11",
     "@mantine/core": "8.0.1",
     "@mantine/dates": "8.0.1",
