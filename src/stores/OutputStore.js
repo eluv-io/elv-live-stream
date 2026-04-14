@@ -225,6 +225,7 @@ class OutputStore {
             outputId,
             output: {
               ...existing,
+              enabled: !existing.input?.stream ? true : existing.enabled,
               input: {
                 ...(existing.input || {}),
                 stream: streamObjectId
