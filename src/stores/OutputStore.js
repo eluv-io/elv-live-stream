@@ -4,6 +4,7 @@ import {makeAutoObservable, runInAction} from "mobx";
 class OutputStore {
   state = "pending";
   outputs = {};
+  outputSettingsId = "";
   tableFilter = "";
 
   constructor(rootStore) {
@@ -14,11 +15,6 @@ class OutputStore {
 
   get client() {
     return this.rootStore.client;
-  }
-
-  get outputId() {
-    // eslint-disable-next-line no-undef
-    return EluvioConfiguration.outputId;
   }
 
   get outputList() {
@@ -45,13 +41,25 @@ class OutputStore {
     this.outputs[slug] = {...this.outputs[slug], ...updates};
   };
 
+  async LoadOutputSettingsId() {
+    try {
+      const outputs = await this.client.ContentObjectMetadata({
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId,
+        metadataSubtree: "live_outputs"
+      });
+
+      this.outputSettingsId = outputs?.[0];
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load output settings object.", error);
+    }
+  }
+
   async LoadOutputs() {
     try {
       const outputs = await this.client.OutputsList({
-        // eslint-disable-next-line no-undef
-        objectId: EluvioConfiguration.outputId,
-        // eslint-disable-next-line no-undef
-        srtEndpoints: EluvioConfiguration.srtEndpoints
+        objectId: this.outputSettingsId,
       });
 
       runInAction(() => {
@@ -156,7 +164,7 @@ class OutputStore {
       }
 
       const outputs = await this.client.OutputsCreate({
-        objectId: this.outputId,
+        objectId: this.outputSettingsId,
         name,
         description,
         externalId,
@@ -168,8 +176,16 @@ class OutputStore {
       });
 
       runInAction(() => {
-        this.outputs = outputs;
+        Object.entries(outputs).forEach(([slug, output]) => {
+          this.outputs[slug] = {
+            ...output,
+            ...(this.outputs[slug]?.input ? {input: this.outputs[slug].input} : {})
+          };
+        });
       });
+
+      const newSlugs = Object.keys(outputs).filter(slug => !this.outputs[slug]?.input?.embedUrl);
+      await Promise.all(newSlugs.map(slug => this.LoadOutputStreamInfo({slug})));
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to create output.", error);
@@ -178,27 +194,52 @@ class OutputStore {
 
   async MapStreamToOutput({outputs, streamObjectId}) {
     try {
-      await Promise.all(
-        outputs.map(outputId => {
-          const output = this.outputs[outputId];
+      const objectId = this.outputSettingsId;
+      const libraryId = await this.client.ContentObjectLibraryId({objectId});
 
-          return this.client.OutputsModify({
-            // eslint-disable-next-line no-undef
-            objectId: EluvioConfiguration.outputId,
+      const {writeToken} = await this.client.EditContentObject({
+        libraryId,
+        objectId
+      });
+
+      const updatedOutputs = await Promise.all(
+        outputs.map(async outputId => {
+          const existing = await this.client.ContentObjectMetadata({
+            libraryId,
+            objectId,
+            metadataSubtree: `live_outputs/${outputId}`
+          }) || {};
+
+          return {
             outputId,
-            streamObjectId,
-            name: output.name,
-            description: output.description,
-            enabled: output.enabled,
-            reset: output.reset,
-            geos: output.geos,
-            passphrase: output.srt_pull?.passphrase,
-            stripRtp: output.srt_pull?.strip_rtp,
-            srtConfig: output.srt_pull?.connection
-          });
+            output: {
+              ...existing,
+              input: {
+                ...(existing.input || {}),
+                stream: streamObjectId
+              }
+            }
+          };
         })
       );
 
+      await Promise.all(
+        updatedOutputs.map(({outputId, output}) =>
+          this.client.OutputsModify({
+            libraryId,
+            objectId,
+            outputId,
+            writeToken,
+            output: JSON.parse(JSON.stringify(output))
+          })
+        )
+      );
+
+      runInAction(() => {
+        updatedOutputs.forEach(({outputId, output}) => {
+          this.UpdateOutput({slug: outputId, updates: {input: output.input}});
+        });
+      });
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to map stream to output.", error);

@@ -53,6 +53,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       });
 
       onCloseModal();
+      form.reset();
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to create output", error);

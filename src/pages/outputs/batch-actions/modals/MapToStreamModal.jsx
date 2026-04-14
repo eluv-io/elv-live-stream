@@ -15,6 +15,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
   const [selectedRecords, setSelectedRecords] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
 
   const records = Object.values(streamBrowseStore.streams || {})
     .filter(record => (
@@ -25,25 +26,30 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
 
   const HandleSubmit = async() => {
     try {
+      setIsSaving(true);
       await outputStore.MapStreamToOutput({
-        outputId: outputs,
+        outputs,
         streamObjectId: selectedRecords[0].record.objectId
       });
 
       notifications.show({
-      title: "New stream mapped",
-      message: <NotificationMessage>Successfully mapped stream to output</NotificationMessage>
-    });
-  } catch(error) {
-    // eslint-disable-next-line no-console
-    console.error("Unable to map stream to output", error);
+        title: "New stream mapped",
+        message: <NotificationMessage>Successfully mapped stream to output</NotificationMessage>
+      });
 
-    notifications.show({
-      title: "Error",
-      color: "red",
-      message: "Unable to map stream to output"
-    });
-  }
+      onCloseModal();
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to map stream to output", error);
+
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: "Unable to map stream to output"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -62,6 +68,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
       styles={{body: {minHeight: 700, display: "flex", flexDirection: "column"}}}
       classNames={{header: styles.modalHeader}}
       centered
+      closeOnClickOutside={false}
     >
       <Stack style={{flex: 1}}>
         <Flex w="100%" align="center" mb={20}>
@@ -85,7 +92,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
           maxHeight={600}
         />
         <Flex direction="row" align="center" mt="auto" pt="1.5rem" justify="flex-end">
-          <Button onClick={HandleSubmit}>Map</Button>
+          <Button onClick={HandleSubmit} loading={isSaving} disabled={isSaving}>Map</Button>
         </Flex>
       </Stack>
     </Modal>

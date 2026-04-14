@@ -1,19 +1,16 @@
 import {Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/core";
 import {IconCheck, IconCancel, IconRotateClockwise, IconRouteOff, IconRoute} from "@tabler/icons-react";
 import styles from "./BatchActions.module.css";
-import {useState} from "react";
-import MapToStreamModal from "@/pages/outputs/batch-actions/modals/MapToStreamModal.jsx";
 
-const BatchActions = ({selectedRecords, SelectAll, mb}) => {
+const BatchActions = ({selectedRecords, SelectAll, mb, onSetActiveModal}) => {
   // activeModal states: map | enable | disable | reset | null
-  const [activeModal, setActiveModal] = useState(null);
 
   const actions = [
-    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => setActiveModal("map")},
-    {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => setActiveModal("unmap")},
-    {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => setActiveModal("enable")},
-    {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => setActiveModal("disable")},
-    {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => setActiveModal("reset")},
+    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => onSetActiveModal("map")},
+    {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => onSetActiveModal("unmap")},
+    {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => onSetActiveModal("enable")},
+    {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => onSetActiveModal("disable")},
+    {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => onSetActiveModal("reset")},
   ];
 
   const IconDisplay = Icon => <Icon size={16} />;
@@ -64,11 +61,6 @@ const BatchActions = ({selectedRecords, SelectAll, mb}) => {
           </Group>
         </Flex>
       </Box>
-      <MapToStreamModal
-        show={activeModal === "map"}
-        onCloseModal={() => setActiveModal(null) }
-        outputs={selectedRecords}
-      />
     </>
   );
 };

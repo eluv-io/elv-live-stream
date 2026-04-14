@@ -52,6 +52,7 @@ class DataStore {
       this.siteLibraryId = siteLibraryId;
 
       yield this.LoadStreams({streamMetadata});
+      yield this.rootStore.outputStore.LoadOutputSettingsId();
       this.loaded = true;
       yield this.rootStore.streamBrowseStore.AllStreamsStatus(reload);
     } catch(error) {
