@@ -43,9 +43,16 @@ class OutputStore {
 
   async LoadOutputSettingsId() {
     try {
+      let siteLibraryId = this.rootStore.dataStore.siteLibraryId;
+      let siteObjectId = this.rootStore.dataStore.siteId;
+
+      if(!siteLibraryId) {
+        ({siteLibraryId, siteObjectId} = await this.client.StreamGetSiteData({resolveLinks: false}));
+      }
+
       const outputs = await this.client.ContentObjectMetadata({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
+        libraryId: siteLibraryId,
+        objectId: siteObjectId,
         metadataSubtree: "live_outputs"
       });
 
@@ -58,6 +65,9 @@ class OutputStore {
 
   async LoadOutputs() {
     try {
+      if(!this.outputSettingsId) {
+        this.LoadOutputSettingsId();
+      }
       const outputs = await this.client.OutputsList({
         objectId: this.outputSettingsId,
       });
@@ -235,14 +245,28 @@ class OutputStore {
         )
       );
 
+      const stream = Object.values(this.rootStore.streamBrowseStore.streams || {})
+        .find(s => s.objectId === streamObjectId);
+
       runInAction(() => {
-        updatedOutputs.forEach(({outputId, output}) => {
-          this.UpdateOutput({slug: outputId, updates: {input: output.input}});
+        updatedOutputs.forEach(({outputId}) => {
+          this.UpdateOutput({
+            slug: outputId,
+            updates: {
+              input: {
+                ...(this.outputs[outputId]?.input || {}),
+                stream: streamObjectId,
+                name: stream?.title,
+                status: stream?.status
+              }
+            }
+          });
         });
       });
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to map stream to output.", error);
+      throw error;
     }
   }
 }

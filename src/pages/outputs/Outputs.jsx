@@ -72,6 +72,7 @@ const Outputs = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "name", direction: "asc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [activeModal, setActiveModal] = useState(null);
+  const [modalRecords, setModalRecords] = useState([]);
 
   const navigate = useNavigate();
   const clipboard = useClipboard();
@@ -108,6 +109,7 @@ const Outputs = observer(() => {
             ClearSelection={() => setSelectedRecords([])}
             mb={20}
             onSetActiveModal={setActiveModal}
+            onMapClick={() => setModalRecords(selectedRecords.map(r => r.slug))}
           />
         </Stack>
         <Box className={sharedStyles.tableWrapper}>
@@ -147,7 +149,10 @@ const Outputs = observer(() => {
                 render: record => {
                   if(!record.input?.stream) {
                     return (
-                      <UnstyledButton onClick={() => setActiveModal("map")}>
+                      <UnstyledButton onClick={() => {
+                        setModalRecords([record.slug]);
+                        setActiveModal("map");
+                      }}>
                         <Text fw={600} td="underline" c="elv-blue.5" fz={14}>Map to a Stream</Text>
                         </UnstyledButton>
                     );
@@ -247,7 +252,7 @@ const Outputs = observer(() => {
       <MapToStreamModal
         show={activeModal === "map"}
         onCloseModal={() => setActiveModal(null) }
-        outputs={selectedRecords}
+        outputs={modalRecords}
       />
     </>
   );

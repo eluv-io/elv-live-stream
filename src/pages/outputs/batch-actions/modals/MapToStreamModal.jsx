@@ -38,6 +38,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
       });
 
       onCloseModal();
+      setSelectedRecords([]);
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to map stream to output", error);

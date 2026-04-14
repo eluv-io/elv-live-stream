@@ -2,11 +2,20 @@ import {Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/
 import {IconCheck, IconCancel, IconRotateClockwise, IconRouteOff, IconRoute} from "@tabler/icons-react";
 import styles from "./BatchActions.module.css";
 
-const BatchActions = ({selectedRecords, SelectAll, mb, onSetActiveModal}) => {
+const BatchActions = ({
+  selectedRecords,
+  SelectAll,
+  mb,
+  onSetActiveModal,
+  onMapClick
+}) => {
   // activeModal states: map | enable | disable | reset | null
 
   const actions = [
-    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => onSetActiveModal("map")},
+    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => {
+        onMapClick();
+        onSetActiveModal("map");
+      }},
     {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => onSetActiveModal("unmap")},
     {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => onSetActiveModal("enable")},
     {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => onSetActiveModal("disable")},
