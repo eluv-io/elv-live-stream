@@ -99,6 +99,7 @@ class OutputStore {
 
       const copyMode = metadata?.recording_config?.input_cfg?.copy_mode;
       const copyPackaging = metadata?.recording_config?.input_cfg?.copy_packaging;
+      const inputPackaging = metadata?.recording_config?.input_cfg?.input_packaging;
       const url = metadata?.url;
       const protocol = url.match(/^(\w+):\/\//)?.[1];
 
@@ -120,7 +121,7 @@ class OutputStore {
       switch(protocol) {
         case "srt":
           source = ["srt", "ts"];
-          if(metadata?.input_cfg?.input_packaging?.rtp_ts) {source = source.splice(1, 0, "rtp");}
+          if(inputPackaging === "rtp_ts") {source.splice(1, 0, "rtp");}
           break;
         case "udp":
           source = ["ts"];
