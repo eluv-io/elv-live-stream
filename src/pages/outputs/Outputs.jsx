@@ -29,9 +29,7 @@ import CreateOutputModal from "@/pages/outputs/batch-actions/modals/CreateOutput
 import {useNavigate} from "react-router-dom";
 import MapToStreamModal from "@/pages/outputs/batch-actions/modals/MapToStreamModal.jsx";
 
-const Actions = ({onRefreshClick, mb}) => {
-  const [showModal, setShowModal] = useState(false);
-
+const Actions = ({onRefreshClick, mb, onSetActiveModal}) => {
   return (
     <>
       <Flex w="100%" align="start" mb={mb}>
@@ -47,7 +45,7 @@ const Actions = ({onRefreshClick, mb}) => {
         <Group ml="auto" gap={8}>
           <Button
             variant="filled"
-            onClick={() => setShowModal(true)}
+            onClick={() => onSetActiveModal("create")}
           >
             Create
           </Button>
@@ -59,10 +57,7 @@ const Actions = ({onRefreshClick, mb}) => {
           </Button>
         </Group>
       </Flex>
-      <CreateOutputModal
-        show={showModal}
-        onCloseModal={() => setShowModal(false)}
-      />
+
     </>
   );
 };
@@ -102,14 +97,20 @@ const Outputs = observer(() => {
         title="Outputs"
       >
         <Stack gap={0}>
-          <Actions onRefreshClick={DebouncedRefresh} mb={20} />
+          <Actions
+            onRefreshClick={DebouncedRefresh}
+            onSetActiveModal={setActiveModal}
+            mb={20}
+          />
           <BatchActions
             selectedRecords={selectedRecords}
             SelectAll={() => setSelectedRecords(records)}
             ClearSelection={() => setSelectedRecords([])}
             mb={20}
-            onSetActiveModal={setActiveModal}
-            onMapClick={() => setModalRecords(selectedRecords.map(r => r.slug))}
+            onSetActiveModal={(modal) => {
+              if(modal === "map") { setModalRecords(selectedRecords.map(r => r.slug)); }
+              setActiveModal(modal);
+            }}
           />
         </Stack>
         <Box className={sharedStyles.tableWrapper}>
@@ -249,6 +250,10 @@ const Outputs = observer(() => {
           />
         </Box>
       </PageContainer>
+      <CreateOutputModal
+        show={activeModal === "create"}
+        onCloseModal={() => setActiveModal(null)}
+      />
       <MapToStreamModal
         show={activeModal === "map"}
         onCloseModal={() => setActiveModal(null) }

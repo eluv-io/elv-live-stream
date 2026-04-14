@@ -7,19 +7,15 @@ const BatchActions = ({
   SelectAll,
   mb,
   onSetActiveModal,
-  onMapClick
 }) => {
+  const noSelectedRecords = selectedRecords.length === 0;
   // activeModal states: map | enable | disable | reset | null
-
   const actions = [
-    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => {
-        onMapClick();
-        onSetActiveModal("map");
-      }},
-    {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => onSetActiveModal("unmap")},
-    {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => onSetActiveModal("enable")},
-    {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => onSetActiveModal("disable")},
-    {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => onSetActiveModal("reset")},
+    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => onSetActiveModal("map"), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.input.stream))},
+    {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => onSetActiveModal("unmap"), disabled: (noSelectedRecords || !selectedRecords.some(r => r.input.stream))},
+    {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => onSetActiveModal("enable"), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.enabled))},
+    {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => onSetActiveModal("disable"), disabled: (noSelectedRecords || !selectedRecords.some(r => r.enabled))},
+    {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => onSetActiveModal("reset"), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.reset))},
   ];
 
   const IconDisplay = Icon => <Icon size={16} />;
@@ -61,7 +57,7 @@ const BatchActions = ({
                   leftSection={IconDisplay(action.icon)}
                   classNames={{root: styles.button, inner: styles.buttonInner}}
                   onClick={action.onClick}
-                  disabled={selectedRecords.length === 0}
+                  disabled={action.disabled}
                 >
                   { action.label }
                 </Button>
