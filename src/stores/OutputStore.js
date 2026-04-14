@@ -28,8 +28,11 @@ class OutputStore {
 
     const filter = this.tableFilter.toLowerCase();
     return list.filter(output =>
+      output.slug?.toLowerCase().includes(filter) ||
       output.name?.toLowerCase().includes(filter) ||
-      output.description?.toLowerCase().includes(filter)
+      output.description?.toLowerCase().includes(filter) ||
+      output.input?.stream?.toLowerCase().includes(filter) ||
+      output.input?.name?.toLowerCase().includes(filter)
     );
   }
 
