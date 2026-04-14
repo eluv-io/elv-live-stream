@@ -192,12 +192,12 @@ const Outputs = observer(() => {
                 width: "30%",
                 render: record => (
                   <Group gap={0} wrap="nowrap">
-                    <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>{ record.srt_url }</Text>
+                    <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>{ record.srt_pull?.urls?.[0] }</Text>
                     <ActionIcon
                       variant="transparent"
                       c="elv-gray.6"
                       size={18}
-                      onClick={() => clipboard.copy(record.srt_url)}
+                      onClick={() => clipboard.copy(record.srt_pull?.urls?.[0])}
                     >
                       {
                         clipboard.copied ?
