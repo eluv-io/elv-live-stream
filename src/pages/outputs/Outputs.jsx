@@ -306,7 +306,9 @@ const Outputs = observer(() => {
           : MODAL_CONFIG[activeModal]?.descriptionPlural
         }
         confirmLabel={MODAL_CONFIG[activeModal]?.confirmLabel}
-        onConfirm={async () => {}}
+        onConfirm={async () => {
+          if(activeModal === "remap") { setActiveModal("map"); }
+        }}
         onClose={() => setActiveModal(null)}
       />
     </>

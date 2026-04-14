@@ -17,8 +17,8 @@ const OutputConfirmModal = ({
     try {
       setError(undefined);
       setLoading(true);
-      await onConfirm();
       onClose();
+      await onConfirm();
     } catch(e) {
       let errorMessage;
 
