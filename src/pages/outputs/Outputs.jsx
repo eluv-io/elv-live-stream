@@ -19,7 +19,7 @@ import {DataTable} from "mantine-datatable";
 import {SanitizeUrl} from "@/utils/helpers.js";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {IconCheck, IconCopy, IconExternalLink, IconSearch, IconTrash} from "@tabler/icons-react";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import styles from "./Outputs.module.css";
@@ -101,6 +101,21 @@ const Outputs = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "name", direction: "asc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [activeModal, setActiveModal] = useState(null);
+  const confirmModalConfig = useRef(null);
+
+  const OpenConfirmModal = (modal) => {
+    const config = MODAL_CONFIG[modal];
+    if(!config) { return; }
+    confirmModalConfig.current = {
+      ...config,
+      description: modalRecords.length === 1 ? config.descriptionSingular : config.descriptionPlural,
+      closeOnConfirm: modal !== "remap",
+      onConfirm: async () => {
+        if(modal === "remap") { setActiveModal("map"); }
+      }
+    };
+    setActiveModal(modal);
+  };
   const [modalRecords, setModalRecords] = useState([]);
 
   const navigate = useNavigate();
@@ -145,9 +160,9 @@ const Outputs = observer(() => {
               if(modal === "map") {
                 setModalRecords(selectedRecords.map(r => r.slug));
                 const hasExistingMappings = selectedRecords.some(r => r.input?.stream);
-                setActiveModal(hasExistingMappings ? "remap" : "map");
+                hasExistingMappings ? OpenConfirmModal("remap") : setActiveModal("map");
               } else {
-                setActiveModal(modal);
+                OpenConfirmModal(modal);
               }
             }}
           />
@@ -300,15 +315,11 @@ const Outputs = observer(() => {
       />
       <OutputConfirmModal
         show={activeModal in MODAL_CONFIG}
-        title={MODAL_CONFIG[activeModal]?.title}
-        description={modalRecords.length === 1
-          ? MODAL_CONFIG[activeModal]?.descriptionSingular
-          : MODAL_CONFIG[activeModal]?.descriptionPlural
-        }
-        confirmLabel={MODAL_CONFIG[activeModal]?.confirmLabel}
-        onConfirm={async () => {
-          if(activeModal === "remap") { setActiveModal("map"); }
-        }}
+        title={confirmModalConfig.current?.title}
+        description={confirmModalConfig.current?.description}
+        confirmLabel={confirmModalConfig.current?.confirmLabel}
+        closeOnConfirm={confirmModalConfig.current?.closeOnConfirm ?? true}
+        onConfirm={confirmModalConfig.current?.onConfirm ?? (async () => {})}
         onClose={() => setActiveModal(null)}
       />
     </>

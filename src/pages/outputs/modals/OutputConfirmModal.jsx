@@ -7,6 +7,7 @@ const OutputConfirmModal = ({
   title,
   description,
   confirmLabel="Confirm",
+  closeOnConfirm=true,
   onConfirm,
   onClose
 }) => {
@@ -17,8 +18,8 @@ const OutputConfirmModal = ({
     try {
       setError(undefined);
       setLoading(true);
-      onClose();
       await onConfirm();
+      if(closeOnConfirm) { onClose(); }
     } catch(e) {
       let errorMessage;
 

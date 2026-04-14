@@ -66,7 +66,7 @@ class OutputStore {
   async LoadOutputs() {
     try {
       if(!this.outputSettingsId) {
-        this.LoadOutputSettingsId();
+        await this.LoadOutputSettingsId();
       }
       const outputs = await this.client.OutputsList({
         objectId: this.outputSettingsId,
