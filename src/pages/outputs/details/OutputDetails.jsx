@@ -9,7 +9,7 @@ import {IconCopy} from "@tabler/icons-react";
 import DetailCard from "@/components/detail-card/DetailCard.jsx";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useClipboard} from "@mantine/hooks";
-import {COLOR_MAP} from "@/utils/constants.js";
+import {COLOR_MAP, STATUS_TEXT} from "@/utils/constants.js";
 
 const OutputDetails = observer(() => {
   const {id} = useParams();
@@ -67,11 +67,19 @@ const OutputDetails = observer(() => {
       title={output.name}
       subtitle={id}
       actions={actions}
+      titleRightSection={
+        <StatusText
+          label="Enabled"
+          // quality={streamBrowseStore.streams?.[streamSlug]?.quality}
+          size="md"
+          withBorder
+        />
+      }
     >
       <Flex direction="row" mb={36} gap={6}>
         <DetailCard
           title="Input"
-          titleRightSection={<StatusText status={output?.input?.status} fw={400} />}
+          titleRightSection={<StatusText label={STATUS_TEXT[output?.input?.status]} fw={400} />}
           details={inputDetails}
         />
         <DetailCard

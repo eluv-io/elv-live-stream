@@ -9,6 +9,7 @@ import {DETAILS_TABS} from "@/utils/tabs.js";
 import styles from "@/pages/streams/details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
+import {STATUS_TEXT} from "@/utils/constants.js";
 
 const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
@@ -106,7 +107,7 @@ const StreamDetailsPage = observer(() => {
       subtitle={stream.objectId}
       titleRightSection={
         <StatusText
-          status={stream.status}
+          label={STATUS_TEXT[stream.status]}
           quality={streamBrowseStore.streams?.[streamSlug]?.quality}
           size="md"
           withBorder

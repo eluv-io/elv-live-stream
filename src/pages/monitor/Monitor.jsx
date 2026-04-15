@@ -18,7 +18,7 @@ import {
   IconPlayerPlay,
   IconPlayerStop, IconSearch
 } from "@tabler/icons-react";
-import {STATUS_MAP} from "@/utils/constants.js";
+import {STATUS_MAP, STATUS_TEXT} from "@/utils/constants.js";
 import {notifications} from "@mantine/notifications";
 import {useNavigate} from "react-router-dom";
 import styles from "./Monitor.module.css";
@@ -201,7 +201,7 @@ const GridItem = observer(({stream, index}) => {
           <Flex align="flex-end" justify="space-between">
             {
               stream.status &&
-              <StatusText status={stream.status} size="sm" />
+              <StatusText label={STATUS_TEXT[stream.status]} size="sm" />
             }
           </Flex>
         </Flex>

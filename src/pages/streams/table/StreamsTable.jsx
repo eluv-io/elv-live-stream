@@ -5,7 +5,7 @@ import {SanitizeUrl} from "@/utils/helpers.js";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
-import {COLOR_MAP} from "@/utils/constants.js";
+import {COLOR_MAP, STATUS_TEXT} from "@/utils/constants.js";
 
 const StreamsTable = observer(({
   records,
@@ -83,7 +83,7 @@ const StreamsTable = observer(({
       sortable: true,
       render: record => !record.status ? null :
         <StatusText
-          status={record.status}
+          label={STATUS_TEXT[record.status]}
           quality={record.quality}
           size="md"
           fw={400}

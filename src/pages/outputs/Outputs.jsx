@@ -29,6 +29,7 @@ import CreateOutputModal from "@/pages/outputs/modals/CreateOutputModal.jsx";
 import {useNavigate} from "react-router-dom";
 import MapToStreamModal from "@/pages/outputs/modals/MapToStreamModal.jsx";
 import OutputConfirmModal from "@/pages/outputs/modals/OutputConfirmModal.jsx";
+import {STATUS_TEXT} from "@/utils/constants.js";
 
 const MODAL_CONFIG = {
   remap: {
@@ -238,7 +239,7 @@ const Outputs = observer(() => {
                         </ActionIcon>
                       </Group>
                       <Group wrap="nowrap" gap={6}>
-                        <StatusText status={record.input.status} size="xs" fw={400} c="elv-gray.6" fz="0.75rem" />
+                        <StatusText label={STATUS_TEXT[record.input.status]} size="xs" fw={400} c="elv-gray.6" fz="0.75rem" />
                         <Box h={10}>
                           <Divider orientation="vertical" c="elv-gray.6" size="sm" h="100%" />
                         </Box>
