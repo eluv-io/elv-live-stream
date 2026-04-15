@@ -198,7 +198,16 @@ export const DateFormat = ({time, format="sec", options={}}) => {
     time = time * 1000;
   }
 
+  if(format === "iso") {
+    time = Date.parse(time);
+  }
+
   return new Date(time).toLocaleString(navigator.language, options);
+};
+
+export const BytesToMb = (bytes) => {
+  if(!bytes) { return "0 MB"; }
+  return `${(bytes / 1_000_000).toLocaleString(navigator.language, {maximumFractionDigits: 2})} MB`;
 };
 
 export const SanitizeUrl = ({url, removeQueryParams=[]}) => {

@@ -4,52 +4,52 @@ import {useNavigate, useParams} from "react-router-dom";
 import {outputStore} from "@/stores/index.js";
 import {
   ActionIcon,
-  Badge,
   Box, Button,
   Divider,
   Flex,
   Group,
+  Input,
   Loader,
   Select,
   Tabs,
   TextInput,
   Tooltip
 } from "@mantine/core";
-import {useEffect} from "react";
+import {Fragment, useEffect} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
 import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard} from "@mantine/hooks";
-import {COLOR_MAP} from "@/utils/constants.js";
+import {STATUS_MAP} from "@/utils/constants.js";
 import styles from "@/components/detail-card/DetailCard.module.css";
 import {outputModalStore} from "@/stores/index.js";
+import {DateFormat, BytesToMb} from "@/utils/helpers.js";
+import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 
 const SummaryPanel = observer(({output, id}) => {
   const clipboard = useClipboard();
-
-  const inputDetails = [
-    {label: "Name", value: output?.input?.name, fw: 600},
-    {label: "Object ID", value: output.input?.stream, copyable: true},
-    {label: "URL", value: output.input?.url, lineClamp: 1, copyable: true},
-    {label: "Source", value: output?.input?.source?.map(el => <Badge key={`source-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>)},
-    {label: "Packaging", value: output?.input?.packaging?.map(el => <Badge radius={2} key={`packaging-${el}`} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>)},
-  ];
-
-  const outputDetails = [
-    {label: "Name", value: output.name, fw: 600},
-    {label: "Output ID", value: id, fw: 600},
-    {label: "URL", value: output.srt_pull?.urls?.[0], copyable: true, lineClamp: 1},
-    {label: "Client", value: output.state?.connected_clients ?? 0}
-  ];
+  const videoWidth = "355px";
+  const videoGap = "20px";
 
   return (
     <Box pt={16}>
-      <Flex direction="row" mb={36} gap={6}>
+      <SectionTitle mb={12}>Key Stats</SectionTitle>
+      <Flex direction="row" mb={36} gap={videoGap}>
+        <Box w={videoWidth}>
+          <VideoContainer
+            index={0}
+            id={output?.input?.stream}
+            showPreview
+            playable={output?.input?.status === STATUS_MAP.RUNNING}
+            borderRadius={16}
+          />
+        </Box>
         {
           output?.input?.stream ?
           <DetailCard
+            style={{width: `calc(100% - ${videoWidth} - ${videoGap})`}}
             title="Input"
             titleRightSection={
               <StatusIndicator
@@ -57,35 +57,28 @@ const SummaryPanel = observer(({output, id}) => {
                 fw={400}
               />
             }
-            details={inputDetails}
+            data={[
+              {label: "Quality"},
+              {label: "Packets Recv / Drop (%)"},
+              {label: "Seq Errors / Gap"},
+              {label: "Packets Recv"},
+              {label: "Packets Dropped"}
+            ]}
           /> :
-            <Box w={380} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
+            <Box style={{width: "calc(100% - 355px - 20px)"}} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
               <Box p={12}>
                 <DetailCardHeader title="Input" />
-                <Box p="44px 100px">
+                <Box p="44px 100px" align="center">
                   <Button onClick={() => outputModalStore.OpenModal("map", [id])}>Map to a Stream</Button>
                 </Box>
               </Box>
             </Box>
         }
-        <DetailCard
-          title="Output"
-          details={outputDetails}
-        />
-        {/*<Box w={350}>*/}
-        {/*  <VideoContainer*/}
-        {/*    index={0}*/}
-        {/*    slug={output?.input?.stream}*/}
-        {/*    showPreview*/}
-        {/*    playable={output?.input?.status === STATUS_MAP.RUNNING}*/}
-        {/*    borderRadius={16}*/}
-        {/*  />*/}
-        {/*</Box>*/}
       </Flex>
 
-      <SectionTitle mb={12}>
-        <Group gap={8}>
-          Embeddable URL
+      <SectionTitle mb={12}>URLs</SectionTitle>
+        <Group gap={8} mb={12}>
+          <Input.Label>Output URL</Input.Label>
           <Tooltip
             label={clipboard.copied ? "Copied" : "Copy"}
             position="bottom"
@@ -93,26 +86,44 @@ const SummaryPanel = observer(({output, id}) => {
             <ActionIcon
               variant="transparent"
               c="elv-gray.6"
-              size={18}
-              onClick={() => clipboard.copy(output.input?.embedUrl)}
+              size={16}
+              onClick={() => clipboard.copy(output.srt_pull?.urls?.[0])}
             >
               <IconCopy size={16} />
             </ActionIcon>
           </Tooltip>
         </Group>
-      </SectionTitle>
-      <TextInput value={output.input?.embedUrl} readOnly />
+      <TextInput value={output.srt_pull?.urls?.[0]} readOnly />
 
       <Divider mb={20} mt={30} />
 
       <SectionTitle mb={12}>Fabric Geo</SectionTitle>
       <Select
-        label="Geo"
-        withAsterisk
+        description="Defines the region."
         onChange={() => {}}
         value={output.geos?.[0] ?? ""}
         readOnly
       />
+
+      {
+        output?.state?.clients?.map((client, i) => (
+          <Fragment key={`output-client-${i}`}>
+            <Divider mb={20} mt={30} />
+            <SectionTitle mb={12}>Output - Client {i + 1}</SectionTitle>
+            <DetailCard
+              title="Output"
+              data={[
+                {label: "Client IP", value: client.client_ip},
+                {label: "Connected at", value: client.connected_at ? DateFormat({time: client.connected_at, format: "iso", options: {month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true}}) : null},
+                {label: "Packets Sent / Drop (%)", value: `${client?.packets_sent?.toLocaleString()} / ${client?.packets_dropped?.toLocaleString()} (${(client.packets_dropped / client?.packets_sent).toFixed(2)}%)`},
+                {label: "Bytes Sent / Drop (%)", value: `${BytesToMb(client.bytes_sent)} / ${BytesToMb(client.bytes_dropped)} (${(client.bytes_dropped / client.bytes_sent).toFixed(2)}%)`},
+                {label: "Packets Sent / Retrans / Loss", value: `${client?.srt?.connection?.accumulated?.pkt_sent?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_retrans?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_send_loss?.toLocaleString()}`},
+                {label: "SRT Connection Latency Recv / Send", value: `${client?.srt?.connection?.instantaneous?.ms_recv_tsb_pd_delay} / ${client?.srt?.connection?.instantaneous?.ms_send_tsb_pd_delay}`}
+              ]}
+            />
+          </Fragment>
+        ))
+      }
     </Box>
   );
 });

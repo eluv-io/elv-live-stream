@@ -1,20 +1,22 @@
-import {ActionIcon, Box, Divider, Flex, Group, Stack, Text, Tooltip} from "@mantine/core";
+import {ActionIcon, Box, Divider, Flex, Group, Text, Tooltip} from "@mantine/core";
+import {Fragment} from "react";
 import styles from "./DetailCard.module.css";
 import {IconCopy} from "@tabler/icons-react";
 import {useClipboard} from "@mantine/hooks";
 
 const ValueSection = ({
   value,
-  fw=400,
+  fw=600,
   copyable=false,
   lineClamp
 }) => {
   const clipboard = useClipboard(({timeout: 500}));
+  if(!value && value !== 0) { return <Text fz="0.875rem"></Text>; }
 
   if(typeof value === "string" || typeof value === "number") {
     return (
       <Flex gap={4} align="center" miw={0}>
-        <Text c="elv-gray.7" fw={fw} fz="0.875rem" truncate={lineClamp ? "end" : undefined} flex={1} miw={0}>{ value }</Text>
+        <Text c="elv-gray.7" fw={fw} fz="0.875rem" truncate={lineClamp ? "end" : ""} flex={1} miw={0}>{ value }</Text>
         {
           copyable ?
             <Tooltip
@@ -57,23 +59,25 @@ export const DetailCardHeader = ({title, titleRightSection}) => {
 const DetailCard = ({
   title,
   titleRightSection,
-  details=[]
+  data=[],
+  width,
+  ...props
 }) => {
   return (
-    <Box w={380} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
+    <Box w={width} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper} {...props}>
       <Box p={12}>
         <DetailCardHeader title={title} titleRightSection={titleRightSection} />
 
-        <Stack gap={6}>
+        <Box style={{display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 20, rowGap: 6}}>
           {
-            details.map((detail, i) => (
-              <Flex key={`detail-${title}-${i}-${detail.label}`} align="flex-start" gap={8} w="100%">
-                <Text c="elv-gray.7" fw={400} fz="0.875rem" className={styles.noWrapText}>{ detail.label }:</Text>
-                <ValueSection value={detail.value} fw={detail.fw} copyable={detail.copyable} lineClamp={detail.lineClamp} />
-              </Flex>
+            data.map((item, i) => (
+              <Fragment key={`row-${title}-${i}`}>
+                <Text c="elv-gray.7" fw={400} fz="0.875rem" className={styles.noWrapText}>{ item.label }:</Text>
+                <ValueSection value={item.value} fw={item.fw} copyable={item.copyable} lineClamp={item.lineClamp} />
+              </Fragment>
             ))
           }
-        </Stack>
+        </Box>
       </Box>
     </Box>
   );

@@ -78,6 +78,7 @@ const PlaceholderContent = observer(({
 
 export const VideoContainer = observer(({
   slug,
+  id,
   index,
   showPreview,
   allowClose = true,
@@ -88,6 +89,10 @@ export const VideoContainer = observer(({
   const [frameKey, setFrameKey] = useState(0);
   const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamBrowseStore.streamFrameUrls[slug]?.url);
   const status = streamBrowseStore.streams?.[slug]?.status;
+
+  if(!slug) {
+    slug = Object.keys(streamBrowseStore.streams).find(slug => streamBrowseStore.streams[slug].objectId === id);
+  }
 
   useEffect(() => {
     if(!showPreview || play || status !== "running") {
