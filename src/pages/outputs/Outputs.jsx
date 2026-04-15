@@ -39,26 +39,26 @@ const MODAL_CONFIG = {
   },
   unmap: {
     title: "Unmap Stream Confirmation",
-    descriptionSingular: "Are you sure you want to unmap this output? It will be disconnected from its stream and any ongoing activity will be interrupted.",
-    descriptionPlural: "Are you sure you want to unmap these outputs? They will be disconnected from their streams and any ongoing activity will be interrupted.",
+    descriptionSingular: "Unmapping this output will disconnect it from its stream and interrupt any ongoing activity.",
+    descriptionPlural: "Unmapping these outputs will disconnect them from their streams and interrupt any ongoing activity.",
     confirmLabel: "Unmap"
   },
   enable: {
     title: "Enable Output Confirmation",
-    descriptionSingular: "Are you sure you want to enable this output? It will become available for streaming.",
-    descriptionPlural: "Are you sure you want to enable these outputs? They will become available for streaming.",
+    descriptionSingular: "This output will become available for streaming.",
+    descriptionPlural: "These outputs will become available for streaming.",
     confirmLabel: "Enable"
   },
   disable: {
     title: "Disable Output Confirmation",
-    descriptionSingular: "Are you sure you want to disable this output? Any ongoing activity will be interrupted.",
-    descriptionPlural: "Are you sure you want to disable these outputs? Any ongoing activity will be interrupted.",
+    descriptionSingular: "Disabling this output will interrupt any ongoing activity.",
+    descriptionPlural: "Disabling these outputs will interrupt any ongoing activity.",
     confirmLabel: "Disable"
   },
   reset: {
     title: "Reset Output Confirmation",
-    descriptionSingular: "Are you sure you want to reset this output? Any ongoing activity will be interrupted.",
-    descriptionPlural: "Are you sure you want to reset these outputs? Any ongoing activity will be interrupted.",
+    descriptionSingular: "Resetting this output will interrupt any ongoing activity.",
+    descriptionPlural: "Resetting these outputs will interrupt any ongoing activity.",
     confirmLabel: "Reset"
   }
 };
