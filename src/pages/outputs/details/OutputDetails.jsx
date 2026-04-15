@@ -34,7 +34,7 @@ const SummaryPanel = observer(({output, id}) => {
     {label: "Object ID", value: output.input?.stream, copyable: true},
     {label: "URL", value: output.input?.url, lineClamp: 1, copyable: true},
     {label: "Source", value: output?.input?.source?.map(el => <Badge key={`source-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>)},
-    {label: "Packaging", value: output?.input?.packaging?.map(el => <Badge key={`packaging-${el}`} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12}>{el}</Badge>)},
+    {label: "Packaging", value: output?.input?.packaging?.map(el => <Badge radius={2} key={`packaging-${el}`} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>)},
   ];
 
   const outputDetails = [
