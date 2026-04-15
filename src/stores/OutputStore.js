@@ -215,74 +215,47 @@ class OutputStore {
     }
   }
 
-  async MapStream({outputs, streamObjectId}) {
+  async MapStreamSingle({outputId, streamObjectId}) {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
 
-      const {writeToken} = await this.client.EditContentObject({
-        libraryId,
-        objectId
-      });
-
-      const updatedOutputs = await Promise.all(
-        outputs.map(async outputId => {
-          const existing = await this.client.ContentObjectMetadata({
-            libraryId,
-            objectId,
-            metadataSubtree: `live_outputs/${outputId}`
-          }) || {};
-
-          return {
-            outputId,
-            output: {
-              ...existing,
-              enabled: !existing.input?.stream ? true : existing.enabled,
-              input: {
-                ...(existing.input || {}),
-                stream: streamObjectId
-              }
-            }
-          };
-        })
-      );
-
-      await Promise.all(
-        updatedOutputs.map(({outputId, output}) =>
-          this.client.OutputsModify({
-            libraryId,
-            objectId,
-            outputId,
-            writeToken,
-            finalize: false,
-            output: JSON.parse(JSON.stringify(output))
-          })
-        )
-      );
-
-      await this.client.FinalizeContentObject({
+      const existing = await this.client.ContentObjectMetadata({
         libraryId,
         objectId,
-        writeToken,
-        commitMessage: "Map stream to outputs"
+        metadataSubtree: `live_outputs/${outputId}`
+      }) || {};
+
+      const updatedOutput = {
+        ...existing,
+        enabled: !existing.input?.stream ? true : existing.enabled,
+        input: {
+          ...(existing.input || {}),
+          stream: streamObjectId
+        }
+      };
+
+      await this.client.OutputsModify({
+        libraryId,
+        objectId,
+        outputId,
+        output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
       const stream = Object.values(this.rootStore.streamBrowseStore.streams || {})
         .find(s => s.objectId === streamObjectId);
 
       runInAction(() => {
-        updatedOutputs.forEach(({outputId}) => {
-          this.UpdateOutput({
-            slug: outputId,
-            updates: {
-              input: {
-                ...(this.outputs[outputId]?.input || {}),
-                stream: streamObjectId,
-                name: stream?.title,
-                status: stream?.status
-              }
+        this.UpdateOutput({
+          slug: outputId,
+          updates: {
+            input: {
+              ...(this.outputs[outputId]?.input || {}),
+              stream: streamObjectId,
+              name: stream?.title,
+              status: stream?.status
             }
-          });
+          }
         });
       });
     } catch(error) {
@@ -292,72 +265,200 @@ class OutputStore {
     }
   }
 
-  async UnmapStream({outputs}) {
+  async UnmapStreamSingle({outputId}) {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
 
-      const {writeToken} = await this.client.EditContentObject({
-        libraryId,
-        objectId
-      });
-
-      const updatedOutputs = await Promise.all(
-        outputs.map(async outputId => {
-          const existing = await this.client.ContentObjectMetadata({
-            libraryId,
-            objectId,
-            metadataSubtree: `live_outputs/${outputId}`
-          }) || {};
-
-          return {
-            outputId,
-            output: {
-              ...existing,
-              enabled: false,
-              input: undefined
-            }
-          };
-        })
-      );
-
-      await Promise.all(
-        updatedOutputs.map(({outputId, output}) =>
-          this.client.OutputsModify({
-            libraryId,
-            objectId,
-            outputId,
-            writeToken,
-            finalize: false,
-            output: JSON.parse(JSON.stringify(output))
-          })
-        )
-      );
-
-      await this.client.FinalizeContentObject({
+      const existing = await this.client.ContentObjectMetadata({
         libraryId,
         objectId,
-        writeToken,
-        commitMessage: "Unmap stream from outputs"
+        metadataSubtree: `live_outputs/${outputId}`
+      }) || {};
+
+      const updatedOutput = {
+        ...existing,
+        enabled: false,
+        input: {}
+      };
+
+      await this.client.OutputsModify({
+        libraryId,
+        objectId,
+        outputId,
+        output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
       runInAction(() => {
-        updatedOutputs.forEach(({outputId}) => {
-          this.UpdateOutput({
-            slug: outputId,
-            updates: {
-              enabled: false,
-              input: {}
-            }
-          });
+        this.UpdateOutput({
+          slug: outputId,
+          updates: {
+            enabled: false,
+            input: {}
+          }
         });
       });
     } catch(error) {
       // eslint-disable-next-line no-console
-      console.error("Failed to unmap stream from output.", error);
+      console.error("Failed to map stream to output.", error);
       throw error;
     }
   }
+
+  async MapStream({outputs, streamObjectId}) {
+    await Promise.all(
+      outputs.map(outputId => {
+        return this.MapStreamSingle({outputId, streamObjectId});
+      })
+    );
+    // try {
+    //   const objectId = this.outputSettingsId;
+    //   const libraryId = await this.client.ContentObjectLibraryId({objectId});
+    //
+    //   const {writeToken} = await this.client.EditContentObject({
+    //     libraryId,
+    //     objectId
+    //   });
+    //
+    //   const updatedOutputs = await Promise.all(
+    //     outputs.map(async outputId => {
+    //       const existing = await this.client.ContentObjectMetadata({
+    //         libraryId,
+    //         objectId,
+    //         metadataSubtree: `live_outputs/${outputId}`
+    //       }) || {};
+    //
+    //       return {
+    //         outputId,
+    //         output: {
+    //           ...existing,
+    //           enabled: !existing.input?.stream ? true : existing.enabled,
+    //           input: {
+    //             ...(existing.input || {}),
+    //             stream: streamObjectId
+    //           }
+    //         }
+    //       };
+    //     })
+    //   );
+    //
+    //   await Promise.all(
+    //     updatedOutputs.map(({outputId, output}) =>
+    //       this.client.OutputsModify({
+    //         libraryId,
+    //         objectId,
+    //         outputId,
+    //         writeToken,
+    //         finalize: false,
+    //         output: JSON.parse(JSON.stringify(output))
+    //       })
+    //     )
+    //   );
+    //
+    //   await this.client.FinalizeContentObject({
+    //     libraryId,
+    //     objectId,
+    //     writeToken,
+    //     commitMessage: "Map stream to outputs"
+    //   });
+    //
+    //   const stream = Object.values(this.rootStore.streamBrowseStore.streams || {})
+    //     .find(s => s.objectId === streamObjectId);
+    //
+    //   runInAction(() => {
+    //     updatedOutputs.forEach(({outputId}) => {
+    //       this.UpdateOutput({
+    //         slug: outputId,
+    //         updates: {
+    //           input: {
+    //             ...(this.outputs[outputId]?.input || {}),
+    //             stream: streamObjectId,
+    //             name: stream?.title,
+    //             status: stream?.status
+    //           }
+    //         }
+    //       });
+    //     });
+    //   });
+    // } catch(error) {
+    //   // eslint-disable-next-line no-console
+    //   console.error("Failed to map stream to output.", error);
+    //   throw error;
+    // }
+  }
+
+  async UnmapStream({outputs}) {
+    await Promise.all(
+      outputs.map(outputId => {
+        return this.UnmapStreamSingle({outputId});
+      })
+    );
+  }
+  //   try {
+  //     const objectId = this.outputSettingsId;
+  //     const libraryId = await this.client.ContentObjectLibraryId({objectId});
+  //
+  //     const {writeToken} = await this.client.EditContentObject({
+  //       libraryId,
+  //       objectId
+  //     });
+  //
+  //     const updatedOutputs = await Promise.all(
+  //       outputs.map(async outputId => {
+  //         const existing = await this.client.ContentObjectMetadata({
+  //           libraryId,
+  //           objectId,
+  //           metadataSubtree: `live_outputs/${outputId}`
+  //         }) || {};
+  //
+  //         return {
+  //           outputId,
+  //           output: {
+  //             ...existing,
+  //             enabled: false,
+  //             input: undefined
+  //           }
+  //         };
+  //       })
+  //     );
+  //
+  //     await Promise.all(
+  //       updatedOutputs.map(({outputId, output}) =>
+  //         this.client.OutputsModify({
+  //           libraryId,
+  //           objectId,
+  //           outputId,
+  //           writeToken,
+  //           finalize: false,
+  //           output: JSON.parse(JSON.stringify(output))
+  //         })
+  //       )
+  //     );
+  //
+  //     await this.client.FinalizeContentObject({
+  //       libraryId,
+  //       objectId,
+  //       writeToken,
+  //       commitMessage: "Unmap stream from outputs"
+  //     });
+  //
+  //     runInAction(() => {
+  //       updatedOutputs.forEach(({outputId}) => {
+  //         this.UpdateOutput({
+  //           slug: outputId,
+  //           updates: {
+  //             enabled: false,
+  //             input: {}
+  //           }
+  //         });
+  //       });
+  //     });
+  //   } catch(error) {
+  //     // eslint-disable-next-line no-console
+  //     console.error("Failed to unmap stream from output.", error);
+  //     throw error;
+  //   }
+  // }
 }
 
 export default OutputStore;
