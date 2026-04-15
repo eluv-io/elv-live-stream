@@ -102,12 +102,13 @@ const Outputs = observer(() => {
   const [activeModal, setActiveModal] = useState(null);
   const confirmModalConfig = useRef(null);
 
-  const OpenConfirmModal = (modal) => {
+  const OpenConfirmModal = (modal, count) => {
     const config = MODAL_CONFIG[modal];
     if(!config) { return; }
+    const resolvedCount = count ?? modalRecords.length;
     confirmModalConfig.current = {
       ...config,
-      description: modalRecords.length === 1 ? config.descriptionSingular : config.descriptionPlural,
+      description: resolvedCount === 1 ? config.descriptionSingular : config.descriptionPlural,
       closeOnConfirm: modal !== "remap",
       onConfirm: ModalActions[modal]
     };
@@ -163,11 +164,12 @@ const Outputs = observer(() => {
             mb={20}
             onSetActiveModal={(modal) => {
               if(modal === "map") {
-                setModalRecords(selectedRecords.map(r => r.slug));
+                const slugs = selectedRecords.map(r => r.slug);
+                setModalRecords(slugs);
                 const hasExistingMappings = selectedRecords.some(r => r.input?.stream);
-                hasExistingMappings ? OpenConfirmModal("remap") : setActiveModal("map");
+                hasExistingMappings ? OpenConfirmModal("remap", slugs.length) : setActiveModal("map");
               } else {
-                OpenConfirmModal(modal);
+                OpenConfirmModal(modal, selectedRecords.length);
               }
             }}
           />
