@@ -27,20 +27,29 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       name: "",
       geo: "",
       encryption: false,
-      stripRtp: false
+      stripRtp: false,
+      passphrase: ""
     },
     validate: {
-      geo: isNotEmpty("Geo is required")
+      geo: isNotEmpty("Geo is required"),
+      passphrase: (value, values) => {
+        if(!values.encryption) { return null; }
+        if(value && (value.length < 10 || value.length > 79)) {
+           return "Passphrase must be between 10 and 79 characters long";
+        }
+        return null;
+      }
     }
   });
 
   const HandleSubmit = async() => {
     try {
       setIsSaving(true);
-      const {name, geo, encryption, stripRtp} = form.getValues();
+      const {name, geo, encryption, stripRtp, passphrase} = form.getValues();
       await outputStore.CreateOutput({
         name,
         geos: [geo],
+        passphrase,
         encryption,
         stripRtp
       });
@@ -109,10 +118,19 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             <Input.Label>Encryption</Input.Label>
             <Checkbox
               label="Enable Encryption"
-              description="If enabled, encryption will be applied to the stream. A passphrase is required to complete setup."
+              description="If encryption is enabled, a passphrase is required to decrypt the stream. If not provided, one will be auto-generated."
               key={form.key("encryption")}
               {...form.getInputProps("encryption")}
             />
+            {
+              form.getValues().encryption ?
+              <TextInput
+                label="Passphrase"
+                placeholder="e.g. my-secure-passphrase"
+                key={form.key("passphrase")}
+                {...form.getInputProps("passphrase")}
+              /> : null
+            }
           </Stack>
           <Stack gap={12}>
             <Input.Label>Strip RTP</Input.Label>

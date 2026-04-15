@@ -28,6 +28,7 @@ module.exports = [
   "copyable",
   "ctx",
   "debounced",
+  "decrypt",
   "drm",
   "drms",
   "dropdown",
