@@ -254,10 +254,18 @@ class OutputStore {
             objectId,
             outputId,
             writeToken,
+            finalize: false,
             output: JSON.parse(JSON.stringify(output))
           })
         )
       );
+
+      await this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Map stream to outputs"
+      });
 
       const stream = Object.values(this.rootStore.streamBrowseStore.streams || {})
         .find(s => s.objectId === streamObjectId);
@@ -306,8 +314,8 @@ class OutputStore {
             outputId,
             output: {
               ...existing,
-              enabled: !existing.input?.stream ? true : existing.enabled,
-              input: {}
+              enabled: false,
+              input: undefined
             }
           };
         })
@@ -320,16 +328,25 @@ class OutputStore {
             objectId,
             outputId,
             writeToken,
+            finalize: false,
             output: JSON.parse(JSON.stringify(output))
           })
         )
       );
+
+      await this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Unmap stream from outputs"
+      });
 
       runInAction(() => {
         updatedOutputs.forEach(({outputId}) => {
           this.UpdateOutput({
             slug: outputId,
             updates: {
+              enabled: false,
               input: {}
             }
           });
