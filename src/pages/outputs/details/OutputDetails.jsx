@@ -25,9 +25,11 @@ import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.js
 import {useClipboard} from "@mantine/hooks";
 import {COLOR_MAP} from "@/utils/constants.js";
 import styles from "@/components/detail-card/DetailCard.module.css";
+import {outputModalStore} from "@/stores/index.js";
 
-const SummaryPanel = observer(({output}) => {
+const SummaryPanel = observer(({output, id}) => {
   const clipboard = useClipboard();
+  
 
   const inputDetails = [
     {label: "Name", value: <Text c="elv-gray.9" fw={600} fz="0.875rem">{ output?.input?.name }</Text>},
@@ -56,7 +58,7 @@ const SummaryPanel = observer(({output}) => {
               <Box p={12}>
                 <DetailCardHeader title="Input" />
                 <Box p="44px 100px">
-                  <Button>Map to a Stream</Button>
+                  <Button onClick={() => outputModalStore.OpenModal("map", [id])}>Map to a Stream</Button>
                 </Box>
               </Box>
             </Box>
@@ -118,6 +120,7 @@ const GeneralConfigPanel = observer(() => {
 const OutputDetails = observer(() => {
   const {id} = useParams();
   const navigate = useNavigate();
+  
   const output = outputStore.outputs[id];
 
   useEffect(() => {
@@ -146,14 +149,17 @@ const OutputDetails = observer(() => {
     {
       label: "Reset",
       buttonVariant: "outline",
+      onClick: () => outputModalStore.OpenModal("reset", [id])
     },
     {
-      label: "Disable",
+      label: output?.enabled ? "Disable" : "Enable",
       buttonVariant: "outline",
+      onClick: () => outputModalStore.OpenModal(output?.enabled ? "disable" : "enable", [id])
     },
     {
       label: "Unmap Stream",
       buttonVariant: "outline",
+      onClick: () => outputModalStore.OpenModal("unmap", [id])
     }
   ];
 
@@ -177,7 +183,7 @@ const OutputDetails = observer(() => {
           <Tabs.Tab value="generalConfig">General Config</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="summary">
-          <SummaryPanel output={output} />
+          <SummaryPanel output={output} id={id} />
         </Tabs.Panel>
         <Tabs.Panel value="generalConfig">
           <GeneralConfigPanel />

@@ -18,5 +18,6 @@ export const modalStore = rootStore.modalStore;
 export const siteStore = rootStore.siteStore;
 export const profileStore = rootStore.profileStore;
 export const outputStore = rootStore.outputStore;
+export const outputModalStore = rootStore.outputModalStore;
 
 rootStore.Initialize();

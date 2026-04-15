@@ -17,6 +17,7 @@ import LeftNavigation from "@/components/left-navigation/LeftNavigation.jsx";
 import DataWrapper from "@/components/data-wrapper/DataWrapper.jsx";
 import ErrorBanner from "@/components/error/ErrorBanner";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
+import OutputModals from "@/pages/outputs/OutputModals.jsx";
 
 const App = observer(() => {
   return (
@@ -43,6 +44,7 @@ const App = observer(() => {
               <ConfirmModal
                 {...rootStore.modalStore.modalData}
               />
+              <OutputModals />
             </DataWrapper>
           </AppShell.Main>
         </AppShell>

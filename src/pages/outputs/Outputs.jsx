@@ -14,54 +14,18 @@ import {
   Title,
   UnstyledButton
 } from "@mantine/core";
-import {outputStore, rootStore} from "@/stores/index.js";
+import {outputModalStore, outputStore, rootStore} from "@/stores/index.js";
 import {DataTable} from "mantine-datatable";
 import {SanitizeUrl} from "@/utils/helpers.js";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {IconCheck, IconCopy, IconExternalLink, IconSearch, IconTrash} from "@tabler/icons-react";
-import {useEffect, useRef, useState} from "react";
+import {useEffect, useState} from "react";
 import {useDebouncedCallback} from "@mantine/hooks";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
 import BatchActions from "@/pages/outputs/batch-actions/BatchActions.jsx";
-import CreateOutputModal from "@/pages/outputs/modals/CreateOutputModal.jsx";
 import {useNavigate} from "react-router-dom";
-import MapToStreamModal from "@/pages/outputs/modals/MapToStreamModal.jsx";
-import OutputConfirmModal from "@/pages/outputs/modals/OutputConfirmModal.jsx";
-
-const MODAL_CONFIG = {
-  remap: {
-    title: "Remapping Stream Confirmation",
-    descriptionSingular: "This output is already mapped to a stream. Continuing will replace the existing mapping with the new one.",
-    descriptionPlural: "One or more selected outputs are already mapped to a stream. Continuing will replace the existing mapping with the new one.",
-    confirmLabel: "Continue"
-  },
-  unmap: {
-    title: "Unmap Stream Confirmation",
-    descriptionSingular: "Unmapping this output will disconnect it from its stream and interrupt any ongoing activity.",
-    descriptionPlural: "Unmapping these outputs will disconnect them from their streams and interrupt any ongoing activity.",
-    confirmLabel: "Unmap"
-  },
-  enable: {
-    title: "Enable Output Confirmation",
-    descriptionSingular: "This output will become available for streaming.",
-    descriptionPlural: "These outputs will become available for streaming.",
-    confirmLabel: "Enable"
-  },
-  disable: {
-    title: "Disable Output Confirmation",
-    descriptionSingular: "Disabling this output will interrupt any ongoing activity.",
-    descriptionPlural: "Disabling these outputs will interrupt any ongoing activity.",
-    confirmLabel: "Disable"
-  },
-  reset: {
-    title: "Reset Output Confirmation",
-    descriptionSingular: "Resetting this output will interrupt any ongoing activity.",
-    descriptionPlural: "Resetting these outputs will interrupt any ongoing activity.",
-    confirmLabel: "Reset"
-  }
-};
 
 const Actions = ({onRefreshClick, mb, onSetActiveModal}) => {
   return (
@@ -99,33 +63,9 @@ const Actions = ({onRefreshClick, mb, onSetActiveModal}) => {
 const Outputs = observer(() => {
   const [loading, setLoading] = useState(false);
   const [selectedRecords, setSelectedRecords] = useState([]);
-  const [activeModal, setActiveModal] = useState(null);
-  const confirmModalConfig = useRef(null);
-
-  const OpenConfirmModal = (modal, count) => {
-    const config = MODAL_CONFIG[modal];
-    if(!config) { return; }
-    const resolvedCount = count ?? modalRecords.length;
-    confirmModalConfig.current = {
-      ...config,
-      description: resolvedCount === 1 ? config.descriptionSingular : config.descriptionPlural,
-      closeOnConfirm: modal !== "remap",
-      onConfirm: ModalActions[modal]
-    };
-    setActiveModal(modal);
-  };
-  const [modalRecords, setModalRecords] = useState([]);
   const [copiedSlug, setCopiedSlug] = useState(null);
 
   const navigate = useNavigate();
-
-  const ModalActions = {
-    remap: () => setActiveModal("map"),
-    unmap: async () => await outputStore.UnmapStream({outputs: selectedRecords.map(r => r.slug)}),
-    // enable: async () => await outputStore.EnableOutputs({outputs: modalRecords}),
-    // disable: async () => await outputStore.DisableOutputs({outputs: modalRecords}),
-    // reset: async () => await outputStore.ResetOutputs({outputs: modalRecords}),
-  };
 
   const LoadData = async() => {
     try {
@@ -154,7 +94,7 @@ const Outputs = observer(() => {
         <Stack gap={0}>
           <Actions
             onRefreshClick={DebouncedRefresh}
-            onSetActiveModal={setActiveModal}
+            onSetActiveModal={outputModalStore.OpenModal}
             mb={20}
           />
           <BatchActions
@@ -162,16 +102,6 @@ const Outputs = observer(() => {
             SelectAll={() => setSelectedRecords(records)}
             ClearSelection={() => setSelectedRecords([])}
             mb={20}
-            onSetActiveModal={(modal) => {
-              if(modal === "map") {
-                const slugs = selectedRecords.map(r => r.slug);
-                setModalRecords(slugs);
-                const hasExistingMappings = selectedRecords.some(r => r.input?.stream);
-                hasExistingMappings ? OpenConfirmModal("remap", slugs.length) : setActiveModal("map");
-              } else {
-                OpenConfirmModal(modal, selectedRecords.length);
-              }
-            }}
           />
         </Stack>
         <Box className={sharedStyles.tableWrapper}>
@@ -212,10 +142,7 @@ const Outputs = observer(() => {
                 render: record => {
                   if(!record.input?.stream) {
                     return (
-                      <UnstyledButton onClick={() => {
-                        setModalRecords([record.slug]);
-                        setActiveModal("map");
-                      }}>
+                      <UnstyledButton onClick={() => outputModalStore.OpenModal("map", [record.slug])}>
                         <Text fw={600} td="underline" c="elv-blue.5" fz={14}>Map to a Stream</Text>
                         </UnstyledButton>
                     );
@@ -322,24 +249,6 @@ const Outputs = observer(() => {
           />
         </Box>
       </PageContainer>
-      <CreateOutputModal
-        show={activeModal === "create"}
-        onCloseModal={() => setActiveModal(null)}
-      />
-      <MapToStreamModal
-        show={activeModal === "map"}
-        onCloseModal={() => setActiveModal(null) }
-        outputs={modalRecords}
-      />
-      <OutputConfirmModal
-        show={activeModal in MODAL_CONFIG}
-        title={confirmModalConfig.current?.title}
-        description={confirmModalConfig.current?.description}
-        confirmLabel={confirmModalConfig.current?.confirmLabel}
-        closeOnConfirm={confirmModalConfig.current?.closeOnConfirm ?? true}
-        onConfirm={confirmModalConfig.current?.onConfirm ?? (async () => {})}
-        onClose={() => setActiveModal(null)}
-      />
     </>
   );
 });
