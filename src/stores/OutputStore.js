@@ -1,11 +1,13 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
 import {makeAutoObservable, runInAction} from "mobx";
+import {SortTable} from "@/utils/helpers.js";
 
 class OutputStore {
   state = "pending";
   outputs = {};
   outputSettingsId = "";
   tableFilter = "";
+  sortStatus = {columnAccessor: "name", direction: "asc"};
 
   constructor(rootStore) {
     makeAutoObservable(this);
@@ -21,23 +23,30 @@ class OutputStore {
     const list = Object.entries(this.outputs)
       .map(([slug, output]) => ({
         slug,
+        streamName: output?.input?.name,
         ...output
       }));
 
-    if(!this.tableFilter) { return list; }
+    if(!this.tableFilter) { return list.sort(SortTable({sortStatus: this.sortStatus})); }
 
     const filter = this.tableFilter.toLowerCase();
-    return list.filter(output =>
+    const filtered = list.filter(output =>
       output.slug?.toLowerCase().includes(filter) ||
       output.name?.toLowerCase().includes(filter) ||
       output.description?.toLowerCase().includes(filter) ||
       output.input?.stream?.toLowerCase().includes(filter) ||
       output.input?.name?.toLowerCase().includes(filter)
     );
+
+    return filtered.sort(SortTable({sortStatus: this.sortStatus}));
   }
 
-  SetTableFilter = ({filter}) => {
+  SetTableFilter = (filter) => {
     this.tableFilter = filter;
+  };
+
+  SetSortStatus = (sortStatus) => {
+    this.sortStatus = sortStatus;
   };
 
   UpdateOutput = ({slug, updates}) => {

@@ -74,7 +74,7 @@ const Actions = ({onRefreshClick, mb, onSetActiveModal}) => {
           placeholder="Search by object name or ID"
           leftSection={<IconSearch width={15} height={15} />}
           value={outputStore.tableFilter}
-          onChange={event => outputStore.SetTableFilter({filter: event.target.value})}
+          onChange={event => outputStore.SetTableFilter(event.target.value)}
         />
         <Group ml="auto" gap={8}>
           <Button
@@ -98,7 +98,6 @@ const Actions = ({onRefreshClick, mb, onSetActiveModal}) => {
 
 const Outputs = observer(() => {
   const [loading, setLoading] = useState(false);
-  const [sortStatus, setSortStatus] = useState({columnAccessor: "name", direction: "asc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [activeModal, setActiveModal] = useState(null);
   const confirmModalConfig = useRef(null);
@@ -172,9 +171,9 @@ const Outputs = observer(() => {
             idAccessor="slug"
             minHeight={(!records || records.length === 0) ? 130 : 75}
             highlightOnHover
-            sortStatus={sortStatus}
+            sortStatus={outputStore.sortStatus}
             fetching={loading}
-            onSortStatusChange={setSortStatus}
+            onSortStatusChange={outputStore.SetSortStatus}
             records={records || []}
             selectedRecords={selectedRecords}
             onSelectedRecordsChange={setSelectedRecords}
@@ -198,9 +197,10 @@ const Outputs = observer(() => {
                 )
               },
               {
-                accessor: "stream",
+                accessor: "streamName",
                 title: "Stream",
                 width: "20%",
+                sortable: true,
                 render: record => {
                   if(!record.input?.stream) {
                     return (
