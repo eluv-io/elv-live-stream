@@ -56,7 +56,7 @@ const Streams = observer(() => {
         sortStatus={sortStatus}
         onSortStatusChange={setSortStatus}
         fetching={!dataStore.loaded}
-        onRowClick={record => navigate(`/streams/${record.record.objectId || record.record.slug}`)}
+        onNameClick={objectId => navigate(`/streams/${objectId}`)}
       />
     </PageContainer>
   );

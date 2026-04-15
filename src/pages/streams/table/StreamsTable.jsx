@@ -13,6 +13,7 @@ const StreamsTable = observer(({
   onSortStatusChange,
   fetching,
   onRowClick,
+  onNameClick,
   rowStyle,
   selectedRecords,
   onSelectedRecordsChange,
@@ -30,6 +31,7 @@ const StreamsTable = observer(({
           <UnstyledButton
             disabled={!record.objectId}
             style={{pointerEvents: record.objectId ? "auto" : "none"}}
+            onClick={() => onNameClick(record.objectId)}
           >
             <Title order={3} lineClamp={1} title={record.title || record.slug} style={{wordBreak: "break-all"}}>
               {record.title || record.slug}
