@@ -1,12 +1,11 @@
 import {Box, Group, Indicator, Text} from "@mantine/core";
-import {StatusIndicator} from "@/utils/helpers.js";
-import styles from "./StatusText.module.css";
-import {QUALITY_MAP} from "@/utils/constants.js";
+import styles from "./LabeledIndicator.module.css";
 import {IconAlertCircle} from "@tabler/icons-react";
 
-const StatusText = ({
+const LabeledIndicator = ({
   label,
-  quality,
+  color,
+  showWarning=false,
   withBorder=false,
   size="sm",
   fz,
@@ -32,11 +31,22 @@ const StatusText = ({
     }
   };
 
-  if(quality === QUALITY_MAP.GOOD || !quality) {
+  if(showWarning) {
+    return (
+      <Box className={withBorder ? styles.box : ""} ml="-3px">
+        <Group gap={5}>
+          <IconAlertCircle color="var(--mantine-color-elv-orange-3)" width={14} />
+          <Text fz={14} fw={500} c="elv-gray.9" lh={1}>
+            { label }
+          </Text>
+        </Group>
+      </Box>
+    );
+  } else {
     return (
       <Box className={withBorder ? styles.box : ""} title={label}>
         <Indicator
-          color={StatusIndicator(label)}
+          color={color}
           position="middle-start"
           size={SIZE_MAPPINGS[size].size}
           offset={4}
@@ -53,18 +63,7 @@ const StatusText = ({
         </Indicator>
       </Box>
     );
-  } else {
-    return (
-      <Box className={withBorder ? styles.box : ""} ml="-3px">
-        <Group gap={5}>
-          <IconAlertCircle color="var(--mantine-color-elv-orange-3)" width={14} />
-          <Text fz={14} fw={500} c="elv-gray.9" lh={1}>
-            { label }
-          </Text>
-        </Group>
-      </Box>
-    );
   }
 };
 
-export default StatusText;
+export default LabeledIndicator;

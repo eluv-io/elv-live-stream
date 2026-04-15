@@ -16,12 +16,12 @@ import {
 } from "@mantine/core";
 import {outputStore, rootStore} from "@/stores/index.js";
 import {DataTable} from "mantine-datatable";
-import {SanitizeUrl} from "@/utils/helpers.js";
+import {SanitizeUrl, StatusIndicator} from "@/utils/helpers.js";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {IconCheck, IconCopy, IconExternalLink, IconSearch, IconTrash} from "@tabler/icons-react";
 import {useEffect, useRef, useState} from "react";
 import {useDebouncedCallback} from "@mantine/hooks";
-import StatusText from "@/components/status-text/StatusText.jsx";
+import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
 import BatchActions from "@/pages/outputs/batch-actions/BatchActions.jsx";
@@ -239,7 +239,14 @@ const Outputs = observer(() => {
                         </ActionIcon>
                       </Group>
                       <Group wrap="nowrap" gap={6}>
-                        <StatusText label={STATUS_TEXT[record.input.status]} size="xs" fw={400} c="elv-gray.6" fz="0.75rem" />
+                        <LabeledIndicator
+                          label={STATUS_TEXT[record.input.status]}
+                          color={StatusIndicator(record.input?.status)}
+                          size="xs"
+                          fw={400}
+                          c="elv-gray.6"
+                          fz="0.75rem"
+                        />
                         <Box h={10}>
                           <Divider orientation="vertical" c="elv-gray.6" size="sm" h="100%" />
                         </Box>

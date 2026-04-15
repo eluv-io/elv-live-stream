@@ -7,9 +7,10 @@ import {useEffect} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
 import DetailCard from "@/components/detail-card/DetailCard.jsx";
-import StatusText from "@/components/status-text/StatusText.jsx";
+import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard} from "@mantine/hooks";
 import {COLOR_MAP, STATUS_TEXT} from "@/utils/constants.js";
+import {StatusIndicator} from "@/utils/helpers.js";
 
 const OutputDetails = observer(() => {
   const {id} = useParams();
@@ -68,9 +69,9 @@ const OutputDetails = observer(() => {
       subtitle={id}
       actions={actions}
       titleRightSection={
-        <StatusText
+        <LabeledIndicator
           label="Enabled"
-          // quality={streamBrowseStore.streams?.[streamSlug]?.quality}
+          // showWarning={streamBrowseStore.streams?.[id]?.quality !== QUALITY_MAP.GOOD}
           size="md"
           withBorder
         />
@@ -79,7 +80,13 @@ const OutputDetails = observer(() => {
       <Flex direction="row" mb={36} gap={6}>
         <DetailCard
           title="Input"
-          titleRightSection={<StatusText label={STATUS_TEXT[output?.input?.status]} fw={400} />}
+          titleRightSection={
+          <LabeledIndicator
+            label={STATUS_TEXT[output?.input?.status]}
+            fw={400}
+            color={StatusIndicator(output?.input?.status)}
+          />
+        }
           details={inputDetails}
         />
         <DetailCard

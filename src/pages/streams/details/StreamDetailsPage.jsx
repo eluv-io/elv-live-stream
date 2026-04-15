@@ -1,5 +1,5 @@
 import {useEffect, useState} from "react";
-import StatusText from "@/components/status-text/StatusText.jsx";
+import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useNavigate, useParams} from "react-router-dom";
 import {streamBrowseStore, dataStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
@@ -9,7 +9,8 @@ import {DETAILS_TABS} from "@/utils/tabs.js";
 import styles from "@/pages/streams/details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
-import {STATUS_TEXT} from "@/utils/constants.js";
+import {QUALITY_MAP, STATUS_TEXT} from "@/utils/constants.js";
+import {StatusIndicator} from "@/utils/helpers.js";
 
 const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
@@ -106,9 +107,10 @@ const StreamDetailsPage = observer(() => {
       title={`Edit ${streamBrowseStore.streams?.[streamSlug]?.title || stream.objectId}`}
       subtitle={stream.objectId}
       titleRightSection={
-        <StatusText
+        <LabeledIndicator
           label={STATUS_TEXT[stream.status]}
-          quality={streamBrowseStore.streams?.[streamSlug]?.quality}
+          showWarning={streamBrowseStore.streams?.[streamSlug]?.quality && streamBrowseStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
+          color={StatusIndicator(stream.status)}
           size="md"
           withBorder
         />

@@ -4,11 +4,11 @@ import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, Te
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 
 import {dataStore, modalStore, rootStore, streamBrowseStore} from "@/stores";
-import {SortTable, StreamIsActive} from "@/utils/helpers";
+import {SortTable, StatusIndicator, StreamIsActive} from "@/utils/helpers";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {ExternalLinkIcon, TrashIcon} from "@/assets/icons/index.js";
-import StatusText from "@/components/status-text/StatusText.jsx";
+import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {
   IconCircleX,
   IconCopy,
@@ -18,7 +18,7 @@ import {
   IconPlayerPlay,
   IconPlayerStop, IconSearch
 } from "@tabler/icons-react";
-import {STATUS_MAP, STATUS_TEXT} from "@/utils/constants.js";
+import {QUALITY_MAP, STATUS_MAP, STATUS_TEXT} from "@/utils/constants.js";
 import {notifications} from "@mantine/notifications";
 import {useNavigate} from "react-router-dom";
 import styles from "./Monitor.module.css";
@@ -201,7 +201,12 @@ const GridItem = observer(({stream, index}) => {
           <Flex align="flex-end" justify="space-between">
             {
               stream.status &&
-              <StatusText label={STATUS_TEXT[stream.status]} size="sm" />
+              <LabeledIndicator
+                label={STATUS_TEXT[stream.status]}
+                size="sm"
+                showWarning={stream.status?.quality && stream.status.quality !== QUALITY_MAP.GOOD}
+                color={StatusIndicator(stream.status)}
+              />
             }
           </Flex>
         </Flex>
