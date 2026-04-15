@@ -1,11 +1,11 @@
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Badge, Box, Group, Stack, Text, Title, UnstyledButton} from "@mantine/core";
 import {DataTable} from "mantine-datatable";
-import {SanitizeUrl, StatusIndicator} from "@/utils/helpers.js";
-import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
+import {SanitizeUrl} from "@/utils/helpers.js";
+import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
-import {COLOR_MAP, QUALITY_MAP, STATUS_TEXT} from "@/utils/constants.js";
+import {COLOR_MAP, QUALITY_MAP} from "@/utils/constants.js";
 
 const StreamsTable = observer(({
   records,
@@ -82,10 +82,9 @@ const StreamsTable = observer(({
       title: "Status",
       sortable: true,
       render: record => !record.status ? null :
-        <LabeledIndicator
-          label={STATUS_TEXT[record.status]}
+        <StatusIndicator
+          status={record.status}
           showWarning={record.quality && (record.quality !== QUALITY_MAP.GOOD)}
-          color={StatusIndicator(record.status)}
           size="md"
           fw={400}
         />

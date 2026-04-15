@@ -7,10 +7,10 @@ import {useEffect} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
 import DetailCard from "@/components/detail-card/DetailCard.jsx";
+import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard} from "@mantine/hooks";
-import {COLOR_MAP, STATUS_TEXT} from "@/utils/constants.js";
-import {StatusIndicator} from "@/utils/helpers.js";
+import {COLOR_MAP} from "@/utils/constants.js";
 
 const OutputDetails = observer(() => {
   const {id} = useParams();
@@ -70,8 +70,8 @@ const OutputDetails = observer(() => {
       actions={actions}
       titleRightSection={
         <LabeledIndicator
-          label="Enabled"
-          // showWarning={streamBrowseStore.streams?.[id]?.quality !== QUALITY_MAP.GOOD}
+          label={output?.enabled ? "Enabled" : "Disabled"}
+          color={output?.enabled ? "elv-green.5" : "elv-red.4"}
           size="md"
           withBorder
         />
@@ -81,10 +81,9 @@ const OutputDetails = observer(() => {
         <DetailCard
           title="Input"
           titleRightSection={
-          <LabeledIndicator
-            label={STATUS_TEXT[output?.input?.status]}
+          <StatusIndicator
+            status={output?.input?.status}
             fw={400}
-            color={StatusIndicator(output?.input?.status)}
           />
         }
           details={inputDetails}

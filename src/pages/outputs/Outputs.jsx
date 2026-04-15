@@ -16,12 +16,12 @@ import {
 } from "@mantine/core";
 import {outputStore, rootStore} from "@/stores/index.js";
 import {DataTable} from "mantine-datatable";
-import {SanitizeUrl, StatusIndicator} from "@/utils/helpers.js";
+import {SanitizeUrl} from "@/utils/helpers.js";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {IconCheck, IconCopy, IconExternalLink, IconSearch, IconTrash} from "@tabler/icons-react";
 import {useEffect, useRef, useState} from "react";
 import {useDebouncedCallback} from "@mantine/hooks";
-import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
+import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
 import BatchActions from "@/pages/outputs/batch-actions/BatchActions.jsx";
@@ -29,7 +29,6 @@ import CreateOutputModal from "@/pages/outputs/modals/CreateOutputModal.jsx";
 import {useNavigate} from "react-router-dom";
 import MapToStreamModal from "@/pages/outputs/modals/MapToStreamModal.jsx";
 import OutputConfirmModal from "@/pages/outputs/modals/OutputConfirmModal.jsx";
-import {STATUS_TEXT} from "@/utils/constants.js";
 
 const MODAL_CONFIG = {
   remap: {
@@ -239,9 +238,8 @@ const Outputs = observer(() => {
                         </ActionIcon>
                       </Group>
                       <Group wrap="nowrap" gap={6}>
-                        <LabeledIndicator
-                          label={STATUS_TEXT[record.input.status]}
-                          color={StatusIndicator(record.input?.status)}
+                        <StatusIndicator
+                          status={record.input.status}
                           size="xs"
                           fw={400}
                           c="elv-gray.6"

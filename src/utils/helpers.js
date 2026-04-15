@@ -94,7 +94,7 @@ export const StreamIsActive = (state) => {
   return active;
 };
 
-export const StatusIndicator = (status) => {
+export const StatusColor = (status) => {
   if(status === STATUS_MAP.STOPPED) {
     return "elv-orange.6";
   } else if(status === STATUS_MAP.RUNNING) {
