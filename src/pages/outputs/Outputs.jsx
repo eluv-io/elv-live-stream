@@ -109,9 +109,7 @@ const Outputs = observer(() => {
       ...config,
       description: modalRecords.length === 1 ? config.descriptionSingular : config.descriptionPlural,
       closeOnConfirm: modal !== "remap",
-      onConfirm: async () => {
-        if(modal === "remap") { setActiveModal("map"); }
-      }
+      onConfirm: ModalActions[modal]
     };
     setActiveModal(modal);
   };
@@ -119,6 +117,14 @@ const Outputs = observer(() => {
   const [copiedSlug, setCopiedSlug] = useState(null);
 
   const navigate = useNavigate();
+
+  const ModalActions = {
+    remap: () => setActiveModal("map"),
+    unmap: async () => await outputStore.UnmapStream({outputs: selectedRecords.map(r => r.slug)}),
+    // enable: async () => await outputStore.EnableOutputs({outputs: modalRecords}),
+    // disable: async () => await outputStore.DisableOutputs({outputs: modalRecords}),
+    // reset: async () => await outputStore.ResetOutputs({outputs: modalRecords}),
+  };
 
   const LoadData = async() => {
     try {

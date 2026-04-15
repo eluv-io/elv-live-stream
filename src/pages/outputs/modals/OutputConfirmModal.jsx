@@ -45,7 +45,10 @@ const OutputConfirmModal = ({
   return (
     <Modal
       opened={show}
-      onClose={onClose}
+      onClose={() => {
+        onClose();
+        setError(null);
+      }}
       title={title}
       padding="24px"
       radius="6px"
