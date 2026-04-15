@@ -201,6 +201,7 @@ class OutputStore {
       runInAction(() => {
         Object.entries(outputs).forEach(([slug, output]) => {
           this.outputs[slug] = {
+            ...(this.outputs[slug] || {}),
             ...output,
             ...(this.outputs[slug]?.input ? {input: this.outputs[slug].input} : {})
           };
