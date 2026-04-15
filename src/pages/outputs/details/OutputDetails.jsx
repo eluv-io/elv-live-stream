@@ -2,15 +2,14 @@ import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {useNavigate, useParams} from "react-router-dom";
 import {outputStore} from "@/stores/index.js";
-import {ActionIcon, Badge, Box, Divider, Flex, Group, Loader, Select, Text, TextInput, Tooltip} from "@mantine/core";
+import {ActionIcon, Badge, Divider, Flex, Group, Loader, Select, Text, TextInput, Tooltip} from "@mantine/core";
 import {useEffect} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
 import DetailCard from "@/components/detail-card/DetailCard.jsx";
 import StatusText from "@/components/status-text/StatusText.jsx";
 import {useClipboard} from "@mantine/hooks";
-import {COLOR_MAP, STATUS_MAP} from "@/utils/constants.js";
-import VideoContainer from "@/components/video-container/VideoContainer.jsx";
+import {COLOR_MAP} from "@/utils/constants.js";
 
 const OutputDetails = observer(() => {
   const {id} = useParams();
@@ -78,15 +77,15 @@ const OutputDetails = observer(() => {
         <DetailCard
           title="Output"
         />
-        <Box w={350}>
-          <VideoContainer
-            index={0}
-            slug={output?.input?.stream}
-            showPreview
-            playable={output?.input?.status === STATUS_MAP.RUNNING}
-            borderRadius={16}
-          />
-        </Box>
+        {/*<Box w={350}>*/}
+        {/*  <VideoContainer*/}
+        {/*    index={0}*/}
+        {/*    slug={output?.input?.stream}*/}
+        {/*    showPreview*/}
+        {/*    playable={output?.input?.status === STATUS_MAP.RUNNING}*/}
+        {/*    borderRadius={16}*/}
+        {/*  />*/}
+        {/*</Box>*/}
       </Flex>
 
       <SectionTitle mb={12}>
