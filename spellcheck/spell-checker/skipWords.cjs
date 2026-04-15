@@ -103,6 +103,7 @@ module.exports = [
   "udp",
   "unconfigured",
   "undef",
+  "unmapping",
   "unmounting",
   "unsecure",
   "unstyled",
