@@ -33,6 +33,22 @@ const ValueSection = ({value, copyable=false, lineClamp}) => {
   }
 };
 
+export const DetailCardHeader = ({title, titleRightSection}) => {
+  return (
+    <>
+      <Group>
+        <Text fw={600} fz="0.875rem" c="elv-gray.7">{ title }</Text>
+        <Flex ml="auto">
+          {
+            titleRightSection ? titleRightSection : null
+          }
+        </Flex>
+      </Group>
+      <Divider c="elv-gray.2" mt={8} mb={8} />
+    </>
+  );
+};
+
 const DetailCard = ({
   title,
   titleRightSection,
@@ -41,15 +57,7 @@ const DetailCard = ({
   return (
     <Box w={380} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
       <Box p={12}>
-        <Group>
-          <Text fw={600} fz="0.875rem" c="elv-gray.7">{ title }</Text>
-          <Flex ml="auto">
-            {
-              titleRightSection ? titleRightSection : null
-            }
-          </Flex>
-        </Group>
-        <Divider c="elv-gray.2" mt={8} mb={8} />
+        <DetailCardHeader title={title} titleRightSection={titleRightSection} />
 
         <Stack gap={6}>
           {

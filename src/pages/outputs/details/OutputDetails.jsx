@@ -2,58 +2,32 @@ import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {useNavigate, useParams} from "react-router-dom";
 import {outputStore} from "@/stores/index.js";
-import {ActionIcon, Badge, Divider, Flex, Group, Loader, Select, Text, TextInput, Tooltip} from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Box, Button,
+  Divider,
+  Flex,
+  Group,
+  Loader,
+  Select,
+  Tabs,
+  Text,
+  TextInput,
+  Tooltip
+} from "@mantine/core";
 import {useEffect} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
-import DetailCard from "@/components/detail-card/DetailCard.jsx";
+import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard} from "@mantine/hooks";
 import {COLOR_MAP} from "@/utils/constants.js";
+import styles from "@/components/detail-card/DetailCard.module.css";
 
-const OutputDetails = observer(() => {
-  const {id} = useParams();
-  const navigate = useNavigate();
+const SummaryPanel = observer(({output}) => {
   const clipboard = useClipboard();
-  const output = outputStore.outputs[id];
-
-  useEffect(() => {
-    if(outputStore.state !== "loaded") {
-      outputStore.LoadOutputs()
-        .then(() => {});
-    }
-  }, []);
-
-  useEffect(() => {
-    if(output?.input?.stream) {
-      outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output?.input?.stream})
-        .then(() => {});
-    }
-  }, [output?.input?.stream]);
-
-  if(!output) { return <Loader />; }
-
-  const actions = [
-    {
-      label: "Back",
-      buttonVariant: "filled",
-      color: "elv-gray.6",
-      onClick: () => navigate(-1)
-    },
-    {
-      label: "Reset",
-      buttonVariant: "outline",
-    },
-    {
-      label: "Disable",
-      buttonVariant: "outline",
-    },
-    {
-      label: "Unmap Stream",
-      buttonVariant: "outline",
-    }
-  ];
 
   const inputDetails = [
     {label: "Name", value: <Text c="elv-gray.9" fw={600} fz="0.875rem">{ output?.input?.name }</Text>},
@@ -64,30 +38,29 @@ const OutputDetails = observer(() => {
   ];
 
   return (
-    <PageContainer
-      title={output.name}
-      subtitle={id}
-      actions={actions}
-      titleRightSection={
-        <LabeledIndicator
-          label={output?.enabled ? "Enabled" : "Disabled"}
-          color={output?.enabled ? "elv-green.5" : "elv-red.4"}
-          size="md"
-          withBorder
-        />
-      }
-    >
+    <Box pt={16}>
       <Flex direction="row" mb={36} gap={6}>
-        <DetailCard
-          title="Input"
-          titleRightSection={
-          <StatusIndicator
-            status={output?.input?.status}
-            fw={400}
-          />
+        {
+          output?.input?.stream ?
+          <DetailCard
+            title="Input"
+            titleRightSection={
+              <StatusIndicator
+                status={output?.input?.status}
+                fw={400}
+              />
+            }
+            details={inputDetails}
+          /> :
+            <Box w={380} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
+              <Box p={12}>
+                <DetailCardHeader title="Input" />
+                <Box p="44px 100px">
+                  <Button>Map to a Stream</Button>
+                </Box>
+              </Box>
+            </Box>
         }
-          details={inputDetails}
-        />
         <DetailCard
           title="Output"
         />
@@ -132,6 +105,84 @@ const OutputDetails = observer(() => {
         value={output.geos?.[0] ?? ""}
         readOnly
       />
+    </Box>
+  );
+});
+
+const GeneralConfigPanel = observer(() => {
+  return (
+    <Box pt={16}></Box>
+  );
+});
+
+const OutputDetails = observer(() => {
+  const {id} = useParams();
+  const navigate = useNavigate();
+  const output = outputStore.outputs[id];
+
+  useEffect(() => {
+    if(outputStore.state !== "loaded") {
+      outputStore.LoadOutputs()
+        .then(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    if(output?.input?.stream) {
+      outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output?.input?.stream})
+        .then(() => {});
+    }
+  }, [output?.input?.stream]);
+
+  if(!output) { return <Loader />; }
+
+  const actions = [
+    {
+      label: "Back",
+      buttonVariant: "filled",
+      color: "elv-gray.6",
+      onClick: () => navigate(-1)
+    },
+    {
+      label: "Reset",
+      buttonVariant: "outline",
+    },
+    {
+      label: "Disable",
+      buttonVariant: "outline",
+    },
+    {
+      label: "Unmap Stream",
+      buttonVariant: "outline",
+    }
+  ];
+
+  return (
+    <PageContainer
+      title={output.name}
+      subtitle={id}
+      actions={actions}
+      titleRightSection={
+        <LabeledIndicator
+          label={output?.enabled ? "Enabled" : "Disabled"}
+          color={output?.enabled ? "elv-green.5" : "elv-red.4"}
+          size="md"
+          withBorder
+        />
+      }
+    >
+      <Tabs defaultValue="summary">
+        <Tabs.List>
+          <Tabs.Tab value="summary">Summary</Tabs.Tab>
+          <Tabs.Tab value="generalConfig">General Config</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="summary">
+          <SummaryPanel output={output} />
+        </Tabs.Panel>
+        <Tabs.Panel value="generalConfig">
+          <GeneralConfigPanel />
+        </Tabs.Panel>
+      </Tabs>
 
     </PageContainer>
   );
