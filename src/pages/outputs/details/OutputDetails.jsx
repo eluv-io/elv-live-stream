@@ -12,7 +12,6 @@ import {
   Loader,
   Select,
   Tabs,
-  Text,
   TextInput,
   Tooltip
 } from "@mantine/core";
@@ -29,14 +28,20 @@ import {outputModalStore} from "@/stores/index.js";
 
 const SummaryPanel = observer(({output, id}) => {
   const clipboard = useClipboard();
-  
 
   const inputDetails = [
-    {label: "Name", value: <Text c="elv-gray.9" fw={600} fz="0.875rem">{ output?.input?.name }</Text>},
+    {label: "Name", value: output?.input?.name, fw: 600},
     {label: "Object ID", value: output.input?.stream, copyable: true},
     {label: "URL", value: output.input?.url, lineClamp: 1, copyable: true},
     {label: "Source", value: output?.input?.source?.map(el => <Badge key={`source-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400}>{el}</Badge>)},
     {label: "Packaging", value: output?.input?.packaging?.map(el => <Badge key={`packaging-${el}`} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12}>{el}</Badge>)},
+  ];
+
+  const outputDetails = [
+    {label: "Name", value: output.name, fw: 600},
+    {label: "Output ID", value: id, fw: 600},
+    {label: "URL", value: output.srt_pull?.urls?.[0], copyable: true, lineClamp: 1},
+    {label: "Client", value: output.state?.connected_clients ?? 0}
   ];
 
   return (
@@ -65,6 +70,7 @@ const SummaryPanel = observer(({output, id}) => {
         }
         <DetailCard
           title="Output"
+          details={outputDetails}
         />
         {/*<Box w={350}>*/}
         {/*  <VideoContainer*/}
@@ -120,7 +126,7 @@ const GeneralConfigPanel = observer(() => {
 const OutputDetails = observer(() => {
   const {id} = useParams();
   const navigate = useNavigate();
-  
+
   const output = outputStore.outputs[id];
 
   useEffect(() => {

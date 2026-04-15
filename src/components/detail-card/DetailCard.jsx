@@ -3,13 +3,18 @@ import styles from "./DetailCard.module.css";
 import {IconCopy} from "@tabler/icons-react";
 import {useClipboard} from "@mantine/hooks";
 
-const ValueSection = ({value, copyable=false, lineClamp}) => {
+const ValueSection = ({
+  value,
+  fw=400,
+  copyable=false,
+  lineClamp
+}) => {
   const clipboard = useClipboard(({timeout: 500}));
 
-  if(typeof value === "string") {
+  if(typeof value === "string" || typeof value === "number") {
     return (
       <Flex gap={4} align="center" miw={0}>
-        <Text c="elv-gray.7" fw={400} fz="0.875rem" truncate={lineClamp ? "end" : undefined} flex={1} miw={0}>{ value }</Text>
+        <Text c="elv-gray.7" fw={fw} fz="0.875rem" truncate={lineClamp ? "end" : undefined} flex={1} miw={0}>{ value }</Text>
         {
           copyable ?
             <Tooltip
@@ -64,7 +69,7 @@ const DetailCard = ({
             details.map((detail, i) => (
               <Flex key={`detail-${title}-${i}-${detail.label}`} align="flex-start" gap={8} w="100%">
                 <Text c="elv-gray.7" fw={400} fz="0.875rem" className={styles.noWrapText}>{ detail.label }:</Text>
-                <ValueSection value={detail.value} copyable={detail.copyable} lineClamp={detail.lineClamp} />
+                <ValueSection value={detail.value} fw={detail.fw} copyable={detail.copyable} lineClamp={detail.lineClamp} />
               </Flex>
             ))
           }
