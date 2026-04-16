@@ -14,3 +14,14 @@
 .embedUrl {
   word-break: break-all;
 }
+
+.audioSelectInput {
+  height: 20px;
+  min-height: 20px;
+  font-size: 0.75rem;
+  width: 65px;
+}
+
+.audioSelectWrapper {
+  width: fit-content;
+}

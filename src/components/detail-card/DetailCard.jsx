@@ -56,10 +56,35 @@ export const DetailCardHeader = ({title, titleRightSection}) => {
   );
 };
 
+export const DetailCardBody = ({data=[], id}) => {
+  return (
+    <Box className={styles.grid}>
+      {
+        data.map((item, i) => (
+          <Fragment key={`row-${id}-${i}`}>
+            <Text c="elv-gray.7" fw={400} fz="0.875rem" className={styles.noWrapText}>{ item.label }:</Text>
+            <ValueSection value={item.value} fw={item.fw} copyable={item.copyable} lineClamp={item.lineClamp} />
+          </Fragment>
+        ))
+      }
+    </Box>
+  );
+};
+
+export const SubDetailCard = ({title, titleRightSection, data=[]}) => {
+  return (
+    <Box bg="elv-gray.0" className={styles.subCard} p={12} mt={8}>
+      <DetailCardHeader title={title} titleRightSection={titleRightSection} />
+      <DetailCardBody id={title} data={data} />
+    </Box>
+  );
+};
+
 const DetailCard = ({
   title,
   titleRightSection,
-  data=[],
+  data,
+  children,
   width,
   ...props
 }) => {
@@ -67,17 +92,8 @@ const DetailCard = ({
     <Box w={width} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper} {...props}>
       <Box p={12}>
         <DetailCardHeader title={title} titleRightSection={titleRightSection} />
-
-        <Box style={{display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 20, rowGap: 4}}>
-          {
-            data.map((item, i) => (
-              <Fragment key={`row-${title}-${i}`}>
-                <Text c="elv-gray.7" fw={400} fz="0.875rem" className={styles.noWrapText}>{ item.label }:</Text>
-                <ValueSection value={item.value} fw={item.fw} copyable={item.copyable} lineClamp={item.lineClamp} />
-              </Fragment>
-            ))
-          }
-        </Box>
+        {data && <DetailCardBody id={title} data={data} />}
+        {children}
       </Box>
     </Box>
   );

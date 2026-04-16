@@ -1,10 +1,15 @@
 import {useEffect, useState} from "react";
-import {Box, Button, Code, Flex, Grid, Group, SimpleGrid, Stack, Text, Tooltip} from "@mantine/core";
+import {Badge, Box, Button, Code, Flex, Grid, Group, Select, SimpleGrid, Stack, Text, Tooltip} from "@mantine/core";
 import {dataStore, streamBrowseStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
 import {DateFormat, FormatTime} from "@/utils/helpers.js";
-import {STATUS_MAP, QUALITY_TEXT, RETENTION_TEXT, QUALITY_COLOR_MAP} from "@/utils/constants.js";
+import {
+  STATUS_MAP,
+  QUALITY_TEXT,
+  QUALITY_COLOR_MAP,
+  SOURCE_PACKAGING_COLOR_MAP
+} from "@/utils/constants.js";
 import RecordingPeriodsTable from "@/pages/streams/details/details/components/RecordingPeriodsTable.jsx";
 import RecordingCopiesTable from "@/pages/streams/details/details/components/RecordingCopiesTable.jsx";
 import {IconAlertCircle, IconLink} from "@tabler/icons-react";
@@ -12,8 +17,10 @@ import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import styles from "@/pages/streams/details/details/SummaryPanel.module.css";
 import {useClipboard} from "@mantine/hooks";
-import DetailCard from "@/components/detail-card/DetailCard.jsx";
+import DetailCard, {DetailCardBody, SubDetailCard} from "@/components/detail-card/DetailCard.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
+import {toJS} from "mobx";
+import sharedStyles from "@/assets/shared.module.css";
 
 export const Runtime = ({
   startTime,
@@ -60,6 +67,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
   const [embedUrl, setEmbedUrl] = useState(null);
+  const [selectedAudio, setSelectedAudio] = useState(0);
 
   const params = useParams();
   const clipboard = useClipboard({timeout: 2000});
@@ -101,6 +109,8 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
     }
   };
 
+  const stream = streamBrowseStore.streams[slug];
+
   const recordingData = [
     {
       label: "Recording Start",
@@ -129,10 +139,22 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       label: "Last Runtime",
       value: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({
         startTime: status?.recordingPeriod?.startTimeEpochSec * 1000,
-        currentTimeMs, active: true
+        currentTimeMs, active: true, format: "hh:mm:ss"
       }) : ""
     }
   ].map(({label, value}) => ({label, value}));
+
+  const sourceData = [
+    {label: "Input", value: stream?.source?.map(el => <Group gap={4} key={`source-${el}`}><Badge radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge></Group>)},
+    {label: "Packets Recv / Drop (%)"},
+    {label: "Seq Errors / Gap"},
+  ];
+
+  const packagingData = [
+    {label: "Packaging", value: stream?.packaging?.map(el => <Group key={`source-${el}`} gap={4}><Badge radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge></Group>)}
+  ];
+
+  console.log("stream", toJS(streamBrowseStore.streams[slug]));
 
   return (
     <>
@@ -163,16 +185,32 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         <Flex direction="column" flex={1} gap={8}>
           <SectionTitle>Key Stats</SectionTitle>
           <SimpleGrid cols={2} spacing={20}>
-            <DetailCard
-              title="Source"
-              data={[
-                {label: "Input"},
-                {label: "Packets Recv / Drop (%)"},
-                {label: "Seq Errors / Gap"},
-              ]}
-            />
+            <DetailCard title="Source">
+              <DetailCardBody id="source" data={sourceData} />
+              <SubDetailCard
+                title="Video"
+                data={[
+                  {label: "Stream ID"},
+                  {label: "Bitrate"},
+                  {label: "Frame Rate"},
+                  {label: "Resolution"},
+                  {label: "Codec"}
+                ]}
+              />
+              <SubDetailCard
+                title="Audio"
+                titleRightSection={<Select value={String(selectedAudio)} onChange={(value) => setSelectedAudio(parseInt(value))} data={Object.keys(stream?.audioStreams || {}).map(key => ({value: key, label: String(parseInt(key) + 1)}))} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
+                data={[
+                  {label: "Stream ID", value: stream?.audioStreams?.[selectedAudio]?.stream_id},
+                  {label: "Bitrate", value: stream?.audioStreams?.[selectedAudio]?.bit_rate},
+                  {label: "Channels", value: stream?.audioStreams?.[selectedAudio]?.channels},
+                  {label: "Codec",value: stream?.audioStreams?.[selectedAudio]?.codec_name}
+                ]}
+              />
+            </DetailCard>
             <DetailCard
               title="Publishing"
+              data={packagingData}
             />
           </SimpleGrid>
         </Flex>
@@ -198,42 +236,6 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                     </Code>
                   </Box>
                 </>
-              }
-            </Box>
-            <Box mb="30px" maw="70%">
-              <SectionTitle mb={5}>Recording Info</SectionTitle>
-              {
-                [
-                  {
-                    label: "Created",
-                    value: recordingInfo?._recordingStartTime ?
-                      DateFormat({
-                        time: recordingInfo?._recordingStartTime,
-                        format: "sec"
-                      }) : "--"
-                  },
-                  {
-                    label: "Retention",
-                    value: currentRetention ? RETENTION_TEXT[currentRetention] : "--"
-                  },
-                  {
-                    label: "Current Period Started",
-                    value: status?.recording_period?.start_time_epoch_sec ?
-                      DateFormat({
-                        time: status?.recording_period?.start_time_epoch_sec,
-                        format: "sec"
-                      }) : "--"
-                  },
-                  {
-                    label: "Current Period Runtime",
-                    value: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({
-                      startTime: status?.recording_period?.start_time_epoch_sec * 1000,
-                      currentTimeMs
-                    }) : "--"
-                  }
-                ].map(({label, value}) => (
-                  <DetailRow key={`detail-${label}`} label={label} value={value} />
-                ))
               }
             </Box>
           </Flex>
