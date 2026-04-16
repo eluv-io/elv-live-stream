@@ -62,9 +62,9 @@ const SummaryPanel = observer(({output, id}) => {
             }
             data={[
               {label: "Quality", value: QUALITY_TEXT[output?.input?.quality]},
-              {label: "Packets Recv / Drop (%)", value: `${output?.input?.stats?.ts?.packets_received?.toLocaleString()} / ${output?.input?.stats?.ts?.packets_dropped?.toLocaleString()} (${(output?.input?.stats?.ts?.packets_dropped / output?.input?.stats?.ts?.packets_received).toFixed(2)}%)`},
-              {label: "Seq Errors Number / Total Gap", value: `${output?.input?.stats?.rtp?.seq_num_skip_tot?.toLocaleString()} / ${output?.input?.stats?.rtp?.seq_num_skip_count?.toLocaleString()}`},
-              {label: "Errors All / CC", value: `${([output?.input?.stats?.ts?.errors_cc, output?.input?.stats?.ts?.errors_incomplete_packets, output?.input?.stats?.ts?.errors_opening_output, output?.input?.stats?.ts?.errors_other, output?.input?.stats?.ts?.errors_writing].reduce((sum, val) => sum + (val ?? 0), 0))} / ${output?.input?.stats?.ts?.errors_cc}`}
+              {label: "Packets Recv / Drop (%)", value: output?.input?.stats?.ts ? `${output.input.stats.ts.packets_received?.toLocaleString()} / ${output.input.stats.ts.packets_dropped?.toLocaleString()} (${output.input.stats.ts.packets_received ? (output.input.stats.ts.packets_dropped / output.input.stats.ts.packets_received).toFixed(2) : "0.00"}%)` : ""},
+              {label: "Seq Errors Number / Total Gap", value: output?.input?.stats?.rtp ? `${output.input.stats.rtp.seq_num_skip_tot?.toLocaleString()} / ${output.input.stats.rtp.seq_num_skip_count?.toLocaleString()}` : ""},
+              {label: "Errors All / CC", value: `${([output?.input?.stats?.ts?.errors_cc, output?.input?.stats?.ts?.errors_incomplete_packets, output?.input?.stats?.ts?.errors_opening_output, output?.input?.stats?.ts?.errors_other, output?.input?.stats?.ts?.errors_writing].reduce((sum, val) => sum + (val ?? 0), 0))} / ${output?.input?.stats?.ts?.errors_cc ?? 0}`}
             ]}
           /> :
             <Box style={{width: "calc(100% - 355px - 20px)"}} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
@@ -145,29 +145,26 @@ const OutputDetails = observer(() => {
 
   useEffect(() => {
     if(outputStore.state !== "loaded") {
-      try {
-        setLoading(true);
-        outputStore.LoadOutputs()
-          .then(() => {});
-      } finally {
-        setLoading(false);
-      }
+      outputStore.LoadOutputs()
+        .then(() => {});
     }
   }, []);
 
   useEffect(() => {
-    if(output?.input?.stream) {
+    if(!output?.input?.stream) { return; }
+
+    const LoadData = async() => {
       try {
         setLoading(true);
-        outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output?.input?.stream})
+        await outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output?.input?.stream})
           .then(() => {});
       } finally {
         setLoading(false);
       }
-    }
-  }, [output?.input?.stream]);
+    };
 
-  if(loading) { return <Loader />; }
+    LoadData();
+  }, [output?.input?.stream]);
 
   const actions = [
     {
@@ -193,6 +190,8 @@ const OutputDetails = observer(() => {
     }
   ];
 
+  if(!output) { return <Loader />; }
+
   return (
     <PageContainer
       title={output.name}
@@ -212,12 +211,18 @@ const OutputDetails = observer(() => {
           <Tabs.Tab value="summary">Summary</Tabs.Tab>
           <Tabs.Tab value="generalConfig">General Config</Tabs.Tab>
         </Tabs.List>
-        <Tabs.Panel value="summary">
-          <SummaryPanel output={output} id={id} />
-        </Tabs.Panel>
-        <Tabs.Panel value="generalConfig">
-          <GeneralConfigPanel />
-        </Tabs.Panel>
+        {
+          (loading || outputStore.state !== "loaded") ?
+            <Box p={15}><Loader /></Box> :
+            <>
+              <Tabs.Panel value="summary">
+                <SummaryPanel output={output} id={id} />
+              </Tabs.Panel>
+              <Tabs.Panel value="generalConfig">
+                <GeneralConfigPanel />
+              </Tabs.Panel>
+            </>
+        }
       </Tabs>
 
     </PageContainer>

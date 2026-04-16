@@ -68,11 +68,13 @@ const Outputs = observer(() => {
   const navigate = useNavigate();
 
   const LoadData = async() => {
-    try {
-      setLoading(true);
-      await outputStore.LoadOutputs();
-    } finally {
-      setLoading(false);
+    if(outputStore.state !== "loaded") {
+      try {
+        setLoading(true);
+        await outputStore.LoadOutputs();
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
