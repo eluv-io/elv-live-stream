@@ -1,17 +1,19 @@
 import {useEffect, useState} from "react";
-import {Box, Button, Code, Flex, Grid, Group, Skeleton, Stack, Text, Title, Tooltip} from "@mantine/core";
+import {Box, Button, Code, Flex, Grid, Group, SimpleGrid, Stack, Text, Tooltip} from "@mantine/core";
 import {dataStore, streamBrowseStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
 import {DateFormat, FormatTime} from "@/utils/helpers.js";
-import {STATUS_MAP, QUALITY_TEXT, RETENTION_TEXT} from "@/utils/constants.js";
+import {STATUS_MAP, QUALITY_TEXT, RETENTION_TEXT, QUALITY_COLOR_MAP} from "@/utils/constants.js";
 import RecordingPeriodsTable from "@/pages/streams/details/details/components/RecordingPeriodsTable.jsx";
 import RecordingCopiesTable from "@/pages/streams/details/details/components/RecordingCopiesTable.jsx";
 import {IconAlertCircle, IconLink} from "@tabler/icons-react";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import styles from "@/pages/streams/details/details/DetailsPanel.module.css";
+import styles from "@/pages/streams/details/details/SummaryPanel.module.css";
 import {useClipboard} from "@mantine/hooks";
+import DetailCard from "@/components/detail-card/DetailCard.jsx";
+import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 
 export const Runtime = ({
   startTime,
@@ -53,8 +55,7 @@ const DetailRow = ({label, value}) => {
   );
 };
 
-const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug}) => {
-  const [frameSegmentUrl, setFrameSegmentUrl] = useState("");
+const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug}) => {
   const [status, setStatus] = useState(null);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
@@ -70,13 +71,7 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         objectId: params.id
       });
 
-      let frameUrl = "";
-      if(statusResponse?.state === STATUS_MAP.RUNNING) {
-        streamBrowseStore.StreamFrameURL(slug).then(url => setFrameSegmentUrl(url));
-      }
-
       setStatus(statusResponse);
-      setFrameSegmentUrl(frameUrl || "");
     };
 
     const LoadEmbedUrl = async() => {
@@ -106,8 +101,83 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
     }
   };
 
+  const recordingData = [
+    {
+      label: "Recording Start",
+      value: recordingInfo?._recordingStartTime ?
+        DateFormat({
+          time: recordingInfo?._recordingStartTime,
+          format: "sec"
+        }) : ""
+    },
+    {
+      label: "Runtime",
+      value: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({
+        startTime: recordingInfo?._recordingStartTime * 1000,
+        currentTimeMs, active: true, format: "hh:mm:ss"
+      }) : ""
+    },
+    {
+      label: "Last Connect",
+      value: status?.recordingPeriod?.startTimeEpochSec ?
+        DateFormat({
+          time: status?.recordingPeriod?.startTimeEpochSec,
+          format: "sec"
+        }) : ""
+    },
+    {
+      label: "Last Runtime",
+      value: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({
+        startTime: status?.recordingPeriod?.startTimeEpochSec * 1000,
+        currentTimeMs, active: true
+      }) : ""
+    }
+  ].map(({label, value}) => ({label, value}));
+
   return (
     <>
+      <Flex direction="row" gap={20}>
+        <Stack gap={12}>
+          <SectionTitle>Preview</SectionTitle>
+          <Box w={355}>
+            <VideoContainer
+              index={0}
+              slug={slug}
+              showPreview
+              playable={status === STATUS_MAP.RUNNING}
+              borderRadius={16}
+            />
+          </Box>
+          <DetailCard
+            title="State"
+            data={[
+              {label: "Quality", value: <LabeledIndicator label={QUALITY_TEXT[status?.quality] || ""} color={status?.quality ? QUALITY_COLOR_MAP[status?.quality] : null} fw={600} />}
+            ]}
+          />
+          <DetailCard
+            title="Recording Info"
+            data={recordingData}
+          />
+        </Stack>
+
+        <Flex direction="column" flex={1} gap={8}>
+          <SectionTitle>Key Stats</SectionTitle>
+          <SimpleGrid cols={2} spacing={20}>
+            <DetailCard
+              title="Source"
+              data={[
+                {label: "Input"},
+                {label: "Packets Recv / Drop (%)"},
+                {label: "Seq Errors / Gap"},
+              ]}
+            />
+            <DetailCard
+              title="Publishing"
+            />
+          </SimpleGrid>
+        </Flex>
+      </Flex>
+
       <Grid>
         <Grid.Col span={8}>
           <Flex direction="column" className={styles.flexGrow}>
@@ -171,22 +241,6 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         <Grid.Col span={4}>
           <Flex>
             <Stack gap={0}>
-              <Title order={3} c="elv-gray.9" mb={4}>Preview</Title>
-              <Skeleton visible={frameSegmentUrl === undefined || !status} height={200} width={350} radius={16}>
-                {
-                  (status?.state === STATUS_MAP.RUNNING && frameSegmentUrl) ?
-                    <VideoContainer
-                      index={0}
-                      slug={slug}
-                      showPreview
-                      playable={status.state === STATUS_MAP.RUNNING}
-                      borderRadius={16}
-                    /> :
-                    <Box bg="gray.3" h="100%" margin="auto" ta="center" className={styles.borderRadius}>
-                      <Title order={6} lh="200px" c="elv-gray.9">Preview is not available</Title>
-                    </Box>
-                }
-              </Skeleton>
               <Group gap={6} justify="center">
                 {
                   [
@@ -243,4 +297,4 @@ const DetailsPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   );
 });
 
-export default DetailsPanel;
+export default SummaryPanel;

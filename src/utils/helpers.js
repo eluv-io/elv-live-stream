@@ -191,7 +191,7 @@ export const SortTable = ({sortStatus, AdditionalCondition}) => {
   };
 };
 
-export const DateFormat = ({time, format="sec", options={}}) => {
+export const DateFormat = ({time, format="sec", options={month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true}}) => {
   if(!["sec", "iso", "ms"].includes(format)) { throw Error("Invalid format type provided."); }
 
   if(format === "sec") {

@@ -115,7 +115,7 @@ const StreamDetailsPage = observer(() => {
       }
       actions={actions}
     >
-      <Tabs className={styles.root} value={activeTab} onChange={setActiveTab}>
+      <Tabs value={activeTab} onChange={setActiveTab}>
         <Tabs.List className={styles.list}>
           {
             DETAILS_TABS

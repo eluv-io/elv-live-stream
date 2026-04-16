@@ -5,7 +5,7 @@ import {SanitizeUrl} from "@/utils/helpers.js";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
-import {COLOR_MAP, QUALITY_MAP} from "@/utils/constants.js";
+import {SOURCE_PACKAGING_COLOR_MAP, QUALITY_MAP} from "@/utils/constants.js";
 
 const StreamsTable = observer(({
   records,
@@ -59,7 +59,7 @@ const StreamsTable = observer(({
       render: record => (
         <Group gap={4} wrap="nowrap">
           {record.source?.map(el => (
-            <Badge key={`source-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
+            <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
               {el}
             </Badge>
           ))}
@@ -72,7 +72,7 @@ const StreamsTable = observer(({
       render: record => (
         <Group gap={4} wrap="nowrap">
           {(record.packaging || []).map(el => (
-            <Badge key={`packaging-${el}`} radius={2} color={COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
+            <Badge key={`packaging-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
               {el}
             </Badge>
           ))}

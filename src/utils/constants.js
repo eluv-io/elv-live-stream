@@ -138,7 +138,13 @@ export const QUALITY_TEXT = {
   "degraded": "Degraded"
 };
 
-export const COLOR_MAP = {
+export const QUALITY_COLOR_MAP = {
+  "good": "elv-green.5",
+  "severe": "elv-red.4",
+  "degraded": "elv-orange.6"
+};
+
+export const SOURCE_PACKAGING_COLOR_MAP = {
   srt: "elv-blue-gray.1",
   rtp: "elv-violet.0",
   rtmp: "elv-yellow.1",

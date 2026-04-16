@@ -1,4 +1,4 @@
-import {Box, Group, Indicator, Text} from "@mantine/core";
+import {Box, Flex, Group, Indicator, Text} from "@mantine/core";
 import styles from "./LabeledIndicator.module.css";
 import {IconAlertCircle} from "@tabler/icons-react";
 
@@ -44,7 +44,7 @@ const LabeledIndicator = ({
     );
   } else {
     return (
-      <Box className={withBorder ? styles.box : ""} title={label}>
+      <Flex direction="row" align="center" className={withBorder ? styles.box : ""} title={label}>
         <Indicator
           color={color}
           position="middle-start"
@@ -61,7 +61,7 @@ const LabeledIndicator = ({
             { label }
           </Text>
         </Indicator>
-      </Box>
+      </Flex>
     );
   }
 };

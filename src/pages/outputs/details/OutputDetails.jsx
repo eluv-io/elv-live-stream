@@ -122,7 +122,7 @@ const SummaryPanel = observer(({output, id}) => {
               title="Output"
               data={[
                 {label: "Client IP", value: client.client_ip},
-                {label: "Connected at", value: client.connected_at ? DateFormat({time: client.connected_at, format: "iso", options: {month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true}}) : null},
+                {label: "Connected at", value: client.connected_at ? DateFormat({time: client.connected_at, format: "iso"}) : null},
                 {label: "Packets Sent / Drop (%)", value: `${client?.packets_sent?.toLocaleString()} / ${client?.packets_dropped?.toLocaleString()} (${(client.packets_dropped / client?.packets_sent).toFixed(2)}%)`},
                 {label: "Bytes Sent / Drop (%)", value: `${BytesToMb(client.bytes_sent)} / ${BytesToMb(client.bytes_dropped)} (${(client.bytes_dropped / client.bytes_sent).toFixed(2)}%)`},
                 {label: "Packets Sent / Retrans / Loss", value: `${client?.srt?.connection?.accumulated?.pkt_sent?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_retrans?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_send_loss?.toLocaleString()}`},
@@ -296,7 +296,7 @@ const OutputDetails = observer(() => {
     {
       label: "Map to a Stream",
       buttonVariant: "filled",
-      onClick: () => outputModalStore.OpenModal("unmap", [id]),
+      onClick: () => outputModalStore.OpenModal("map", [id]),
       hidden: output?.input?.stream
     }
   ]

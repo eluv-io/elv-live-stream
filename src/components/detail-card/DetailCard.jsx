@@ -68,7 +68,7 @@ const DetailCard = ({
       <Box p={12}>
         <DetailCardHeader title={title} titleRightSection={titleRightSection} />
 
-        <Box style={{display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 20, rowGap: 6}}>
+        <Box style={{display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 20, rowGap: 4}}>
           {
             data.map((item, i) => (
               <Fragment key={`row-${title}-${i}`}>

@@ -13,7 +13,7 @@ import {
 } from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
 import CopyToVodModal from "@/pages/streams/details/details/components/CopyToVodModal.jsx";
-import {Runtime} from "@/pages/streams/details/details/DetailsPanel.jsx";
+import {Runtime} from "@/pages/streams/details/details/SummaryPanel.jsx";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
