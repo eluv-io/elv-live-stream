@@ -1,5 +1,5 @@
 import {observer} from "mobx-react-lite";
-import {Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
+import {Box, Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
 import styles from "./modals.module.css";
 import {SortTable} from "@/utils/helpers.js";
 import {useState} from "react";
@@ -66,12 +66,12 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
       padding="24px"
       radius="6px"
       size="75%"
-      styles={{body: {minHeight: 700, display: "flex", flexDirection: "column"}}}
+      styles={{body: {height: "70vh", display: "flex", flexDirection: "column"}}}
       classNames={{header: styles.modalHeader}}
       centered
       closeOnClickOutside={false}
     >
-      <Stack style={{flex: 1}}>
+      <Stack style={{flex: 1, overflow: "hidden"}}>
         <Flex w="100%" align="center" mb={20}>
           <TextInput
             flex={2}
@@ -83,16 +83,17 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
           />
         </Flex>
 
-        <StreamsTable
-          records={records}
-          sortStatus={sortStatus}
-          onSortStatusChange={setSortStatus}
-          onRowClick={record => setSelectedRecords([record])}
-          rowStyle={record => selectedRecords?.[0]?.record?.objectId === record.objectId ? {backgroundColor: "var(--mantine-color-elv-blue-0)"} : undefined}
-          showActions={false}
-          maxHeight={600}
-        />
-        <Flex direction="row" align="center" mt="auto" pt="1.5rem" justify="flex-end">
+        <Box style={{flex: 1, overflow: "auto", minHeight: 0}}>
+          <StreamsTable
+            records={records}
+            sortStatus={sortStatus}
+            onSortStatusChange={setSortStatus}
+            onRowClick={record => setSelectedRecords([record])}
+            rowStyle={record => selectedRecords?.[0]?.record?.objectId === record.objectId ? {backgroundColor: "var(--mantine-color-elv-blue-0)"} : undefined}
+            showActions={false}
+          />
+        </Box>
+        <Flex direction="row" align="center" pt="1.5rem" justify="flex-end">
           <Button onClick={HandleSubmit} loading={isSaving} disabled={isSaving}>Map</Button>
         </Flex>
       </Stack>
