@@ -1,5 +1,5 @@
 import {Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/core";
-import {IconCheck, IconCancel, IconRotateClockwise, IconRouteOff, IconRoute} from "@tabler/icons-react";
+import {IconCheck, IconCancel, IconRotateClockwise, IconRouteOff, IconRoute, IconTrash} from "@tabler/icons-react";
 import styles from "./BatchActions.module.css";
 import {outputModalStore} from "@/stores/index.js";
 
@@ -17,6 +17,7 @@ const BatchActions = ({
     {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => outputModalStore.OpenModal("enable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.enabled))},
     {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => outputModalStore.OpenModal("disable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => r.enabled))},
     {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => outputModalStore.OpenModal("reset", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.reset))},
+    {icon: IconTrash, label: "Delete", id: "batch-delete", onClick: () => outputModalStore.OpenModal("delete", slugs()), disabled: (noSelectedRecords)}
   ];
 
   const IconDisplay = Icon => <Icon size={16} />;
