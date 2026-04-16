@@ -421,6 +421,51 @@ class OutputStore {
       throw error;
     }
   }
+
+  async ModifyOutput({
+    outputId,
+    name,
+    passphrase,
+    encryption,
+    stripRtp
+  }) {
+    try {
+      const objectId = this.outputSettingsId;
+      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+
+      const existing = await this.client.CallBitcodeMethod({
+        libraryId,
+        objectId,
+        method: `live/outputs/${outputId}`,
+        constant: true
+      });
+
+      const output = {
+        ...existing,
+        ...(name !== undefined && {name}),
+        srt_pull: {
+          ...existing.srt_pull,
+          connection: {
+            ...existing.srt_pull.connection,
+            enforced_encryption: encryption ?? existing.srt_pull.connection.enforced_encryption
+          },
+          passphrase: passphrase ?? existing.srt_pull.passphrase,
+          strip_rtp: stripRtp ?? existing.srt_pull.strip_rtp
+        }
+      };
+
+      await this.client.OutputsModify({
+        libraryId,
+        objectId,
+        outputId,
+        output
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to update output.", error);
+      throw error;
+    }
+  }
 }
 
 export default OutputStore;

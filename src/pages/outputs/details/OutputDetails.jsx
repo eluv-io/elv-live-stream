@@ -4,13 +4,16 @@ import {useNavigate, useParams} from "react-router-dom";
 import {outputStore} from "@/stores/index.js";
 import {
   ActionIcon,
-  Box, Button,
+  Box,
+  Button,
+  Checkbox,
   Divider,
   Flex,
   Group,
   Input,
   Loader,
   Select,
+  SimpleGrid,
   Tabs,
   TextInput,
   Tooltip
@@ -27,6 +30,9 @@ import styles from "@/components/detail-card/DetailCard.module.css";
 import {outputModalStore} from "@/stores/index.js";
 import {DateFormat, BytesToMb} from "@/utils/helpers.js";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
+import {useForm} from "@mantine/form";
+import {notifications} from "@mantine/notifications";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const SummaryPanel = observer(({output, id}) => {
   const clipboard = useClipboard();
@@ -130,9 +136,91 @@ const SummaryPanel = observer(({output, id}) => {
   );
 });
 
-const GeneralConfigPanel = observer(() => {
+const GeneralConfigPanel = observer(({output, id}) => {
+  const [applyingChanges, setApplyingChanges] = useState(false);
+
+  const form = useForm({
+    mode: "uncontrolled",
+    initialValues: {
+      encryption: output?.srt_pull?.connection?.enforced_encryption,
+      stripRtp: output?.srt_pull?.strip_rtp,
+      passphrase: output?.srt_pull?.passphrase,
+    }
+  });
+
+  const HandleSubmit = async(values) => {
+    try {
+      setApplyingChanges(true);
+
+      const {encryption, stripRtp, passphrase} = values;
+
+      await outputStore.ModifyOutput({
+        outputId: id,
+        encryption,
+        stripRtp,
+        passphrase: encryption ? passphrase : undefined
+      });
+
+      notifications.show({
+        title: <NotificationMessage>Updated output</NotificationMessage>,
+        message: "Changes have been applied successfully"
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to update output", error);
+
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: "Unable to save changes"
+      });
+    } finally {
+      setApplyingChanges(false);
+    }
+  };
+
   return (
-    <Box pt={16}></Box>
+    <Box pt={16}>
+      <form onSubmit={form.onSubmit(HandleSubmit)}>
+        <SectionTitle mb={12}>Encryption</SectionTitle>
+        <Checkbox
+          label="Enable Encryption"
+          description="If encryption is enabled, a passphrase is required to decrypt the stream. If not provided, one will be auto-generated."
+          key={form.key("encryption")}
+          {...form.getInputProps("encryption", {type: "checkbox"})}
+        />
+        {
+          form.getValues().encryption &&
+          <SimpleGrid cols={2} spacing={150} mt={20} pl={28}>
+            <TextInput
+              label="Passphrase"
+              type="password"
+              key={form.key("passphrase")}
+              {...form.getInputProps("passphrase")}
+            />
+          </SimpleGrid>
+        }
+
+        <Divider mb={20} mt={30} />
+
+        <SectionTitle mb={12}>Fabric Geo</SectionTitle>
+        <Checkbox
+          label="Enable Strip RTP"
+          description="Remove RTP encapsulation from the incoming stream"
+          key={form.key("stripRtp")}
+          {...form.getInputProps("stripRtp", {type: "checkbox"})}
+        />
+
+        <Button
+          mt={60}
+          type="submit"
+          disabled={applyingChanges || !form.isDirty()}
+          loading={applyingChanges}
+        >
+          Save
+        </Button>
+      </form>
+    </Box>
   );
 });
 
@@ -145,6 +233,7 @@ const OutputDetails = observer(() => {
   const DebouncedRefresh = useDebouncedCallback(async() => {
     try {
       setLoading(true);
+      await outputStore.LoadOutputs();
       if(output?.input?.stream) {
         await outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output.input.stream});
       }
@@ -242,7 +331,7 @@ const OutputDetails = observer(() => {
                 <SummaryPanel output={output} id={id} />
               </Tabs.Panel>
               <Tabs.Panel value="generalConfig">
-                <GeneralConfigPanel />
+                <GeneralConfigPanel output={output} id={id} />
               </Tabs.Panel>
             </>
         }
