@@ -67,8 +67,8 @@ const Outputs = observer(() => {
 
   const navigate = useNavigate();
 
-  const LoadData = async() => {
-    if(outputStore.state !== "loaded") {
+  const LoadData = async(reload=false) => {
+    if(outputStore.state !== "loaded" || reload) {
       try {
         setLoading(true);
         await outputStore.LoadOutputs();
@@ -83,7 +83,7 @@ const Outputs = observer(() => {
   }, []);
 
   const DebouncedRefresh = useDebouncedCallback(async() => {
-    await LoadData();
+    await LoadData(true);
   }, 500);
 
   const records = outputStore.outputList;
