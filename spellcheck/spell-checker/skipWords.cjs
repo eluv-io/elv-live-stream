@@ -98,6 +98,7 @@ module.exports = [
   "srt",
   "streamid",
   "stringified",
+  "subgrid",
   "subtree",
   "td",
   "textarea",
