@@ -497,6 +497,7 @@ class StreamManagementStore {
     if(connectionTimeout !== undefined)   recordingConfig.connection_timeout = parseInt(connectionTimeout);
     if(reconnectionTimeout !== undefined) recordingConfig.reconnect_timeout = parseInt(reconnectionTimeout);
     if(copyMpegTs !== undefined) {
+      recordingConfig.copy_mpegts = copyMpegTs;
       recordingConfig.input_cfg = copyMpegTs ? {
         bypass_libav_reader: true,
         copy_mode: copyMode,
@@ -591,15 +592,6 @@ class StreamManagementStore {
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
 
     const {copyMpegTs, inputPackaging, copyMode, customReadLoop} = tsFormData;
-
-    // yield this.rootStore.streamBrowseStore.UpdateStreamAudioSettings({
-    //   objectId,
-    //   writeToken,
-    //   slug,
-    //   audioData: audioFormData,
-    //   finalize: false,
-    //   edit
-    // });
 
     yield this.UpdateConfigMetadata({
       objectId,
