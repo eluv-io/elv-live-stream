@@ -109,6 +109,8 @@ class OutputStore {
         ]
       });
 
+      const streamStatus = await this.client.StreamStatus({name: streamObjectId});
+
       const copyMode = metadata?.recording_config?.input_cfg?.copy_mode;
       const copyPackaging = metadata?.recording_config?.input_cfg?.copy_packaging;
       const inputPackaging = metadata?.recording_config?.input_cfg?.input_packaging;
@@ -150,7 +152,9 @@ class OutputStore {
         url,
         embedUrl,
         source,
-        packaging
+        packaging,
+        quality: streamStatus?.quality,
+        stats: streamStatus?.input_stats
       };
 
       if(slug) {

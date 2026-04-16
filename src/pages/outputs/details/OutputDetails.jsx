@@ -22,7 +22,7 @@ import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard} from "@mantine/hooks";
-import {STATUS_MAP} from "@/utils/constants.js";
+import {QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.js";
 import styles from "@/components/detail-card/DetailCard.module.css";
 import {outputModalStore} from "@/stores/index.js";
 import {DateFormat, BytesToMb} from "@/utils/helpers.js";
@@ -58,11 +58,10 @@ const SummaryPanel = observer(({output, id}) => {
               />
             }
             data={[
-              {label: "Quality"},
-              {label: "Packets Recv / Drop (%)"},
-              {label: "Seq Errors / Gap"},
-              {label: "Packets Recv"},
-              {label: "Packets Dropped"}
+              {label: "Quality", value: QUALITY_TEXT[output?.input?.quality]},
+              {label: "Packets Recv / Drop (%)", value: `${output?.input?.stats?.ts?.packets_received.toLocaleString()} / ${output?.input?.stats?.ts?.packets_dropped.toLocaleString()} (${(output?.input?.stats?.ts?.packets_dropped / output?.input?.stats?.ts?.packets_received).toFixed(2)}%)`},
+              {label: "Seq Errors Number / Total Gap", value: `${output?.input?.stats?.rtp?.seq_num_skip_tot.toLocaleString()} / ${output?.input?.stats?.rtp?.seq_num_skip_count.toLocaleString()}`},
+              {label: "Errors All / CC", value: `${([output?.input?.stats?.ts?.errors_cc, output?.input?.stats?.ts?.errors_incomplete_packets, output?.input?.stats?.ts?.errors_opening_output, output?.input?.stats?.ts?.errors_other, output?.input?.stats?.ts?.errors_writing].reduce((sum, val) => sum + (val ?? 0), 0))} / ${output?.input?.stats?.ts?.errors_cc}`}
             ]}
           /> :
             <Box style={{width: "calc(100% - 355px - 20px)"}} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
