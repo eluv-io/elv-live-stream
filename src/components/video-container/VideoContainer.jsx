@@ -88,11 +88,11 @@ export const VideoContainer = observer(({
   const [play, setPlay] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
   const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamBrowseStore.streamFrameUrls[slug]?.url);
-  const status = streamBrowseStore.streams?.[slug]?.status;
 
   if(!slug) {
     slug = Object.keys(streamBrowseStore.streams).find(slug => streamBrowseStore.streams[slug].objectId === id);
   }
+  const status = streamBrowseStore.streams?.[slug]?.status;
 
   useEffect(() => {
     if(!showPreview || play || status !== "running") {
