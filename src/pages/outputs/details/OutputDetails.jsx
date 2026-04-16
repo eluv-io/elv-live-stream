@@ -15,7 +15,7 @@ import {
   TextInput,
   Tooltip
 } from "@mantine/core";
-import {Fragment, useEffect} from "react";
+import {Fragment, useEffect, useState} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
 import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.jsx";
@@ -59,8 +59,8 @@ const SummaryPanel = observer(({output, id}) => {
             }
             data={[
               {label: "Quality", value: QUALITY_TEXT[output?.input?.quality]},
-              {label: "Packets Recv / Drop (%)", value: `${output?.input?.stats?.ts?.packets_received.toLocaleString()} / ${output?.input?.stats?.ts?.packets_dropped.toLocaleString()} (${(output?.input?.stats?.ts?.packets_dropped / output?.input?.stats?.ts?.packets_received).toFixed(2)}%)`},
-              {label: "Seq Errors Number / Total Gap", value: `${output?.input?.stats?.rtp?.seq_num_skip_tot.toLocaleString()} / ${output?.input?.stats?.rtp?.seq_num_skip_count.toLocaleString()}`},
+              {label: "Packets Recv / Drop (%)", value: `${output?.input?.stats?.ts?.packets_received?.toLocaleString()} / ${output?.input?.stats?.ts?.packets_dropped?.toLocaleString()} (${(output?.input?.stats?.ts?.packets_dropped / output?.input?.stats?.ts?.packets_received).toFixed(2)}%)`},
+              {label: "Seq Errors Number / Total Gap", value: `${output?.input?.stats?.rtp?.seq_num_skip_tot?.toLocaleString()} / ${output?.input?.stats?.rtp?.seq_num_skip_count?.toLocaleString()}`},
               {label: "Errors All / CC", value: `${([output?.input?.stats?.ts?.errors_cc, output?.input?.stats?.ts?.errors_incomplete_packets, output?.input?.stats?.ts?.errors_opening_output, output?.input?.stats?.ts?.errors_other, output?.input?.stats?.ts?.errors_writing].reduce((sum, val) => sum + (val ?? 0), 0))} / ${output?.input?.stats?.ts?.errors_cc}`}
             ]}
           /> :
@@ -136,24 +136,35 @@ const GeneralConfigPanel = observer(() => {
 const OutputDetails = observer(() => {
   const {id} = useParams();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   const output = outputStore.outputs[id];
 
   useEffect(() => {
     if(outputStore.state !== "loaded") {
-      outputStore.LoadOutputs()
-        .then(() => {});
+      try {
+        setLoading(true);
+        outputStore.LoadOutputs()
+          .then(() => {});
+      } finally {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     if(output?.input?.stream) {
-      outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output?.input?.stream})
-        .then(() => {});
+      try {
+        setLoading(true);
+        outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output?.input?.stream})
+          .then(() => {});
+      } finally {
+        setLoading(false);
+      }
     }
   }, [output?.input?.stream]);
 
-  if(!output) { return <Loader />; }
+  if(loading) { return <Loader />; }
 
   const actions = [
     {
