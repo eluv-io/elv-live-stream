@@ -21,7 +21,7 @@ import {IconCopy} from "@tabler/icons-react";
 import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
-import {useClipboard} from "@mantine/hooks";
+import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
 import {QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.js";
 import styles from "@/components/detail-card/DetailCard.module.css";
 import {outputModalStore} from "@/stores/index.js";
@@ -142,6 +142,16 @@ const OutputDetails = observer(() => {
   const [loading, setLoading] = useState(false);
 
   const output = outputStore.outputs[id];
+  const DebouncedRefresh = useDebouncedCallback(async() => {
+    try {
+      setLoading(true);
+      if(output?.input?.stream) {
+        await outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output.input.stream});
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, 500);
 
   useEffect(() => {
     if(outputStore.state !== "loaded") {
@@ -172,6 +182,11 @@ const OutputDetails = observer(() => {
       buttonVariant: "filled",
       color: "elv-gray.6",
       onClick: () => navigate(-1)
+    },
+    {
+      label: "Refresh",
+      buttonVariant: "outline",
+      onClick: DebouncedRefresh
     },
     {
       label: "Reset",
