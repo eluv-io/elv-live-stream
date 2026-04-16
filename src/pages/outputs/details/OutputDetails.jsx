@@ -37,15 +37,18 @@ const SummaryPanel = observer(({output, id}) => {
     <Box pt={16}>
       <SectionTitle mb={12}>Key Stats</SectionTitle>
       <Flex direction="row" mb={36} gap={videoGap}>
-        <Box w={videoWidth}>
-          <VideoContainer
-            index={0}
-            id={output?.input?.stream}
-            showPreview
-            playable={output?.input?.status === STATUS_MAP.RUNNING}
-            borderRadius={16}
-          />
-        </Box>
+        {
+          output?.input?.stream &&
+          <Box w={videoWidth}>
+            <VideoContainer
+              index={0}
+              id={output?.input?.stream}
+              showPreview
+              playable={output?.input?.status === STATUS_MAP.RUNNING}
+              borderRadius={16}
+            />
+          </Box>
+        }
         {
           output?.input?.stream ?
           <DetailCard
