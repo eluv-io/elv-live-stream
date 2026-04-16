@@ -200,10 +200,18 @@ const OutputDetails = observer(() => {
     },
     {
       label: "Unmap Stream",
-      buttonVariant: "outline",
-      onClick: () => outputModalStore.OpenModal("unmap", [id])
+      buttonVariant: "filled",
+      onClick: () => outputModalStore.OpenModal("unmap", [id]),
+      hidden: !output?.input?.stream
+    },
+    {
+      label: "Map to a Stream",
+      buttonVariant: "filled",
+      onClick: () => outputModalStore.OpenModal("unmap", [id]),
+      hidden: output?.input?.stream
     }
-  ];
+  ]
+    .filter(e => !e.hidden);
 
   if(!output) { return <Loader />; }
 
