@@ -156,7 +156,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
 
   return (
     <>
-      <Flex direction="row" gap={20}>
+      <Flex direction="row" gap={20} align="stretch">
         <Stack gap={12}>
           <SectionTitle>Preview</SectionTitle>
           <Box w={355}>
@@ -170,12 +170,15 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
           </Box>
           <DetailCard
             title="State"
+            labelWidth={120}
             data={[
               {label: "Quality", value: <LabeledIndicator label={QUALITY_TEXT[status?.quality] || ""} color={status?.quality ? QUALITY_COLOR_MAP[status?.quality] : null} fw={600} />}
             ]}
           />
           <DetailCard
+            flex={1}
             title="Recording Info"
+            labelWidth={120}
             data={recordingData}
           />
         </Stack>

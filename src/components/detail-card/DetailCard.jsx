@@ -46,9 +46,7 @@ export const DetailCardHeader = ({title, titleRightSection}) => {
       <Group>
         <Text fw={600} fz="0.875rem" c="elv-gray.7">{ title }</Text>
         <Flex ml="auto">
-          {
-            titleRightSection ? titleRightSection : null
-          }
+          { titleRightSection ?? null }
         </Flex>
       </Group>
       <Divider c="elv-gray.2" mt={8} mb={8} />
@@ -56,9 +54,10 @@ export const DetailCardHeader = ({title, titleRightSection}) => {
   );
 };
 
+// Renders rows as direct children of whatever grid contains it
 export const DetailCardBody = ({data=[], id}) => {
   return (
-    <Box className={styles.grid}>
+    <>
       {
         data.map((item, i) => (
           <Fragment key={`row-${id}-${i}`}>
@@ -67,16 +66,19 @@ export const DetailCardBody = ({data=[], id}) => {
           </Fragment>
         ))
       }
-    </Box>
+    </>
   );
 };
 
+// Spans both columns and uses subgrid so its rows share the parent card's column tracks
 export const SubDetailCard = ({title, titleRightSection, data=[]}) => {
   return (
-    <Box bg="elv-gray.0" className={styles.subCard} p={12} mt={8}>
-      <DetailCardHeader title={title} titleRightSection={titleRightSection} />
+    <div className={styles.subCard}>
+      <div className={styles.fullWidth}>
+        <DetailCardHeader title={title} titleRightSection={titleRightSection} />
+      </div>
       <DetailCardBody id={title} data={data} />
-    </Box>
+    </div>
   );
 };
 
@@ -86,14 +88,22 @@ const DetailCard = ({
   data,
   children,
   width,
+  labelWidth,
   ...props
 }) => {
   return (
     <Box w={width} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper} {...props}>
       <Box p={12}>
-        <DetailCardHeader title={title} titleRightSection={titleRightSection} />
-        {data && <DetailCardBody id={title} data={data} />}
-        {children}
+        <div
+          className={styles.cardGrid}
+          style={labelWidth ? {gridTemplateColumns: `${typeof labelWidth === "number" ? `${labelWidth}px` : labelWidth} 1fr`} : undefined}
+        >
+          <div className={styles.fullWidth}>
+            <DetailCardHeader title={title} titleRightSection={titleRightSection} />
+          </div>
+          {data && <DetailCardBody id={title} data={data} />}
+          {children}
+        </div>
       </Box>
     </Box>
   );
