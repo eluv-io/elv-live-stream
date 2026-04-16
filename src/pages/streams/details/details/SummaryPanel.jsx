@@ -1,5 +1,17 @@
 import {useEffect, useState} from "react";
-import {Badge, Box, Button, Code, Flex, Grid, Group, Select, SimpleGrid, Stack, Text, Tooltip} from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Divider,
+  Flex,
+  Group,
+  Select,
+  SimpleGrid,
+  Stack,
+  TextInput,
+  Tooltip
+} from "@mantine/core";
 import {dataStore, streamBrowseStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
@@ -12,7 +24,7 @@ import {
 } from "@/utils/constants.js";
 import RecordingPeriodsTable from "@/pages/streams/details/details/components/RecordingPeriodsTable.jsx";
 import RecordingCopiesTable from "@/pages/streams/details/details/components/RecordingCopiesTable.jsx";
-import {IconAlertCircle, IconLink} from "@tabler/icons-react";
+import {IconCopy} from "@tabler/icons-react";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import styles from "@/pages/streams/details/details/SummaryPanel.module.css";
@@ -46,19 +58,6 @@ export const Runtime = ({
   }
 
   return time;
-};
-
-const DetailRow = ({label, value}) => {
-  return (
-    <Group key={`detail-${label}`} gap={4}>
-      <Text fz={14}>
-        { label }:
-      </Text>
-      <Text fz={14}>
-        { value }
-      </Text>
-    </Group>
-  );
 };
 
 const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug}) => {
@@ -217,72 +216,44 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         </Flex>
       </Flex>
 
-      <Grid>
-        <Grid.Col span={8}>
-          <Flex direction="column" className={styles.flexGrow}>
-            <Box mb="30px" maw="80%">
-              <SectionTitle mb={5}>State</SectionTitle>
-              <DetailRow
-                label="Quality"
-                value={QUALITY_TEXT[status?.quality] || "--"}
-              />
-              {
-                status?.warnings &&
-                <>
-                  <Box mt={16}>
-                    <Code block icon={<IconAlertCircle />} color="rgba(250, 176, 5, 0.07)" className={styles.code}>
-                      {(status?.warnings || []).map(item => (
-                        <Text key={`warning-${item}`} fz={14}>{item}</Text>
-                      ))}
-                    </Code>
-                  </Box>
-                </>
-              }
-            </Box>
-          </Flex>
-        </Grid.Col>
-        <Grid.Col span={4}>
-          <Flex>
-            <Stack gap={0}>
-              <Group gap={6} justify="center">
-                {
-                  [
-                    {label: "Copy Embeddable URL", value: embedUrl, hidden: !embedUrl, id: "embeddable-url-link"},
-                    // {label: "Copy SRT URL", value: srtUrl, hidden: !egressEnabled, id: "srt-url-link"}
-                  ]
-                    .filter(item => !item.hidden)
-                    .map(item => (
-                      <Tooltip
-                        key={item.id}
-                        label={clipboard.copied ? "Copied" : "Copy"}
-                        position="bottom"
-                      >
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          color="elv-gray.5"
-                          mt={8}
-                          onClick={() => clipboard.copy(item.value)}
-                          leftSection={<IconLink color="var(--mantine-color-elv-gray-8)" />}
-                        >
-                          <Text c="elv-gray.8" fz={12} fw={500}>
-                            { item.label }
-                          </Text>
-                        </Button>
-                      </Tooltip>
-                    ))
-                }
-              </Group>
-            </Stack>
-          </Flex>
-        </Grid.Col>
-      </Grid>
+      {
+        embedUrl &&
+        <>
+          <Divider mb={20} mt={20} />
+          <SectionTitle mb={12}>
+            <Group gap={8} mb={12}>
+              <SectionTitle>Embeddable URL</SectionTitle>
+              <Tooltip
+                label={clipboard.copied ? "Copied" : "Copy"}
+                position="bottom"
+              >
+                <ActionIcon
+                  variant="transparent"
+                  c="elv-gray.6"
+                  size={16}
+                  onClick={() => clipboard.copy(embedUrl)}
+                >
+                  <IconCopy size={16} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          </SectionTitle>
+          <TextInput
+            value={embedUrl}
+            readOnly
+          />
+        </>
+      }
+
+      <Divider mb={20} mt={20} />
 
       <RecordingCopiesTable
         liveRecordingCopies={liveRecordingCopies}
         DeleteCallback={LoadLiveRecordingCopies}
         loading={loading}
       />
+
+      <Divider mb={20} mt={20} />
 
       <RecordingPeriodsTable
         libraryId={libraryId}
