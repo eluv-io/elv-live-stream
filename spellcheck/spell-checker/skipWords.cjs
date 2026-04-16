@@ -13,6 +13,7 @@ module.exports = [
   "au",
   "autoplay",
   "avc1",
+  "bitcode",
   "bitrate",
   "blockchain",
   "breakpoint",
