@@ -88,7 +88,7 @@ class OutputModalStore {
     }
 
     if(this.activeModal === "unmap") {
-      await this.outputStore.UnmapStream({outputs: [...this.modalSlugs]});
+      await this.outputStore.UnmapStreamBatch({outputs: [...this.modalSlugs]});
     }
 
     // enable: yield this.outputStore.EnableOutputs({outputs: [...this.modalSlugs]});

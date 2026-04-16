@@ -27,7 +27,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
   const HandleSubmit = async() => {
     try {
       setIsSaving(true);
-      await outputStore.MapStream({
+      await outputStore.MapStreamBatch({
         outputs,
         streamObjectId: selectedRecords[0].record.objectId
       });
