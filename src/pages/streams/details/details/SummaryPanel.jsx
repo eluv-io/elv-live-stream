@@ -8,7 +8,7 @@ import {
   STATUS_MAP,
   QUALITY_TEXT,
   QUALITY_COLOR_MAP,
-  SOURCE_PACKAGING_COLOR_MAP
+  SOURCE_PACKAGING_COLOR_MAP, CODEC_TEXT
 } from "@/utils/constants.js";
 import RecordingPeriodsTable from "@/pages/streams/details/details/components/RecordingPeriodsTable.jsx";
 import RecordingCopiesTable from "@/pages/streams/details/details/components/RecordingCopiesTable.jsx";
@@ -19,7 +19,6 @@ import styles from "@/pages/streams/details/details/SummaryPanel.module.css";
 import {useClipboard} from "@mantine/hooks";
 import DetailCard, {DetailCardBody, SubDetailCard} from "@/components/detail-card/DetailCard.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
-import {toJS} from "mobx";
 import sharedStyles from "@/assets/shared.module.css";
 
 export const Runtime = ({
@@ -145,16 +144,15 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   ].map(({label, value}) => ({label, value}));
 
   const sourceData = [
-    {label: "Input", value: stream?.source?.map(el => <Group gap={4} key={`source-${el}`}><Badge radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge></Group>)},
+    {label: "Input", value: <Group gap={4}>{stream?.source?.map(el => <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge>)}</Group>},
     {label: "Packets Recv / Drop (%)"},
     {label: "Seq Errors / Gap"},
   ];
 
   const packagingData = [
-    {label: "Packaging", value: stream?.packaging?.map(el => <Group key={`source-${el}`} gap={4}><Badge radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge></Group>)}
+    {label: "Packaging", value: <Group gap={4}> {stream?.packaging?.map(el => <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge>)}</Group>},
+    {label: "Incidents"}
   ];
-
-  console.log("stream", toJS(streamBrowseStore.streams[slug]));
 
   return (
     <>
@@ -190,11 +188,11 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
               <SubDetailCard
                 title="Video"
                 data={[
-                  {label: "Stream ID"},
-                  {label: "Bitrate"},
-                  {label: "Frame Rate"},
-                  {label: "Resolution"},
-                  {label: "Codec"}
+                  {label: "Stream ID", value: stream?.videoStream?.stream_id},
+                  {label: "Bitrate", value: stream?.videoStream?.bit_rate},
+                  {label: "Frame Rate", value: stream?.videoStream?.frame_rate},
+                  {label: "Resolution", value: stream?.videoStream ? `${stream?.videoStream?.width}x${stream?.videoStream?.height}p` : ""},
+                  {label: "Codec", value: stream?.videoStream?.codec_name ? CODEC_TEXT[stream?.videoStream?.codec_name] : ""}
                 ]}
               />
               <SubDetailCard

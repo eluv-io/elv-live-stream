@@ -329,6 +329,10 @@ class DataStore {
       const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
       const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
 
+      // Other Details
+      const egressEnabled = liveRecordingConfigMeta?.srt_egress_enabled;
+      const profileLastUpdated = generalMeta?.asset_metadata?.profile_last_updated;
+
       return {
         // Stream Table Details
         audioStreamCount,
@@ -358,8 +362,9 @@ class DataStore {
         simpleWatermark,
         watermarkType: simpleWatermark ? "TEXT" : imageWatermark ? "IMAGE" : forensicWatermark ? "FORENSIC" : "",
         // Other Details
-        egressEnabled: liveRecordingConfigMeta?.srt_egress_enabled,
-        profileLastUpdated: generalMeta?.asset_metadata?.profile_last_updated,
+        egressEnabled,
+        profileLastUpdated,
+        videoStream
       };
     } catch(error) {
       // eslint-disable-next-line no-console
