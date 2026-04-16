@@ -31,7 +31,7 @@ const StreamsTable = observer(({
           <UnstyledButton
             disabled={!record.objectId}
             style={{pointerEvents: record.objectId ? "auto" : "none"}}
-            onClick={() => onNameClick(record.objectId)}
+            onClick={onNameClick ? () => onNameClick(record.objectId) : null}
           >
             <Title order={3} lineClamp={1} title={record.title || record.slug} style={{wordBreak: "break-all"}}>
               {record.title || record.slug}
