@@ -211,9 +211,6 @@ class OutputStore {
           };
         });
       });
-
-      const newSlugs = Object.keys(outputs).filter(slug => !this.outputs[slug]?.input?.embedUrl);
-      await Promise.all(newSlugs.map(slug => this.LoadOutputStreamInfo({slug})));
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to create output.", error);
