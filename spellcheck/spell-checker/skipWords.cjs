@@ -1,4 +1,5 @@
 module.exports = [
+  "70vh",
   "100vh",
   "100vw",
   "24zm40",
