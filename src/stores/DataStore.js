@@ -364,7 +364,7 @@ class DataStore {
         // Other Details
         egressEnabled,
         profileLastUpdated,
-        videoStream
+        videoStreamProbe: videoStream
       };
     } catch(error) {
       // eslint-disable-next-line no-console

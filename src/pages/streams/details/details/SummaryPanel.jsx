@@ -65,7 +65,8 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
   const [embedUrl, setEmbedUrl] = useState(null);
-  const [selectedAudio, setSelectedAudio] = useState(0);
+  const [selectedSourceAudio, setSelectedSourceAudio] = useState(0);
+  const [selectedPackagingAudio, setSelectedPackagingAudio] = useState(1);
 
   const params = useParams();
   const clipboard = useClipboard({timeout: 2000});
@@ -150,7 +151,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
 
   const packagingData = [
     {label: "Packaging", value: <Group gap={4}> {stream?.packaging?.map(el => <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge>)}</Group>},
-    {label: "Incidents"}
+    {label: "Incidents", value: 0}
   ];
 
   return (
@@ -190,28 +191,49 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
               <SubDetailCard
                 title="Video"
                 data={[
-                  {label: "Stream ID", value: stream?.videoStream?.stream_id},
-                  {label: "Bitrate", value: stream?.videoStream?.bit_rate},
-                  {label: "Frame Rate", value: stream?.videoStream?.frame_rate},
-                  {label: "Resolution", value: stream?.videoStream ? `${stream?.videoStream?.width}x${stream?.videoStream?.height}p` : ""},
-                  {label: "Codec", value: stream?.videoStream?.codec_name ? CODEC_TEXT[stream?.videoStream?.codec_name] : ""}
+                  {label: "Stream ID", value: stream?.videoStreamProbe?.stream_id},
+                  {label: "Bitrate", value: stream?.videoStreamProbe?.bit_rate},
+                  {label: "Frame Rate", value: stream?.videoStreamProbe?.frame_rate},
+                  {label: "Resolution", value: stream?.videoStreamProbe ? `${stream?.videoStreamProbe?.width}x${stream?.videoStreamProbe?.height}p` : ""},
+                  {label: "Codec", value: stream?.videoStreamProbe?.codec_name ? CODEC_TEXT[stream?.videoStreamProbe?.codec_name] : ""}
                 ]}
               />
               <SubDetailCard
                 title="Audio"
-                titleRightSection={<Select value={String(selectedAudio)} onChange={(value) => setSelectedAudio(parseInt(value))} data={Object.keys(stream?.audioStreams || {}).map(key => ({value: key, label: String(parseInt(key) + 1)}))} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
+                titleRightSection={<Select value={String(selectedSourceAudio)} onChange={(value) => setSelectedSourceAudio(parseInt(value))} data={Object.keys(stream?.audioStreams || {}).map(key => ({value: key, label: String(parseInt(key) + 1)}))} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
                 data={[
-                  {label: "Stream ID", value: stream?.audioStreams?.[selectedAudio]?.stream_id},
-                  {label: "Bitrate", value: stream?.audioStreams?.[selectedAudio]?.bit_rate},
-                  {label: "Channels", value: stream?.audioStreams?.[selectedAudio]?.channels},
-                  {label: "Codec",value: stream?.audioStreams?.[selectedAudio]?.codec_name}
+                  {label: "Stream ID", value: stream?.audioStreams?.[selectedSourceAudio]?.stream_id},
+                  {label: "Bitrate", value: stream?.audioStreams?.[selectedSourceAudio]?.bit_rate},
+                  {label: "Channels", value: stream?.audioStreams?.[selectedSourceAudio]?.channels},
+                  {label: "Codec",value: stream?.audioStreams?.[selectedSourceAudio]?.codec_name}
                 ]}
               />
             </DetailCard>
             <DetailCard
               title="Publishing"
-              data={packagingData}
-            />
+            >
+              <DetailCardBody id="packaging" data={packagingData} />
+              <SubDetailCard
+                title="Video"
+                data={[
+                  {label: "Stream ID", value: stream?.videoStreamProbe?.stream_id},
+                  {label: "Bitrate", value: stream?.videoStreamProbe?.bit_rate},
+                  {label: "Frame Rate", value: stream?.videoStreamProbe?.frame_rate},
+                  {label: "Resolution", value: stream?.videoStreamProbe ? `${stream?.videoStreamProbe?.width}x${stream?.videoStreamProbe?.height}p` : ""},
+                  {label: "Codec", value: stream?.videoStreamProbe?.codec_name ? CODEC_TEXT[stream?.videoStreamProbe?.codec_name] : ""}
+                ]}
+              />
+              <SubDetailCard
+                title="Audio"
+                titleRightSection={<Select value={String(selectedPackagingAudio)} onChange={(value) => setSelectedPackagingAudio(value)} data={Object.keys(stream?.audioData || {}).map(key => ({value: key, label: key}))} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
+                data={[
+                  {label: "Stream ID", value: selectedPackagingAudio},
+                  {label: "Bitrate", value: stream?.audioData?.[selectedPackagingAudio]?.recording_bitrate},
+                  {label: "Channels", value: stream?.audioData?.[selectedPackagingAudio]?.recording_channels},
+                  {label: "Codec",value: stream?.audioData?.[selectedPackagingAudio]?.codec}
+                ]}
+              />
+            </DetailCard>
           </SimpleGrid>
         </Flex>
       </Flex>
