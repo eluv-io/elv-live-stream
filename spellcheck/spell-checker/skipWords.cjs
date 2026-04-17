@@ -13,6 +13,7 @@ module.exports = [
   "arial",
   "au",
   "autoplay",
+  "avc",
   "avc1",
   "bitcode",
   "bitrate",
