@@ -201,9 +201,20 @@ class OutputStore {
         srtConfig: encryption ? {enforced_encryption: encryption} : undefined
       });
 
+      // New response will ONLY return the new output
+      const outputCount = Object.keys(outputs).length;
+
       runInAction(() => {
         Object.entries(outputs).forEach(([slug, output]) => {
-          this.outputs[slug] = output;
+          if(outputCount === 1) {
+            this.outputs[slug] = output;
+          } else {
+            this.outputs[slug] = {
+              ...(this.outputs[slug] || {}),
+              ...output,
+              ...(this.outputs[slug]?.input ? {input: this.outputs[slug].input} : {})
+            };
+          }
         });
       });
     } catch(error) {
