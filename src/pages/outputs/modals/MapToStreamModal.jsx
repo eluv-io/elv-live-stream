@@ -27,10 +27,12 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
   const HandleSubmit = async() => {
     try {
       setIsSaving(true);
-      await outputStore.MapStreamBatch({
-        outputs,
-        streamObjectId: selectedRecords[0].record.objectId
-      });
+      const streamObjectId = selectedRecords[0].record.objectId;
+      if(outputs.length === 1) {
+        await outputStore.MapStream({outputId: outputs[0], streamObjectId});
+      } else {
+        await outputStore.MapStreamBatch({outputs, streamObjectId});
+      }
 
       notifications.show({
         title: "New stream mapped",
