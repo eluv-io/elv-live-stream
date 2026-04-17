@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {streamBrowseStore} from "@/stores/index.js";
-import {ActionIcon, AspectRatio, Box} from "@mantine/core";
+import {ActionIcon, AspectRatio, Box, Loader} from "@mantine/core";
 import {PlayCircleIcon as PlayIcon} from "@/assets/icons/index.js";
 import Video from "@/components/video/Video.jsx";
 import {IconX} from "@tabler/icons-react";
@@ -38,6 +38,7 @@ const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLeve
 
 const PlaceholderContent = observer(({
   setPlay,
+  loading,
   showPreview,
   frameSegmentUrl,
   status,
@@ -54,7 +55,10 @@ const PlaceholderContent = observer(({
       disabled={!playable}
     >
       {
-        status === "running" &&
+        loading && <Loader />
+      }
+      {
+        status === "running" && !loading &&
         <PlayIcon width={45} height={45} color="white" style={{zIndex: 10}}/>
       }
       {
@@ -88,6 +92,7 @@ export const VideoContainer = observer(({
   const [play, setPlay] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
   const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamBrowseStore.streamFrameUrls[slug]?.url);
+  const [loading, setLoading] = useState(false);
 
   if(!slug) {
     slug = Object.keys(streamBrowseStore.streams).find(slug => streamBrowseStore.streams[slug].objectId === id);
@@ -111,7 +116,9 @@ export const VideoContainer = observer(({
     // Stagger frame loads
     const delay = Math.min(200 + 500 * index, 10000);
     const frameTimeout = setTimeout(async () => {
+      setLoading(true);
       setFrameSegmentUrl(await streamBrowseStore.StreamFrameURL(slug));
+      setLoading(false);
     }, delay);
 
     return () => clearTimeout(frameTimeout);
@@ -153,6 +160,7 @@ export const VideoContainer = observer(({
               showPreview={showPreview}
               frameSegmentUrl={frameSegmentUrl}
               borderRadius={borderRadius}
+              loading={loading}
             />
         }
       </AspectRatio>
