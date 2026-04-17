@@ -211,6 +211,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                 data={[
                   {label: "Stream ID", value: stream?.audioStreams?.[selectedSourceAudio]?.stream_id},
                   {label: "Bitrate", value: AudioBitrateReadable(stream?.audioStreams?.[selectedSourceAudio]?.bit_rate)},
+                  {label: "Sample Rate", value: SampleRateReadable(stream?.audioStreams?.[selectedSourceAudio]?.sample_rate)},
                   {label: "Channels", value: stream?.audioStreams?.[selectedSourceAudio]?.channels},
                   {label: "Codec",value: stream?.audioStreams?.[selectedSourceAudio]?.codec_name}
                 ]}
