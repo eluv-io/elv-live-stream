@@ -1,4 +1,4 @@
-import {VideoPlusIcon, StreamIcon} from "@/assets/icons/index.js";
+import {StreamIcon} from "@/assets/icons/index.js";
 import {AppShell, NavLink} from "@mantine/core";
 import {useLocation, useNavigate} from "react-router-dom";
 import styles from "@/components/left-navigation/LeftNavigation.module.css";
@@ -10,7 +10,6 @@ const iconDimensions = {
 };
 
 const NAV_LINKS = [
-  {path: "/create", label: "Create", icon: <VideoPlusIcon width={iconDimensions.width} height={iconDimensions.height} />},
   {path: "/streams", label: "Streams", icon: <StreamIcon width={iconDimensions.width} height={iconDimensions.height} />},
   {path: "/outputs", label: "Outputs", icon: <IconRoute width={iconDimensions.width} height={iconDimensions.height} />},
   {path: "/monitor", label: "Monitor", icon: <IconDeviceTv width={iconDimensions.width} height={iconDimensions.height} />},

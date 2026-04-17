@@ -13,9 +13,9 @@ const AppRoutes = observer(() => {
   return (
     <Routes>
       <Route path="/" element={<Navigate replace to="/streams" />} />
-      <Route path="/create" element={<Create />} />
       <Route path="/monitor" element={<Monitor />} />
 
+      <Route path="/streams/create" element={<Create />} />
       <Route path="/streams/:id" element={<StreamDetailsPage />} />
       <Route path="/streams" element={<Streams />} />
       <Route path="/streams/:id/preview" element={<StreamPreview />} />

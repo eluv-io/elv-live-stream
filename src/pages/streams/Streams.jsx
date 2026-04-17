@@ -5,7 +5,7 @@ import {IconSearch} from "@tabler/icons-react";
 import {dataStore, streamBrowseStore} from "@/stores";
 import {SortTable} from "@/utils/helpers";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
-import {TextInput, Flex, Button} from "@mantine/core";
+import {TextInput, Flex, Button, Group} from "@mantine/core";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Streams.module.css";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
@@ -43,13 +43,21 @@ const Streams = observer(() => {
           value={streamBrowseStore.streamFilter}
           onChange={event => streamBrowseStore.SetStreamFilter({filter: event.target.value})}
         />
-        <Button
-          onClick={DebouncedRefresh}
-          variant="outline"
-          ml="auto"
-        >
-          Refresh
-        </Button>
+        <Group ml="auto" gap={8}>
+          <Button
+            variant="filled"
+            onClick={() => navigate("/streams/create")}
+          >
+            Create
+          </Button>
+          <Button
+            onClick={DebouncedRefresh}
+            variant="outline"
+            ml="auto"
+          >
+            Refresh
+          </Button>
+        </Group>
       </Flex>
       <StreamsTable
         records={records}
