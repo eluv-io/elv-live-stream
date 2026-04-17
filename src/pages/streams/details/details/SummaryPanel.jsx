@@ -164,7 +164,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
               index={0}
               slug={slug}
               showPreview
-              playable={status === STATUS_MAP.RUNNING}
+              playable={status?.state === STATUS_MAP.RUNNING}
               borderRadius={16}
             />
           </Box>
