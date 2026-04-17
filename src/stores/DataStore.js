@@ -344,8 +344,15 @@ class DataStore {
       const publishingAudio = {
         sample_rate: liveRecordingMeta?.recording_config?.recording_params?.xc_params?.sample_rate
       };
+      const sourceInputStats = {
+        packets_received: status?.input_stats?.ts?.packets_received ?? 0,
+        packets_dropped: status?.input_stats?.ts?.packets_dropped ?? 0,
+        packetsPercentage: status?.input_stats?.ts?.packets_received !== undefined ? (status?.input_stats?.ts?.packets_dropped / status?.input_stats?.ts?.packets_received).toFixed(2) : 0,
+        seq_num_skip_tot: status?.input_stats?.rtp?.seq_num_skip_tot ?? 0,
+        seq_num_skip_count: status?.input_stats?.rtp?.seq_num_skip_count ?? 0
+      };
 
-      return {
+      const streamDetails = {
         // Stream Table Details
         audioStreamCount,
         codecName: videoStream?.codec_name,
@@ -378,8 +385,11 @@ class DataStore {
         profileLastUpdated,
         videoStreamProbe: videoStream,
         publishingVideo,
-        publishingAudio
+        publishingAudio,
+        sourceInputStats
       };
+
+      return streamDetails;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to load stream metadata", error);

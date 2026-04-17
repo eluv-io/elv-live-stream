@@ -68,6 +68,7 @@ export const Runtime = ({
 
 const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug}) => {
   const [status, setStatus] = useState(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
   const [embedUrl, setEmbedUrl] = useState(null);
@@ -80,11 +81,16 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
 
   useEffect(() => {
     const LoadStatus = async () => {
-      const statusResponse = await streamBrowseStore.CheckStatus({
-        objectId: params.id
-      });
+      try {
+        setLoadingStatus(true);
+        const statusResponse = await streamBrowseStore.CheckStatus({
+          objectId: params.id
+        });
 
-      setStatus(statusResponse);
+        setStatus(statusResponse);
+      } finally {
+        setLoadingStatus(false);
+      }
     };
 
     const LoadEmbedUrl = async() => {
@@ -151,13 +157,13 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
 
   const sourceData = [
     {label: "Input", value: <Group gap={4}>{stream?.source?.map(el => <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge>)}</Group>},
-    {label: "Packets Recv / Drop (%)"},
-    {label: "Seq Errors / Gap"},
+    {label: "Packets Recv / Drop (%)", value: `${stream?.sourceInputStats?.packets_received?.toLocaleString()} / ${stream?.sourceInputStats?.packets_dropped?.toLocaleString()} (${stream?.sourceInputStats?.packetsPercentage}%)`},
+    {label: "Seq Errors / Gap", value: `${stream?.sourceInputStats?.seq_num_skip_tot} / ${stream?.sourceInputStats?.seq_num_skip_count}`},
   ];
 
   const packagingData = [
     {label: "Packaging", value: <Group gap={4}> {stream?.packaging?.map(el => <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge>)}</Group>},
-    {label: "Bytes", value: BytesToMb(stream?.publishingVideo?.bytes)},
+    {label: "Bytes", value: loadingStatus ? null : status?.recordingStatus?.video?.bytes_written ? BytesToMb(status?.recordingStatus?.video?.bytes_written) : ""},
     {label: "Incidents", value: 0}
   ];
 
