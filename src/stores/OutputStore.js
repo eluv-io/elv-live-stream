@@ -201,21 +201,13 @@ class OutputStore {
         srtConfig: encryption ? {enforced_encryption: encryption} : undefined
       });
 
-      // New response will ONLY return the new output
-      const outputCount = Object.keys(outputs).length;
+      const outputId = Object.keys(outputs || {})[0];
+      let outputData = Object.values(outputs || {})[0];
+
+      outputData = await this.client.OutputsResolveSrtPullUrls({value: outputData});
 
       runInAction(() => {
-        Object.entries(outputs).forEach(([slug, output]) => {
-          if(outputCount === 1) {
-            this.outputs[slug] = output;
-          } else {
-            this.outputs[slug] = {
-              ...(this.outputs[slug] || {}),
-              ...output,
-              ...(this.outputs[slug]?.input ? {input: this.outputs[slug].input} : {})
-            };
-          }
-        });
+        this.outputs[outputId] = outputData;
       });
     } catch(error) {
       // eslint-disable-next-line no-console
