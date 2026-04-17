@@ -15,7 +15,13 @@ import {
 import {dataStore, streamBrowseStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
-import {DateFormat, FormatTime} from "@/utils/helpers.js";
+import {
+  AudioBitrateReadable, BytesToMb,
+  DateFormat,
+  FormatTime,
+  SampleRateReadable,
+  VideoBitrateReadable
+} from "@/utils/helpers.js";
 import {
   STATUS_MAP,
   QUALITY_TEXT,
@@ -151,6 +157,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
 
   const packagingData = [
     {label: "Packaging", value: <Group gap={4}> {stream?.packaging?.map(el => <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge>)}</Group>},
+    {label: "Bytes", value: BytesToMb(stream?.publishingVideo?.bytes)},
     {label: "Incidents", value: 0}
   ];
 
@@ -192,8 +199,8 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                 title="Video"
                 data={[
                   {label: "Stream ID", value: stream?.videoStreamProbe?.stream_id},
-                  {label: "Bitrate", value: stream?.videoStreamProbe?.bit_rate},
-                  {label: "Frame Rate", value: stream?.videoStreamProbe?.frame_rate},
+                  {label: "Bitrate", value: VideoBitrateReadable(stream?.videoStreamProbe?.bit_rate)},
+                  {label: "Frame Rate", value: stream?.videoStreamProbe?.frame_rate ? `${stream?.videoStreamProbe?.frame_rate} fps` : ""},
                   {label: "Resolution", value: stream?.videoStreamProbe ? `${stream?.videoStreamProbe?.width}x${stream?.videoStreamProbe?.height}p` : ""},
                   {label: "Codec", value: stream?.videoStreamProbe?.codec_name ? CODEC_TEXT[stream?.videoStreamProbe?.codec_name] : ""}
                 ]}
@@ -203,7 +210,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                 titleRightSection={<Select value={String(selectedSourceAudio)} onChange={(value) => setSelectedSourceAudio(parseInt(value))} data={Object.keys(stream?.audioStreams || {}).map(key => ({value: key, label: String(parseInt(key) + 1)}))} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
                 data={[
                   {label: "Stream ID", value: stream?.audioStreams?.[selectedSourceAudio]?.stream_id},
-                  {label: "Bitrate", value: stream?.audioStreams?.[selectedSourceAudio]?.bit_rate},
+                  {label: "Bitrate", value: AudioBitrateReadable(stream?.audioStreams?.[selectedSourceAudio]?.bit_rate)},
                   {label: "Channels", value: stream?.audioStreams?.[selectedSourceAudio]?.channels},
                   {label: "Codec",value: stream?.audioStreams?.[selectedSourceAudio]?.codec_name}
                 ]}
@@ -217,10 +224,10 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                 title="Video"
                 data={[
                   {label: "Stream ID", value: stream?.videoStreamProbe?.stream_id},
-                  {label: "Bitrate", value: stream?.videoStreamProbe?.bit_rate},
-                  {label: "Frame Rate", value: stream?.videoStreamProbe?.frame_rate},
-                  {label: "Resolution", value: stream?.videoStreamProbe ? `${stream?.videoStreamProbe?.width}x${stream?.videoStreamProbe?.height}p` : ""},
-                  {label: "Codec", value: stream?.videoStreamProbe?.codec_name ? CODEC_TEXT[stream?.videoStreamProbe?.codec_name] : ""}
+                  {label: "Bitrate", value: VideoBitrateReadable(stream?.publishingVideo?.bit_rate)},
+                  {label: "Frame Rate", value: stream?.publishingVideo?.frame_rate ? `${stream?.publishingVideo?.frame_rate} fps` : ""},
+                  {label: "Resolution", value: stream?.publishingVideo?.resolution},
+                  {label: "Codec", value: stream?.publishingVideo?.codec}
                 ]}
               />
               <SubDetailCard
@@ -228,7 +235,8 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
                 titleRightSection={<Select value={String(selectedPackagingAudio)} onChange={(value) => setSelectedPackagingAudio(value)} data={Object.keys(stream?.audioData || {}).map(key => ({value: key, label: key}))} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
                 data={[
                   {label: "Stream ID", value: selectedPackagingAudio},
-                  {label: "Bitrate", value: stream?.audioData?.[selectedPackagingAudio]?.recording_bitrate},
+                  {label: "Bitrate", value: AudioBitrateReadable(stream?.audioData?.[selectedPackagingAudio]?.recording_bitrate)},
+                  {label: "Sample Rate", value: SampleRateReadable(stream?.publishingAudio?.sample_rate)},
                   {label: "Channels", value: stream?.audioData?.[selectedPackagingAudio]?.recording_channels},
                   {label: "Codec",value: stream?.audioData?.[selectedPackagingAudio]?.codec}
                 ]}

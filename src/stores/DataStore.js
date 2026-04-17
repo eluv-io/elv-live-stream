@@ -308,6 +308,8 @@ class DataStore {
         });
       }
 
+      const status = yield this.client.StreamStatus({name: objectId});
+
       // General Config
       const configProfileName = liveRecordingConfigMeta?.name;
 
@@ -332,6 +334,16 @@ class DataStore {
       // Other Details
       const egressEnabled = liveRecordingConfigMeta?.srt_egress_enabled;
       const profileLastUpdated = generalMeta?.asset_metadata?.profile_last_updated;
+      const publishingVideo = {
+        bit_rate: liveRecordingMeta?.recording_config?.recording_params?.xc_params?.video_bitrate,
+        frame_rate: videoStream?.frame_rate,
+        resolution: liveRecordingMeta?.recording_config?.recording_params?.xc_params?.enc_width ? `${liveRecordingMeta?.recording_config?.recording_params?.xc_params?.enc_width}x${liveRecordingMeta?.recording_config?.recording_params?.xc_params?.enc_height}p` : "",
+        codec: "avc",
+        bytes: status?.recordingStatus?.video?.bytes_written
+      };
+      const publishingAudio = {
+        sample_rate: liveRecordingMeta?.recording_config?.recording_params?.xc_params?.sample_rate
+      };
 
       return {
         // Stream Table Details
@@ -364,7 +376,9 @@ class DataStore {
         // Other Details
         egressEnabled,
         profileLastUpdated,
-        videoStreamProbe: videoStream
+        videoStreamProbe: videoStream,
+        publishingVideo,
+        publishingAudio
       };
     } catch(error) {
       // eslint-disable-next-line no-console

@@ -84,6 +84,11 @@ export const AudioBitrateReadable = (bitrate) => {
   return `${value} Kbps`;
 };
 
+export const SampleRateReadable = (sampleRate) => {
+  if(!sampleRate) { return ""; }
+  return `${(sampleRate / 1000).toFixed(0)} kHz`;
+};
+
 export const StreamIsActive = (state) => {
   let active = false;
 
