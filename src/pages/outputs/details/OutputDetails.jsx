@@ -146,6 +146,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
       encryption: output?.srt_pull?.connection?.enforced_encryption,
       stripRtp: output?.srt_pull?.strip_rtp,
       passphrase: output?.srt_pull?.passphrase,
+      name: output?.name
     }
   });
 
@@ -153,13 +154,14 @@ const GeneralConfigPanel = observer(({output, id}) => {
     try {
       setApplyingChanges(true);
 
-      const {encryption, stripRtp, passphrase} = values;
+      const {encryption, stripRtp, passphrase, name} = values;
 
       await outputStore.ModifyOutput({
         outputId: id,
         encryption,
         stripRtp,
-        passphrase: encryption ? passphrase : undefined
+        passphrase: encryption ? passphrase : undefined,
+        name
       });
 
       notifications.show({
@@ -183,6 +185,16 @@ const GeneralConfigPanel = observer(({output, id}) => {
   return (
     <Box pt={16}>
       <form onSubmit={form.onSubmit(HandleSubmit)}>
+        <SectionTitle mb={12}>Name</SectionTitle>
+        <SimpleGrid cols={2} spacing={150}>
+          <TextInput
+            key={form.key("name")}
+            {...form.getInputProps("name")}
+          />
+        </SimpleGrid>
+
+        <Divider mb={20} mt={30} />
+
         <SectionTitle mb={12}>Encryption</SectionTitle>
         <Checkbox
           label="Enable Encryption"
