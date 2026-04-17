@@ -213,9 +213,9 @@ const Outputs = observer(() => {
                 accessor: "clients",
                 title: "Clients",
                 width: 70,
-                textAlignment: "center",
+                textAlign: "center",
                 render: record => (
-                  <BasicTableRowText textWrap="nowrap" ta="center">
+                  <BasicTableRowText textWrap="nowrap">
                     {record.state?.connected_clients ?? 0}
                   </BasicTableRowText>
                 )
