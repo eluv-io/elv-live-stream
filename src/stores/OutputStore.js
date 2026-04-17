@@ -178,7 +178,6 @@ class OutputStore {
 
   async CreateOutput({
     name,
-    description,
     externalId,
     geos,
     passphrase,
@@ -193,7 +192,7 @@ class OutputStore {
       const outputs = await this.client.OutputsCreate({
         objectId: this.outputSettingsId,
         name,
-        description,
+        description: geos[0],
         externalId,
         enabled: false,
         geos,
@@ -214,6 +213,7 @@ class OutputStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to create output.", error);
+      throw error;
     }
   }
 
