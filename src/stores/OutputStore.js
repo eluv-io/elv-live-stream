@@ -465,6 +465,102 @@ class OutputStore {
       throw error;
     }
   }
+
+  async EnableOutput({outputId}) {
+      const objectId = this.outputSettingsId;
+      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+
+      const enabled = true;
+
+      const existing = await this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: `live_outputs/${outputId}`
+      }) || {};
+
+      if(!existing.input?.stream) {
+        throw new Error("A stream must be mapped to the output before enabling");
+      }
+
+      const updatedOutput = {
+        ...existing,
+        enabled
+      };
+
+    try {
+      await this.client.OutputsModify({
+        libraryId,
+        objectId,
+        outputId,
+        output: JSON.parse(JSON.stringify(updatedOutput))
+      });
+
+      runInAction(() => {
+        this.UpdateOutput({
+          slug: outputId,
+          updates: { enabled }
+        });
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to enable output.", error);
+      throw error;
+    }
+  }
+
+  async EnableOutputBatch({outputs}){
+    await Promise.all(
+      outputs.map(outputId =>
+        this.EnableOutput({outputId})
+      )
+    );
+  }
+
+  async DisableOutput({outputId}) {
+    const objectId = this.outputSettingsId;
+    const libraryId = await this.client.ContentObjectLibraryId({objectId});
+
+    const enabled = false;
+
+    const existing = await this.client.ContentObjectMetadata({
+      libraryId,
+      objectId,
+      metadataSubtree: `live_outputs/${outputId}`
+    }) || {};
+
+    const updatedOutput = {
+      ...existing,
+      enabled
+    };
+
+    try {
+      await this.client.OutputsModify({
+        libraryId,
+        objectId,
+        outputId,
+        output: JSON.parse(JSON.stringify(updatedOutput))
+      });
+
+      runInAction(() => {
+        this.UpdateOutput({
+          slug: outputId,
+          updates: { enabled }
+        });
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to disable output.", error);
+      throw error;
+    }
+  }
+
+  async DisableOutputBatch({outputs}){
+    await Promise.all(
+      outputs.map(outputId =>
+        this.DisableOutput({outputId})
+      )
+    );
+  }
 }
 
 export default OutputStore;

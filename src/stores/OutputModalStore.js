@@ -13,28 +13,40 @@ const MODAL_CONFIG = {
     descriptionSingular: "Unmapping this output will disconnect it from its stream and interrupt any ongoing activity.",
     descriptionPlural: "Unmapping these outputs will disconnect them from their streams and interrupt any ongoing activity.",
     confirmLabel: "Unmap",
-    closeOnConfirm: true
+    closeOnConfirm: true,
+    successTitle: "Stream unmapped",
+    successMessage: "Successfully unmapped stream from output",
+    errorMessage: "Unable to unmap stream from output"
   },
   enable: {
     title: "Enable Output Confirmation",
     descriptionSingular: "This output will become available for streaming.",
     descriptionPlural: "These outputs will become available for streaming.",
     confirmLabel: "Enable",
-    closeOnConfirm: true
+    closeOnConfirm: true,
+    successTitle: "Output enabled",
+    successMessage: "Output is now available for streaming",
+    errorMessage: "Unable to enable output"
   },
   disable: {
     title: "Disable Output Confirmation",
     descriptionSingular: "Disabling this output will interrupt any ongoing activity.",
     descriptionPlural: "Disabling these outputs will interrupt any ongoing activity.",
     confirmLabel: "Disable",
-    closeOnConfirm: true
+    closeOnConfirm: true,
+    successTitle: "Output disabled",
+    successMessage: "Output has been disabled",
+    errorMessage: "Unable to disable output"
   },
   reset: {
     title: "Reset Output Confirmation",
     descriptionSingular: "Resetting this output will interrupt any ongoing activity.",
     descriptionPlural: "Resetting these outputs will interrupt any ongoing activity.",
     confirmLabel: "Reset",
-    closeOnConfirm: true
+    closeOnConfirm: true,
+    successTitle: "Output reset",
+    successMessage: "Output has been reset successfully",
+    errorMessage: "Unable to reset output"
   }
 };
 
@@ -91,7 +103,21 @@ class OutputModalStore {
       await this.outputStore.UnmapStreamBatch({outputs: [...this.modalSlugs]});
     }
 
-    // enable: yield this.outputStore.EnableOutputs({outputs: [...this.modalSlugs]});
+    if(this.activeModal === "enable") {
+      if(this.modalSlugs.length === 1) {
+        await this.outputStore.EnableOutput({outputId: this.modalSlugs[0]});
+      } else {
+        await this.outputStore.EnableOutputBatch({outputs: [...this.modalSlugs]});
+      }
+    }
+
+    if(this.activeModal === "disable") {
+      if(this.modalSlugs.length === 1) {
+        await this.outputStore.DisableOutput({outputId: this.modalSlugs[0]});
+      } else {
+        await this.outputStore.DisableOutputBatch({outputs: [...this.modalSlugs]});
+      }
+    }
     // disable: yield this.outputStore.DisableOutputs({outputs: [...this.modalSlugs]});
     // reset: yield this.outputStore.ResetOutputs({outputs: [...this.modalSlugs]});
 

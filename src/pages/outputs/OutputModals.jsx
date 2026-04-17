@@ -21,6 +21,9 @@ const OutputModals = observer(() => (
       description={outputModalStore.confirmConfig?.description}
       confirmLabel={outputModalStore.confirmConfig?.confirmLabel}
       closeOnConfirm={outputModalStore.confirmConfig?.closeOnConfirm ?? true}
+      successTitle={outputModalStore.confirmConfig?.successTitle}
+      successMessage={outputModalStore.confirmConfig?.successMessage}
+      errorMessage={outputModalStore.confirmConfig?.errorMessage}
       onConfirm={outputModalStore.Confirm}
       onClose={outputModalStore.CloseModal}
     />

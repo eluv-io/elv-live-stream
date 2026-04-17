@@ -78,6 +78,7 @@ module.exports = [
   "nowrap",
   "num",
   "unmap",
+  "unmapped",
   "passphrase",
   "passthrough",
   "pathname",

@@ -229,6 +229,7 @@ const Outputs = observer(() => {
                   <Switch
                     classNames={{label: styles.switchLabel}}
                     checked={record.enabled}
+                    onChange={() => outputModalStore.OpenModal(record.enabled ? "disable" : "enable", [record.slug])}
                   />
                 )
               },

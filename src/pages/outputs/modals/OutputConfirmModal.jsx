@@ -1,5 +1,7 @@
 import {useState} from "react";
 import {Button, Flex, Modal, Text} from "@mantine/core";
+import {notifications} from "@mantine/notifications";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import styles from "./modals.module.css";
 
 const OutputConfirmModal = ({
@@ -8,6 +10,9 @@ const OutputConfirmModal = ({
   description,
   confirmLabel="Confirm",
   closeOnConfirm=true,
+  successTitle,
+  successMessage,
+  errorMessage,
   onConfirm,
   onClose
 }) => {
@@ -19,24 +24,37 @@ const OutputConfirmModal = ({
       setError(undefined);
       setLoading(true);
       await onConfirm();
+      if(successTitle) {
+        notifications.show({
+          title: successTitle,
+          message: <NotificationMessage>{successMessage}</NotificationMessage>
+        });
+      }
       if(closeOnConfirm) { onClose(); }
     } catch(e) {
-      let errorMessage;
+      let errorDetail;
 
       if(typeof e === "string") {
-        errorMessage = e;
+        errorDetail = e;
       } else if(e instanceof Error) {
-        errorMessage = e.message || e.toString();
+        errorDetail = e.message || e.toString();
       } else if(typeof e === "object") {
         const errorTree = e.message || e.kind;
-        errorMessage = typeof errorTree === "object"
+        errorDetail = typeof errorTree === "object"
           ? JSON.stringify(errorTree, null, 2)
           : errorTree?.toString();
       } else {
-        errorMessage = JSON.stringify(e, null, 2);
+        errorDetail = JSON.stringify(e, null, 2);
       }
 
-      setError(errorMessage);
+      setError(errorDetail);
+      if(errorMessage) {
+        notifications.show({
+          title: "Error",
+          color: "red",
+          message: errorMessage
+        });
+      }
     } finally {
       setLoading(false);
     }
