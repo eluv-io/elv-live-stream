@@ -67,6 +67,7 @@ const SummaryPanel = observer(({output, id}) => {
               />
             }
             data={[
+              {label: "Name", value: output?.input?.name},
               {label: "Quality", value: QUALITY_TEXT[output?.input?.quality]},
               {label: "Packets Recv / Drop (%)", value: output?.input?.stats?.ts ? `${output.input.stats.ts.packets_received?.toLocaleString()} / ${output.input.stats.ts.packets_dropped?.toLocaleString()} (${output.input.stats.ts.packets_received ? (output.input.stats.ts.packets_dropped / output.input.stats.ts.packets_received).toFixed(2) : "0.00"}%)` : ""},
               {label: "Seq Errors Number / Total Gap", value: output?.input?.stats?.rtp ? `${output.input.stats.rtp.seq_num_skip_tot?.toLocaleString()} / ${output.input.stats.rtp.seq_num_skip_count?.toLocaleString()}` : ""},
