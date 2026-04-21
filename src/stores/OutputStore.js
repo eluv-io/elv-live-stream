@@ -572,6 +572,10 @@ class OutputStore {
         objectId,
         outputId
       });
+
+      runInAction(() => {
+        delete this.outputs[outputId];
+      });
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to delete output.", error);
