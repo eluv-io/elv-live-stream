@@ -561,6 +561,31 @@ class OutputStore {
       )
     );
   }
+
+  async DeleteOutput({outputId}) {
+    const objectId = this.outputSettingsId;
+    const libraryId = await this.client.ContentObjectLibraryId({objectId});
+
+    try {
+      await this.client.OutputsDelete({
+        libraryId,
+        objectId,
+        outputId
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to delete output.", error);
+      throw error;
+    }
+  }
+
+  async DeleteOutputBatch({outputs}) {
+    await Promise.all(
+      outputs.map(outputId => this.DeleteOutput({outputId})
+      )
+    );
+  }
 }
+
 
 export default OutputStore;
