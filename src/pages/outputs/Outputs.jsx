@@ -62,7 +62,7 @@ const Actions = ({onRefreshClick, mb, onSetActiveModal}) => {
 
 const Outputs = observer(() => {
   const [loading, setLoading] = useState(false);
-  const [selectedRecords, setSelectedRecords] = useState([]);
+  const [selectedSlugs, setSelectedSlugs] = useState([]);
   const [copiedSlug, setCopiedSlug] = useState(null);
 
   const navigate = useNavigate();
@@ -87,6 +87,7 @@ const Outputs = observer(() => {
   }, 500);
 
   const records = outputStore.outputList;
+  const selectedRecords = records.filter(r => selectedSlugs.includes(r.slug));
 
   return (
     <>
@@ -101,8 +102,8 @@ const Outputs = observer(() => {
           />
           <BatchActions
             selectedRecords={selectedRecords}
-            SelectAll={() => setSelectedRecords(records)}
-            ClearSelection={() => setSelectedRecords([])}
+            SelectAll={() => setSelectedSlugs(records.map(r => r.slug))}
+            ClearSelection={() => setSelectedSlugs([])}
             mb={20}
           />
         </Stack>
@@ -116,7 +117,7 @@ const Outputs = observer(() => {
             onSortStatusChange={outputStore.SetSortStatus}
             records={records || []}
             selectedRecords={selectedRecords}
-            onSelectedRecordsChange={setSelectedRecords}
+            onSelectedRecordsChange={rows => setSelectedSlugs(rows.map(r => r.slug))}
             columns={[
               {
                 accessor: "name",

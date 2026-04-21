@@ -509,11 +509,53 @@ class OutputStore {
   }
 
   async EnableOutputBatch({outputs}){
-    await Promise.all(
-      outputs.map(outputId =>
-        this.EnableOutput({outputId})
-      )
-    );
+    try {
+      const objectId = this.outputSettingsId;
+      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+
+      const updatedOutputs = await Promise.all(
+        outputs.map(async outputId => {
+          const existing = await this.client.ContentObjectMetadata({
+            libraryId,
+            objectId,
+            metadataSubtree: `live_outputs/${outputId}`
+          }) || {};
+
+          return {
+            outputId,
+            output: {
+              ...existing,
+              enabled: true
+            }
+          };
+        })
+      );
+
+      const outputsMap = Object.fromEntries(
+        updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
+      );
+
+      await this.client.OutputsModifyBatch({
+        libraryId,
+        objectId,
+        outputs: outputsMap
+      });
+
+      runInAction(() => {
+        updatedOutputs.forEach(({outputId}) => {
+          this.UpdateOutput({
+            slug: outputId,
+            updates: {
+              enabled: true
+            }
+          });
+        });
+      });
+    }  catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to enable outputs", error);
+      throw error;
+    }
   }
 
   async DisableOutput({outputId}) {
@@ -555,11 +597,53 @@ class OutputStore {
   }
 
   async DisableOutputBatch({outputs}){
-    await Promise.all(
-      outputs.map(outputId =>
-        this.DisableOutput({outputId})
-      )
-    );
+    try {
+      const objectId = this.outputSettingsId;
+      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+
+      const updatedOutputs = await Promise.all(
+        outputs.map(async outputId => {
+          const existing = await this.client.ContentObjectMetadata({
+            libraryId,
+            objectId,
+            metadataSubtree: `live_outputs/${outputId}`
+          }) || {};
+
+          return {
+            outputId,
+            output: {
+              ...existing,
+              enabled: false
+            }
+          };
+        })
+      );
+
+      const outputsMap = Object.fromEntries(
+        updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
+      );
+
+      await this.client.OutputsModifyBatch({
+        libraryId,
+        objectId,
+        outputs: outputsMap
+      });
+
+      runInAction(() => {
+        updatedOutputs.forEach(({outputId}) => {
+          this.UpdateOutput({
+            slug: outputId,
+            updates: {
+              enabled: false
+            }
+          });
+        });
+      });
+    }  catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to disable outputs", error);
+      throw error;
+    }
   }
 
   async DeleteOutput({outputId}) {
