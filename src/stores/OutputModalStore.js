@@ -38,6 +38,16 @@ const MODAL_CONFIG = {
     successMessage: "Output has been disabled",
     errorMessage: "Unable to disable output"
   },
+  delete: {
+    title: "Delete Output Confirmation",
+    descriptionSingular: "This output will be permanently deleted and cannot be recovered.",
+    descriptionPlural: "These outputs will be permanently deleted and cannot be recovered.",
+    confirmLabel: "Delete",
+    closeOnConfirm: true,
+    successTitle: "Output deleted",
+    successMessage: "Output has been deleted",
+    errorMessage: "Unable to delete output"
+  },
   reset: {
     title: "Reset Output Confirmation",
     descriptionSingular: "Resetting this output will interrupt any ongoing activity.",
@@ -118,8 +128,14 @@ class OutputModalStore {
         await this.outputStore.DisableOutputBatch({outputs: [...this.modalSlugs]});
       }
     }
-    // disable: yield this.outputStore.DisableOutputs({outputs: [...this.modalSlugs]});
-    // reset: yield this.outputStore.ResetOutputs({outputs: [...this.modalSlugs]});
+
+    if(this.activeModal === "delete") {
+      if(this.modalSlugs.length === 1) {
+        await this.outputStore.DeleteOutput({outputId: this.modalSlugs[0]});
+      } else {
+        await this.outputStore.DeleteOutputBatch({outputs: [...this.modalSlugs]});
+      }
+    }
 
     this.CloseModal();
   };

@@ -237,12 +237,12 @@ const Outputs = observer(() => {
                 accessor: "actions",
                 title: "",
                 width: 50,
-                render: () => (
+                render: record => (
                   <ActionIcon
                     variant="subtle"
                     title="Delete Output"
                     color="gray.6"
-                    onClick={() => {}}
+                    onClick={() => outputModalStore.OpenModal("delete", [record.slug])}
                     disabled={false}
                   >
                     <IconTrash />
