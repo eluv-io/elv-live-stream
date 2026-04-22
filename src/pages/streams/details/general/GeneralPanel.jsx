@@ -13,7 +13,7 @@ import {
   Tooltip
 } from "@mantine/core";
 import {useEffect, useState} from "react";
-import {dataStore, rootStore, streamManagementStore, streamBrowseStore, profileStore} from "@/stores/index.js";
+import {dataStore, rootStore, streamEditStore, streamStore, profileStore} from "@/stores/index.js";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
@@ -50,7 +50,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
       try {
         setLoading(true);
         await dataStore.LoadDetails({objectId: params.id, slug});
-        const stream = streamBrowseStore.streams[slug];
+        const stream = streamStore.streams[slug];
         const currentPermission = await dataStore.LoadPermission({objectId: params.id});
         const accessGroupPermission = await dataStore.LoadAccessGroupPermissions({objectId: params.id});
 
@@ -80,7 +80,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
       LoadAccessGroups();
       LoadDetails();
     }
-  }, [params.id, streamBrowseStore.streams]);
+  }, [params.id, streamStore.streams]);
 
   useEffect(() => {
     if(profileStore.state !== "loaded") {
@@ -110,7 +110,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
     try {
       setApplyingChanges(true);
 
-      await streamManagementStore.UpdateGeneralConfig({
+      await streamEditStore.UpdateGeneralConfig({
         objectId: params.id,
         slug,
         formData,
@@ -208,7 +208,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                   onChange={(event) => setApplyConfigProfile(event.target.checked)}
                 />
                 {
-                  (profileStore.profiles[currentConfigProfile]?.last_updated > streamBrowseStore.streams[slug]?.profileLastUpdated) ?
+                  (profileStore.profiles[currentConfigProfile]?.last_updated > streamStore.streams[slug]?.profileLastUpdated) ?
                     <Box>
                       <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
                       <Button
@@ -217,7 +217,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                         onClick={async() => {
                           try {
                             setApplyingProfileChanges(true);
-                            await streamManagementStore.ApplyStreamProfile({
+                            await streamEditStore.ApplyStreamProfile({
                               objectId: params.id,
                               profileSlug: currentConfigProfile
                             });

@@ -54,7 +54,7 @@ class DataStore {
       yield this.LoadStreams({streamMetadata});
       yield this.rootStore.outputStore.LoadOutputSettingsId();
       this.loaded = true;
-      yield this.rootStore.streamBrowseStore.AllStreamsStatus(reload);
+      yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
       this.loaded = true;
     }
@@ -153,7 +153,7 @@ class DataStore {
   });
 
   LoadStreams = flow(function * ({streamMetadata}) {
-    this.rootStore.streamBrowseStore.UpdateStreams({});
+    this.rootStore.streamStore.UpdateStreams({});
 
     yield this.client.utils.LimitedMap(
       10,
@@ -198,7 +198,7 @@ class DataStore {
       }
     );
 
-    this.rootStore.streamBrowseStore.UpdateStreams({streams: streamMetadata});
+    this.rootStore.streamStore.UpdateStreams({streams: streamMetadata});
   });
 
   LoadLibraries = flow(function * () {
@@ -424,7 +424,7 @@ class DataStore {
         ]
       });
 
-      this.rootStore.streamBrowseStore.UpdateStream({
+      this.rootStore.streamStore.UpdateStream({
         key: slug,
         value: {
           title: streamMeta?.name,
@@ -572,7 +572,7 @@ class DataStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const streams = this.rootStore.streamBrowseStore.streams || {};
+      const streams = this.rootStore.streamStore.streams || {};
       const slug = Object.keys(streams).find(slug => (
         streams[slug].objectId === objectId
       ));
@@ -612,7 +612,7 @@ class DataStore {
         retention
       };
 
-      this.rootStore.streamBrowseStore.UpdateStream({key: slug, value: recordingData});
+      this.rootStore.streamStore.UpdateStream({key: slug, value: recordingData});
 
       return recordingData;
     } catch(error) {
@@ -628,7 +628,7 @@ class DataStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const streams = this.rootStore.streamBrowseStore.streams || {};
+      const streams = this.rootStore.streamStore.streams || {};
       const slug = Object.keys(streams).find(slug => (
         streams[slug].objectId === objectId
       ));
@@ -676,7 +676,7 @@ class DataStore {
         watermarkType
       };
 
-      this.rootStore.streamBrowseStore.UpdateStream({key: slug, value: playoutData});
+      this.rootStore.streamStore.UpdateStream({key: slug, value: playoutData});
 
       return playoutData;
     } catch(error) {

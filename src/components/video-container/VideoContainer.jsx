@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {streamBrowseStore} from "@/stores/index.js";
+import {streamStore} from "@/stores/index.js";
 import {ActionIcon, AspectRatio, Box, Loader} from "@mantine/core";
 import {PlayCircleIcon as PlayIcon} from "@/assets/icons/index.js";
 import Video from "@/components/video/Video.jsx";
@@ -26,7 +26,7 @@ const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLeve
         }
       </Box>
       <Video
-        objectId={streamBrowseStore.streams[slug].objectId}
+        objectId={streamStore.streams[slug].objectId}
         playerOptions={{
           capLevelToPlayerSize,
           autoplay: true
@@ -91,20 +91,20 @@ export const VideoContainer = observer(({
 }) => {
   const [play, setPlay] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
-  const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamBrowseStore.streamFrameUrls[slug]?.url);
+  const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamStore.streamFrameUrls[slug]?.url);
   const [loading, setLoading] = useState(false);
 
   if(!slug) {
-    slug = Object.keys(streamBrowseStore.streams).find(slug => streamBrowseStore.streams[slug].objectId === id);
+    slug = Object.keys(streamStore.streams).find(slug => streamStore.streams[slug].objectId === id);
   }
-  const status = streamBrowseStore.streams?.[slug]?.status;
+  const status = streamStore.streams?.[slug]?.status;
 
   useEffect(() => {
     if(!showPreview || play || status !== "running") {
       return;
     }
 
-    const existingFrame = streamBrowseStore.streamFrameUrls[slug];
+    const existingFrame = streamStore.streamFrameUrls[slug];
     // Frame loading already initialized - no delay needed
     if(frameKey > 0 || (existingFrame && Date.now() - existingFrame.timestamp < 60000)) {
       setFrameSegmentUrl(existingFrame.url);
@@ -117,7 +117,7 @@ export const VideoContainer = observer(({
     const delay = Math.min(200 + 500 * index, 10000);
     const frameTimeout = setTimeout(async () => {
       setLoading(true);
-      setFrameSegmentUrl(await streamBrowseStore.StreamFrameURL(slug));
+      setFrameSegmentUrl(await streamStore.StreamFrameURL(slug));
       setLoading(false);
     }, delay);
 

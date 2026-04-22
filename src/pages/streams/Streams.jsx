@@ -2,7 +2,7 @@ import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {IconSearch} from "@tabler/icons-react";
-import {dataStore, streamBrowseStore} from "@/stores";
+import {dataStore, streamStore} from "@/stores";
 import {SortTable} from "@/utils/helpers";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import {TextInput, Flex, Button, Group} from "@mantine/core";
@@ -12,14 +12,14 @@ import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
-  const [debouncedFilter] = useDebouncedValue(streamBrowseStore.streamFilter, 200);
+  const [debouncedFilter] = useDebouncedValue(streamStore.streamFilter, 200);
   const navigate = useNavigate();
 
   const DebouncedRefresh = useDebouncedCallback(async() => {
     await dataStore.Initialize(true);
   }, 500);
 
-  const records = Object.values(streamBrowseStore.streams || {})
+  const records = Object.values(streamStore.streams || {})
     .filter(record => {
       return (
         !debouncedFilter ||
@@ -40,8 +40,8 @@ const Streams = observer(() => {
           classNames={{input: styles.searchBar}}
           placeholder="Search by object name or ID"
           leftSection={<IconSearch width={15} height={15} />}
-          value={streamBrowseStore.streamFilter}
-          onChange={event => streamBrowseStore.SetStreamFilter({filter: event.target.value})}
+          value={streamStore.streamFilter}
+          onChange={event => streamStore.SetStreamFilter({filter: event.target.value})}
         />
         <Group ml="auto" gap={8}>
           <Button

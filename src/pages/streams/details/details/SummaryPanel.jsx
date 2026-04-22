@@ -12,7 +12,7 @@ import {
   TextInput,
   Tooltip
 } from "@mantine/core";
-import {dataStore, streamBrowseStore} from "@/stores/index.js";
+import {dataStore, streamStore, streamEditStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
 import {
@@ -83,7 +83,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
     const LoadStatus = async () => {
       try {
         setLoadingStatus(true);
-        const statusResponse = await streamBrowseStore.CheckStatus({
+        const statusResponse = await streamStore.CheckStatus({
           objectId: params.id
         });
 
@@ -106,7 +106,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   const LoadLiveRecordingCopies = async() => {
     try {
       setLoading(true);
-      let liveRecordingCopies = await streamBrowseStore.FetchLiveRecordingCopies({
+      let liveRecordingCopies = await streamEditStore.FetchLiveRecordingCopies({
         objectId: params.id
       });
 
@@ -120,7 +120,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
     }
   };
 
-  const stream = streamBrowseStore.streams[slug];
+  const stream = streamStore.streams[slug];
 
   const recordingData = [
     {

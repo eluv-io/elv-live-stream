@@ -21,7 +21,7 @@ import {
   PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants.js";
-import {dataStore, streamManagementStore} from "@/stores/index.js";
+import {dataStore, streamEditStore} from "@/stores/index.js";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
@@ -93,7 +93,7 @@ const PlayoutPanel = observer(({
     try {
       setApplyingChanges(true);
 
-      await streamManagementStore.UpdatePlayoutConfig({
+      await streamEditStore.UpdatePlayoutConfig({
         objectId,
         slug,
         status,

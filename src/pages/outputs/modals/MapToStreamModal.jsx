@@ -3,7 +3,7 @@ import {Box, Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/
 import styles from "./modals.module.css";
 import {SortTable} from "@/utils/helpers.js";
 import {useState} from "react";
-import {outputStore, streamBrowseStore} from "@/stores/index.js";
+import {outputStore, streamStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {IconSearch} from "@tabler/icons-react";
@@ -17,7 +17,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  const records = Object.values(streamBrowseStore.streams || {})
+  const records = Object.values(streamStore.streams || {})
     .filter(record => (
       record.title?.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
       record.objectId?.toLowerCase().includes(debouncedFilter.toLowerCase())

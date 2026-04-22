@@ -243,7 +243,7 @@ class OutputStore {
         output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
-      const stream = Object.values(this.rootStore.streamBrowseStore.streams || {})
+      const stream = Object.values(this.rootStore.streamStore.streams || {})
         .find(s => s.objectId === streamObjectId);
 
       runInAction(() => {
@@ -343,7 +343,7 @@ class OutputStore {
         outputs: outputsMap
       });
 
-      const stream = Object.values(this.rootStore.streamBrowseStore.streams || {})
+      const stream = Object.values(this.rootStore.streamStore.streams || {})
         .find(s => s.objectId === streamObjectId);
 
       runInAction(() => {

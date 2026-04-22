@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 
-import {dataStore, modalStore, rootStore, streamBrowseStore} from "@/stores";
+import {dataStore, modalStore, rootStore, streamStore} from "@/stores";
 import {SortTable, StreamIsActive} from "@/utils/helpers";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -156,7 +156,7 @@ const GridItem = observer(({stream, index}) => {
       <VideoContainer
         index={index}
         slug={stream.slug}
-        showPreview={streamBrowseStore.showMonitorPreviews}
+        showPreview={streamStore.showMonitorPreviews}
         playable={stream.status === "running"}
         capLevelToPlayerSize
       />
@@ -218,8 +218,8 @@ const Monitor = observer(() => {
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
 
-  const streams = !streamBrowseStore.streams ? undefined :
-    Object.values(streamBrowseStore.streams || {})
+  const streams = !streamStore.streams ? undefined :
+    Object.values(streamStore.streams || {})
       .filter(record => {
         return (
           !debouncedFilter ||
@@ -244,11 +244,11 @@ const Monitor = observer(() => {
           onChange={event => setFilter(event.target.value)}
         />
         <Button
-          onClick={() => streamBrowseStore.ToggleMonitorPreviews()}
+          onClick={() => streamStore.ToggleMonitorPreviews()}
           variant="outline"
           ml="auto"
         >
-          { streamBrowseStore.showMonitorPreviews ? "Hide Previews" : "Show Previews" }
+          { streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews" }
         </Button>
       </Flex>
       {

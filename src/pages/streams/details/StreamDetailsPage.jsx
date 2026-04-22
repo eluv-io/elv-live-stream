@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {streamBrowseStore, dataStore} from "@/stores/index.js";
+import {streamStore, dataStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
@@ -21,18 +21,18 @@ const StreamDetailsPage = observer(() => {
   const [checkVersion, setCheckVersion] = useState(0);
 
   if(!streamSlug) {
-    streamSlug = Object.keys(streamBrowseStore.streams || {}).find(slug => (
-      streamBrowseStore.streams[slug].objectId === params.id
+    streamSlug = Object.keys(streamStore.streams || {}).find(slug => (
+      streamStore.streams[slug].objectId === params.id
     ));
   }
 
   if(streamSlug) {
     stream = undefined;
-    stream = streamBrowseStore.streams[streamSlug];
+    stream = streamStore.streams[streamSlug];
   }
 
   const GetStatus = async () => {
-    await streamBrowseStore.CheckStatus({
+    await streamStore.CheckStatus({
       objectId: params.id,
       update: true
     });
@@ -71,7 +71,7 @@ const StreamDetailsPage = observer(() => {
   }
 
   const streamActions = GetStreamActions({
-    record: streamBrowseStore.streams?.[streamSlug],
+    record: streamStore.streams?.[streamSlug],
     onCheckComplete: () => setCheckVersion(prev => prev + 1),
     onDeleteComplete: () => navigate("/streams")
   });
@@ -103,12 +103,12 @@ const StreamDetailsPage = observer(() => {
   return (
     <PageContainer
       key={`stream-details-${pageVersion}`}
-      title={`Edit ${streamBrowseStore.streams?.[streamSlug]?.title || stream.objectId}`}
+      title={`Edit ${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
       subtitle={stream.objectId}
       titleRightSection={
         <StatusIndicator
           status={stream.status}
-          showWarning={streamBrowseStore.streams?.[streamSlug]?.quality && streamBrowseStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
+          showWarning={streamStore.streams?.[streamSlug]?.quality && streamStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
           size="md"
           withBorder
         />

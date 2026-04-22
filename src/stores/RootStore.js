@@ -1,14 +1,13 @@
 import {configure, flow, makeAutoObservable} from "mobx";
 import {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
 import DataStore from "@/stores/DataStore";
-import StreamBrowseStore from "@/stores/StreamBrowseStore.js";
+import StreamStore from "@/stores/StreamStore.js";
+import StreamEditStore from "@/stores/StreamEditStore.js";
 import ModalStore from "@/stores/ModalStore.js";
-import StreamManagementStore from "@/stores/StreamManagementStore.js";
 import SiteStore from "@/stores/SiteStore.js";
 import ProfileStore from "@/stores/ProfileStore.js";
 import OutputStore from "@/stores/OutputStore.js";
 import OutputModalStore from "@/stores/OutputModalStore.js";
-import {streamBrowseStore} from "@/stores/index.js";
 
 // Force strict mode so mutations are only allowed within actions.
 configure({
@@ -27,8 +26,8 @@ class RootStore {
     makeAutoObservable(this);
 
     this.dataStore = new DataStore(this);
-    this.streamBrowseStore = new StreamBrowseStore(this);
-    this.streamManagementStore = new StreamManagementStore(this);
+    this.streamStore = new StreamStore(this);
+    this.streamEditStore = new StreamEditStore(this);
     this.modalStore = new ModalStore(this);
     this.siteStore = new SiteStore(this);
     this.profileStore = new ProfileStore(this);
@@ -70,7 +69,7 @@ class RootStore {
       libraryId = await this.client.ContentObjectLibraryId({objectId});
     }
 
-    streamBrowseStore.client.SendMessage({
+    this.streamStore.client.SendMessage({
       options: {
         operation: "OpenLink",
         libraryId,

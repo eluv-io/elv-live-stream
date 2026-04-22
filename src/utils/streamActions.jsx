@@ -1,7 +1,7 @@
 import {SanitizeUrl, StreamIsActive} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
 import {Stack, Text} from "@mantine/core";
-import {rootStore, modalStore, streamBrowseStore} from "@/stores/index.js";
+import {rootStore, modalStore, streamStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import {
   IconDeviceAnalytics,
@@ -24,8 +24,8 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete}) =>
       iconColor: "gray.6",
       hidden: ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status),
       onClick: async() => {
-        const url = await streamBrowseStore.client.ContentObjectMetadata({
-          libraryId: await streamBrowseStore.client.ContentObjectLibraryId({objectId: record.objectId}),
+        const url = await streamStore.client.ContentObjectMetadata({
+          libraryId: await streamStore.client.ContentObjectLibraryId({objectId: record.objectId}),
           objectId: record.objectId,
           metadataSubtree: "live_recording_config/url"
         });

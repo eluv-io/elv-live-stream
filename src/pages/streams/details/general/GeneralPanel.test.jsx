@@ -29,8 +29,8 @@ vi.mock("@/stores", () => ({
     dedicatedNodesList: [],
     accessGroups: {},
   },
-  streamManagementStore: {UpdateGeneralConfig: mockUpdateGeneralConfig},
-  streamBrowseStore: {
+  streamEditStore: {UpdateGeneralConfig: mockUpdateGeneralConfig},
+  streamStore: {
     streams: {
       "test-slug": {
         title: "Test Stream",

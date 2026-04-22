@@ -34,8 +34,7 @@ vi.mock("@/stores", () => ({
     loadedDedicatedNodes: true,
     dedicatedNodesList: [],
   },
-  streamManagementStore: {InitLiveStreamObject: mockInitLiveStreamObject},
-  streamBrowseStore: {ConfigureStream: mockConfigureStream},
+  streamEditStore: {InitLiveStreamObject: mockInitLiveStreamObject, ConfigureStream: mockConfigureStream},
   profileStore: {
     state: "loaded",
     profiles: {},

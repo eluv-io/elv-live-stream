@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
-import {dataStore, outputStore, streamManagementStore} from "@/stores/index.js";
+import {dataStore, outputStore, streamEditStore} from "@/stores/index.js";
 import {useParams} from "react-router-dom";
 import {
   Box,
@@ -107,7 +107,7 @@ const RecordingPanel = observer(({
         }
       }
 
-      await streamManagementStore.UpdateRecordingConfig({
+      await streamEditStore.UpdateRecordingConfig({
         objectId: params.id,
         slug,
         audioFormData,

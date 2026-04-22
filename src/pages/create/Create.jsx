@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {dataStore, rootStore, streamManagementStore, profileStore} from "@/stores";
+import {dataStore, rootStore, streamEditStore, profileStore} from "@/stores";
 import {useNavigate} from "react-router-dom";
 import {
   Box,
@@ -173,7 +173,7 @@ const Create = observer(() => {
         }
       }
 
-      const {objectId: responseObjectId} = await streamManagementStore.InitLiveStreamObject({
+      const {objectId: responseObjectId} = await streamEditStore.InitLiveStreamObject({
         accessGroup,
         description,
         displayTitle,

@@ -12,7 +12,7 @@ vi.mock("@/utils/constants", () => ({
   DETAILS_TABS: []
 }));
 
-import StreamManagementStore from "./StreamManagementStore";
+import StreamEditStore from "./StreamEditStore";
 
 const mockProfile = {
   name: "My Profile",
@@ -37,14 +37,13 @@ const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => 
     profileStore: {
       profiles: {[profileSlug]: profile}
     },
-    streamBrowseStore: {
+    streamStore: {
       UpdateStream: vi.fn(),
       UpdateDetailMetadata: vi.fn().mockResolvedValue(undefined),
-      UpdateStreamAudioSettings: vi.fn().mockResolvedValue(undefined),
     }
   };
 
-  const store = new StreamManagementStore(mockRootStore);
+  const store = new StreamEditStore(mockRootStore);
 
   // Stub internal methods that aren't under test
   store.UpdateDetailMetadata = vi.fn().mockResolvedValue(undefined);
@@ -126,16 +125,16 @@ const makeApplyProfileStore = () => {
         }
       }
     },
-    streamBrowseStore: {
+    streamStore: {
       UpdateStream: vi.fn(),
-      UpdateStreamAudioSettings: vi.fn().mockResolvedValue(undefined),
     }
   };
 
-  const store = new StreamManagementStore(mockRootStore);
+  const store = new StreamEditStore(mockRootStore);
   store.UpdateDetailMetadata = vi.fn().mockResolvedValue(undefined);
   store.SetPermission = vi.fn().mockResolvedValue(undefined);
   store.UpdateAccessGroupPermission = vi.fn().mockResolvedValue(undefined);
+  store.UpdateStreamAudioSettings = vi.fn().mockResolvedValue(undefined);
 
   return {store, mockClient, mockRootStore};
 };
@@ -183,11 +182,11 @@ describe("ApplyStreamProfile", () => {
   });
 
   it("calls UpdateStreamAudioSettings to rebuild ladder specs with new audio streams", async () => {
-    const {store, mockRootStore} = makeApplyProfileStore();
+    const {store} = makeApplyProfileStore();
 
     await store.ApplyStreamProfile({objectId: "iq__123", profileSlug: "new-profile", finalize: false});
 
-    expect(mockRootStore.streamBrowseStore.UpdateStreamAudioSettings).toHaveBeenCalledWith(
+    expect(store.UpdateStreamAudioSettings).toHaveBeenCalledWith(
       expect.objectContaining({objectId: "iq__123", writeToken: "wtoken123", finalize: false})
     );
   });
@@ -260,7 +259,7 @@ describe("UpdateGeneralConfig", () => {
       configProfile: "my-profile"
     });
 
-    expect(store.rootStore.streamBrowseStore.UpdateStream).toHaveBeenCalledWith(
+    expect(store.rootStore.streamStore.UpdateStream).toHaveBeenCalledWith(
       expect.objectContaining({
         key: "test-stream",
         value: expect.objectContaining({configProfile: "my-profile"})

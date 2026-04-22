@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useDisclosure} from "@mantine/hooks";
-import {streamBrowseStore} from "@/stores/index.js";
+import {streamEditStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import {RECORDING_STATUS_TEXT} from "@/utils/constants.js";
 import {Box, Button, Checkbox, Flex, Group, Text} from "@mantine/core";
@@ -47,7 +47,7 @@ const RecordingPeriodsTable = observer(({
   const HandleCopy = async ({title}) => {
     try {
       setCopyingToVod(true);
-      const response = await streamBrowseStore.CopyToVod({
+      const response = await streamEditStore.CopyToVod({
         objectId,
         targetLibraryId: vodLibraryId,
         accessGroup: vodAccessGroup,
