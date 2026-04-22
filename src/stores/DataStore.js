@@ -297,6 +297,64 @@ class DataStore {
     }
   });
 
+  // LoadSummaryData = flow(function * ({objectId, libraryId, slug}) {
+  //   try {
+  //     // TODO: load probe info, publishing config, recording info for Summary tab
+  //   } catch(error) {
+  //     // eslint-disable-next-line no-console
+  //     console.error("Unable to load summary data", error);
+  //   }
+  // });
+
+  LoadGeneralConfigData = flow(function * ({objectId, libraryId, slug}) {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const [generalMeta, liveRecordingConfigMeta, liveRecordingOriginUrl, permission, accessGroup] = yield Promise.all([
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "public",
+          select: ["name", "description", "asset_metadata/display_title"]
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config",
+          select: ["url", "name", "reference_url"]
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording/recording_config/recording_params/origin_url"
+        }),
+        this.LoadPermission({libraryId, objectId}),
+        this.LoadAccessGroupPermissions({objectId})
+      ]);
+
+      const generalConfigData = {
+        title: generalMeta?.name,
+        description: generalMeta?.description,
+        display_title: generalMeta?.asset_metadata?.display_title,
+        originUrl: liveRecordingConfigMeta?.url ?? liveRecordingOriginUrl,
+        referenceUrl: liveRecordingConfigMeta?.reference_url,
+        configProfile: slugify(liveRecordingConfigMeta?.name),
+        permission,
+        accessGroup
+      };
+
+      this.rootStore.streamStore.UpdateStream({key: slug, value: generalConfigData});
+
+      return generalConfigData;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load general config data", error);
+      return {};
+    }
+  });
+
   LoadStreamMetadata = flow(function * ({objectId, libraryId}) {
     try {
       if(!libraryId) {

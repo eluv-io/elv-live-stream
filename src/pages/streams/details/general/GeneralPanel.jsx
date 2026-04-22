@@ -46,41 +46,36 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
   const params = useParams();
 
   useEffect(() => {
-    const LoadDetails = async() => {
+    const LoadData = async() => {
       try {
         setLoading(true);
-        await dataStore.LoadDetails({objectId: params.id, slug});
+        const libraryId = streamStore.streams[slug]?.libraryId;
+      await dataStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug});
         const stream = streamStore.streams[slug];
-        const currentPermission = await dataStore.LoadPermission({objectId: params.id});
-        const accessGroupPermission = await dataStore.LoadAccessGroupPermissions({objectId: params.id});
 
         setFormData({
           name: stream.title || "",
           description: stream.description || "",
           displayTitle: stream.display_title || "",
-          permission: currentPermission || "",
-          accessGroup: accessGroupPermission || "",
+          permission: stream.permission || "",
+          accessGroup: stream.accessGroup || "",
           url: stream.originUrl || ""
         });
 
         setCurrentSettings({
-          permission: currentPermission || "",
-          accessGroup: accessGroupPermission || ""
+          permission: stream.permission || "",
+          accessGroup: stream.accessGroup || ""
         });
       } finally {
         setLoading(false);
       }
     };
 
-    const LoadAccessGroups = async() => {
-      await dataStore.LoadAccessGroups();
-    };
-
     if(params.id) {
-      LoadAccessGroups();
-      LoadDetails();
+      dataStore.LoadAccessGroups();
+      LoadData();
     }
-  }, [params.id, streamStore.streams]);
+  }, [params.id]);
 
   useEffect(() => {
     if(profileStore.state !== "loaded") {
