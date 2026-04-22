@@ -297,14 +297,58 @@ class DataStore {
     }
   });
 
-  // LoadSummaryData = flow(function * ({objectId, libraryId, slug}) {
-  //   try {
-  //     // TODO: load probe info, publishing config, recording info for Summary tab
-  //   } catch(error) {
-  //     // eslint-disable-next-line no-console
-  //     console.error("Unable to load summary data", error);
-  //   }
-  // });
+  LoadSummaryData = flow(function * ({objectId, libraryId, slug}) {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const [{audioStreams, audioData}, liveRecordingMeta] = yield Promise.all([
+        this.LoadStreamProbeData({objectId, libraryId}),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording/recording_config/recording_params",
+          select: ["xc_params", "persistent", "part_ttl"]
+        })
+      ]);
+
+      const xcParams = liveRecordingMeta?.xc_params;
+      const videoStream = (yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording_config",
+        select: ["probe_info/streams", "input_stream_info/streams"]
+      }));
+      const probeStreams = videoStream?.probe_info?.streams ?? videoStream?.input_stream_info?.streams ?? [];
+      const videoStreamProbe = probeStreams.find(s => s.codec_type === "video");
+
+      const summaryData = {
+        videoStreamProbe,
+        audioStreams,
+        audioData,
+        publishingVideo: {
+          bit_rate: xcParams?.video_bitrate,
+          frame_rate: videoStreamProbe?.frame_rate,
+          resolution: xcParams?.enc_width ? `${xcParams.enc_width}x${xcParams.enc_height}p` : "",
+          codec: "avc"
+        },
+        publishingAudio: {
+          sample_rate: xcParams?.sample_rate
+        },
+        partTtl: liveRecordingMeta?.part_ttl?.toString() ?? null,
+        persistent: liveRecordingMeta?.persistent
+      };
+
+      this.rootStore.streamStore.UpdateStream({key: slug, value: summaryData});
+
+      return summaryData;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load summary data", error);
+      return {};
+    }
+  });
 
   LoadGeneralConfigData = flow(function * ({objectId, libraryId, slug}) {
     try {

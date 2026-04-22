@@ -80,6 +80,11 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   const currentTimeMs = new Date().getTime();
 
   useEffect(() => {
+    const LoadData = async() => {
+      const libraryId = streamStore.streams[slug]?.libraryId;
+      await dataStore.LoadSummaryData({objectId: params.id, libraryId, slug});
+    };
+
     const LoadStatus = async () => {
       try {
         setLoadingStatus(true);
@@ -98,6 +103,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       setEmbedUrl(url);
     };
 
+    LoadData();
     LoadLiveRecordingCopies();
     LoadStatus();
     LoadEmbedUrl();
@@ -157,8 +163,8 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
 
   const sourceData = [
     {label: "Input", value: <Group gap={4}>{stream?.source?.map(el => <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge>)}</Group>},
-    {label: "Packets Recv / Drop (%)", value: `${stream?.sourceInputStats?.packets_received?.toLocaleString()} / ${stream?.sourceInputStats?.packets_dropped?.toLocaleString()} (${stream?.sourceInputStats?.packetsPercentage}%)`},
-    {label: "Seq Errors / Gap", value: `${stream?.sourceInputStats?.seq_num_skip_tot} / ${stream?.sourceInputStats?.seq_num_skip_count}`},
+    {label: "Packets Recv / Drop (%)", value: status ? `${status?.input_stats?.ts?.packets_received?.toLocaleString() ?? 0} / ${status?.input_stats?.ts?.packets_dropped?.toLocaleString() ?? 0} (${status?.input_stats?.ts?.packets_received ? (status.input_stats.ts.packets_dropped / status.input_stats.ts.packets_received).toFixed(2) : 0}%)` : ""},
+    {label: "Seq Errors / Gap", value: status ? `${status?.input_stats?.rtp?.seq_num_skip_tot ?? 0} / ${status?.input_stats?.rtp?.seq_num_skip_count ?? 0}` : ""},
   ];
 
   const packagingData = [
