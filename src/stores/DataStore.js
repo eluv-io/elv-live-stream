@@ -2,6 +2,7 @@
 import {flow, makeAutoObservable, runInAction, toJS} from "mobx";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
+import {DeriveSourceAndPackaging} from "@/utils/helpers.js";
 
 class DataStore {
   rootStore;
@@ -177,9 +178,8 @@ class DataStore {
             streamMetadata[slug].objectId = objectId;
             streamMetadata[slug].versionHash = versionHash;
             streamMetadata[slug].libraryId = libraryId;
-            streamMetadata[slug].embedUrl = await this.EmbedUrl({objectId});
 
-            const streamDetails = await this.LoadStreamMetadata({
+            const streamDetails = await this.LoadStreamListData({
               objectId,
               libraryId
             }) || {};
@@ -260,6 +260,40 @@ class DataStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to load access groups", error);
+    }
+  });
+
+  LoadStreamListData = flow(function * ({libraryId, objectId}) {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const meta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        select: [
+          "public/name",
+          "live_recording_config/url",
+          "live_recording_config/recording_config/input_cfg"
+        ]
+      });
+
+      const url = meta?.live_recording_config?.url;
+      const {source, packaging} = DeriveSourceAndPackaging({
+        url,
+        inputCfg: meta?.live_recording_config?.recording_config?.input_cfg
+      });
+
+      return {
+        title: meta?.public?.name,
+        originUrl: url,
+        source,
+        packaging
+      };
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load stream list data", error);
     }
   });
 

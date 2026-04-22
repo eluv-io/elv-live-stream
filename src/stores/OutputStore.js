@@ -1,6 +1,6 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
 import {makeAutoObservable, runInAction} from "mobx";
-import {SortTable} from "@/utils/helpers.js";
+import {DeriveSourceAndPackaging, SortTable} from "@/utils/helpers.js";
 
 class OutputStore {
   state = "pending";
@@ -111,42 +111,10 @@ class OutputStore {
 
       const streamStatus = await this.client.StreamStatus({name: streamObjectId});
 
-      const copyMode = metadata?.recording_config?.input_cfg?.copy_mode;
-      const copyPackaging = metadata?.recording_config?.input_cfg?.copy_packaging;
-      const inputPackaging = metadata?.recording_config?.input_cfg?.input_packaging;
       const url = metadata?.url;
-      const protocol = url.match(/^(\w+):\/\//)?.[1];
+      const {source, packaging} = DeriveSourceAndPackaging({url, inputCfg: metadata?.recording_config?.input_cfg});
 
       const embedUrl = await this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
-
-      const packaging = [];
-      let source;
-
-      if(copyPackaging === "rtp_ts") {
-        packaging.push("rtp");
-      }
-
-      if(copyMode === "raw") {
-        packaging.push("ts", "fmp4");
-      } else if(copyMode === "raw_only") {
-        packaging.push("ts");
-      }
-
-      switch(protocol) {
-        case "srt":
-          source = ["srt", "ts"];
-          if(inputPackaging === "rtp_ts") {source.splice(1, 0, "rtp");}
-          break;
-        case "udp":
-          source = ["ts"];
-          break;
-        case "rtp":
-          source = ["rtp", "ts"];
-          break;
-        case "rtmp":
-          source = ["rtmp"];
-          break;
-      }
 
       const streamInfo = {
         url,
