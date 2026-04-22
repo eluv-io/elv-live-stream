@@ -105,11 +105,13 @@ export const VideoContainer = observer(({
     }
 
     const existingFrame = streamStore.streamFrameUrls[slug];
-    // Frame loading already initialized - no delay needed
-    if(frameKey > 0 || (existingFrame && Date.now() - existingFrame.timestamp < 60000)) {
+    // Fresh URL already loaded - use it directly
+    if(existingFrame?.url && Date.now() - existingFrame.timestamp < 60000 && frameKey === 0) {
       setFrameSegmentUrl(existingFrame.url);
-      // eslint-disable-next-line no-console
-      console.log("SKIP DELAY", slug);
+      return;
+    }
+    // Fetch already in progress - don't start another
+    if(existingFrame && !existingFrame.url) {
       return;
     }
 

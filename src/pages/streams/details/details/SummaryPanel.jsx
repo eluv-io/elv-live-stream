@@ -89,7 +89,9 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       try {
         setLoadingStatus(true);
         const statusResponse = await streamStore.CheckStatus({
-          objectId: params.id
+          objectId: params.id,
+          slug,
+          update: true
         });
 
         setStatus(statusResponse);
