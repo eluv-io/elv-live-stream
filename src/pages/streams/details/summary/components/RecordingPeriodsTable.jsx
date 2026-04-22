@@ -12,8 +12,8 @@ import {
   SortTable
 } from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
-import CopyToVodModal from "@/pages/streams/details/details/components/CopyToVodModal.jsx";
-import {Runtime} from "@/pages/streams/details/details/SummaryPanel.jsx";
+import CopyToVodModal from "@/pages/streams/details/summary/components/CopyToVodModal.jsx";
+import {Runtime} from "@/pages/streams/details/summary/SummaryPanel.jsx";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";

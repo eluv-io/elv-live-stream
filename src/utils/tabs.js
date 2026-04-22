@@ -1,7 +1,7 @@
 import GeneralPanel from "@/pages/streams/details/general/GeneralPanel.jsx";
 import RecordingPanel from "@/pages/streams/details/recording/RecordingPanel.jsx";
 import PlayoutPanel from "@/pages/streams/details/playout/PlayoutPanel.jsx";
-import SummaryPanel from "@/pages/streams/details/details/SummaryPanel.jsx";
+import SummaryPanel from "@/pages/streams/details/summary/SummaryPanel.jsx";
 import TransportStreamPanel from "@/pages/streams/details/transport-stream/TransportStreamPanel.jsx";
 
 export const DETAILS_TABS = [

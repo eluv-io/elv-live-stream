@@ -16,7 +16,8 @@ import {dataStore, streamStore, streamEditStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
 import {
-  AudioBitrateReadable, BytesToMb,
+  AudioBitrateReadable,
+  BytesToMb,
   DateFormat,
   FormatTime,
   SampleRateReadable,
@@ -28,12 +29,12 @@ import {
   QUALITY_COLOR_MAP,
   SOURCE_PACKAGING_COLOR_MAP, CODEC_TEXT
 } from "@/utils/constants.js";
-import RecordingPeriodsTable from "@/pages/streams/details/details/components/RecordingPeriodsTable.jsx";
-import RecordingCopiesTable from "@/pages/streams/details/details/components/RecordingCopiesTable.jsx";
+import RecordingPeriodsTable from "@/pages/streams/details/summary/components/RecordingPeriodsTable.jsx";
+import RecordingCopiesTable from "@/pages/streams/details/summary/components/RecordingCopiesTable.jsx";
 import {IconCopy} from "@tabler/icons-react";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import styles from "@/pages/streams/details/details/SummaryPanel.module.css";
+import styles from "@/pages/streams/details/summary/SummaryPanel.module.css";
 import {useClipboard} from "@mantine/hooks";
 import DetailCard, {DetailCardBody, SubDetailCard} from "@/components/detail-card/DetailCard.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
