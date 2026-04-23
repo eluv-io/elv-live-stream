@@ -187,13 +187,15 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                   <Select
                     label="Config Profile"
                     name="configProfile"
-                    data={profilesData}
+                    data={[
+                      {label: "Built-in Configuration", value: ""},
+                      ...profilesData
+                    ]}
                     mb={12}
                     placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
-                    description={(profilesData.length > 0 || profileStore.state !== "loaded") ? "Apply a predefined set of configuration settings to this stream. If no profile is selected, built-in settings will be applied." : "No profiles are configured. Create a profile in Settings."}
+                    description={(profilesData.length > 0 || profileStore.state !== "loaded") ? "Apply a predefined set of configuration settings to this stream." : "No profiles are configured. Create a profile in Settings."}
                     value={configProfile}
                     onChange={(value) => setConfigProfile(value)}
-                    clearable
                   />
                 </SimpleGrid>
                 <Checkbox
