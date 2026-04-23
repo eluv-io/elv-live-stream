@@ -28,7 +28,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
 
   return (
     <Box mb="24px" maw="100%">
-      <SectionTitle mb={7}>Live Recording Copies</SectionTitle>
+      <SectionTitle mb={7}>Recordings</SectionTitle>
       <Box className={sharedStyles.tableWrapper}>
         <DataTable
           idAccessor="_id"

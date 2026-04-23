@@ -3,8 +3,8 @@ import {observer} from "mobx-react-lite";
 import {useDisclosure} from "@mantine/hooks";
 import {streamEditStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
-import {RECORDING_STATUS_TEXT} from "@/utils/constants.js";
-import {Box, Button, Checkbox, Flex, Group, Text} from "@mantine/core";
+import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constants.js";
+import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} from "@mantine/core";
 import {
   DateFormat,
   Pluralize,
@@ -16,6 +16,7 @@ import CopyToVodModal from "@/pages/streams/details/summary/components/CopyToVod
 import {Runtime} from "@/pages/streams/details/summary/SummaryPanel.jsx";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import sharedStyles from "@/assets/shared.module.css";
+import styles from "./RecordingPeriodsTable.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
@@ -27,7 +28,8 @@ const RecordingPeriodsTable = observer(({
   currentTimeMs,
   retention,
   persistent,
-  loading
+  loading,
+  status
 }) => {
   const [selectedRecords, setSelectedRecords] = useState([]);
 
@@ -115,7 +117,7 @@ const RecordingPeriodsTable = observer(({
       }) : "--";
   };
 
-  records = (records || [])
+  const filteredRecords = (records || [])
     .sort(SortTable({sortStatus}))
     .filter((record, i) => {
       const expired = RecordingPeriodIsExpired({
@@ -133,12 +135,21 @@ const RecordingPeriodsTable = observer(({
       }
     });
 
+  const periodsSummaryData = [
+    {label: "Status", id: "period-status"},
+    {label: "Last Start", id: "period-last-start", value: status?.recordingPeriod?.startTimeEpochSec ? DateFormat({time: status?.recordingPeriod?.startTimeEpochSec, format: "sec"}) : ""},
+    {label: "Runtime", id: "period-runtime", value: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({startTime: status?.recordingPeriod?.startTimeEpochSec * 1000, currentTimeMs, active: true, format: "hh:mm:ss"}) : ""},
+    {label: "Last Incident", id: "period-last-incident"},
+    {label: "Periods", id: "period-count", value: (records || []).length},
+    {label: "Retention", id: "period-retention", value: retention ? RETENTION_TEXT[retention] : ""},
+  ];
+
   return (
     <>
-      <Group mb={7} w="100%" align="flex-end">
+      <Group mb={16} w="100%" align="flex-end">
         <SectionTitle>Recording Periods</SectionTitle>
         <Flex align="center" ml="auto">
-          <Text mr={16}>
+          <Text mr={16} fz="0.875rem">
             {
               selectedRecords.length === 0 ? "" : `${Pluralize({base: "item", count: selectedRecords.length})} selected`
             }
@@ -153,6 +164,20 @@ const RecordingPeriodsTable = observer(({
           </Button>
         </Flex>
       </Group>
+      <Box maw="100%" p={12} className={sharedStyles.tableWrapper} mb={16}>
+          <Text fz="0.875rem" c="elv-gray.7" fw={600}>Recording Info</Text>
+          <Divider color="elv-gray.2" />
+          <SimpleGrid cols={6}>
+            {
+              periodsSummaryData.map((item) => (
+                <Stack key={item.id} gap={4} className={styles.summaryItem} pt={7}>
+                  <Text fz="0.75rem" fw={400} c="elv-gray.7">{ item.label }</Text>
+                  <Text fz="0.875rem" fw={600} c="elv-gray.9">{ item.value }</Text>
+                </Stack>
+              ))
+            }
+          </SimpleGrid>
+        </Box>
 
       <Box className={sharedStyles.tableWrapper} mb="4rem">
         <DataTable
@@ -242,9 +267,9 @@ const RecordingPeriodsTable = observer(({
               )
             }
           ]}
-          minHeight={(!records || records.length === 0) ? 130 : 75}
+          minHeight={(!filteredRecords || filteredRecords.length === 0) ? 130 : 75}
           noRecordsText="No recording periods found"
-          records={records}
+          records={filteredRecords}
           selectedRecords={selectedRecords}
           onSelectedRecordsChange={setSelectedRecords}
           isRecordSelectable={(record) => (

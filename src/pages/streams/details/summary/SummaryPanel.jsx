@@ -299,8 +299,6 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         loading={loading}
       />
 
-      <Divider mb={20} mt={20} />
-
       <RecordingPeriodsTable
         libraryId={libraryId}
         objectId={params.id}
