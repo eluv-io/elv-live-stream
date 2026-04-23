@@ -728,6 +728,7 @@ class DataStore {
       const connectionTimeout = liveRecordingConfigMeta?.connection_timeout ?? liveRecordingMeta?.recording_params?.xc_params?.connection_timeout;
       const copyMpegTs = liveRecordingMeta?.recording_params?.xc_params?.copy_mpegts;
       const inputCfg = liveRecordingMeta?.recording_params?.xc_params?.input_cfg;
+      const multiPath = liveRecordingMeta?.recording_params?.multipath;
       const persistent = liveRecordingMeta?.recording_params?.persistent;
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
       const reconnectionTimeout = liveRecordingConfigMeta?.reconnect_timeout ?? liveRecordingMeta?.recording_params?.reconnect_timeout;
@@ -743,6 +744,7 @@ class DataStore {
         connectionTimeout,
         copyMpegTs,
         inputCfg,
+        multiPath,
         persistent,
         reconnectionTimeout,
         retention

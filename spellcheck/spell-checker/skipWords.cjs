@@ -72,6 +72,7 @@ module.exports = [
   "mpeg",
   "mpeg2video",
   "mpegts",
+  "multipath",
   "nb",
   "neue",
   "noreferrer",

@@ -486,7 +486,8 @@ class StreamEditStore {
     writeToken,
     audioFormData,
     configFormData,
-    tsFormData
+    tsFormData,
+    multiPathEnabled
   }) {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -500,8 +501,34 @@ class StreamEditStore {
     }
 
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
-
     const {copyMpegTs, inputPackaging, copyMode, customReadLoop} = tsFormData;
+
+    let multiPathMeta = {enabled: false};
+    if(multiPathEnabled) {
+      const streamNames = [
+        "video",
+        ...Object.keys(audioFormData || {})
+          .filter(key => audioFormData[key].record)
+          .map((el) => `audio_${el}`)
+      ];
+
+      if(copyMpegTs) {
+        streamNames.push("mpegts");
+      }
+
+      multiPathMeta = {
+        enabled: true,
+        stream_names: streamNames
+      };
+    }
+
+    yield this.client.ReplaceMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording/recording_config/recording_params/multipath",
+      metadata: multiPathMeta
+    });
 
     yield this.UpdateConfigMetadata({
       objectId,

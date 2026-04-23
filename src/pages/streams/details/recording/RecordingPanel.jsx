@@ -44,6 +44,7 @@ const RecordingPanel = observer(({
   const [inputPackaging, setInputPackaging] = useState("rtp_ts");
   const [customReadLoop, setCustomReadLoop] = useState(false);
   const [copyMode, setCopyMode] = useState("raw_only");
+  const [multiPathEnabled, setMultiPathEnabled] = useState(false);
 
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -60,7 +61,8 @@ const RecordingPanel = observer(({
         connectionTimeout: connectionTimeoutMeta,
         reconnectionTimeout: reconnectionTimeoutMeta,
         copyMpegTs: copyMpegTsMeta,
-        inputCfg
+        inputCfg,
+        multiPath: multiPathMeta
       } = await dataStore.LoadRecordingConfigData({objectId: params.id});
 
       retentionMeta = persistentMeta ? "indefinite" : retentionMeta ? retentionMeta.toString() : null;
@@ -76,6 +78,7 @@ const RecordingPanel = observer(({
       setReconnectionTimeout(
         RECONNECTION_TIMEOUT_OPTIONS.map(item => item.value).includes(reconnectionTimeoutMeta) ? reconnectionTimeoutMeta : null
       );
+      setMultiPathEnabled(multiPathMeta?.enabled ?? false);
       setCopyMpegTs(copyMpegTsMeta === undefined ? false : copyMpegTsMeta);
       setCopyMode(inputCfg?.copy_mode ?? "raw");
       setInputPackaging(inputCfg?.input_packaging ?? "rtp_ts");
@@ -123,7 +126,8 @@ const RecordingPanel = observer(({
           copyMode,
           customReadLoop
         },
-        edit: true
+        edit: true,
+        multiPathEnabled
       });
 
       await LoadConfigData();
@@ -275,6 +279,21 @@ const RecordingPanel = observer(({
             <Divider mb={29} />
           </DisabledTooltipWrapper>
         }
+
+        <DisabledTooltipWrapper
+          disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+          tooltipLabel="Network configuration is disabled when the stream is running"
+        >
+          <SectionTitle mb={16}>Network</SectionTitle>
+          <SimpleGrid cols={2} spacing={150} mb={29}>
+            <Checkbox
+              label="Enable Multi-Path Distribution"
+              checked={multiPathEnabled}
+              onChange={(event) => setMultiPathEnabled(event.target.checked)}
+            />
+          </SimpleGrid>
+          <Divider mb={29} />
+        </DisabledTooltipWrapper>
 
         <DisabledTooltipWrapper
           disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
