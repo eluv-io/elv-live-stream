@@ -181,15 +181,18 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
       <Flex direction="row" gap={20} align="stretch">
         <Stack gap={12}>
           <SectionTitle>Preview</SectionTitle>
-          <Box w={355}>
-            <VideoContainer
-              index={0}
-              slug={slug}
-              showPreview
-              playable={status?.state === STATUS_MAP.RUNNING}
-              borderRadius={16}
-            />
-          </Box>
+          {
+            [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) &&
+            <Box w={355}>
+              <VideoContainer
+                index={0}
+                slug={slug}
+                showPreview
+                playable={status?.state === STATUS_MAP.RUNNING}
+                borderRadius={16}
+              />
+            </Box>
+          }
           <DetailCard
             title="State"
             labelWidth={120}
