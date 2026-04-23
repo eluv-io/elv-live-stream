@@ -15,7 +15,7 @@ class StreamEditStore {
     return this.rootStore.client;
   }
 
-  // ─── Stream Lifecycle ────────────────────────────────────────────────────────
+  // Stream Lifecycle
 
   CreateContentObject = flow(function * ({
     libraryId
@@ -98,7 +98,7 @@ class StreamEditStore {
         status: statusResponse.state,
       };
 
-      const streamDetails = yield this.rootStore.dataStore.LoadStreamMetadata({
+      const streamDetails = yield this.rootStore.streamStore.LoadStreamMetadata({
         objectId: createdObjectId,
         libraryId
       }) || {};
@@ -148,7 +148,7 @@ class StreamEditStore {
     this.rootStore.streamStore.UpdateStreams({streams});
   });
 
-  // ─── Permissions & Access ────────────────────────────────────────────────────
+  // Permissions & Access
 
   SetPermission = flow(function * ({objectId, permission}) {
     try {
@@ -219,7 +219,7 @@ class StreamEditStore {
     }
   });
 
-  // ─── Metadata Writes ─────────────────────────────────────────────────────────
+  // Metadata Writes
 
   AddMetadata = flow(function * ({
     libraryId,
@@ -796,7 +796,7 @@ class StreamEditStore {
     return response;
   });
 
-  // ─── Stream Configuration (probe, watermark, DRM, audio) ─────────────────────
+  // Stream Configuration (probe, watermark, DRM, audio)
 
   ConfigureStream = flow(function * ({
     objectId,
@@ -851,7 +851,7 @@ class StreamEditStore {
         objectId
       });
 
-      const streamDetails = yield this.rootStore.dataStore.LoadStreamMetadata({
+      const streamDetails = yield this.rootStore.streamStore.LoadStreamMetadata({
         objectId
       });
 
@@ -1378,7 +1378,7 @@ class StreamEditStore {
     }
   });
 
-  // ─── VOD ─────────────────────────────────────────────────────────────────────
+  // VOD
 
   FetchLiveRecordingCopies = flow(function * ({objectId, libraryId}) {
     if(!libraryId) {

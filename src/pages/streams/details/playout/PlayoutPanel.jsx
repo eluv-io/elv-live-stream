@@ -21,7 +21,7 @@ import {
   PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants.js";
-import {dataStore, streamEditStore} from "@/stores/index.js";
+import {streamEditStore, streamStore} from "@/stores/index.js";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
@@ -61,7 +61,7 @@ const PlayoutPanel = observer(({
         imageWatermark: imageWatermarkMeta,
         simpleWatermark: simpleWatermarkMeta,
         watermarkType: watermarkTypeMeta
-      } = await dataStore.LoadPlayoutConfigData({objectId: params.id});
+      } = await streamStore.LoadPlayoutConfigData({objectId: params.id});
 
       setDrm(drmMeta ?? []);
       setDvrEnabled(dvrEnabledMeta);

@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
-import {dataStore, outputStore, streamEditStore} from "@/stores/index.js";
+import {outputStore, streamEditStore, streamStore} from "@/stores/index.js";
 import {useParams} from "react-router-dom";
 import {
   Box,
@@ -63,11 +63,11 @@ const RecordingPanel = observer(({
         copyMpegTs: copyMpegTsMeta,
         inputCfg,
         multiPath: multiPathMeta
-      } = await dataStore.LoadRecordingConfigData({objectId: params.id});
+      } = await streamStore.LoadRecordingConfigData({objectId: params.id});
 
       retentionMeta = persistentMeta ? "indefinite" : retentionMeta ? retentionMeta.toString() : null;
       connectionTimeoutMeta = connectionTimeoutMeta ? connectionTimeoutMeta.toString() : null;
-      reconnectionTimeoutMeta =reconnectionTimeoutMeta ? reconnectionTimeoutMeta.toString() : null;
+      reconnectionTimeoutMeta = reconnectionTimeoutMeta ? reconnectionTimeoutMeta.toString() : null;
 
       setAudioTracks(audioStreams);
       setAudioFormData(audioData);

@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {streamStore, dataStore} from "@/stores/index.js";
+import {streamStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
@@ -39,7 +39,7 @@ const StreamDetailsPage = observer(() => {
   };
 
   const LoadEdgeWriteTokenMeta = async() => {
-    const metadata = await dataStore.LoadEdgeWriteTokenMeta({
+    const metadata = await streamStore.LoadEdgeWriteTokenMeta({
       objectId: params.id
     });
 

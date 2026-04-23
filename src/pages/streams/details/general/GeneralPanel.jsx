@@ -13,7 +13,7 @@ import {
   Tooltip
 } from "@mantine/core";
 import {useEffect, useState} from "react";
-import {dataStore, rootStore, streamEditStore, streamStore, profileStore} from "@/stores/index.js";
+import {dataStore, streamEditStore, streamStore, profileStore} from "@/stores/index.js";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
@@ -50,7 +50,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
       try {
         setLoading(true);
         const libraryId = streamStore.streams[slug]?.libraryId;
-      await dataStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug});
+      await streamStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug});
         const stream = streamStore.streams[slug];
 
         setFormData({
@@ -218,7 +218,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                               objectId: params.id,
                               profileSlug: currentConfigProfile
                             });
-                            await dataStore.LoadDetails({
+                            await streamStore.LoadDetails({
                               objectId: params.id,
                               slug
                             });
@@ -264,7 +264,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                       multiline
                       w={460}
                       label={
-                        Object.values(rootStore.client.permissionLevels).map(({short, description}) =>
+                        Object.values(dataStore.client.permissionLevels).map(({short, description}) =>
                           <Flex
                             key={`permission-info-${short}`}
                             gap="1rem"
@@ -291,9 +291,9 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                   target: {name: "permission", value}}
                 )}
                 data={
-                  Object.keys(rootStore.client.permissionLevels || {}).map(permissionName => (
+                  Object.keys(dataStore.client.permissionLevels || {}).map(permissionName => (
                     {
-                      label: rootStore.client.permissionLevels[permissionName].short,
+                      label: dataStore.client.permissionLevels[permissionName].short,
                       value: permissionName
                     }
                   ))

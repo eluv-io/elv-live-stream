@@ -44,7 +44,7 @@ const OverflowMenu = observer(({stream}) => {
       Icon: <IconCopy {...iconProps} />,
       hide: !stream.embedUrl,
       onClick: async() => {
-        const url = await dataStore.EmbedUrl({objectId: stream.objectId});
+        const url = await streamStore.EmbedUrl({objectId: stream.objectId});
         clipboard.copy(url);
         notifications.show({title: "Copied embed url", message: ""});
       }

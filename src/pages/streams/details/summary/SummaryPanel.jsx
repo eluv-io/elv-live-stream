@@ -12,7 +12,7 @@ import {
   TextInput,
   Tooltip
 } from "@mantine/core";
-import {dataStore, streamStore, streamEditStore} from "@/stores/index.js";
+import {streamStore, streamEditStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
 import {
@@ -83,7 +83,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   useEffect(() => {
     const LoadData = async() => {
       const libraryId = streamStore.streams[slug]?.libraryId;
-      await dataStore.LoadSummaryData({objectId: params.id, libraryId, slug});
+      await streamStore.LoadSummaryData({objectId: params.id, libraryId, slug});
     };
 
     const LoadStatus = async () => {
@@ -102,7 +102,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
     };
 
     const LoadEmbedUrl = async() => {
-      const url = await dataStore.EmbedUrl({objectId: params.id});
+      const url = await streamStore.EmbedUrl({objectId: params.id});
       setEmbedUrl(url);
     };
 
