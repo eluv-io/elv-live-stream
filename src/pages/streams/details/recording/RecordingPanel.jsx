@@ -288,6 +288,7 @@ const RecordingPanel = observer(({
           <SimpleGrid cols={2} spacing={150} mb={29}>
             <Checkbox
               label="Enable Multi-Path Distribution"
+              description="Distribute content across multiple delivery paths"
               checked={multiPathEnabled}
               onChange={(event) => setMultiPathEnabled(event.target.checked)}
             />
