@@ -1,27 +1,13 @@
 import {Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/core";
-import {IconCheck, IconCancel, IconRotateClockwise, IconRouteOff, IconRoute, IconTrash} from "@tabler/icons-react";
 import styles from "./BatchActions.module.css";
-import {outputModalStore} from "@/stores/index.js";
 
 const BatchActions = ({
+  actions,
   selectedRecords,
   SelectAll,
   mb,
 }) => {
-  const noSelectedRecords = selectedRecords.length === 0;
-  const slugs = () => selectedRecords.map(r => r.slug);
-
-  const actions = [
-    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => outputModalStore.OpenModal("map", slugs()), disabled: noSelectedRecords},
-    {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => outputModalStore.OpenModal("unmap", slugs()), disabled: noSelectedRecords},
-    {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => outputModalStore.OpenModal("enable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.enabled))},
-    {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => outputModalStore.OpenModal("disable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => r.enabled))},
-    {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => outputModalStore.OpenModal("reset", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.reset))},
-    {icon: IconTrash, label: "Delete", id: "batch-delete", onClick: () => outputModalStore.OpenModal("delete", slugs()), disabled: (noSelectedRecords)}
-  ];
-
   const IconDisplay = Icon => <Icon size={16} />;
-
   return (
     <>
       <Box bg="elv-blue.0" p="3px 12px" mb={mb} className={styles.boxRounded}>

@@ -3,14 +3,11 @@ import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {
   ActionIcon,
   Box,
-  Button,
   Divider,
-  Flex,
   Group,
   Stack,
   Switch,
   Text,
-  TextInput,
   Title,
   UnstyledButton
 } from "@mantine/core";
@@ -18,47 +15,24 @@ import {outputModalStore, outputStore, rootStore} from "@/stores/index.js";
 import {DataTable} from "mantine-datatable";
 import {SanitizeUrl} from "@/utils/helpers.js";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
-import {IconCheck, IconCopy, IconExternalLink, IconSearch, IconTrash} from "@tabler/icons-react";
+import {
+  IconCancel,
+  IconCheck,
+  IconCopy,
+  IconExternalLink, IconRotateClockwise,
+  IconRoute,
+  IconRouteOff,
+  IconTrash
+} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
 import {useDebouncedCallback} from "@mantine/hooks";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
-import BatchActions from "@/pages/outputs/batch-actions/BatchActions.jsx";
+import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {useNavigate} from "react-router-dom";
+import Actions from "@/components/table/actions/Actions.jsx";
 
-const Actions = ({onRefreshClick, mb, onSetActiveModal}) => {
-  return (
-    <>
-      <Flex w="100%" align="start" mb={mb}>
-        <TextInput
-          flex={2}
-          maw={400}
-          classNames={{input: styles.searchBar}}
-          placeholder="Search by object name or ID"
-          leftSection={<IconSearch width={15} height={15} />}
-          value={outputStore.tableFilter}
-          onChange={event => outputStore.SetTableFilter(event.target.value)}
-        />
-        <Group ml="auto" gap={8}>
-          <Button
-            variant="filled"
-            onClick={() => onSetActiveModal("create")}
-          >
-            Create
-          </Button>
-          <Button
-            onClick={onRefreshClick}
-            variant="outline"
-          >
-            Refresh
-          </Button>
-        </Group>
-      </Flex>
-
-    </>
-  );
-};
 
 const Outputs = observer(() => {
   const [loading, setLoading] = useState(false);
@@ -89,6 +63,18 @@ const Outputs = observer(() => {
   const records = outputStore.outputList;
   const selectedRecords = records.filter(r => selectedSlugs.includes(r.slug));
 
+  const noSelectedRecords = selectedRecords.length === 0;
+  const slugs = () => selectedRecords.map(r => r.slug);
+
+  const actions = [
+    {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => outputModalStore.OpenModal("map", slugs()), disabled: noSelectedRecords},
+    {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => outputModalStore.OpenModal("unmap", slugs()), disabled: noSelectedRecords},
+    {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => outputModalStore.OpenModal("enable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.enabled))},
+    {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => outputModalStore.OpenModal("disable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => r.enabled))},
+    {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => outputModalStore.OpenModal("reset", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.reset))},
+    {icon: IconTrash, label: "Delete", id: "batch-delete", onClick: () => outputModalStore.OpenModal("delete", slugs()), disabled: (noSelectedRecords)}
+  ];
+
   return (
     <>
       <PageContainer
@@ -96,11 +82,14 @@ const Outputs = observer(() => {
       >
         <Stack gap={0}>
           <Actions
-            onRefreshClick={DebouncedRefresh}
-            onSetActiveModal={outputModalStore.OpenModal}
             mb={20}
+            actions={[
+              {label: "Create", id: "create-action", variant: "filled", onClick: () => outputModalStore.OpenModal("create")},
+              {label: "Refresh", id: "create-action", variant: "outline", onClick: DebouncedRefresh}
+            ]}
           />
           <BatchActions
+            actions={actions}
             selectedRecords={selectedRecords}
             SelectAll={() => setSelectedSlugs(records.map(r => r.slug))}
             ClearSelection={() => setSelectedSlugs([])}
