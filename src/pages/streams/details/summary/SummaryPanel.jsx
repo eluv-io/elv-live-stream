@@ -67,8 +67,8 @@ export const Runtime = ({
   return time;
 };
 
-const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug}) => {
-  const [status, setStatus] = useState(null);
+const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug, status: cachedStatus}) => {
+  const [status, setStatus] = useState({state: cachedStatus});
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
@@ -179,11 +179,11 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   return (
     <>
       <Flex direction="row" gap={20} align="stretch">
-        <Stack gap={12}>
+        <Stack gap={12} w={355}>
           <SectionTitle>Preview</SectionTitle>
           {
             [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) &&
-            <Box w={355}>
+            <Box w="100%">
               <VideoContainer
                 index={0}
                 slug={slug}
