@@ -118,7 +118,84 @@ class StreamEditStore {
       };
     } catch(error) {
       // eslint-disable-next-line no-console
-      console.error("Failed to create stream.", error);
+      console.error("Failed to create stream", error);
+      throw error;
+    }
+  });
+
+  DuplicateStream = flow(function * ({
+    libraryId,
+    originalVersionHash,
+    originalSlug,
+    name,
+    url,
+    nodeId
+  }) {
+    try {
+      const originalStream = this.rootStore.streamStore.streams[originalSlug];
+      const targetTitle = name ?? `Copy ${originalStream?.name}`;
+
+      if(!libraryId) {
+        // Set target library to same as original object
+        libraryId = yield this.client.ContentObjectLibraryId({objectId: originalStream.objectId});
+      }
+
+      const response = yield this.client.CopyContentObject({
+        libraryId,
+        originalVersionHash,
+        options: {
+          type: this.rootStore.dataStore.titleContentType,
+          meta: {
+            public: {
+              name: targetTitle
+            }
+          }
+        }
+      });
+
+      const options = {
+        linkToSite: true,
+        name: targetTitle
+      };
+
+      if(nodeId) { options["ingressNodeId"] = nodeId; }
+
+      yield this.client.StreamCreate({
+        libraryId,
+        objectId: response.id,
+        url,
+        options
+      });
+
+
+      const statusResponse = yield this.rootStore.streamStore.CheckStatus({
+        objectId: response.id
+      });
+
+      const streamValue = {
+        objectId: response.id,
+        title: targetTitle,
+        status: statusResponse.state,
+      };
+
+      const streamDetails = yield this.rootStore.streamStore.LoadStreamMetadata({
+        objectId: response.id,
+        libraryId
+      }) || {};
+
+      Object.keys(streamDetails).forEach(detail => {
+        streamValue[detail] = streamDetails[detail];
+      });
+
+      this.rootStore.streamStore.UpdateStream({
+        key: slugify(targetTitle),
+        value: streamValue
+      });
+
+      return response;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to copy stream", error);
       throw error;
     }
   });

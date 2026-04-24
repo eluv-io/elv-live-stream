@@ -1,6 +1,8 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
+import {useDisclosure} from "@mantine/hooks";
+import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import {dataStore, modalStore, streamStore} from "@/stores";
 import {SortTable} from "@/utils/helpers";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
@@ -9,10 +11,12 @@ import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import Actions from "@/components/table/actions/Actions.jsx";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {notifications} from "@mantine/notifications";
+import {IconCopy, IconPlayerPlay, IconPlayerStop, IconTrash} from "@tabler/icons-react";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
+  const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
   const [debouncedFilter] = useDebouncedValue(streamStore.streamFilter, 200);
   const navigate = useNavigate();
 
@@ -46,26 +50,35 @@ const Streams = observer(() => {
     {
       label: "Start",
       id: "start-batch-action",
-      onClick: () => openBatchModal("START")
+      icon: IconPlayerPlay,
+      onClick: () => openBatchModal("START"),
+      disabled: selectedRecords.length === 0
     },
     {
       label: "Stop",
       id: "stop-batch-action",
-      onClick: () => openBatchModal("STOP")
+      icon: IconPlayerStop,
+      onClick: () => openBatchModal("STOP"),
+      disabled: selectedRecords.length === 0
     },
     {
       label: "Delete",
       id: "delete-batch-action",
+      icon: IconTrash,
       onClick: () => modalStore.SetBatchModal({
         op: "DELETE",
         records: selectedRecords.map(r => streamStore.streams[r.slug] ?? r),
         notifications,
         Callback: () => setSelectedRecords([])
-      })
+      }),
+      disabled: selectedRecords.length === 0
     },
     {
       label: "Duplicate",
-      id: "duplicate-batch-action"
+      id: "duplicate-batch-action",
+      icon: IconCopy,
+      onClick: openDuplicate,
+      disabled: selectedRecords.length === 0
     },
   ];
 
@@ -93,6 +106,11 @@ const Streams = observer(() => {
         onSelectedRecordsChange={setSelectedRecords}
         fetching={!dataStore.loaded}
         onNameClick={objectId => navigate(`/streams/${objectId}`)}
+      />
+      <DuplicateStreamModal
+        opened={showDuplicateModal}
+        onClose={closeDuplicate}
+        records={selectedRecords}
       />
     </PageContainer>
   );
