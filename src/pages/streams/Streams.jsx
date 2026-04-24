@@ -56,7 +56,12 @@ const Streams = observer(() => {
     {
       label: "Delete",
       id: "delete-batch-action",
-      onClick: () => openBatchModal("DELETE")
+      onClick: () => modalStore.SetBatchModal({
+        op: "DELETE",
+        records: selectedRecords.map(r => streamStore.streams[r.slug] ?? r),
+        notifications,
+        Callback: () => setSelectedRecords([])
+      })
     },
     {
       label: "Duplicate",
@@ -76,7 +81,7 @@ const Streams = observer(() => {
       />
       <BatchActions
         selectedRecords={selectedRecords}
-        SelectAll={setSelectedRecords}
+        SelectAll={() => setSelectedRecords(records)}
         ClearSelection={() => setSelectedRecords([])}
         actions={batchActions}
       />
