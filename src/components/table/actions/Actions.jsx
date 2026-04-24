@@ -3,7 +3,7 @@ import {Button, Flex, Group, TextInput} from "@mantine/core";
 import {IconSearch} from "@tabler/icons-react";
 import styles from "./Actions.module.css";
 
-const Actions = ({actions, mb}) => {
+const Actions = ({actions, mb=20}) => {
   return (
     <>
       <Flex w="100%" align="start" mb={mb}>

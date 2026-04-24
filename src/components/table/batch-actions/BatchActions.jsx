@@ -2,10 +2,10 @@ import {Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/
 import styles from "./BatchActions.module.css";
 
 const BatchActions = ({
-  actions,
-  selectedRecords,
+  actions=[],
+  selectedRecords=[],
   SelectAll,
-  mb,
+  mb=20,
 }) => {
   const IconDisplay = Icon => <Icon size={16} />;
   return (
@@ -42,7 +42,7 @@ const BatchActions = ({
                   fw={400}
                   miw={0}
                   h={30}
-                  leftSection={IconDisplay(action.icon)}
+                  leftSection={action.icon ? IconDisplay(action.icon) : null}
                   classNames={{root: styles.button, inner: styles.buttonInner}}
                   onClick={action.onClick}
                   disabled={action.disabled}

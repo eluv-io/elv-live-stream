@@ -82,7 +82,6 @@ const Outputs = observer(() => {
       >
         <Stack gap={0}>
           <Actions
-            mb={20}
             actions={[
               {label: "Create", id: "create-action", variant: "filled", onClick: () => outputModalStore.OpenModal("create")},
               {label: "Refresh", id: "create-action", variant: "outline", onClick: DebouncedRefresh}
@@ -93,7 +92,6 @@ const Outputs = observer(() => {
             selectedRecords={selectedRecords}
             SelectAll={() => setSelectedSlugs(records.map(r => r.slug))}
             ClearSelection={() => setSelectedSlugs([])}
-            mb={20}
           />
         </Stack>
         <Box className={sharedStyles.tableWrapper}>

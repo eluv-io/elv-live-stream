@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Box, Button, Flex, Grid, Modal, Text} from "@mantine/core";
+import {Box, Button, Flex, Grid, List, Modal, Text} from "@mantine/core";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
 
 const ConfirmModal = observer(({
@@ -8,6 +8,7 @@ const ConfirmModal = observer(({
   customMessage,
   title,
   detailData={},
+  batchSummary,
   ConfirmCallback,
   CloseCallback,
   show,
@@ -67,6 +68,21 @@ const ConfirmModal = observer(({
               </Grid>
             }
           </Box>
+        }
+        {
+          batchSummary &&
+          <List mt={12}>
+            {batchSummary.readyCount > 0 && (
+              <List.Item>
+                <Text>{batchSummary.readyCount} {batchSummary.readyCount === 1 ? "stream is" : "streams are"} ready to {batchSummary.op.toLowerCase()}</Text>
+              </List.Item>
+            )}
+            {batchSummary.notReadyCount > 0 && (
+              <List.Item>
+                <Text>{batchSummary.notReadyCount} {batchSummary.notReadyCount === 1 ? "stream is" : "streams are"} {batchSummary.skipLabel} and will be skipped</Text>
+              </List.Item>
+            )}
+          </List>
         }
         {
           loading && loadingText ?

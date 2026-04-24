@@ -1,4 +1,12 @@
 import {makeAutoObservable} from "mobx";
+import {STATUS_MAP} from "@/utils/constants.js";
+
+const BATCH_READY_STATUSES = {
+  START: {statuses: [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED], skipLabel: "already active or not configured"},
+  STOP: {statuses: [STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED], skipLabel: "not currently running"},
+  DEACTIVATE: {statuses: [STATUS_MAP.STOPPED], skipLabel: "not in a stopped state"},
+  DELETE: {statuses: [STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED, STATUS_MAP.UNCONFIGURED, STATUS_MAP.INITIALIZED], skipLabel: "currently active"}
+};
 
 // Centralizes control over all modal windows, managing their visibility, content, and properties.
 class ModalStore {
@@ -39,26 +47,22 @@ class ModalStore {
       errorMessage: "Configure Modal - Failed to check stream"
     },
     "START": {
-      title: "Start Stream",
+      title: "Start Stream Confirmation",
       message: "Are you sure you want to start the stream? Once started, the stream will go live, and any changes may require restarting. Please confirm before proceeding.",
       confirmText: "Start Stream",
       Method: ({slug}) => this.rootStore.streamStore.StartStream({slug}),
-      notification: () => {
-        return {
-          success: {
-            title: "Started Stream",
-            message: "Stream object was successfully started"
-          },
-          error: {
-            title: "Error",
-            message: "Unable to start stream"
-          }
-        };
-      },
+      notification: () => ({
+        success: {title: "Started Stream", message: "Stream was successfully started"},
+        error: {title: "Error", message: "Unable to start stream"}
+      }),
+      batchNotification: (count) => ({
+        success: {title: "Started Streams", message: `${count} ${count === 1 ? "stream" : "streams"} successfully started`},
+        error: {title: "Error", message: "Unable to start one or more streams"}
+      }),
       errorMessage: ""
     },
     "STOP": {
-      title: "Stop Stream",
+      title: "Stop Stream Confirmation",
       message: "Are you sure you want to stop the stream? Once stopped, viewers will be disconnected, and the stream cannot be resumed. You can start a new session later if needed.",
       confirmText: "Stop Stream",
       Method: ({objectId, slug}) => this.rootStore.streamStore.OperateLRO({
@@ -66,18 +70,14 @@ class ModalStore {
         slug,
         operation: "STOP"
       }),
-      notification: () => {
-        return {
-          success: {
-            title: "Stopped Stream",
-            message: "Stream object was successfully stopped"
-          },
-          error: {
-            title: "Error",
-            message: "Unable to stop stream"
-          }
-        };
-      },
+      notification: () => ({
+        success: {title: "Stopped Stream", message: "Stream was successfully stopped"},
+        error: {title: "Error", message: "Unable to stop stream"}
+      }),
+      batchNotification: (count) => ({
+        success: {title: "Stopped Streams", message: `${count} ${count === 1 ? "stream" : "streams"} successfully stopped`},
+        error: {title: "Error", message: "Unable to stop one or more streams"}
+      }),
       errorMessage: ""
     },
     "DEACTIVATE": {
@@ -88,18 +88,14 @@ class ModalStore {
         objectId,
         slug
       }),
-      notification: () => {
-        return {
-          success: {
-            title: "Deactivated Stream",
-            message: "Stream object was successfully deactivated"
-          },
-          error: {
-            title: "Error",
-            message: "Unable to deactivate stream"
-          }
-        };
-      },
+      notification: () => ({
+        success: {title: "Deactivated Stream", message: "Stream was successfully deactivated"},
+        error: {title: "Error", message: "Unable to deactivate stream"}
+      }),
+      batchNotification: (count) => ({
+        success: {title: "Deactivated Streams", message: `${count} ${count === 1 ? "stream" : "streams"} successfully deactivated`},
+        error: {title: "Error", message: "Unable to deactivate one or more streams"}
+      }),
       errorMessage: ""
     },
     "DELETE": {
@@ -107,18 +103,14 @@ class ModalStore {
       message: "Are you sure you want to delete the stream?",
       confirmText: "Delete Stream",
       Method: ({objectId}) => this.rootStore.streamEditStore.DeleteStream({objectId}),
-      notification: ({objectId}) => {
-        return {
-          success: {
-            title: "Stream Deleted",
-            message: `${objectId} was successfully deleted`
-          },
-          error: {
-            title: "Error",
-            message: "Unable to delete object"
-          }
-        };
-      },
+      notification: ({objectId}) => ({
+        success: {title: "Stream Deleted", message: `${objectId} was successfully deleted`},
+        error: {title: "Error", message: "Unable to delete object"}
+      }),
+      batchNotification: (count) => ({
+        success: {title: "Streams Deleted", message: `${count} ${count === 1 ? "stream" : "streams"} successfully deleted`},
+        error: {title: "Error", message: "Unable to delete one or more streams"}
+      }),
       errorMessage: ""
     }
   };
@@ -131,33 +123,21 @@ class ModalStore {
     this.rootStore = rootStore;
   }
 
-  HandleStreamAction = async({
-    objectId,
-    slug,
-    op,
-    Callback,
-    notifications
-  }) => {
-    const {Method, errorMessage} = this.OP_MAP[op];
-
-    const notification = this.OP_MAP[op].notification({objectId});
+  HandleStreamAction = async({records, op, Callback, notifications}) => {
+    const {Method, errorMessage, batchNotification, notification} = this.OP_MAP[op];
+    const isBatch = records.length > 1;
+    const notif = isBatch ? batchNotification(records.length) : notification({objectId: records[0]?.objectId});
 
     try {
-      await Method({objectId, slug});
+      await Promise.all(records.map(record => Method({objectId: record.objectId, slug: record.slug})));
 
-      if(notifications && notification) {
-        notifications.show({
-          title: notification.success.title,
-          message: notification.success.message
-        });
+      if(notifications && notif) {
+        notifications.show({title: notif.success.title, message: notif.success.message});
       }
 
       if(Callback && typeof Callback === "function") {
         const result = Callback();
-
-        if(result instanceof Promise) {
-          await result;
-        }
+        if(result instanceof Promise) { await result; }
       }
     } catch(error) {
       if(errorMessage) {
@@ -165,12 +145,8 @@ class ModalStore {
         console.error(errorMessage, error);
       }
 
-      if(notifications && notification) {
-        notifications.show({
-          title: notification.error.title,
-          color: "red",
-          message: notification.error.message
-        });
+      if(notifications && notif) {
+        notifications.show({title: notif.error.title, color: "red", message: notif.error.message});
       }
 
       throw error;
@@ -223,14 +199,36 @@ class ModalStore {
         nameKey: "Stream Name:"
       },
       ConfirmCallback: () => this.HandleStreamAction({
-        objectId: data.objectId,
+        records: [{objectId: data.objectId, slug}],
         op,
-        slug,
         Callback,
         notifications
       }),
       CloseCallback: () => this.ResetModal(),
       show: true
+    };
+  };
+
+  SetBatchModal = ({records, op, Callback, notifications}) => {
+    const {title, message, confirmText} = this.OP_MAP[op];
+    const {statuses: readyStatuses, skipLabel} = BATCH_READY_STATUSES[op] || {};
+    const readyCount = records.filter(r => readyStatuses.includes(r.status)).length;
+    const notReadyCount = records.length - readyCount;
+
+    this.modalData = {
+      ...this.modalData,
+      title,
+      message,
+      confirmText,
+      show: true,
+      batchSummary: {readyCount, notReadyCount, op, skipLabel},
+      ConfirmCallback: () => this.HandleStreamAction({
+        records: records.filter(r => readyStatuses.includes(r.status)),
+        op,
+        Callback,
+        notifications
+      }),
+      CloseCallback: () => this.ResetModal()
     };
   };
 

@@ -1,12 +1,14 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
-import {dataStore, streamStore} from "@/stores";
+import {dataStore, modalStore, streamStore} from "@/stores";
 import {SortTable} from "@/utils/helpers";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import Actions from "@/components/table/actions/Actions.jsx";
+import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
+import {notifications} from "@mantine/notifications";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -28,16 +30,55 @@ const Streams = observer(() => {
     })
     .sort(SortTable({sortStatus}));
 
+  const refreshSelectedStatus = () =>
+    Promise.all(selectedRecords.map(r => streamStore.CheckStatus({objectId: r.objectId, slug: r.slug, update: true})));
+
+  const openBatchModal = (op) => {
+    modalStore.SetBatchModal({
+      op,
+      records: selectedRecords.map(r => streamStore.streams[r.slug] ?? r),
+      notifications,
+      Callback: refreshSelectedStatus
+    });
+  };
+
+  const batchActions = [
+    {
+      label: "Start",
+      id: "start-batch-action",
+      onClick: () => openBatchModal("START")
+    },
+    {
+      label: "Stop",
+      id: "stop-batch-action",
+      onClick: () => openBatchModal("STOP")
+    },
+    {
+      label: "Delete",
+      id: "delete-batch-action",
+      onClick: () => openBatchModal("DELETE")
+    },
+    {
+      label: "Duplicate",
+      id: "duplicate-batch-action"
+    },
+  ];
+
   return (
     <PageContainer
       title="Streams"
     >
       <Actions
-        mb={16}
         actions={[
           {label: "Create", id: "create-action", variant: "filled", onClick: () => navigate("/streams/create")},
           {label: "Refresh", id: "refresh-action", variant: "outline", onClick: DebouncedRefresh}
         ]}
+      />
+      <BatchActions
+        selectedRecords={selectedRecords}
+        SelectAll={setSelectedRecords}
+        ClearSelection={() => setSelectedRecords([])}
+        actions={batchActions}
       />
       <StreamsTable
         records={records}
