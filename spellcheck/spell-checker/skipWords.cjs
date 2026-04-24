@@ -76,6 +76,7 @@ module.exports = [
   "nb",
   "neue",
   "noreferrer",
+  "notif",
   "nowrap",
   "num",
   "unmap",
