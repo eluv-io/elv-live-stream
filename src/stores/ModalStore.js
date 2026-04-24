@@ -129,7 +129,11 @@ class ModalStore {
     const notif = isBatch ? batchNotification(records.length) : notification({objectId: records[0]?.objectId});
 
     try {
-      await Promise.all(records.map(record => Method({objectId: record.objectId, slug: record.slug})));
+      if(isBatch && op === "DELETE") {
+        await this.rootStore.streamEditStore.DeleteStreamBatch({objects: records});
+      } else {
+        await Promise.all(records.map(record => Method({objectId: record.objectId, slug: record.slug})));
+      }
 
       if(notifications && notif) {
         notifications.show({title: notif.success.title, message: notif.success.message});

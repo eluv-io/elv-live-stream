@@ -148,6 +148,46 @@ class StreamEditStore {
     this.rootStore.streamStore.UpdateStreams({streams});
   });
 
+  DeleteStreamBatch = flow(function * ({objects}) {
+    const streams = Object.assign({}, this.rootStore.streamStore.streams);
+
+    const resolved = objects.map(object => ({
+      objectId: object.objectId,
+      slug: object.slug ?? Object.keys(streams).find(slug => streams[slug].objectId === object.objectId)
+    }));
+
+    const {writeToken} = yield this.client.EditContentObject({
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId
+    });
+
+    for(const {objectId, slug} of resolved) {
+      yield this.client.StreamRemoveLinkToSite({objectId, slug, writeToken, finalize: false});
+
+      try {
+        yield this.client.DeleteContentObject({
+          libraryId: yield this.client.ContentObjectLibraryId({objectId}),
+          objectId
+        });
+      } catch(error) {
+        // eslint-disable-next-line no-console
+        console.log(`Content object ${objectId} has already been deleted. Removed from the site object.`);
+      }
+
+      delete streams[slug];
+    }
+
+    yield this.client.FinalizeContentObject({
+      libraryId: this.rootStore.dataStore.siteLibraryId,
+      objectId: this.rootStore.dataStore.siteId,
+      writeToken,
+      commitMessage: "Remove live streams",
+      awaitCommitConfirmation: true
+    });
+
+    this.rootStore.streamStore.UpdateStreams({streams});
+  });
+
   // Permissions & Access
 
   SetPermission = flow(function * ({objectId, permission}) {
