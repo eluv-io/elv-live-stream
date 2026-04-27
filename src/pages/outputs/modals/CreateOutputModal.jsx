@@ -70,7 +70,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       notifications.show({
         title: "Error",
         color: "red",
-        message: "Unable to create output"
+        message: typeof error === "string" ? error : "Unable to create output"
       });
     } finally {
       setIsSaving(false);

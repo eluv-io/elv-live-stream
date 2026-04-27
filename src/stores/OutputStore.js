@@ -153,6 +153,10 @@ class OutputStore {
     stripRtp
   }) {
     try {
+      if(!this.outputSettingsId) {
+        throw "No output settings object found. Please create one before adding outputs.";
+      }
+
       if(!name) {
         name = `Output ${this.outputList?.length + 1}`;
       }
