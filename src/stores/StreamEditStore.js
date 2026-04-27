@@ -39,7 +39,6 @@ class StreamEditStore {
    */
   InitLiveStreamObject = flow(function * ({
     objectId,
-    audioFormData,
     accessGroup,
     description,
     displayTitle,
@@ -54,18 +53,11 @@ class StreamEditStore {
     url
   }) {
     try {
-      Object.keys(audioFormData || {}).forEach(index => {
-        if(!audioFormData[index].record) {
-          delete audioFormData[index];
-        }
-      });
-
       const config = ParseLiveConfigData({
         encryption,
         configProfile,
         retention,
-        persistent,
-        audioFormData
+        persistent
       });
 
       const groupAddress = this.rootStore.dataStore.accessGroups[accessGroup]?.address;
@@ -1348,6 +1340,11 @@ class StreamEditStore {
         writeToken,
         metadataSubtree: "live_recording_config/recording_stream_config/audio"
       });
+    }
+
+    const audioKeys = Object.keys(audioData || {});
+    if(audioKeys.length === 1) {
+      audioData = {...audioData, [audioKeys[0]]: {...audioData[audioKeys[0]], default: true}};
     }
 
     yield this.client.ReplaceMetadata({

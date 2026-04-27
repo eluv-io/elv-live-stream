@@ -915,6 +915,14 @@ class StreamStore {
         metadataSubtree: "live_recording_config/recording_stream_config/audio"
       });
 
+      // If profile has no audio data, get ladderSpecs for default value
+      const ladderSpecs = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording/recording_config/recording_params/ladder_specs"
+      });
+      const audioLadderSpecs = (ladderSpecs || []).filter(spec => spec.representation.includes("audio"));
+
       const audioStreams = (probeMetadata.streams || [])
         .filter(stream => stream.codec_type === "audio");
 
@@ -922,6 +930,7 @@ class StreamStore {
       const audioData = {};
       audioStreams.forEach((spec, i) => {
         const audioConfigForIndex = audioConfig && audioConfig[spec.stream_index] ? audioConfig[spec.stream_index] : {};
+        const audioLadderSpecForIndex = audioLadderSpecs.find(spec => spec.stream_index === spec.stream_index);
 
         const initBitrate = RECORDING_BITRATE_OPTIONS.map(option => option.value).includes(spec.bit_rate) ? spec.bit_rate : 192000;
 
@@ -934,7 +943,7 @@ class StreamStore {
           playout: Object.hasOwn(audioConfigForIndex, "playout") ? audioConfigForIndex.playout : true,
           playout_label: audioConfigForIndex.playout_label || `Audio ${i + 1}`,
           lang: audioConfigForIndex?.lang,
-          default: audioConfigForIndex?.default
+          default: audioConfigForIndex?.default ?? audioLadderSpecForIndex.default
         };
       });
 
