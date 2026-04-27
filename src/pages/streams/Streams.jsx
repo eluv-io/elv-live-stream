@@ -78,7 +78,7 @@ const Streams = observer(() => {
       id: "duplicate-batch-action",
       icon: IconCopy,
       onClick: openDuplicate,
-      disabled: selectedRecords.length === 0
+      disabled: selectedRecords.length !== 1
     },
   ];
 
