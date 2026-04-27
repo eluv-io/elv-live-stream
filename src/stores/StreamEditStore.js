@@ -134,7 +134,7 @@ class StreamEditStore {
 
       const response = yield this.client.CopyContentObject({
         libraryId,
-        originalVersionHash,
+        originalVersionHash: originalVersionHash || originalStream?.versionHash,
         options: {
           type: this.rootStore.dataStore.titleContentType,
           meta: {
