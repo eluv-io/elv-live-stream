@@ -9,6 +9,7 @@ import {
   DateFormat,
   Pluralize,
   RecordingPeriodIsExpired,
+  RelativeTime,
   SortTable
 } from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
@@ -134,12 +135,13 @@ const RecordingPeriodsTable = observer(({
         return !expired;
       }
     });
+  const isDisconnected = !!records?.[0]?.end_time;
 
   const periodsSummaryData = [
-    {label: "Status", id: "period-status"},
+    {label: "Status", id: "period-status", value: isDisconnected ? "Disconnected" : "Recording"},
     {label: "Last Start", id: "period-last-start", value: status?.recordingPeriod?.startTimeEpochSec ? DateFormat({time: status?.recordingPeriod?.startTimeEpochSec, format: "sec"}) : ""},
     {label: "Runtime", id: "period-runtime", value: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({startTime: status?.recordingPeriod?.startTimeEpochSec * 1000, currentTimeMs, active: true, format: "hh:mm:ss"}) : ""},
-    {label: "Last Incident", id: "period-last-incident"},
+    {label: "Last Incident", id: "period-last-incident", value: RelativeTime(records?.[1]?.end_time)},
     {label: "Periods", id: "period-count", value: (records || []).length},
     {label: "Retention", id: "period-retention", value: retention ? RETENTION_TEXT[retention] : ""},
   ];

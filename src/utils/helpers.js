@@ -364,3 +364,17 @@ export const DeriveSourceAndPackaging = ({url, inputCfg}) => {
 
   return {source, packaging};
 };
+
+const rtf = new Intl.RelativeTimeFormat("en", {numeric: "auto"});
+
+export const RelativeTime = (date) => {
+  if(!date) { return ""; }
+
+  const diff = Math.floor((new Date(date).getTime() - Date.now()) / 1000);
+  if(Math.abs(diff) < 60) { return rtf.format(diff, "second"); }
+  const minutes = Math.floor(diff / 60);
+  if(Math.abs(minutes) < 60) { return rtf.format(minutes, "minute"); }
+  const hours = Math.floor(minutes / 60);
+  if(Math.abs(hours) < 24) { return rtf.format(hours, "hour"); }
+  return rtf.format(Math.floor(hours / 24), "day");
+};
