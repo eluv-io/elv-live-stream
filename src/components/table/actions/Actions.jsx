@@ -1,9 +1,13 @@
-import {outputStore} from "@/stores/index.js";
 import {Button, Flex, Group, TextInput} from "@mantine/core";
 import {IconSearch} from "@tabler/icons-react";
 import styles from "./Actions.module.css";
 
-const Actions = ({actions, mb=20}) => {
+const Actions = ({
+  actions,
+  mb=20,
+  searchValue,
+  onSearchChange
+}) => {
   return (
     <>
       <Flex w="100%" align="start" mb={mb}>
@@ -13,8 +17,8 @@ const Actions = ({actions, mb=20}) => {
           classNames={{input: styles.searchBar}}
           placeholder="Search by object name or ID"
           leftSection={<IconSearch width={15} height={15} />}
-          value={outputStore.tableFilter}
-          onChange={event => outputStore.SetTableFilter(event.target.value)}
+          value={searchValue}
+          onChange={onSearchChange}
         />
         <Group ml="auto" gap={8}>
           {

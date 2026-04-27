@@ -84,8 +84,10 @@ const Outputs = observer(() => {
           <Actions
             actions={[
               {label: "Create", id: "create-action", variant: "filled", onClick: () => outputModalStore.OpenModal("create")},
-              {label: "Refresh", id: "create-action", variant: "outline", onClick: DebouncedRefresh}
+              {label: "Refresh", id: "refresh-action", variant: "outline", onClick: DebouncedRefresh}
             ]}
+            searchValue={outputStore.tableFilter}
+            onSearchChange={event => outputStore.SetTableFilter(event.target.value)}
           />
           <BatchActions
             actions={actions}

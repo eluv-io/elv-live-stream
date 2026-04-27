@@ -17,7 +17,7 @@ const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
-  const [debouncedFilter] = useDebouncedValue(streamStore.streamFilter, 200);
+  const [debouncedFilter] = useDebouncedValue(streamStore.tableFilter, 200);
   const navigate = useNavigate();
 
   const DebouncedRefresh = useDebouncedCallback(async() => {
@@ -91,6 +91,8 @@ const Streams = observer(() => {
           {label: "Create", id: "create-action", variant: "filled", onClick: () => navigate("/streams/create")},
           {label: "Refresh", id: "refresh-action", variant: "outline", onClick: DebouncedRefresh}
         ]}
+        searchValue={streamStore.tableFilter}
+        onSearchChange={(event) => streamStore.SetTableFilter(event.target.value)}
       />
       <BatchActions
         selectedRecords={selectedRecords}

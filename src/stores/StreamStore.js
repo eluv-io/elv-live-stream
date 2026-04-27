@@ -10,7 +10,7 @@ class StreamStore {
   streamFrameUrls = {};
   showMonitorPreviews = false;
   loadingStatus = false;
-  streamFilter = "";
+  tableFilter = "";
 
   constructor(rootStore) {
     makeAutoObservable(this);
@@ -40,8 +40,8 @@ class StreamStore {
     this.streams = streams;
   };
 
-  SetStreamFilter = ({filter}) => {
-    this.streamFilter = filter;
+  SetTableFilter = (filter) => {
+    this.tableFilter = filter;
   };
 
   CheckStatus = flow(function * ({
@@ -393,7 +393,7 @@ class StreamStore {
 
       return summaryData;
     } catch(error) {
-       
+
       console.error("Unable to load summary data", error);
       return {};
     }
@@ -423,8 +423,8 @@ class StreamStore {
           objectId,
           metadataSubtree: "live_recording/recording_config/recording_params/origin_url"
         }),
-        this.LoadPermission({libraryId, objectId}),
-        this.LoadAccessGroupPermissions({objectId})
+        this.rootStore.dataStore.LoadPermission({libraryId, objectId}),
+        this.rootStore.dataStore.LoadAccessGroupPermissions({objectId})
       ]);
 
       const generalConfigData = {
@@ -442,7 +442,7 @@ class StreamStore {
 
       return generalConfigData;
     } catch(error) {
-       
+
       console.error("Unable to load general config data", error);
       return {};
     }
@@ -503,7 +503,7 @@ class StreamStore {
 
       return recordingData;
     } catch(error) {
-       
+
       console.error("Unable to load recording config data", error);
       return {};
     }
@@ -567,7 +567,7 @@ class StreamStore {
 
       return playoutData;
     } catch(error) {
-       
+
       console.error("Unable to load playout config data", error);
       return {};
     }
@@ -608,11 +608,11 @@ class StreamStore {
               streamMetadata[slug][detail] = streamDetails[detail];
             });
           } else {
-             
+
             console.error(`No version hash for ${slug}`);
           }
         } catch(error) {
-           
+
           console.error(`Failed to load stream ${slug}`, error);
         }
       }
@@ -650,7 +650,7 @@ class StreamStore {
         packaging
       };
     } catch(error) {
-       
+
       console.error("Unable to load stream list data", error);
     }
   });
@@ -784,7 +784,7 @@ class StreamStore {
         sourceInputStats
       };
     } catch(error) {
-       
+
       console.error("Unable to load stream metadata", error);
     }
   });
@@ -827,7 +827,7 @@ class StreamStore {
         }
       });
     } catch(error) {
-       
+
       console.error("Unable to load stream metadata", error);
     }
   });
@@ -859,7 +859,7 @@ class StreamStore {
           select: ["recordings", "recording_config"]
         });
       } catch(error) {
-         
+
         console.error("Unable to load edge write token metadata", error);
       }
 
@@ -869,7 +869,7 @@ class StreamStore {
         ...metadata?.recordings
       };
     } catch(error) {
-       
+
       console.error("Unable to load metadata with edge write token", error);
       return {};
     }
@@ -943,7 +943,7 @@ class StreamStore {
         audioData
       };
     } catch(error) {
-       
+
       console.error("Unable to load live_recording metadata", error);
     }
   });
@@ -952,7 +952,7 @@ class StreamStore {
     try {
       return this.client.EmbedUrl({objectId, mediaType: "live_video"});
     } catch(error) {
-       
+
       console.error("Unable to load embed url", error);
       return "";
     }
