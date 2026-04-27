@@ -94,6 +94,7 @@ module.exports = [
   "resize",
   "retrans",
   "roboto",
+  "rtf",
   "rtmp",
   "rtp",
   "sandboxed",
