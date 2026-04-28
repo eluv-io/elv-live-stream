@@ -504,17 +504,17 @@ class StreamEditStore {
       }));
     }
 
-    const existing = yield this.client.ContentObjectMetadata({
+    const existingConfig = yield this.client.ContentObjectMetadata({
       libraryId,
       objectId,
       writeToken,
       metadataSubtree: "live_recording_config"
     });
 
-    const recordingConfig = {...existing?.recording_config};
-    if(retention !== undefined)           recordingConfig.part_ttl = parseInt(retention);
-    if(persistent !== undefined)          recordingConfig.persistent = persistent;
-    if(connectionTimeout !== undefined)   recordingConfig.connection_timeout = parseInt(connectionTimeout);
+    const recordingConfig = {...existingConfig?.recording_config};
+    if(retention !== undefined) recordingConfig.part_ttl = parseInt(retention);
+    if(persistent !== undefined) recordingConfig.persistent = persistent;
+    if(connectionTimeout !== undefined) recordingConfig.connection_timeout = parseInt(connectionTimeout);
     if(reconnectionTimeout !== undefined) recordingConfig.reconnect_timeout = parseInt(reconnectionTimeout);
     if(copyMpegTs !== undefined) {
       recordingConfig.copy_mpegts = copyMpegTs;
@@ -527,12 +527,12 @@ class StreamEditStore {
       } : {};
     }
 
-    const recordingStreamConfig = {...existing?.recording_stream_config};
+    const recordingStreamConfig = {...existingConfig?.recording_stream_config};
     if(audioData !== undefined) {
       recordingStreamConfig.audio = audioData;
     }
 
-    const playoutConfig = {...existing?.playout_config};
+    const playoutConfig = {...existingConfig?.playout_config};
     if(!skipDvrSection && dvrEnabled !== undefined) {
       playoutConfig.dvr = dvrEnabled;
       if(dvrEnabled) {
@@ -544,22 +544,91 @@ class StreamEditStore {
       }
     }
 
-    const newMetadata = {...existing, recording_config: recordingConfig, playout_config: playoutConfig, recording_stream_config: recordingStreamConfig};
-
     yield this.client.ReplaceMetadata({
       libraryId,
       objectId,
       writeToken,
       metadataSubtree: "live_recording_config",
-      metadata: {...existing, recording_config: recordingConfig, playout_config: playoutConfig, recording_stream_config: recordingStreamConfig}
+      metadata: {...existingConfig, recording_config: recordingConfig, playout_config: playoutConfig, recording_stream_config: recordingStreamConfig}
     });
 
-    yield this.client.StreamConfig({
-      name: objectId,
-      writeToken,
-      liveRecordingConfig: newMetadata,
-      finalize: false
-    });
+    if(retention !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/part_ttl",
+        metadata: parseInt(retention)
+      });
+    }
+
+    if(persistent !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/persistent",
+        metadata: persistent
+      });
+    }
+
+    if(connectionTimeout !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/connection_timeout",
+        metadata: parseInt(connectionTimeout)
+      });
+    }
+
+    if(reconnectionTimeout !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/reconnect_timeout",
+        metadata: parseInt(reconnectionTimeout)
+      });
+    }
+
+    if(copyMpegTs !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/copy_mpegts",
+        metadata: copyMpegTs
+      });
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg",
+        metadata: copyMpegTs ? {
+          bypass_libav_reader: true,
+          copy_mode: copyMode,
+          copy_packaging: inputPackaging,
+          custom_read_loop_enabled: customReadLoop,
+          input_packaging: inputPackaging
+        } : {}
+      });
+    }
+
+    if(!skipDvrSection && dvrEnabled !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/playout_config/dvr_enabled",
+        metadata: dvrEnabled
+      });
+      if(dvrEnabled) {
+        if(dvrStartTime != null) {
+          yield this.client.ReplaceMetadata({
+            libraryId, objectId, writeToken,
+            metadataSubtree: "live_recording/playout_config/dvr_start_time",
+            metadata: new Date(dvrStartTime).toISOString()
+          });
+        }
+        if(dvrMaxDuration != null) {
+          yield this.client.ReplaceMetadata({
+            libraryId, objectId, writeToken,
+            metadataSubtree: "live_recording/playout_config/dvr_max_duration",
+            metadata: parseInt(dvrMaxDuration)
+          });
+        }
+      } else {
+        yield this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording/playout_config/dvr_start_time"});
+        yield this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording/playout_config/dvr_max_duration"});
+      }
+    }
 
     if(finalize) {
       yield this.client.FinalizeContentObject({
