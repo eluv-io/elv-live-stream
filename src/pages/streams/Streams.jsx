@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
@@ -20,8 +20,14 @@ const Streams = observer(() => {
   const [debouncedFilter] = useDebouncedValue(streamStore.tableFilter, 200);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if(!dataStore.streamsLoaded) {
+      dataStore.LoadSiteStreams();
+    }
+  }, []);
+
   const DebouncedRefresh = useDebouncedCallback(async() => {
-    await dataStore.Initialize(true);
+    await dataStore.LoadSiteStreams(true);
   }, 500);
 
   const records = Object.values(streamStore.streams || {})
@@ -106,7 +112,7 @@ const Streams = observer(() => {
         onSortStatusChange={setSortStatus}
         selectedRecords={selectedRecords}
         onSelectedRecordsChange={setSelectedRecords}
-        fetching={!dataStore.loaded}
+        fetching={!dataStore.streamsLoaded}
         onNameClick={objectId => navigate(`/streams/${objectId}`)}
       />
       <DuplicateStreamModal

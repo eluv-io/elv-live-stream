@@ -45,7 +45,7 @@ class RootStore {
       this.networkInfo = yield this.client.NetworkInfo();
       this.contentSpaceId = yield this.client.ContentSpaceId();
 
-      this.dataStore.Initialize();
+      yield this.dataStore.Initialize();
     } catch(error) {
       /* eslint-disable no-console */
       console.error("Failed to initialize application");

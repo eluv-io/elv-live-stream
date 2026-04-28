@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
@@ -218,6 +218,12 @@ const Monitor = observer(() => {
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
 
+  useEffect(() => {
+    if(!dataStore.streamsLoaded) {
+      dataStore.LoadSiteStreams();
+    }
+  }, []);
+
   const streams = !streamStore.streams ? undefined :
     Object.values(streamStore.streams || {})
       .filter(record => {
@@ -252,25 +258,24 @@ const Monitor = observer(() => {
         </Button>
       </Flex>
       {
-        !dataStore.tenantId ? null :
-          !streams ?
-            <Box maw={200}>
-              <Loader />
-            </Box> :
-            streams.length === 0 ? (debouncedFilter ? "No Matching Streams" : "No Streams Found") :
-              <SimpleGrid cols={4} spacing="lg">
-                {
-                  streams.map((stream, index) => {
-                    return (
-                      <GridItem
-                        key={stream.slug}
-                        stream={stream}
-                        index={index}
-                      />
-                    );
-                  })
-                }
-              </SimpleGrid>
+        !streams ?
+          <Box maw={200}>
+            <Loader />
+          </Box> :
+          streams.length === 0 ? (debouncedFilter ? "No Matching Streams" : "No Streams Found") :
+            <SimpleGrid cols={4} spacing="lg">
+              {
+                streams.map((stream, index) => {
+                  return (
+                    <GridItem
+                      key={stream.slug}
+                      stream={stream}
+                      index={index}
+                    />
+                  );
+                })
+              }
+            </SimpleGrid>
       }
     </PageContainer>
   );

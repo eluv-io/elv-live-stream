@@ -1,5 +1,5 @@
 // Handles all metadata reads — tenant info, stream metadata, recording/playout config, probe data, permissions, and ladder profiles.
-import {flow, makeAutoObservable, runInAction, toJS} from "mobx";
+import {flow, makeAutoObservable, observable, runInAction, toJS} from "mobx";
 
 class DataStore {
   rootStore;
@@ -11,13 +11,15 @@ class DataStore {
   titleContentType;
   siteId;
   siteLibraryId;
+  streamMetadata;
   liveStreamUrls;
   dedicatedNodes;
   srtUrlsByStream;
   loadedDedicatedNodes = false;
+  streamsLoaded = false;
 
   constructor(rootStore) {
-    makeAutoObservable(this);
+    makeAutoObservable(this, {streamMetadata: observable.ref});
 
     runInAction(() => {
       this.rootStore = rootStore;
@@ -39,81 +41,32 @@ class DataStore {
     return this.dedicatedNodes?.[nodeId]?.urls?.[protocol] ?? [];
   }
 
-  Initialize = flow(function * (reload=false) {
+  Initialize = flow(function * () {
     this.loaded = false;
     try {
-      const tenantContractId = yield this.LoadTenantInfo();
-      const {streamMetadata, siteObjectId, siteLibraryId} = yield this.LoadTenantData({tenantContractId});
-
-      this.siteId = siteObjectId;
-      this.siteLibraryId = siteLibraryId;
-
-      yield this.rootStore.streamStore.LoadStreams({streamMetadata});
-      yield this.rootStore.outputStore.LoadOutputSettingsId();
+      yield this.LoadTenantData();
       this.loaded = true;
+    } catch(error) {
+      this.loaded = true;
+    }
+  });
+
+  LoadSiteStreams = flow(function * (reload=false) {
+    this.streamsLoaded = false;
+    try {
+      yield this.rootStore.streamStore.LoadStreams({streamMetadata: this.streamMetadata});
+      yield this.rootStore.outputStore.LoadOutputSettingsId();
+      this.streamsLoaded = true;
       yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
-      this.loaded = true;
+      this.streamsLoaded = true;
     }
   });
 
-  LoadTenantInfo = flow(function * () {
+  LoadTenantData = flow(function * () {
     try {
-      if(!this.tenantId) {
-        const wallet = yield this.client.userProfileClient.UserWalletObjectInfo();
-        let tenantId = yield this.client.userProfileClient.TenantContractId();
-
-        if(!tenantId) {
-          tenantId = yield this.client.ContentObjectMetadata({
-            libraryId: yield this.client.ContentObjectLibraryId({objectId: wallet.objectId}),
-            objectId: wallet.objectId,
-            metadataSubtree: "tenantContractId",
-          });
-        }
-
-        this.tenantId = tenantId;
-
-        if(!this.tenantId) {
-          throw "Tenant ID not found";
-        }
-      }
-
-      return this.tenantId;
-    } catch(error) {
-      this.rootStore.SetErrorMessage("Error: Unable to determine tenant info");
-      // eslint-disable-next-line no-console
-      console.error(error);
-      throw Error("No tenant contract ID found.");
-    }
-  });
-
-  LoadTenantData = flow(function * ({tenantContractId}) {
-    try {
-      const siteObjectId = yield this.client.ContentObjectMetadata({
-        libraryId: tenantContractId.replace("iten", "ilib"),
-        objectId: tenantContractId.replace("iten", "iq__"),
-        metadataSubtree: "public/sites/live_streams",
-      });
-      const siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: siteObjectId});
-      const streamMetadata = yield this.client.ContentObjectMetadata({
-        libraryId: siteLibraryId,
-        objectId: siteObjectId,
-        metadataSubtree: "public/asset_metadata/live_streams",
-        resolveLinks: true,
-        resolveIncludeSource: true,
-        resolveIgnoreErrors: true
-      });
-
-      const response = yield this.client.ContentObjectMetadata({
-        libraryId: tenantContractId.replace("iten", "ilib"),
-        objectId: tenantContractId.replace("iten", "iq__"),
-        metadataSubtree: "public/content_types",
-        select: [
-          "live_stream",
-          "title"
-        ]
-      });
-      const {live_stream, title} = response;
+      const {siteLibraryId, siteObjectId, streamMetadata, contentTypes} = yield this.client.StreamSiteSettings();
+      const {live_stream, title} = contentTypes;
 
       if(live_stream) {
         this.contentType = live_stream;
@@ -122,6 +75,10 @@ class DataStore {
       if(title) {
         this.titleContentType = title;
       }
+
+      this.siteId = siteObjectId;
+      this.siteLibraryId = siteLibraryId;
+      this.streamMetadata = streamMetadata;
 
       return {
         siteLibraryId,
@@ -132,7 +89,7 @@ class DataStore {
       this.rootStore.SetErrorMessage("Error: Unable to load tenant sites");
       // eslint-disable-next-line no-console
       console.error(error);
-      throw Error(`Unable to load sites for tenant ${tenantContractId}.`);
+      throw Error("Unable to load sites for tenant.");
     }
   });
 
@@ -238,8 +195,9 @@ class DataStore {
     this.loadedDedicatedNodes = false;
     try {
       if(!this.siteLibraryId) {
-        const tenantContractId = yield this.LoadTenantInfo();
-        yield this.LoadTenantData({tenantContractId});
+        const {siteObjectId, siteLibraryId} = yield this.LoadTenantData();
+        this.siteId = siteObjectId;
+        this.siteLibraryId = siteLibraryId;
       }
 
       const nodes = yield this.client.ContentObjectMetadata({
