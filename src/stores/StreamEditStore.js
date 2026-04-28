@@ -492,7 +492,8 @@ class StreamEditStore {
     inputPackaging,
     copyMode,
     customReadLoop,
-    audioData
+    audioData,
+    multiPathEnabled
   }){
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -603,6 +604,25 @@ class StreamEditStore {
       });
     }
 
+    if(multiPathEnabled !== undefined) {
+      let multiPathMeta = {enabled: false};
+      if(multiPathEnabled) {
+        const streamNames = [
+          "video",
+          ...Object.keys(audioData || {})
+            .filter(key => audioData[key].record)
+            .map((el) => `audio_${el}`)
+        ];
+        if(copyMpegTs) { streamNames.push("mpegts"); }
+        multiPathMeta = {enabled: true, stream_names: streamNames};
+      }
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/multipath",
+        metadata: multiPathMeta
+      });
+    }
+
     if(!skipDvrSection && dvrEnabled !== undefined) {
       yield this.client.ReplaceMetadata({
         libraryId, objectId, writeToken,
@@ -681,33 +701,6 @@ class StreamEditStore {
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
     const {copyMpegTs, inputPackaging, copyMode, customReadLoop} = tsFormData;
 
-    let multiPathMeta = {enabled: false};
-    if(multiPathEnabled) {
-      const streamNames = [
-        "video",
-        ...Object.keys(audioFormData || {})
-          .filter(key => audioFormData[key].record)
-          .map((el) => `audio_${el}`)
-      ];
-
-      if(copyMpegTs) {
-        streamNames.push("mpegts");
-      }
-
-      multiPathMeta = {
-        enabled: true,
-        stream_names: streamNames
-      };
-    }
-
-    yield this.client.ReplaceMetadata({
-      libraryId,
-      objectId,
-      writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/multipath",
-      metadata: multiPathMeta
-    });
-
     yield this.UpdateConfigMetadata({
       objectId,
       slug,
@@ -720,6 +713,7 @@ class StreamEditStore {
       copyMode,
       customReadLoop,
       audioData: audioFormData,
+      multiPathEnabled,
       writeToken,
       finalize: false
     });
