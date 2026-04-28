@@ -701,6 +701,15 @@ class StreamEditStore {
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
     const {copyMpegTs, inputPackaging, copyMode, customReadLoop} = tsFormData;
 
+    yield this.UpdateStreamAudioSettings({
+      objectId,
+      writeToken,
+      slug,
+      audioData: audioFormData,
+      finalize: false,
+      edit: true
+    });
+
     yield this.UpdateConfigMetadata({
       objectId,
       slug,

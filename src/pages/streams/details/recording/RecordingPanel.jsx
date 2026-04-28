@@ -130,7 +130,6 @@ const RecordingPanel = observer(({
         multiPathEnabled
       });
 
-      await LoadConfigData();
       await outputStore.LoadOutputStreamInfo({streamObjectId: params.id, slug});
 
       PageVersionCallback(prev => prev + 1);
