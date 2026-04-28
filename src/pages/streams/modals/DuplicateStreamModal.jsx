@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {Box, Button, Divider, Flex, Loader, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
-import {dataStore, streamEditStore} from "@/stores/index.js";
+import {dataStore, streamEditStore, streamStore} from "@/stores/index.js";
 import {useForm} from "@mantine/form";
 import {useEffect, useState} from "react";
 import {notifications} from "@mantine/notifications";
@@ -8,6 +8,7 @@ import NotificationMessage from "@/components/notification-message/NotificationM
 import StreamUrlSelector from "@/pages/create/stream-url-selector/StreamUrlSelector.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import styles from "@/pages/outputs/modals/modals.module.css";
+import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 
 const DuplicateStreamModal = observer(({opened, onClose, records=[]}) => {
   const [isSaving, setIsSaving] = useState(false);
@@ -34,6 +35,8 @@ const DuplicateStreamModal = observer(({opened, onClose, records=[]}) => {
     }
   }, [opened]);
 
+  const existingSlugs = Object.keys(streamStore.streams || {});
+
   const form = useForm({
     mode: "uncontrolled",
     initialValues: {
@@ -42,6 +45,13 @@ const DuplicateStreamModal = observer(({opened, onClose, records=[]}) => {
       protocol: "mpegts",
       customUrl: "",
       nodeId: ""
+    },
+    validateInputOnChange: ["name"],
+    validate: {
+      name: (value) => {
+        const slugName = slugify(value);
+        return existingSlugs.includes(slugName) ? "Already in use" : null;
+      }
     }
   });
 
