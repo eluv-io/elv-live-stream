@@ -30,14 +30,14 @@ const DuplicateStreamModal = observer(({opened, onClose, records=[]}) => {
 
   useEffect(() => {
     if(opened) {
-      form.setFieldValue("name", records[0]?.title ? `(Copy) ${records[0].title}` : "");
+      form.setFieldValue("name", records[0]?.title ? `${records[0].title} (Copy)` : "");
     }
   }, [opened]);
 
   const form = useForm({
     mode: "uncontrolled",
     initialValues: {
-      name: records[0]?.title ? `(Copy) ${records[0].title}` : "",
+      name: records[0]?.title ? `${records[0].title} (Copy)` : "",
       url: "",
       protocol: "mpegts",
       customUrl: "",
@@ -67,7 +67,7 @@ const DuplicateStreamModal = observer(({opened, onClose, records=[]}) => {
       }
 
       notifications.show({
-        title: "New output created",
+        title: "New stream created",
         message: <NotificationMessage>Successfully duplicated stream</NotificationMessage>
       });
 
