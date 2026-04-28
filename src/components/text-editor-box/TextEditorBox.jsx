@@ -79,7 +79,8 @@ const TextEditorBox = ({
                 setError(customError || null);
                 if(!customError) { HandleEditorValueChange({value}); }
               } catch {
-                setError(null);
+                setError("Invalid JSON");
+                if(Validate) { Validate(null); }
               }
             }}
             autosize

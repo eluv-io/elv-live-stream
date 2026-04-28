@@ -108,6 +108,7 @@ const Settings = observer(() => {
                 setShowModal(true);
               }}
               Validate={parsed => {
+                if(!parsed) { setValidationError(true); return; }
                 let errorMessage;
                 if(!parsed.name) {
                   errorMessage = "A \"name\" field is required";
