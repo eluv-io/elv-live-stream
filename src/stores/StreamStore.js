@@ -475,8 +475,8 @@ class StreamStore {
       });
 
       const connectionTimeout = liveRecordingConfigMeta?.connection_timeout ?? liveRecordingMeta?.recording_params?.xc_params?.connection_timeout;
-      const copyMpegTs = liveRecordingMeta?.recording_params?.xc_params?.copy_mpegts;
       const inputCfg = liveRecordingMeta?.recording_params?.xc_params?.input_cfg;
+      const copyMpegTs = liveRecordingMeta?.recording_params?.xc_params?.copy_mpegts ?? !!inputCfg;
       const multiPath = liveRecordingMeta?.recording_params?.multipath;
       const persistent = liveRecordingMeta?.recording_params?.persistent;
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
@@ -651,7 +651,7 @@ class StreamStore {
         inputCfg: meta?.live_recording_config?.recording_config?.input_cfg
       };
     } catch(error) {
-       
+
       console.error("Unable to load stream list data", error);
     }
   });
