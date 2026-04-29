@@ -647,10 +647,11 @@ class StreamStore {
         title: meta?.public?.name,
         originUrl: url,
         source,
-        packaging
+        packaging,
+        inputCfg: meta?.live_recording_config?.recording_config?.input_cfg
       };
     } catch(error) {
-
+      // eslint-disable-next-line no-console
       console.error("Unable to load stream list data", error);
     }
   });

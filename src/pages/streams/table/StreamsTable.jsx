@@ -17,6 +17,7 @@ const StreamsTable = observer(({
   rowStyle,
   selectedRecords,
   onSelectedRecordsChange,
+  isRecordSelectable,
   showActions=true,
   minHeight,
   maxHeight
@@ -132,6 +133,7 @@ const StreamsTable = observer(({
         rowStyle={rowStyle}
         selectedRecords={selectedRecords}
         onSelectedRecordsChange={onSelectedRecordsChange}
+        isRecordSelectable={isRecordSelectable}
         columns={columns}
       />
     </Box>

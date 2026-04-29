@@ -62,7 +62,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
       title={
         <Stack gap={0} mb={20}>
           <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>Select Input Stream</Title>
-          <Text fz="0.875rem" c="elv-gray.8">Select the stream you want to map to (TS stream only).</Text>
+          <Text fz="0.875rem" c="elv-gray.8">Select the stream you want to map to (TS streams only).</Text>
         </Stack>
       }
       padding="24px"
@@ -88,10 +88,14 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
         <Box style={{flex: 1, overflow: "auto", minHeight: 0}}>
           <StreamsTable
             records={records}
+            isRecordSelectable={record => !!record.inputCfg}
             sortStatus={sortStatus}
             onSortStatusChange={setSortStatus}
-            onRowClick={record => setSelectedRecords([record])}
-            rowStyle={record => selectedRecords?.[0]?.record?.objectId === record.objectId ? {backgroundColor: "var(--mantine-color-elv-blue-0)"} : undefined}
+            onRowClick={record => { if(record.record.inputCfg) { setSelectedRecords([record]); } }}
+            rowStyle={record => {
+              if(!record.inputCfg) { return {opacity: 0.4, cursor: "not-allowed"}; }
+              if(selectedRecords?.[0]?.record?.objectId === record.objectId) { return {backgroundColor: "var(--mantine-color-elv-blue-0)"}; }
+            }}
             showActions={false}
           />
         </Box>

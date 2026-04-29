@@ -1,6 +1,7 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
 import {makeAutoObservable, runInAction} from "mobx";
 import {DeriveSourceAndPackaging, SortTable} from "@/utils/helpers.js";
+import UrlJoin from "url-join";
 
 class OutputStore {
   state = "pending";
@@ -407,7 +408,7 @@ class OutputStore {
       const existing = await this.client.CallBitcodeMethod({
         libraryId,
         objectId,
-        method: `live/outputs/${outputId}`,
+        method: UrlJoin("live", "outputs", outputId),
         constant: true
       });
 
