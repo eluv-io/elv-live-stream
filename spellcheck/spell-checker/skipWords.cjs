@@ -100,6 +100,7 @@ module.exports = [
   "sandboxed",
   "scrollbar",
   "segoe",
+  "selectable",
   "slugify",
   "srt",
   "streamid",
