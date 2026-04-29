@@ -127,6 +127,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
               <TextInput
                 label="Passphrase"
                 placeholder="e.g. my-secure-passphrase"
+                type="password"
                 key={form.key("passphrase")}
                 {...form.getInputProps("passphrase")}
               /> : null
