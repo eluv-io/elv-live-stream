@@ -343,19 +343,21 @@ export const DeriveSourceAndPackaging = ({url, inputCfg}) => {
   const protocol = url?.match(/^(\w+):\/\//)?.[1];
   const copyMode = inputCfg?.copy_mode;
   const copyPackaging = inputCfg?.copy_packaging;
-  const inputPackaging = inputCfg?.input_packaging;
+  // const inputPackaging = inputCfg?.input_packaging;
 
   const packaging = [];
   let source;
 
   if(copyPackaging === "rtp_ts") { packaging.push("rtp"); }
-  if(copyMode === "raw") { packaging.push("ts", "fmp4"); }
+  if(copyMode === "raw") { packaging.push("ts"); }
   else if(copyMode === "raw_only") { packaging.push("ts"); }
+  if(copyMode !== "raw_only") { packaging.push("fmp4"); }
 
   switch(protocol) {
     case "srt":
       source = ["srt", "ts"];
-      if(inputPackaging === "rtp_ts") { source.splice(1, 0, "rtp"); }
+      // Move to packaging
+      // if(inputPackaging === "rtp_ts") { source.splice(1, 0, "rtp"); }
       break;
     case "udp": source = ["ts"]; break;
     case "rtp": source = ["rtp", "ts"]; break;
