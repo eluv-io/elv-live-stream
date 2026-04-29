@@ -33,6 +33,7 @@ import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 
 const SummaryPanel = observer(({output, id}) => {
   const clipboard = useClipboard();
@@ -106,14 +107,19 @@ const SummaryPanel = observer(({output, id}) => {
 
       <Divider mb={20} mt={30} />
 
-      <SectionTitle mb={12}>Fabric Geo</SectionTitle>
-      <Select
-        description="Defines the region."
-        onChange={() => {}}
-        data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
-        value={output.description ?? ""}
-        readOnly
-      />
+      <DisabledTooltipWrapper
+        disabled={true}
+        tooltipLabel="Fabric geo can't be changed after creation"
+      >
+        <SectionTitle mb={12}>Fabric Geo</SectionTitle>
+        <Select
+          description="Defines the region."
+          onChange={() => {}}
+          data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
+          value={output.description ?? ""}
+          readOnly
+        />
+      </DisabledTooltipWrapper>
 
       {
         output?.state?.clients?.map((client, i) => (
@@ -216,7 +222,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
 
         <Divider mb={20} mt={30} />
 
-        <SectionTitle mb={12}>Fabric Geo</SectionTitle>
+        <SectionTitle mb={12}>Strip RTP</SectionTitle>
         <Checkbox
           label="Enable Strip RTP"
           description="Remove RTP encapsulation from the incoming stream"
