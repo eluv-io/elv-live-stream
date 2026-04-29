@@ -11,7 +11,7 @@ import {
   Flex,
   Group,
   Input,
-  Loader,
+  Loader, PasswordInput,
   Select,
   SimpleGrid,
   Tabs,
@@ -206,9 +206,8 @@ const GeneralConfigPanel = observer(({output, id}) => {
         {
           form.getValues().encryption &&
           <SimpleGrid cols={2} spacing={150} mt={20} pl={28}>
-            <TextInput
+            <PasswordInput
               label="Passphrase"
-              type="password"
               key={form.key("passphrase")}
               {...form.getInputProps("passphrase")}
             />

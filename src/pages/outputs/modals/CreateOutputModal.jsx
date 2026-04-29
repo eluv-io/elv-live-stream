@@ -13,7 +13,7 @@ import {
   Select,
   Stack,
   Text,
-  TextInput, Title
+  TextInput, Title, PasswordInput
 } from "@mantine/core";
 import styles from "./modals.module.css";
 import {useState} from "react";
@@ -124,10 +124,9 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             />
             {
               form.getValues().encryption ?
-              <TextInput
+              <PasswordInput
                 label="Passphrase"
                 placeholder="e.g. my-secure-passphrase"
-                type="password"
                 key={form.key("passphrase")}
                 {...form.getInputProps("passphrase")}
               /> : null
