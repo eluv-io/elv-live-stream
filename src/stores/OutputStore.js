@@ -645,6 +645,38 @@ class OutputStore {
       )
     );
   }
+
+  async ResetOutput({outputId}) {
+    const objectId = this.outputSettingsId;
+    const libraryId = await this.client.ContentObjectLibraryId({objectId});
+
+    try {
+      await this.client.OutputsStop({
+        libraryId,
+        objectId,
+        outputId
+      });
+
+      const newState = await this.client.OutputsState({
+        libraryId,
+        objectId,
+        outputId
+      });
+
+      runInAction(() => {
+        this.UpdateOutput({
+          slug: outputId,
+          updates: {
+            state: newState
+          }
+        });
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to delete output.", error);
+      throw error;
+    }
+  }
 }
 
 

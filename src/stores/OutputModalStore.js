@@ -113,6 +113,10 @@ class OutputModalStore {
       await this.outputStore.UnmapStreamBatch({outputs: [...this.modalSlugs]});
     }
 
+    if(this.activeModal === "reset") {
+      await this.outputStore.ResetOutput({outputId: this.modalSlugs[0]});
+    }
+
     if(this.activeModal === "enable") {
       if(this.modalSlugs.length === 1) {
         await this.outputStore.EnableOutput({outputId: this.modalSlugs[0]});

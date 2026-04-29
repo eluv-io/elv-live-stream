@@ -2,8 +2,8 @@ import {observer} from "mobx-react-lite";
 import {Box, Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
 import styles from "./modals.module.css";
 import {SortTable} from "@/utils/helpers.js";
-import {useState} from "react";
-import {outputStore, streamStore} from "@/stores/index.js";
+import {useEffect, useState} from "react";
+import {dataStore, outputStore, streamStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {IconSearch} from "@tabler/icons-react";
@@ -16,6 +16,12 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
   const [debouncedFilter] = useDebouncedValue(filter, 200);
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if(!dataStore.streamsLoaded) {
+      dataStore.LoadSiteStreams();
+    }
+  }, []);
 
   const records = Object.values(streamStore.streams || {})
     .filter(record => (

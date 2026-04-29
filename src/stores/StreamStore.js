@@ -632,15 +632,17 @@ class StreamStore {
         objectId,
         select: [
           "public/name",
+          "live_recording/recording_config/recording_params/xc_params/input_cfg",
           "live_recording_config/url",
           "live_recording_config/recording_config/input_cfg"
         ]
       });
 
       const url = meta?.live_recording_config?.url;
+      const inputCfg = meta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg ?? meta?.live_recording_config?.recording_config?.input_cfg;
       const {source, packaging} = DeriveSourceAndPackaging({
         url,
-        inputCfg: meta?.live_recording_config?.recording_config?.input_cfg
+        inputCfg
       });
 
       return {
@@ -648,7 +650,7 @@ class StreamStore {
         originUrl: url,
         source,
         packaging,
-        inputCfg: meta?.live_recording_config?.recording_config?.input_cfg
+        inputCfg
       };
     } catch(error) {
 
@@ -705,10 +707,11 @@ class StreamStore {
 
       // General Config
       const configProfileName = liveRecordingConfigMeta?.name;
+      const inputCfg = liveRecordingMeta?.recording_config?.recording_params?.xc_params?.input_cfg ?? liveRecordingConfigMeta?.recording_config?.input_cfg;
 
       const {source, packaging} = DeriveSourceAndPackaging({
         url: liveRecordingConfigMeta?.url,
-        inputCfg: liveRecordingConfigMeta?.recording_config?.input_cfg
+        inputCfg
       });
 
       // Recording Config
