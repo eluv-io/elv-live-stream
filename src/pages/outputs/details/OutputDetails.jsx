@@ -33,7 +33,6 @@ import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
-import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 
 const SummaryPanel = observer(({output, id}) => {
   const clipboard = useClipboard();
@@ -107,10 +106,7 @@ const SummaryPanel = observer(({output, id}) => {
 
       <Divider mb={20} mt={30} />
 
-      <DisabledTooltipWrapper
-        disabled={true}
-        tooltipLabel="Fabric geo can't be changed after creation"
-      >
+      <Box style={{opacity: 0.5, pointerEvents: "none"}}>
         <SectionTitle mb={12}>Fabric Geo</SectionTitle>
         <Select
           description="Defines the region."
@@ -119,7 +115,7 @@ const SummaryPanel = observer(({output, id}) => {
           value={output.description ?? ""}
           readOnly
         />
-      </DisabledTooltipWrapper>
+      </Box>
 
       {
         output?.state?.clients?.map((client, i) => (
