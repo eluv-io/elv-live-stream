@@ -321,7 +321,7 @@ const OutputDetails = observer(() => {
 
   return (
     <PageContainer
-      title={output.name}
+      title={outputStore?.outputs?.[id]?.name ?? ""}
       subtitle={id}
       actions={actions}
       titleRightSection={

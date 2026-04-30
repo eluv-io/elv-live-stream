@@ -418,7 +418,7 @@ class OutputStore {
           ...existing.srt_pull,
           connection: {
             ...existing.srt_pull.connection,
-            enforced_encryption: encryption ?? existing.srt_pull.connection.enforced_encryption
+            enforced_encryption: encryption ?? existing?.srt_pull?.connection?.enforced_encryption
           },
           passphrase: passphrase ?? existing.srt_pull.passphrase,
           strip_rtp: stripRtp ?? existing.srt_pull.strip_rtp
@@ -430,6 +430,24 @@ class OutputStore {
         objectId,
         outputId,
         output
+      });
+
+      runInAction(() => {
+        this.UpdateOutput({
+          slug: outputId,
+          updates: {
+            ...(name !== undefined && {name}),
+            srt_pull: {
+              ...this.outputs[outputId]?.srt_pull,
+              connection: {
+                ...this.outputs[outputId]?.srt_pull?.connection,
+                enforced_encryption: encryption ?? this.outputs[outputId]?.srt_pull?.connection?.enforced_encryption
+              },
+              passphrase: passphrase ?? this.outputs[outputId]?.srt_pull?.passphrase,
+              strip_rtp: stripRtp ?? this.outputs[outputId]?.srt_pull?.strip_rtp
+            }
+          }
+        });
       });
     } catch(error) {
       // eslint-disable-next-line no-console
