@@ -221,6 +221,7 @@ class OutputStore {
         this.UpdateOutput({
           slug: outputId,
           updates: {
+            enabled: !existing.input?.stream ? true : existing.enabled,
             input: {
               ...(this.outputs[outputId]?.input || {}),
               stream: streamObjectId,
