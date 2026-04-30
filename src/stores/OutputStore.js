@@ -409,11 +409,14 @@ class OutputStore {
         objectId,
         includeState: false
       });
-      const existing = outputsList?.[outputId];
+      const existing = outputsList?.[outputId] ?? {};
+      // eslint-disable-next-line no-unused-vars
+      const {name: _n, status: _s, ...cleanInput} = existing.input || {};
 
       const output = {
         ...existing,
-        ...(name !== undefined && {name}),
+        ...(name !== undefined && {name: name.trim()}),
+        input: cleanInput,
         srt_pull: {
           ...existing.srt_pull,
           connection: {
