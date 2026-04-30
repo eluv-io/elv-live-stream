@@ -1,8 +1,9 @@
 import {useState} from "react";
-import {Button, Flex, Modal, Text} from "@mantine/core";
+import {Button, Flex, Grid, Modal, Text} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import styles from "./modals.module.css";
+import {outputModalStore} from "@/stores/index.js";
 
 const OutputConfirmModal = ({
   show,
@@ -75,6 +76,17 @@ const OutputConfirmModal = ({
       centered
     >
       <Text c="elv-gray.9" fz="1rem" mt={12}>{description}</Text>
+      {
+        outputModalStore.outputName &&
+        <Grid gutter={2} mt={12}>
+          <Grid.Col span={3}>
+            <Text>Output Name:</Text>
+          </Grid.Col>
+          <Grid.Col span={9}>
+            <Text c="elv-gray.9" fw={700}>{ outputModalStore.outputName }</Text>
+          </Grid.Col>
+        </Grid>
+      }
       <Text c="elv-gray.9" fz="1rem" mt={16}>Are you sure you want to continue?</Text>
       {
         error &&

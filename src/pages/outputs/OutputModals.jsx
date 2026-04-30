@@ -18,6 +18,7 @@ const OutputModals = observer(() => (
     <OutputConfirmModal
       show={outputModalStore.isConfirmModalOpen}
       title={outputModalStore.confirmConfig?.title}
+      name={outputModalStore.confirmConfig?.name}
       description={outputModalStore.confirmConfig?.description}
       confirmLabel={outputModalStore.confirmConfig?.confirmLabel}
       closeOnConfirm={outputModalStore.confirmConfig?.closeOnConfirm ?? true}

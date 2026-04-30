@@ -77,6 +77,11 @@ class OutputModalStore {
     return this.activeModal in MODAL_CONFIG;
   }
 
+  get outputName() {
+    if(this.modalSlugs.length !== 1) { return ""; }
+    return this.outputStore.outputs[this.modalSlugs[0]]?.name ?? "";
+  }
+
   get confirmConfig() {
     const config = MODAL_CONFIG[this.activeModal];
     if(!config) { return null; }
