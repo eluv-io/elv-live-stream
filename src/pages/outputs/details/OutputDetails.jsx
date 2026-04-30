@@ -150,6 +150,15 @@ const GeneralConfigPanel = observer(({output, id}) => {
       stripRtp: output?.srt_pull?.strip_rtp,
       passphrase: output?.srt_pull?.passphrase,
       name: output?.name
+    },
+    validate: {
+      passphrase: (value, values) => {
+        if(!values.encryption) { return null; }
+        if(value && (value.length < 10 || value.length > 79)) {
+          return "Passphrase must be between 10 and 79 characters long";
+        }
+        return null;
+      }
     }
   });
 
@@ -248,7 +257,8 @@ const OutputDetails = observer(() => {
   const DebouncedRefresh = useDebouncedCallback(async() => {
     try {
       setLoading(true);
-      await outputStore.LoadOutputs();
+      await outputStore.LoadOutputItem({outputId: id});
+      // await outputStore.LoadOutputs();
       if(output?.input?.stream) {
         await outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output.input.stream});
       }
@@ -258,11 +268,11 @@ const OutputDetails = observer(() => {
   }, 500);
 
   useEffect(() => {
-    if(outputStore.state !== "loaded") {
-      outputStore.LoadOutputs()
+    if(id) {
+      outputStore.LoadOutputItem({outputId: id})
         .then(() => {});
     }
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     if(!output?.input?.stream) { return; }
@@ -300,7 +310,7 @@ const OutputDetails = observer(() => {
     {
       label: output?.enabled ? "Disable" : "Enable",
       buttonVariant: "outline",
-      onClick: () => outputModalStore.OpenModal(output?.enabled ? "disable" : "enable", [id])
+      onClick: () => outputModalStore.OpenModal(output?.enabled ? "disable" : "enable", [id], () => outputStore.LoadOutputItem({outputId: id}))
     },
     {
       label: "Unmap Stream",

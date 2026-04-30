@@ -63,6 +63,7 @@ const MODAL_CONFIG = {
 class OutputModalStore {
   activeModal = null;
   modalSlugs = [];
+  onSuccess = null;
 
   constructor(rootStore) {
     makeAutoObservable(this);
@@ -91,8 +92,9 @@ class OutputModalStore {
     };
   }
 
-  OpenModal = (modal, slugs = []) => {
+  OpenModal = (modal, slugs = [], onSuccess) => {
     this.modalSlugs = slugs;
+    this.onSuccess = onSuccess ?? null;
 
     if(modal === "map") {
       const hasExistingMappings = slugs.some(slug => this.outputStore.outputs[slug]?.input?.stream);
@@ -146,6 +148,7 @@ class OutputModalStore {
       }
     }
 
+    await this.onSuccess?.();
     this.CloseModal();
   };
 }

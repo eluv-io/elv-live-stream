@@ -97,6 +97,27 @@ class OutputStore {
     }
   }
 
+  async LoadOutputItem({outputId, includeState=true}) {
+    try {
+      if(!this.outputSettingsId) {
+        await this.LoadOutputSettingsId();
+      }
+
+      const output = await this.client.OutputsListItem({
+        objectId: this.outputSettingsId,
+        outputId,
+        includeState
+      });
+
+      runInAction(() => {
+        this.UpdateOutput({slug: outputId, updates: output});
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to load output ${outputId}.`, error);
+    }
+  }
+
   async LoadOutputStreamInfo({slug, streamObjectId}) {
     try {
       const metadata = await this.client.ContentObjectMetadata({
@@ -238,46 +259,6 @@ class OutputStore {
     }
   }
 
-  async UnmapStream({outputId}) {
-    try {
-      const objectId = this.outputSettingsId;
-      const libraryId = await this.client.ContentObjectLibraryId({objectId});
-
-      const existing = await this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: `live_outputs/${outputId}`
-      }) || {};
-
-      const updatedOutput = {
-        ...existing,
-        enabled: false,
-        input: {}
-      };
-
-      await this.client.OutputsModify({
-        libraryId,
-        objectId,
-        outputId,
-        output: JSON.parse(JSON.stringify(updatedOutput))
-      });
-
-      runInAction(() => {
-        this.UpdateOutput({
-          slug: outputId,
-          updates: {
-            enabled: false,
-            input: {}
-          }
-        });
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to map stream to output.", error);
-      throw error;
-    }
-  }
-
   async MapStreamBatch({outputs, streamObjectId}) {
     try {
       const objectId = this.outputSettingsId;
@@ -404,12 +385,7 @@ class OutputStore {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
 
-      const outputsList = await this.client.OutputsList({
-        libraryId,
-        objectId,
-        includeState: false
-      });
-      const existing = outputsList?.[outputId] ?? {};
+      const existing = await this.client.OutputsListItem({objectId, outputId, includeState: false});
       // eslint-disable-next-line no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
 
@@ -423,7 +399,7 @@ class OutputStore {
             ...existing.srt_pull.connection,
             enforced_encryption: encryption ?? existing?.srt_pull?.connection?.enforced_encryption
           },
-          passphrase: passphrase || existing.srt_pull.passphrase || undefined,
+          passphrase: encryption ? (passphrase || existing.srt_pull.passphrase || undefined) : undefined,
           strip_rtp: stripRtp ?? existing.srt_pull.strip_rtp
         }
       };
@@ -435,21 +411,12 @@ class OutputStore {
         output
       });
 
+      const updatedOutput = await this.client.OutputsListItem({objectId, outputId});
+
       runInAction(() => {
         this.UpdateOutput({
           slug: outputId,
-          updates: {
-            ...(name !== undefined && {name}),
-            srt_pull: {
-              ...this.outputs[outputId]?.srt_pull,
-              connection: {
-                ...this.outputs[outputId]?.srt_pull?.connection,
-                enforced_encryption: encryption ?? this.outputs[outputId]?.srt_pull?.connection?.enforced_encryption
-              },
-              passphrase: passphrase ?? this.outputs[outputId]?.srt_pull?.passphrase,
-              strip_rtp: stripRtp ?? this.outputs[outputId]?.srt_pull?.strip_rtp
-            }
-          }
+          updates: updatedOutput
         });
       });
     } catch(error) {
