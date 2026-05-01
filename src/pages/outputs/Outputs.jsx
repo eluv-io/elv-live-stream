@@ -113,6 +113,7 @@ const Outputs = observer(() => {
                 accessor: "name",
                 title: "Name",
                 sortable: true,
+                width: "25%",
                 render: record => (
                   <Stack gap={0} maw="100%">
                     <UnstyledButton onClick={() => navigate(`/outputs/${record.slug}`)}>
