@@ -272,6 +272,7 @@ const RecordingPeriodsTable = observer(({
           minHeight={(!filteredRecords || filteredRecords.length === 0) ? 130 : 75}
           noRecordsText="No recording periods found"
           records={filteredRecords}
+          selectionColumnStyle={{width: 40}}
           selectedRecords={selectedRecords}
           onSelectedRecordsChange={setSelectedRecords}
           isRecordSelectable={(record) => (

@@ -107,6 +107,7 @@ const Outputs = observer(() => {
             records={records || []}
             selectedRecords={selectedRecords}
             onSelectedRecordsChange={rows => setSelectedSlugs(rows.map(r => r.slug))}
+            selectionColumnStyle={{width: 40}}
             columns={[
               {
                 accessor: "name",

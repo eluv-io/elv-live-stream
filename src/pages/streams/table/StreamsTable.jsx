@@ -131,6 +131,7 @@ const StreamsTable = observer(({
         onSortStatusChange={onSortStatusChange}
         onRowClick={onRowClick}
         rowStyle={rowStyle}
+        selectionColumnStyle={{width: 40}}
         selectedRecords={selectedRecords}
         onSelectedRecordsChange={onSelectedRecordsChange}
         isRecordSelectable={isRecordSelectable}
