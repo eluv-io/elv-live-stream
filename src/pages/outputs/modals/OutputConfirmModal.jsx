@@ -74,6 +74,7 @@ const OutputConfirmModal = ({
       size="lg"
       classNames={{header: styles.modalHeader}}
       centered
+      closeOnClickOutside={false}
     >
       <Text c="elv-gray.9" fz="1rem" mt={12}>{description}</Text>
       {
