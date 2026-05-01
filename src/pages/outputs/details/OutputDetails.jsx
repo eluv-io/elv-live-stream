@@ -176,6 +176,8 @@ const GeneralConfigPanel = observer(({output, id}) => {
         name
       });
 
+      form.setFieldValue("passphrase", outputStore.outputs[id]?.srt_pull?.passphrase ?? "");
+
       notifications.show({
         title: <NotificationMessage>Updated output</NotificationMessage>,
         message: "Changes have been applied successfully"

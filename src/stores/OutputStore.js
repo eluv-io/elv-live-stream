@@ -399,7 +399,7 @@ class OutputStore {
             ...existing.srt_pull.connection,
             enforced_encryption: encryption ?? existing?.srt_pull?.connection?.enforced_encryption
           },
-          passphrase: encryption ? (passphrase || existing.srt_pull.passphrase || undefined) : undefined,
+          passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existing.srt_pull.passphrase) : undefined,
           strip_rtp: stripRtp ?? existing.srt_pull.strip_rtp
         }
       };
