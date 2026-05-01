@@ -5,6 +5,12 @@
   overflow: hidden;
 }
 
+.selectionColumn {
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+}
+
 .tableHeader {
   th {
     color: var(--mantine-color-elv-black-3);

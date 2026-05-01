@@ -107,13 +107,12 @@ const Outputs = observer(() => {
             records={records || []}
             selectedRecords={selectedRecords}
             onSelectedRecordsChange={rows => setSelectedSlugs(rows.map(r => r.slug))}
-            selectionColumnStyle={{width: 40}}
+            selectionColumnClassName={sharedStyles.selectionColumn}
             columns={[
               {
                 accessor: "name",
                 title: "Name",
                 sortable: true,
-                width: "25%",
                 render: record => (
                   <Stack gap={0} maw="100%">
                     <UnstyledButton onClick={() => navigate(`/outputs/${record.slug}`)}>
@@ -130,7 +129,6 @@ const Outputs = observer(() => {
               {
                 accessor: "streamName",
                 title: "Stream",
-                width: "20%",
                 sortable: true,
                 render: record => {
                   if(!record.input?.stream) {
