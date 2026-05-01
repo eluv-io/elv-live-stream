@@ -12,7 +12,7 @@ import {
 } from "@tabler/icons-react";
 import {Link} from "react-router-dom";
 
-export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete}) => {
+export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, view}) => {
   return [
     {
       label: "Check",
@@ -139,7 +139,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete}) =>
       iconVariant: "subtle",
       buttonVariant: "outline",
       iconColor: "gray.6",
-      hidden: !record.objectId,
+      hidden: !record.objectId || (view === "stream-details"),
       onClick: () => rootStore.OpenInFabricBrowser({
         libraryId: record.libraryId,
         objectId: record.objectId

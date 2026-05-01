@@ -66,7 +66,7 @@ const TopActions = ({showSearchBar, actions=[]}) => {
   );
 };
 
-const TitleSection = ({title, subtitle, rightSection, leftSection, mb}) => {
+const TitleSection = ({title, subtitle, subtitleRightSection, rightSection, leftSection, mb}) => {
   return (
     <Flex direction="column" mb={mb}>
       <Group gap={16}>
@@ -83,10 +83,15 @@ const TitleSection = ({title, subtitle, rightSection, leftSection, mb}) => {
         </Group>
       </Group>
       <Box display="block">
-        {
-          subtitle &&
-          <Title order={6} c="elv-gray.6" mt={0}>{subtitle}</Title>
-        }
+        <Group gap={8}>
+          {
+            subtitle &&
+            <Title order={6} c="elv-gray.6" mt={0}>{subtitle}</Title>
+          }
+          {
+            subtitleRightSection ? subtitleRightSection : null
+          }
+        </Group>
       </Box>
     </Flex>
   );
@@ -95,6 +100,7 @@ const TitleSection = ({title, subtitle, rightSection, leftSection, mb}) => {
 const PageContainer = ({
   title,
   subtitle,
+  subtitleRightSection,
   className,
   children,
   error,
@@ -120,6 +126,7 @@ const PageContainer = ({
           title={title}
           leftSection={titleLeftSection}
           subtitle={subtitle}
+          subtitleRightSection={subtitleRightSection}
           rightSection={titleRightSection}
           mb={mb}
         />

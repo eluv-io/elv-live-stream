@@ -1,15 +1,16 @@
 import {useEffect, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {streamStore} from "@/stores/index.js";
+import {rootStore, streamStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
-import {Loader, Tabs, Title} from "@mantine/core";
+import {ActionIcon, Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
 import {DETAILS_TABS} from "@/utils/tabs.js";
 import styles from "@/pages/streams/details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import {QUALITY_MAP} from "@/utils/constants.js";
+import {IconExternalLink} from "@tabler/icons-react";
 
 const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
@@ -73,7 +74,8 @@ const StreamDetailsPage = observer(() => {
   const streamActions = GetStreamActions({
     record: streamStore.streams?.[streamSlug],
     onCheckComplete: () => setCheckVersion(prev => prev + 1),
-    onDeleteComplete: () => navigate("/streams")
+    onDeleteComplete: () => navigate("/streams"),
+    view: "stream-details"
   });
 
   const primaryActions = streamActions.filter(a => a.primary && !a.hidden)
@@ -105,6 +107,22 @@ const StreamDetailsPage = observer(() => {
       key={`stream-details-${pageVersion}`}
       title={`Edit ${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
       subtitle={stream.objectId}
+      subtitleRightSection={
+        <ActionIcon
+          variant="subtle"
+          color="gray.6"
+          title="Open in Fabric Browser"
+          size={22}
+          onClick={() => {
+            rootStore.OpenInFabricBrowser({
+              libraryId: stream.libraryId,
+              objectId: stream.objectId
+            });
+          }}
+        >
+          <IconExternalLink />
+        </ActionIcon>
+      }
       titleRightSection={
         <StatusIndicator
           status={stream.status}
