@@ -240,6 +240,7 @@ const RecordingPanel = observer(({
                       value="rtp_ts"
                       label="RTP TS"
                       description=""
+                      disabled={streamStore.streams[params.id]?.protocol !== "rtp"}
                     />
                   </Group>
                 </Radio.Group>
