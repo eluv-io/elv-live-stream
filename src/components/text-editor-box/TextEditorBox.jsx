@@ -1,14 +1,17 @@
-import {ActionIcon, Box, Flex, Group, JsonInput, Paper, Text, Title} from "@mantine/core";
+import {ActionIcon, Box, CopyButton, Flex, Group, JsonInput, Paper, Text, Title, Tooltip} from "@mantine/core";
 import {TrashIcon} from "@/assets/icons/index.js";
-import {IconPencil} from "@tabler/icons-react";
+import {IconCheck, IconCopy, IconPencil} from "@tabler/icons-react";
 import {useEffect, useState} from "react";
 
 const TextEditorBox = ({
   columns=[],
   header,
   editorValue,
+  expandIcon,
   defaultShowEditor=false,
   hideDelete=false,
+  showCopy=true,
+  readonly=false,
   HandleEditorValueChange,
   HandleDelete,
   Validate
@@ -39,30 +42,49 @@ const TextEditorBox = ({
                 ))
               }
               <Group ml="auto">
-                <ActionIcon
-                  size={20}
-                  variant="transparent"
-                  color="elv-neutral.4"
-                  title="Edit"
-                  onClick={() => setShowEditor(prevState => !prevState)}
-                >
-                  <IconPencil />
-                </ActionIcon>
+                {
+                  showCopy && showEditor &&
+                  <CopyButton value={localValue ?? ""}>
+                    {({copied, copy}) => (
+                      <Tooltip label={copied ? "Copied" : "Copy"} withArrow>
+                        <ActionIcon
+                          size={20}
+                          variant="transparent"
+                          color={copied ? "teal" : "elv-neutral.4"}
+                          onClick={copy}
+                        >
+                          {copied ? <IconCheck /> : <IconCopy />}
+                        </ActionIcon>
+                      </Tooltip>
+                    )}
+                  </CopyButton>
+                }
+                <Tooltip label={expandIcon ? (showEditor ? "Hide" : "Expand") : "Edit"} withArrow>
+                  <ActionIcon
+                    size={20}
+                    variant="transparent"
+                    color="elv-neutral.4"
+                    onClick={() => setShowEditor(prevState => !prevState)}
+                  >
+                    {expandIcon ? expandIcon : <IconPencil />}
+                  </ActionIcon>
+                </Tooltip>
               </Group>
             </Group>
           </Paper>
         </Box>
         {
-          !hideDelete &&
-          <ActionIcon
-            size={20}
-            variant="transparent"
-            color="elv-neutral.4"
-            title="Delete"
-            onClick={HandleDelete}
-          >
-            <TrashIcon />
-          </ActionIcon>
+          !hideDelete && !readonly &&
+          <Tooltip label="Delete" withArrow>
+            <ActionIcon
+              size={20}
+              variant="transparent"
+              color="elv-neutral.4"
+              onClick={HandleDelete}
+            >
+              <TrashIcon />
+            </ActionIcon>
+          </Tooltip>
         }
       </Group>
 
@@ -70,6 +92,7 @@ const TextEditorBox = ({
         {
           showEditor &&
           <JsonInput
+            readOnly={readonly}
             value={localValue}
             onChange={value => {
               setLocalValue(value);

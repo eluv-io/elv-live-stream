@@ -9,6 +9,7 @@ import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Settings.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconPlus} from "@tabler/icons-react";
+import {defaultConfigProfile} from "@/utils/defaultProfile.js";
 
 const Settings = observer(() => {
   // Used to provide ConfirmModal with slug to be deleted
@@ -91,6 +92,17 @@ const Settings = observer(() => {
             </Text>
           </Button>
         </Group>
+
+        <TextEditorBox
+          columns={[
+            {id: "builtInProfile", value: defaultConfigProfile.name}
+          ]}
+          header="Built-in Profile"
+          editorValue={JSON.stringify(defaultConfigProfile, null, 2)}
+          hideDelete={true}
+          expandIcon={<IconPlus />}
+          readonly
+        />
 
         {
           Object.entries(profileStore.sortedDrafts).map(([key, value]) => (
