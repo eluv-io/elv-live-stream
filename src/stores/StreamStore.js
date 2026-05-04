@@ -934,7 +934,7 @@ class StreamStore {
       const audioData = {};
       audioStreams.forEach((spec, i) => {
         const audioConfigForIndex = audioConfig && audioConfig[spec.stream_index] ? audioConfig[spec.stream_index] : {};
-        const audioLadderSpecForIndex = audioLadderSpecs.find(spec => spec.stream_index === spec.stream_index);
+        const audioLadderSpecForIndex = audioLadderSpecs.find(ladderSpec => ladderSpec.stream_index === spec.stream_index);
 
         const initBitrate = RECORDING_BITRATE_OPTIONS.map(option => option.value).includes(spec.bit_rate) ? spec.bit_rate : 192000;
 
@@ -947,7 +947,7 @@ class StreamStore {
           playout: Object.hasOwn(audioConfigForIndex, "playout") ? audioConfigForIndex.playout : true,
           playout_label: audioConfigForIndex.playout_label || `Audio ${i + 1}`,
           lang: audioConfigForIndex?.lang,
-          default: audioConfigForIndex?.default ?? audioLadderSpecForIndex.default
+          default: audioConfigForIndex?.default ?? audioLadderSpecForIndex?.default ?? false
         };
       });
 

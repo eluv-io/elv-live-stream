@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import AudioTracksTable from "@/pages/create/audio-tracks-table/AudioTracksTable.jsx";
+import AudioTracksTable from "@/pages/streams/details/recording/audio-tracks-table/AudioTracksTable.jsx";
 import {outputStore, streamEditStore, streamStore} from "@/stores/index.js";
 import {useParams} from "react-router-dom";
 import {
