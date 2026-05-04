@@ -256,7 +256,10 @@ const Create = observer(() => {
             key={profilesData}
             label="Config Profile"
             name="configProfile"
-            data={profilesData}
+            data={[
+              {label: "Built-in Configuration", value: ""},
+              ...profilesData
+            ]}
             placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
             description={
               profileStore.state !== "loaded" ? "Apply a predefined set of configuration settings to this stream." : (profilesData.length === 0) ? "No profiles are configured. Create a profile in Settings." : "Apply a predefined set of configuration settings to this stream. If no profile is selected, built-in settings will be applied."
