@@ -89,6 +89,7 @@ module.exports = [
   "popups",
   "qfab",
   "qspace",
+  "readonly",
   "reconnection",
   "recv",
   "resize",
