@@ -62,6 +62,8 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
           url: stream.originUrl || ""
         });
 
+        setConfigProfile(stream.configProfile || "");
+
         setCurrentSettings({
           permission: stream.permission || "",
           accessGroup: stream.accessGroup || ""
