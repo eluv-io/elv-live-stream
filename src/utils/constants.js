@@ -1,9 +1,3 @@
-import GeneralPanel from "@/pages/stream-details/general/GeneralPanel";
-import PlayoutPanel from "@/pages/stream-details/playout/PlayoutPanel";
-import RecordingPanel from "@/pages/stream-details/recording/RecordingPanel";
-import DetailsPanel from "@/pages/stream-details/details/DetailsPanel";
-import TransportStreamPanel from "@/pages/stream-details/transport-stream/TransportStreamPanel.jsx";
-
 export const STATUS_MAP = {
   UNCONFIGURED: "unconfigured",
   UNINITIALIZED: "uninitialized",
@@ -16,14 +10,6 @@ export const STATUS_MAP = {
   DEGRADED: "degraded",
   UNAVAILABLE: "unavailable"
 };
-
-export const DETAILS_TABS = [
-  {label: "Details", value: "status", Component: DetailsPanel},
-  {label: "General Config", value: "general", Component: GeneralPanel},
-  {label: "Recording Config", value: "recording", Component: RecordingPanel},
-  {label: "Playout Config", value: "playout", Component: PlayoutPanel},
-  {label: "Transport Stream Distribution", value: "tsDistribution", Component: TransportStreamPanel, HideTab: (stream) => stream.originUrl?.includes("rtmp")}
-];
 
 export const DEFAULT_WATERMARK_TEXT = {
   "font_color": "white@0.5",
@@ -53,22 +39,16 @@ export const DEFAULT_WATERMARK_IMAGE = {
   "wm_enabled": true
 };
 
-export const DRM_MAP = {
-  ALL: ["hls-sample-aes", "hls-aes128", "hls-fairplay", "hls-widevine-cenc", "hls-playready-cenc", "dash-widevine", "dash-playready-cenc"],
-  PUBLIC: ["hls-sample-aes", "hls-aes128", "dash-widevine", "hls-playready-cenc"],
-  FAIRPLAY: ["hls-fairplay"],
-  CLEAR: ["hls-clear", "dash-clear"],
-  HLS_WIDEVINE: ["hls-widevine-cenc"],
-  PLAYREADY: ["hls-playready-cenc"]
-};
-
-export const ENCRYPTION_OPTIONS = [
-  {value: "drm-public", label: "DRM - Public Access", title: "Playout Formats - HLS Sample AES, HLS AES-128, Dash Widevine, Dash PlayReady", format: DRM_MAP.PUBLIC, id: "drm-public"},
-  {value: "drm-all", label: "DRM - All Formats", title: "Playout Formats - HLS Sample AES, HLS AES-128, HLS Fairplay, Dash Widevine, Dash PlayReady", format: DRM_MAP.ALL, id: "drm-all"},
-  {value: "drm-fairplay", label: "DRM - Fairplay", title: "Playout Formats - HLS Fairplay", format: DRM_MAP.FAIRPLAY, id: "drm-fairplay"},
-  {value: "drm-widevine", label: "DRM - HLS Widevine", title: "Playout Formats - HLS Widevine", format: DRM_MAP.HLS_WIDEVINE, id: "drm-widevine"},
-  {value: "drm-playready", label: "DRM - HLS PlayReady", title: "Playout Formats - HLS PlayReady", format: DRM_MAP.PLAYREADY, id: "drm-playready"},
-  {value: "clear", label: "Clear", title: "Playout Formats - HLS Clear, Dash Clear", format: DRM_MAP.CLEAR, id: "clear"}
+export const PLAYOUT_FORMAT_OPTIONS = [
+  {value: "hls-clear", label: "HLS Clear"},
+  {value: "hls-aes128", label: "HLS AES-128"},
+  {value: "hls-sample-aes", label: "HLS Sample AES"},
+  {value: "hls-fairplay", label: "HLS Fairplay"},
+  {value: "hls-widevine-cenc", label: "HLS Widevine"},
+  {value: "hls-playready-cenc", label: "HLS PlayReady"},
+  {value: "dash-clear", label: "Dash Clear"},
+  {value: "dash-widevine", label: "Dash Widevine"},
+  // {value: "dash-playready-cenc", label: "Dash PlayReady"},
 ];
 
 export const QUALITY_MAP = {
@@ -156,6 +136,20 @@ export const QUALITY_TEXT = {
   "good": "Good",
   "severe": "Severe",
   "degraded": "Degraded"
+};
+
+export const QUALITY_COLOR_MAP = {
+  "good": "elv-green.5",
+  "severe": "elv-red.4",
+  "degraded": "elv-orange.6"
+};
+
+export const SOURCE_PACKAGING_COLOR_MAP = {
+  srt: "elv-blue-gray.1",
+  rtp: "elv-violet.0",
+  rtmp: "elv-yellow.1",
+  ts: "elv-green.0",
+  fmp4: "elv-orange.0"
 };
 
 export const AudioCodec = (value) => {

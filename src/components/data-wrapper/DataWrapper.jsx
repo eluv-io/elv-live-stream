@@ -1,5 +1,5 @@
 import {useEffect} from "react";
-import {streamBrowseStore} from "@/stores/index.js";
+import {streamStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 
 const DataWrapper = observer(({children}) => {
@@ -7,7 +7,7 @@ const DataWrapper = observer(({children}) => {
 
     const GetStatus = async () => {
       try {
-        await streamBrowseStore.AllStreamsStatus();
+        await streamStore.AllStreamsStatus();
       } catch(error) {
         // eslint-disable-next-line no-console
         console.error("Unable to get stream status.", error);

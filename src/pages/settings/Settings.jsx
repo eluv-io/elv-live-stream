@@ -1,116 +1,44 @@
-import {Box, Button, Group, Loader, Text} from "@mantine/core";
+import {Box, Button, Flex, Group, Loader, Text} from "@mantine/core";
 import TextEditorBox from "@/components/text-editor-box/TextEditorBox.jsx";
 import {useEffect, useState} from "react";
-import {DefaultLadderProfile} from "@/utils/profiles.js";
 import {observer} from "mobx-react-lite";
-import {dataStore, streamManagementStore} from "@/stores/index.js";
-import {rootStore} from "@/stores/index.js";
+import {profileStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Settings.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconPlus} from "@tabler/icons-react";
+import {defaultConfigProfile} from "@/utils/defaultProfile.js";
 
 const Settings = observer(() => {
-  const [profileFormData, setProfileFormData] = useState(({default: JSON.stringify({}, null, 2), custom: []}));
-  // For displaying values while user potentially edits name
-  const [customProfileNames, setCustomProfileNames] = useState([]);
-  // For tracking profiles that haven't been saved
-  const [draftItems, setDraftItems] = useState({});
-
-  const [deleteIndex, setDeleteIndex] = useState(-1);
+  // Used to provide ConfirmModal with slug to be deleted
+  const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
+  const [newProfileKey, setNewProfileKey] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [validationError, setValidationError] = useState(false);
 
   useEffect(() => {
-    const LoadData = async() => {
-      if(dataStore.ladderProfiles) {
-        const stringifiedProfiles = {
-          default: JSON.stringify(dataStore.ladderProfiles.default, null, 2),
-          custom: dataStore.ladderProfiles.custom.map(item => JSON.stringify(item, null, 2))
-        };
-        setProfileFormData(stringifiedProfiles);
-        setCustomProfileNames(dataStore.ladderProfiles.custom.map(item => item.name));
-      } else {
-        const profilesObject = {
-          default: JSON.stringify(DefaultLadderProfile, null, 2),
-          custom: []
-        };
-        await setProfileFormData(profilesObject);
-      }
-    };
+    profileStore.LoadProfiles();
+  }, []);
 
-    LoadData();
-  }, [dataStore.ladderProfiles]);
-
-  const HandleChange = ({value, index}) => {
-    const updatedFormData = profileFormData;
-    const updatedCustomItems = updatedFormData.custom;
-
-    if(index === "default") {
-      updatedFormData.default = value;
-    } else {
-      updatedCustomItems[index] = value;
-    }
-
-    setProfileFormData({
-      ...profileFormData,
-      custom: updatedCustomItems
-    });
+  const HandleAddProfile = () => {
+    const key = profileStore.AddDraft();
+    setNewProfileKey(key);
   };
 
-  const HandleAddCustom = async () => {
-    const updatedCustomItems = profileFormData.custom;
-    const newName = `Custom ${profileFormData.custom.length + 1}`;
-
-    updatedCustomItems.push(
-      JSON.stringify({
-        "name" : `${newName}`,
-        "ladder_specs": {
-          "video": []
-        }
-      }, null, 2)
-    );
-
-    // Add draft item
-    const updatedDraftItems = Object.assign({}, draftItems);
-    updatedDraftItems[updatedCustomItems.length - 1] = true;
-
-    setDraftItems(updatedDraftItems);
-    setProfileFormData({
-      ...profileFormData,
-      custom: updatedCustomItems
-    });
-
-    setCustomProfileNames(updatedCustomItems.map(item => JSON.parse(item).name));
-  };
-
-  const HandleDeleteProfile = async({index}) => {
+  const HandleDeleteProfile = async({slug}) => {
     try {
-      let updatedCustomItems = [...profileFormData.custom];
-      updatedCustomItems = updatedCustomItems.slice(0, index).concat(updatedCustomItems.slice(index + 1));
-
-      const newData = {
-        ...profileFormData,
-        custom: updatedCustomItems
-      };
-
-      if(!draftItems[index]) {
-        await streamManagementStore.SaveLadderProfiles({
-          profileData: newData
-        });
-      }
-
-      setCustomProfileNames(updatedCustomItems.map(item => JSON.parse(item).name));
+      await profileStore.DeleteProfile(slug);
 
       notifications.show({
         title: "Profile deleted",
-        message: "Playout profiles successfully updated"
+        message: "Config profiles successfully updated"
       });
     } catch(error) {
       // eslint-disable-next-line no-console
-      console.error("Unable to delete playout profile", error);
+      console.error("Unable to delete config profile", error);
 
       notifications.show({
         title: "Error",
@@ -122,25 +50,17 @@ const Settings = observer(() => {
 
   const HandleSave = async() => {
     try {
-      // Check for JSON validation errors first
-      [
-        profileFormData.default,
-        ...profileFormData.custom || []
-      ].forEach(profile => JSON.parse(profile));
-
       setSaving(true);
 
-      await streamManagementStore.SaveLadderProfiles({
-        profileData: {...profileFormData}
-      });
+      await profileStore.SaveProfiles();
 
       notifications.show({
         title: "Profile data changed",
-        message: "Playout profiles successfully updated"
+        message: "Config profiles successfully updated"
       });
     } catch(error) {
       // eslint-disable-next-line no-console
-      console.error("Unable to update playout profiles", error);
+      console.error("Unable to update profiles", error);
 
       notifications.show({
         title: "Error",
@@ -149,11 +69,10 @@ const Settings = observer(() => {
       });
     } finally {
       setSaving(false);
-      setDraftItems({});
     }
   };
 
-  if(!rootStore.loaded) { return <Loader />; }
+  if(profileStore.state === "pending") { return <Flex mt={12} justify="center"><Loader /></Flex>; }
 
   return (
     <PageContainer
@@ -161,65 +80,102 @@ const Settings = observer(() => {
     >
       <Box mt={22}>
         <Group mb={12} gap={16}>
-          <SectionTitle>Playout Profiles</SectionTitle>
+          <SectionTitle>Config Profiles</SectionTitle>
           <Button
             classNames={{root: styles.root, section: styles.buttonSection}}
             leftSection={<IconPlus width={18} height={18} />}
             variant="white"
-            onClick={HandleAddCustom}
+            onClick={HandleAddProfile}
           >
             <Text fw={500} fz={14} c="elv-blue.2">
-              Add Custom Profile
+              Add Profile
             </Text>
           </Button>
         </Group>
 
         <TextEditorBox
           columns={[
-            {id: "Default", value: "Default"}
+            {id: "builtInProfile", value: defaultConfigProfile.name}
           ]}
-          header="Profile"
-          hideDelete
-          defaultShowEditor
-          editorValue={profileFormData.default || {}}
-          HandleEditorValueChange={(args) => HandleChange({...args, index: "default"})}
+          header="Built-in Profile"
+          editorValue={JSON.stringify(defaultConfigProfile, null, 2)}
+          hideDelete={true}
+          expandIcon={<IconPlus />}
+          readonly
         />
+
         {
-          (profileFormData.custom).map((profile, index) => (
+          Object.entries(profileStore.sortedDrafts).map(([key, value]) => (
             <TextEditorBox
-              key={`custom-${customProfileNames[index]}`}
+              key={`custom-${key}`}
               columns={[
-                {id: customProfileNames[index], value: customProfileNames[index]}
+                {id: key, value: value.name || "Profile"}
               ]}
               header="Profile"
-              editorValue={profile}
-              HandleEditorValueChange={(args) => HandleChange({...args, index})}
+              defaultShowEditor={key === newProfileKey}
+              editorValue={JSON.stringify(value, null, 2)}
+              HandleEditorValueChange={({value}) => profileStore.UpdateDraft(key, value)}
               HandleDelete={() => {
+                setPendingDeleteItem({slug: key, name: value.name});
                 setShowModal(true);
-                setDeleteIndex(index);
+              }}
+              Validate={parsed => {
+                if(!parsed) { setValidationError(true); return; }
+                let errorMessage;
+                if(!parsed.name) {
+                  errorMessage = "A \"name\" field is required";
+                  setValidationError(true);
+                }
+
+                const duplicate = Object.entries(profileStore.drafts)
+                  .some(([dKey, d]) => d.name === parsed.name && dKey !== key);
+
+                if(duplicate) {
+                  errorMessage = "A profile with this name already exists";
+                  setValidationError(true);
+                }
+
+                if(!errorMessage) {
+                  setValidationError(false);
+                }
+
+                return errorMessage ?? null;
               }}
             />
           ))
         }
+        {
+          (Object.keys(profileStore.profiles).length === 0  && Object.keys(profileStore.drafts).length === 0) ?
+            <Text mb={12}>No profiles found. Click &#39;Add Profile&#39; to begin setup.</Text> : null
+        }
       </Box>
-      <Button
-        variant="filled"
-        onClick={HandleSave}
-        disabled={saving}
-        loading={saving}
-        mt={5}
-      >
-        Save
-      </Button>
+      {
+        Object.keys(profileStore.drafts).length > 0 &&
+        <Button
+          variant="filled"
+          onClick={HandleSave}
+          disabled={saving || validationError}
+          loading={saving}
+          mt={5}
+        >
+          Save
+        </Button>
+      }
       <ConfirmModal
-        title="Delete Profile"
-        message="Are you sure you want to delete the profile? This action cannot be undone."
-        confirmText="Delete"
+        title="Delete Profile Confirmation"
+        message="Are you sure you want to delete the profile?"
+        detailData={{
+          nameKey: "Profile Name:",
+          name: pendingDeleteItem?.name
+        }}
+        confirmText="Delete Profile"
         danger
         show={showModal}
         CloseCallback={() => setShowModal(false)}
         ConfirmCallback={async() => {
-          await HandleDeleteProfile({index: deleteIndex});
+          await HandleDeleteProfile({slug: pendingDeleteItem.slug});
+          profileStore.DeleteProfile(pendingDeleteItem?.slug);
+          setPendingDeleteItem(null);
           setShowModal(false);
         }}
       />

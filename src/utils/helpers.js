@@ -1,38 +1,71 @@
 import {STATUS_MAP} from "@/utils/constants";
 import Fraction from "fraction.js";
+import {toJS} from "mobx";
 
 export const ParseLiveConfigData = ({
-  url,
-  referenceUrl,
-  encryption,
-  retention,
-  persistent,
   audioFormData,
-  playoutProfile,
-  reconnectionTimeout=600
+  configProfile,
+  connectionTimeout,
+  copyMode,
+  copyMpegTs,
+  customReadLoop,
+  dvrEnabled,
+  dvrMaxDuration,
+  dvrStartTime,
+  encryption,
+  forensicWatermark,
+  imageWatermark,
+  inputPackaging,
+  persistent,
+  reconnectionTimeout=600,
+  retention,
+  simpleWatermark,
+  skipDvrSection=false
 }) => {
-  const config = {
-    drm: encryption.includes("drm") ? "drm" : encryption.includes("clear") ? "clear" : undefined,
-    drm_type: encryption,
-    audio: audioFormData ? audioFormData : null,
-    part_ttl: parseInt(retention || ""),
-    persistent,
-    url,
-    reference_url: referenceUrl,
-    playout_ladder_profile: playoutProfile,
-    reconnect_timeout: reconnectionTimeout
+  if(configProfile) {
+    configProfile = toJS(configProfile);
+    return {
+      name: configProfile.name,
+      recording_config: configProfile.recording_config ?? null,
+      playout_config: configProfile.playout_config ?? null,
+      recording_stream_config: audioFormData ? {audio: audioFormData} : (configProfile.recording_stream_config ?? null),
+      input_stream_info: configProfile.input_stream_info ?? null,
+      recording_params: configProfile.recording_params ?? null
+    };
+  }
+
+  const inputCfg = copyMpegTs ? {
+    bypass_libav_reader: true,
+    copy_mode: copyMode,
+    copy_packaging: inputPackaging,
+    custom_read_loop_enabled: customReadLoop,
+    input_packaging: inputPackaging
+  } : copyMpegTs === false ? {} : undefined;
+
+  const dvrConfig = !skipDvrSection && dvrEnabled !== undefined ? {
+    dvr: dvrEnabled,
+    ...(dvrEnabled && dvrStartTime != null ? {dvr_start_time: new Date(dvrStartTime).toISOString()} : {}),
+    ...(dvrEnabled && dvrMaxDuration != null ? {dvr_max_duration: parseInt(dvrMaxDuration)} : {})
+  } : undefined;
+
+  return {
+    recording_config: {
+      connection_timeout: connectionTimeout !== undefined ? parseInt(connectionTimeout) : undefined,
+      copy_mpegts: copyMpegTs,
+      input_cfg: inputCfg,
+      part_ttl: retention !== undefined ? parseInt(retention) : undefined,
+      persistent,
+      reconnect_timeout: reconnectionTimeout
+    },
+    playout_config: {
+      ...dvrConfig,
+      forensic_watermark: forensicWatermark,
+      image_watermark: imageWatermark,
+      playout_formats: encryption,
+      simple_watermark: simpleWatermark
+    },
+    recording_stream_config: audioFormData ? {audio: audioFormData} : null
   };
-
-  return config;
-};
-
-export const Slugify = (string) => {
-  return (string || "")
-    .toLowerCase()
-    .trim()
-    .replace(/ /g, "-")
-    .replace(/[^a-z0-9-]/g,"")
-    .replace(/-+/g, "-");
 };
 
 export const VideoBitrateReadable = (bitrate) => {
@@ -51,6 +84,11 @@ export const AudioBitrateReadable = (bitrate) => {
   return `${value} Kbps`;
 };
 
+export const SampleRateReadable = (sampleRate) => {
+  if(!sampleRate) { return ""; }
+  return `${(sampleRate / 1000).toFixed(0)} kHz`;
+};
+
 export const StreamIsActive = (state) => {
   let active = false;
 
@@ -61,7 +99,7 @@ export const StreamIsActive = (state) => {
   return active;
 };
 
-export const StatusIndicator = (status) => {
+export const StatusColor = (status) => {
   if(status === STATUS_MAP.STOPPED) {
     return "elv-orange.6";
   } else if(status === STATUS_MAP.RUNNING) {
@@ -158,14 +196,23 @@ export const SortTable = ({sortStatus, AdditionalCondition}) => {
   };
 };
 
-export const DateFormat = ({time, format="sec", options={}}) => {
+export const DateFormat = ({time, format="sec", options={month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true}}) => {
   if(!["sec", "iso", "ms"].includes(format)) { throw Error("Invalid format type provided."); }
 
   if(format === "sec") {
     time = time * 1000;
   }
 
+  if(format === "iso") {
+    time = Date.parse(time);
+  }
+
   return new Date(time).toLocaleString(navigator.language, options);
+};
+
+export const BytesToMb = (bytes) => {
+  if(!bytes) { return "0 MB"; }
+  return `${(bytes / 1_000_000).toLocaleString(navigator.language, {maximumFractionDigits: 2})} MB`;
 };
 
 export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
@@ -181,10 +228,14 @@ export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
     });
 
     return urlObject.toString();
-  } catch(error) {
-    // eslint-disable-next-line no-console
-    console.error(`Unable to sanitize ${url}`, error);
-    return false;
+  } catch(_e) {
+    // Fallback for URLs with out-of-range ports (e.g. rtp://) that new URL() rejects
+    const paramsToRemove = ["passphrase", ...removeQueryParams];
+    return paramsToRemove.reduce((acc, param) => {
+      return acc.replace(new RegExp(`([?&])${param}=[^&]*(&?)`, "g"), (_, prefix, suffix) => {
+        return suffix ? prefix : "";
+      });
+    }, url);
   }
 };
 
@@ -286,4 +337,46 @@ export const RecordingPeriodIsExpired = ({
   } else {
     return false;
   }
+};
+
+export const DeriveSourceAndPackaging = ({url, inputCfg}) => {
+  const protocol = url?.match(/^(\w+):\/\//)?.[1];
+  const copyMode = inputCfg?.copy_mode;
+  const copyPackaging = inputCfg?.copy_packaging;
+  // const inputPackaging = inputCfg?.input_packaging;
+
+  const packaging = [];
+  let source;
+
+  if(copyPackaging === "rtp_ts") { packaging.push("rtp"); }
+  if(copyMode === "raw") { packaging.push("ts"); }
+  else if(copyMode === "raw_only") { packaging.push("ts"); }
+  if(copyMode !== "raw_only") { packaging.push("fmp4"); }
+
+  switch(protocol) {
+    case "srt":
+      source = ["srt", "ts"];
+      // Move to packaging
+      // if(inputPackaging === "rtp_ts") { source.splice(1, 0, "rtp"); }
+      break;
+    case "udp": source = ["ts"]; break;
+    case "rtp": source = ["rtp", "ts"]; break;
+    case "rtmp": source = ["rtmp"]; break;
+  }
+
+  return {source, packaging};
+};
+
+const rtf = new Intl.RelativeTimeFormat("en", {numeric: "auto"});
+
+export const RelativeTime = (date) => {
+  if(!date) { return ""; }
+
+  const diff = Math.floor((new Date(date).getTime() - Date.now()) / 1000);
+  if(Math.abs(diff) < 60) { return rtf.format(diff, "second"); }
+  const minutes = Math.floor(diff / 60);
+  if(Math.abs(minutes) < 60) { return rtf.format(minutes, "minute"); }
+  const hours = Math.floor(minutes / 60);
+  if(Math.abs(hours) < 24) { return rtf.format(hours, "hour"); }
+  return rtf.format(Math.floor(hours / 24), "day");
 };

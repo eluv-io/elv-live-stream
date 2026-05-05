@@ -1,43 +1,36 @@
-// "use client";
-
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Link, useNavigate} from "react-router-dom";
-import {
-  IconPlayerPlay,
-  IconPlayerStop,
-  IconTrash,
-  IconExternalLink,
-  IconDeviceAnalytics,
-  IconListCheck,
-  IconCircleX, IconSearch
-} from "@tabler/icons-react";
-
-import {dataStore, modalStore, streamBrowseStore} from "@/stores";
-import {SanitizeUrl, SortTable, VideoBitrateReadable, StreamIsActive} from "@/utils/helpers";
-import {STATUS_MAP} from "@/utils/constants";
-import {CODEC_TEXT, FORMAT_TEXT} from "@/utils/constants";
-
+import {useNavigate} from "react-router-dom";
+import {useDisclosure} from "@mantine/hooks";
+import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
+import {dataStore, modalStore, streamStore} from "@/stores";
+import {SortTable} from "@/utils/helpers";
 import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
-import {DataTable} from "mantine-datatable";
-import {notifications} from "@mantine/notifications";
-import {ActionIcon, Group, TextInput, Stack, Title, Box, Flex, Button, UnstyledButton, Text} from "@mantine/core";
-
-import StatusText from "@/components/status-text/StatusText.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import {BasicTableRowText} from "@/pages/stream-details/common/DetailsCommon.jsx";
-import styles from "./Streams.module.css";
+import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
+import Actions from "@/components/table/actions/Actions.jsx";
+import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
+import {notifications} from "@mantine/notifications";
+import {IconCopy, IconPlayerPlay, IconPlayerStop, IconTrash} from "@tabler/icons-react";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
-  const [debouncedFilter] = useDebouncedValue(streamBrowseStore.streamFilter, 200);
+  const [selectedRecords, setSelectedRecords] = useState([]);
+  const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
+  const [debouncedFilter] = useDebouncedValue(streamStore.tableFilter, 200);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if(!dataStore.streamsLoaded) {
+      dataStore.LoadSiteStreams();
+    }
+  }, []);
+
   const DebouncedRefresh = useDebouncedCallback(async() => {
-    await dataStore.Initialize(true);
+    await dataStore.LoadSiteStreams(true);
   }, 500);
 
-  const records = Object.values(streamBrowseStore.streams || {})
+  const records = Object.values(streamStore.streams || {})
     .filter(record => {
       return (
         !debouncedFilter ||
@@ -47,285 +40,86 @@ const Streams = observer(() => {
     })
     .sort(SortTable({sortStatus}));
 
+  const refreshSelectedStatus = () =>
+    Promise.all(selectedRecords.map(r => streamStore.CheckStatus({objectId: r.objectId, slug: r.slug, update: true})));
+
+  const openBatchModal = (op) => {
+    modalStore.SetBatchModal({
+      op,
+      records: selectedRecords.map(r => streamStore.streams[r.slug] ?? r),
+      notifications,
+      Callback: refreshSelectedStatus
+    });
+  };
+
+  const batchActions = [
+    {
+      label: "Start",
+      id: "start-batch-action",
+      icon: IconPlayerPlay,
+      onClick: () => openBatchModal("START"),
+      disabled: selectedRecords.length === 0
+    },
+    {
+      label: "Stop",
+      id: "stop-batch-action",
+      icon: IconPlayerStop,
+      onClick: () => openBatchModal("STOP"),
+      disabled: selectedRecords.length === 0
+    },
+    {
+      label: "Delete",
+      id: "delete-batch-action",
+      icon: IconTrash,
+      onClick: () => modalStore.SetBatchModal({
+        op: "DELETE",
+        records: selectedRecords.map(r => streamStore.streams[r.slug] ?? r),
+        notifications,
+        Callback: () => setSelectedRecords([])
+      }),
+      disabled: selectedRecords.length === 0
+    },
+    {
+      label: "Duplicate",
+      id: "duplicate-batch-action",
+      icon: IconCopy,
+      onClick: openDuplicate,
+      disabled: selectedRecords.length !== 1
+    },
+  ];
+
   return (
     <PageContainer
       title="Streams"
     >
-      <Flex w="100%" align="center" mb={16}>
-        <TextInput
-          flex={2}
-          maw={400}
-          classNames={{input: styles.searchBar}}
-          placeholder="Search by object name or ID"
-          leftSection={<IconSearch width={15} height={15} />}
-          mb={14}
-          value={streamBrowseStore.streamFilter}
-          onChange={event => streamBrowseStore.SetStreamFilter({filter: event.target.value})}
-        />
-        <Button
-          onClick={DebouncedRefresh}
-          variant="outline"
-          ml="auto"
-        >
-          Refresh
-        </Button>
-      </Flex>
-
-      <Box className={styles.tableWrapper}>
-        <DataTable
-          highlightOnHover
-          idAccessor="objectId"
-          minHeight={(!records || records.length === 0) ? 130 : 75}
-          fetching={!dataStore.loaded}
-          records={records}
-          emptyState={
-            // Mantine bug where empty state link still present underneath table rows
-            !records &&
-            <div className={styles.emptyDataTable}>
-              <div className={styles.emptyDataTableText}>
-                No streams available
-              </div>
-              <Link className="button button__primary" to="/create">
-                <div className="button__link-inner">
-                  <span className="button__link-text">
-                    Create New Stream
-                  </span>
-                </div>
-              </Link>
-            </div>
-          }
-          sortStatus={sortStatus}
-          onSortStatusChange={setSortStatus}
-          columns={[
-            { accessor: "title", title: "Name", sortable: true, render: record => (
-              <Stack gap={0} maw="100%">
-                <UnstyledButton onClick={() => navigate(`/streams/${record.objectId || record.slug}`)} disabled={!record.objectId} style={{pointerEvents: record.objectId ? "auto" : "none"}}>
-                  <Title order={3} lineClamp={1} title={record.title || record.slug} style={{wordBreak: "break-all"}}>
-                    {record.title || record.slug}
-                  </Title>
-                </UnstyledButton>
-                <Title order={6} c="elv-gray.6" lineClamp={1}>
-                  {record.objectId}
-                </Title>
-              </Stack>
-            )},
-            {
-              accessor: "originUrl",
-              title: "URL",
-              render: record => (
-                <BasicTableRowText title={SanitizeUrl({url: record.originUrl})} lineClamp={1}>
-                  {SanitizeUrl({url: record.originUrl})}
-                </BasicTableRowText>
-              )
-            },
-            {
-              accessor: "format",
-              title: "Format",
-              render: record => (
-                <BasicTableRowText style={{textWrap: "nowrap"}}>
-                  {FORMAT_TEXT[record.format]}
-                </BasicTableRowText>
-              )
-            },
-            {
-              accessor: "video",
-              title: "Video",
-              render: record => (
-                <BasicTableRowText style={{textWrap: "nowrap"}}>
-                  {CODEC_TEXT[record.codecName]} {VideoBitrateReadable(record.videoBitrate)}
-                </BasicTableRowText>
-              )
-            },
-            {
-              accessor: "audioStreams",
-              title: "Audio",
-              render: record => (
-                <BasicTableRowText miw="100%" textWrap="nowrap">
-                  {record.audioStreamCount ? `${record.audioStreamCount} ${record.audioStreamCount > 1 ? "streams" : "stream"}` : ""}
-                </BasicTableRowText>
-              )
-            },
-            {
-              accessor: "status",
-              title: "Status",
-              sortable: true,
-              render: record => !record.status ? null :
-                <StatusText
-                  status={record.status}
-                  quality={record.quality}
-                  size="md"
-                />
-            },
-            {
-              accessor: "actions",
-              title: "",
-              render: record => {
-                return (
-                  <Group gap={7} justify="right" wrap="nowrap">
-                    {
-                      ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status) ? null :
-                        <ActionIcon
-                          title="Check Stream"
-                          variant="subtle"
-                          color="gray.6"
-                          onClick={async () => {
-                            const url = await streamBrowseStore.client.ContentObjectMetadata({
-                              libraryId: await streamBrowseStore.client.ContentObjectLibraryId({objectId: record.objectId}),
-                              objectId: record.objectId,
-                              metadataSubtree: "live_recording_config/url"
-                            });
-
-                            modalStore.SetModal({
-                              data: {
-                                objectId: record.objectId,
-                                name: record.title,
-                                loadingText: (
-                                  <Stack mt={16} gap={5}>
-                                    <Text>
-                                      Please send your stream to:
-                                    </Text>
-                                    <Text>
-                                      {
-                                        SanitizeUrl({url, removeQueryParams: ["mode"]}) || "the URL you specified"
-                                      }
-                                    </Text>
-                                  </Stack>
-                                )
-                              },
-                              op: "CHECK",
-                              slug: record.slug,
-                              activeMessage: record.status !== STATUS_MAP.INACTIVE,
-                              notifications
-                            });
-                          }}
-                        >
-                          <IconListCheck />
-                        </ActionIcon>
-                    }
-                    {
-                      !record.status || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status) ? null :
-                        <ActionIcon
-                          title="Start Stream"
-                          variant="subtle"
-                          color="gray.6"
-                          onClick={() => {
-                            modalStore.SetModal({
-                              data: {
-                                objectId: record.objectId,
-                                name: record.title
-                              },
-                              op: "START",
-                              slug: record.slug,
-                              notifications
-                            });
-                          }}
-                        >
-                          <IconPlayerPlay />
-                        </ActionIcon>
-                    }
-                    {
-                      !record.status || record.status !== STATUS_MAP.STOPPED ? null :
-                        <ActionIcon
-                          title="Deactivate Stream"
-                          variant="subtle"
-                          color="gray.6"
-                          onClick={() => {
-                            modalStore.SetModal({
-                              data: {
-                                objectId: record.objectId,
-                                name: record.title,
-                                customMessage: (
-                                  <Stack gap={0} mb={8}>
-                                    <Text c="elv-gray.9">Are you sure you want to deactivate the stream?</Text>
-                                    <Text fw={700} c="elv-gray.9">You will lose all recording media. Be sure to save a VoD copy first.</Text>
-                                  </Stack>
-                                )
-                              },
-                              op: "DEACTIVATE",
-                              slug: record.slug,
-                              notifications
-                            });
-                          }}
-                        >
-                          <IconCircleX />
-                        </ActionIcon>
-                    }
-                    {
-                      !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status) ? null :
-                        <>
-                          <ActionIcon
-                            component={Link}
-                            to={`/streams/${record.objectId}/preview`}
-                            title="View Stream"
-                            variant="subtle"
-                            color="gray.6"
-                          >
-                            <IconDeviceAnalytics />
-                          </ActionIcon>
-                          <ActionIcon
-                            title="Stop Stream"
-                            variant="subtle"
-                            color="gray.6"
-                            onClick={() => {
-                              modalStore.SetModal({
-                                data: {
-                                  objectId: record.objectId,
-                                  name: record.title
-                                },
-                                op: "STOP",
-                                slug: record.slug,
-                                notifications
-                              });
-                            }}
-                          >
-                            <IconPlayerStop />
-                          </ActionIcon>
-                        </>
-                    }
-                    {
-                      !!record.objectId &&
-                      <ActionIcon
-                        title="Open in Fabric Browser"
-                        variant="subtle"
-                        color="gray.6"
-                        onClick={() => streamBrowseStore.client.SendMessage({
-                          options: {
-                            operation: "OpenLink",
-                            libraryId: record.libraryId,
-                            objectId: record.objectId
-                          },
-                          noResponse: true
-                        })}
-                      >
-                        <IconExternalLink />
-                      </ActionIcon>
-                    }
-                    <ActionIcon
-                      title="Delete Stream"
-                      variant="subtle"
-                      color="gray.6"
-                      disabled={StreamIsActive(record.status)}
-                      onClick={() => {
-                        modalStore.SetModal({
-                          data: {
-                            objectId: record.objectId,
-                            name: record.title
-                          },
-                          op: "DELETE",
-                          slug: record.slug,
-                          notifications
-                        });
-                      }}
-                    >
-                      <IconTrash />
-                    </ActionIcon>
-                  </Group>
-                );
-              }
-            }
-          ]}
-        />
-      </Box>
+      <Actions
+        actions={[
+          {label: "Create", id: "create-action", variant: "filled", onClick: () => navigate("/streams/create")},
+          {label: "Refresh", id: "refresh-action", variant: "outline", onClick: DebouncedRefresh}
+        ]}
+        searchValue={streamStore.tableFilter}
+        onSearchChange={(event) => streamStore.SetTableFilter(event.target.value)}
+      />
+      <BatchActions
+        selectedRecords={selectedRecords}
+        SelectAll={() => setSelectedRecords(records)}
+        ClearSelection={() => setSelectedRecords([])}
+        actions={batchActions}
+      />
+      <StreamsTable
+        records={records}
+        sortStatus={sortStatus}
+        onSortStatusChange={setSortStatus}
+        selectedRecords={selectedRecords}
+        onSelectedRecordsChange={setSelectedRecords}
+        fetching={!dataStore.streamsLoaded}
+        onNameClick={objectId => navigate(`/streams/${objectId}`)}
+      />
+      <DuplicateStreamModal
+        opened={showDuplicateModal}
+        onClose={closeDuplicate}
+        records={selectedRecords}
+      />
     </PageContainer>
   );
 });

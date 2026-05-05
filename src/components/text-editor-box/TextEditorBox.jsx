@@ -1,39 +1,28 @@
-import {ActionIcon, Box, Flex, Group, JsonInput, Paper, Text, Title} from "@mantine/core";
-import {useState} from "react";
+import {ActionIcon, Box, CopyButton, Flex, Group, JsonInput, Paper, Text, Title, Tooltip} from "@mantine/core";
 import {TrashIcon} from "@/assets/icons/index.js";
-import {IconPencil} from "@tabler/icons-react";
-
-const EditorField = ({
-  show,
-  editorValue,
-  HandleChange
-}) => {
-  if(!show) { return null; }
-
-  return (
-    <JsonInput
-      value={editorValue}
-      onChange={value => HandleChange({value})}
-      autosize
-      minRows={5}
-      maxRows={15}
-      color="elv-gray.9"
-      validationError="Invalid JSON"
-      formatOnBlur
-    />
-  );
-};
+import {IconCheck, IconCopy, IconPencil} from "@tabler/icons-react";
+import {useEffect, useState} from "react";
 
 const TextEditorBox = ({
   columns=[],
   header,
   editorValue,
+  expandIcon,
   defaultShowEditor=false,
   hideDelete=false,
+  showCopy=true,
+  readonly=false,
   HandleEditorValueChange,
-  HandleDelete
+  HandleDelete,
+  Validate
 }) => {
   const [showEditor, setShowEditor] = useState(defaultShowEditor);
+  const [localValue, setLocalValue] = useState(editorValue);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setLocalValue(editorValue);
+  }, [editorValue]);
   const width = 700;
 
   return (
@@ -53,37 +42,78 @@ const TextEditorBox = ({
                 ))
               }
               <Group ml="auto">
-                <ActionIcon
-                  size={20}
-                  variant="transparent"
-                  color="elv-neutral.4"
-                  onClick={() => setShowEditor(prevState => !prevState)}
-                >
-                  <IconPencil />
-                </ActionIcon>
+                {
+                  showCopy && showEditor &&
+                  <CopyButton value={localValue ?? ""}>
+                    {({copied, copy}) => (
+                      <Tooltip label={copied ? "Copied" : "Copy"} withArrow>
+                        <ActionIcon
+                          size={20}
+                          variant="transparent"
+                          color={copied ? "teal" : "elv-neutral.4"}
+                          onClick={copy}
+                        >
+                          {copied ? <IconCheck /> : <IconCopy />}
+                        </ActionIcon>
+                      </Tooltip>
+                    )}
+                  </CopyButton>
+                }
+                <Tooltip label={expandIcon ? (showEditor ? "Hide" : "Expand") : "Edit"} withArrow>
+                  <ActionIcon
+                    size={20}
+                    variant="transparent"
+                    color="elv-neutral.4"
+                    onClick={() => setShowEditor(prevState => !prevState)}
+                  >
+                    {expandIcon ? expandIcon : <IconPencil />}
+                  </ActionIcon>
+                </Tooltip>
               </Group>
             </Group>
           </Paper>
         </Box>
         {
-          !hideDelete &&
-          <ActionIcon
-            size={20}
-            variant="transparent"
-            color="elv-neutral.4"
-            onClick={HandleDelete}
-          >
-            <TrashIcon />
-          </ActionIcon>
+          !hideDelete && !readonly &&
+          <Tooltip label="Delete" withArrow>
+            <ActionIcon
+              size={20}
+              variant="transparent"
+              color="elv-neutral.4"
+              onClick={HandleDelete}
+            >
+              <TrashIcon />
+            </ActionIcon>
+          </Tooltip>
         }
       </Group>
 
       <Box w={width} mb={12}>
-        <EditorField
-          show={showEditor}
-          editorValue={editorValue}
-          HandleChange={HandleEditorValueChange}
-        />
+        {
+          showEditor &&
+          <JsonInput
+            readOnly={readonly}
+            value={localValue}
+            onChange={value => {
+              setLocalValue(value);
+              try {
+                const parsed = JSON.parse(value);
+                const customError = Validate ? Validate(parsed) : null;
+                setError(customError || null);
+                if(!customError) { HandleEditorValueChange({value}); }
+              } catch {
+                setError("Invalid JSON");
+                if(Validate) { Validate(null); }
+              }
+            }}
+            autosize
+            minRows={5}
+            maxRows={15}
+            color="elv-gray.9"
+            error={error}
+            formatOnBlur
+          />
+        }
       </Box>
     </Box>
   );

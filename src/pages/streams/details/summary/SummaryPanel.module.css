@@ -1,0 +1,27 @@
+.borderRadius {
+  border-radius: 16px;
+}
+
+.code {
+  border-left: 4px solid var(--mantine-color-yellow-filled);
+  border-radius: 0;
+}
+
+.flexGrow {
+  flex-grow: 1;
+}
+
+.embedUrl {
+  word-break: break-all;
+}
+
+.audioSelectInput {
+  height: 20px;
+  min-height: 20px;
+  font-size: 0.75rem;
+  width: 65px;
+}
+
+.audioSelectWrapper {
+  width: fit-content;
+}

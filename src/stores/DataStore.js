@@ -1,12 +1,6 @@
-// Force strict mode so mutations are only allowed within actions.
-import {configure, flow, makeAutoObservable, runInAction, toJS} from "mobx";
-import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
+// Handles all metadata reads — tenant info, stream metadata, recording/playout config, probe data, permissions, and ladder profiles.
+import {flow, makeAutoObservable, observable, runInAction, toJS} from "mobx";
 
-configure({
-  enforceActions: "always"
-});
-
-// Manages fetching and caching raw data from the backend, handling static or unchanging information.
 class DataStore {
   rootStore;
   loaded = false;
@@ -17,12 +11,15 @@ class DataStore {
   titleContentType;
   siteId;
   siteLibraryId;
+  streamMetadata;
   liveStreamUrls;
-  ladderProfiles;
+  dedicatedNodes;
   srtUrlsByStream;
+  loadedDedicatedNodes = false;
+  streamsLoaded = false;
 
   constructor(rootStore) {
-    makeAutoObservable(this);
+    makeAutoObservable(this, {streamMetadata: observable.ref});
 
     runInAction(() => {
       this.rootStore = rootStore;
@@ -33,163 +30,71 @@ class DataStore {
     return this.rootStore.client;
   }
 
-  Initialize = flow(function * (reload=false) {
+  get dedicatedNodesList() {
+    return Object.entries(this.dedicatedNodes ?? {})
+      .map(([key, value]) => ({label: value.name, value: key}));
+  }
+
+  DedicatedNodeUrls({nodeId, protocol}) {
+    if(!this.dedicatedNodes) { return []; }
+
+    return this.dedicatedNodes?.[nodeId]?.urls?.[protocol] ?? [];
+  }
+
+  Initialize = flow(function * () {
     this.loaded = false;
     try {
-      const tenantContractId = yield this.LoadTenantInfo();
-      if(!this.siteId) {
-        this.siteId = yield this.LoadTenantData({tenantContractId});
-      }
-
-      if(!this.siteLibraryId) {
-        this.siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
-      }
-
-      yield this.LoadLadderProfiles();
-      yield this.LoadStreams();
+      yield this.LoadTenantData();
       this.loaded = true;
-      yield this.rootStore.streamBrowseStore.AllStreamsStatus(reload);
     } catch(error) {
       this.loaded = true;
     }
   });
 
-  LoadTenantInfo = flow(function * () {
+  LoadSiteStreams = flow(function * (reload=false) {
+    this.streamsLoaded = false;
     try {
-      if(!this.tenantId) {
-        const wallet = yield this.client.userProfileClient.UserWalletObjectInfo();
-        let tenantId = yield this.client.userProfileClient.TenantContractId();
-
-        if(!tenantId) {
-          tenantId = yield this.client.ContentObjectMetadata({
-            libraryId: yield this.client.ContentObjectLibraryId({objectId: wallet.objectId}),
-            objectId: wallet.objectId,
-            metadataSubtree: "tenantContractId",
-          });
-        }
-
-        this.tenantId = tenantId;
-
-        if(!this.tenantId) {
-          throw "Tenant ID not found";
-        }
+      if(!this.streamMetadata || reload) {
+        yield this.LoadTenantData();
       }
 
-      return this.tenantId;
+      yield this.rootStore.streamStore.LoadStreams({streamMetadata: this.streamMetadata});
+      yield this.rootStore.outputStore.LoadOutputSettingsId();
+      this.streamsLoaded = true;
+      yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
-      this.rootStore.SetErrorMessage("Error: Unable to determine tenant info");
-      // eslint-disable-next-line no-console
-      console.error(error);
-      throw Error("No tenant contract ID found.");
+      this.streamsLoaded = true;
     }
   });
 
-  LoadTenantData = flow(function * ({tenantContractId}) {
+  LoadTenantData = flow(function * () {
     try {
-      const response = yield this.client.ContentObjectMetadata({
-        libraryId: tenantContractId.replace("iten", "ilib"),
-        objectId: tenantContractId.replace("iten", "iq__"),
-        metadataSubtree: "public",
-        select: [
-          "sites/live_streams",
-          "content_types/live_stream",
-          "content_types/title"
-        ]
-      });
-      const {sites, content_types} = response;
+      const {siteLibraryId, siteObjectId, streamMetadata, contentTypes} = yield this.client.StreamSiteSettings();
+      const {live_stream, title} = contentTypes;
 
-      if(content_types?.live_stream) {
-        this.contentType = content_types.live_stream;
+      if(live_stream) {
+        this.contentType = live_stream;
       }
 
-      if(content_types?.title) {
-        this.titleContentType = content_types.title;
+      if(title) {
+        this.titleContentType = title;
       }
 
-      return sites?.live_streams;
+      this.siteId = siteObjectId;
+      this.siteLibraryId = siteLibraryId;
+      this.streamMetadata = streamMetadata;
+
+      return {
+        siteLibraryId,
+        siteObjectId,
+        streamMetadata
+      };
     } catch(error) {
       this.rootStore.SetErrorMessage("Error: Unable to load tenant sites");
       // eslint-disable-next-line no-console
       console.error(error);
-      throw Error(`Unable to load sites for tenant ${tenantContractId}.`);
+      throw Error("Unable to load sites for tenant.");
     }
-  });
-
-  LoadLadderProfiles = flow(function * () {
-    try {
-      const profiles = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId: this.siteId}),
-        objectId: this.siteId,
-        metadataSubtree: "public/asset_metadata/profiles"
-      });
-
-      this.UpdateLadderProfiles({profiles});
-
-      return profiles;
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to load ladder profiles from site object", error);
-    }
-  });
-
-  LoadStreams = flow(function * () {
-    this.rootStore.streamBrowseStore.UpdateStreams({});
-    let streamMetadata;
-    try {
-      const siteMetadata = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId: this.siteId}),
-        objectId: this.siteId,
-        select: [
-          "public/asset_metadata/live_streams"
-        ],
-        resolveLinks: true,
-        resolveIgnoreErrors: true,
-        resolveIncludeSource: true
-      });
-
-      streamMetadata = siteMetadata?.public?.asset_metadata?.live_streams || {};
-    } catch(error) {
-      this.rootStore.streamBrowseStore.UpdateStreams({streams: {}});
-      this.rootStore.SetErrorMessage("Error: Unable to load streams");
-      // eslint-disable-next-line no-console
-      console.error(error);
-      throw Error(`Unable to load live streams for site ${this.siteId}.`);
-    }
-
-    yield this.client.utils.LimitedMap(
-      10,
-      Object.keys(streamMetadata),
-      async slug => {
-        const stream = streamMetadata[slug];
-
-        const versionHash = stream?.["."]?.source;
-
-        if(versionHash) {
-          const objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
-          const libraryId = await this.client.ContentObjectLibraryId({objectId});
-
-          streamMetadata[slug].slug = slug;
-          streamMetadata[slug].objectId = objectId;
-          streamMetadata[slug].versionHash = versionHash;
-          streamMetadata[slug].libraryId = libraryId;
-          streamMetadata[slug].embedUrl = await this.EmbedUrl({objectId});
-
-          const streamDetails = await this.LoadStreamMetadata({
-            objectId,
-            libraryId
-          }) || {};
-
-          Object.keys(streamDetails).forEach(detail => {
-            streamMetadata[slug][detail] = streamDetails[detail];
-          });
-        } else {
-          // eslint-disable-next-line no-console
-          console.error(`No version hash for ${slug}`);
-        }
-      }
-    );
-
-    this.rootStore.streamBrowseStore.UpdateStreams({streams: streamMetadata});
   });
 
   LoadLibraries = flow(function * () {
@@ -254,143 +159,6 @@ class DataStore {
     }
   });
 
-  LoadStreamMetadata = flow(function * ({objectId, libraryId}) {
-    try {
-      if(!libraryId) {
-        libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      }
-
-      const streamMeta = yield this.client.ContentObjectMetadata({
-        objectId,
-        libraryId,
-        select: [
-          "live_recording_config/probe_info/format/filename",
-          "live_recording_config/probe_info/streams",
-          "live_recording_config/srt_egress_enabled",
-          "live_recording/recording_config/recording_params/origin_url",
-          "live_recording/playout_config/simple_watermark",
-          "live_recording/playout_config/image_watermark",
-          "live_recording/playout_config/forensic_watermark",
-          "live_recording/recording_config/recording_params/xc_params/connection_timeout",
-          "live_recording/recording_config/recording_params/reconnect_timeout",
-          "live_recording/recording_config/recording_params/persistent",
-          "live_recording/playout_config/dvr_enabled",
-          "live_recording/playout_config/dvr_start_time",
-          "live_recording/playout_config/dvr_max_duration",
-          "live_recording_config/reference_url",
-          "live_recording_config/url",
-          "live_recording_config/drm_type",
-          "public/description",
-          "public/name",
-          "public/asset_metadata/display_title",
-          "live_recording_config/part_ttl",
-          "live_recording_config/playout_ladder_profile"
-        ]
-      });
-      let probeMeta = streamMeta?.live_recording_config?.probe_info;
-
-      // Phase out as new streams will have live_recording_config/probe_info
-      if(!probeMeta) {
-        probeMeta = yield this.client.ContentObjectMetadata({
-          objectId,
-          libraryId,
-          metadataSubtree: "/live_recording/probe_info",
-          select: [
-            "format/filename",
-            "streams"
-          ]
-        });
-      }
-
-      let probeType = (probeMeta?.format?.filename)?.split("://")[0];
-      if(probeType === "srt" && !probeMeta.format?.filename?.includes("listener")) {
-        probeType = "srt-caller";
-      }
-
-      const videoStream = (probeMeta?.streams || []).find(stream => stream.codec_type === "video");
-      const audioStreamCount = probeMeta?.streams ? (probeMeta?.streams || []).filter(stream => stream.codec_type === "audio").length : undefined;
-      const simpleWatermark = streamMeta?.live_recording?.playout_config?.simple_watermark;
-      const imageWatermark = streamMeta?.live_recording?.playout_config?.image_watermark;
-      const forensicWatermark = streamMeta?.live_recording?.playout_config?.forensic_watermark;
-      const connectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout;
-      const reconnectionTimeout = streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout;
-      const partTtl = streamMeta?.live_recording_config?.part_ttl;
-      const dvrMaxDuration = streamMeta?.live_recording?.playout_config?.dvr_max_duration;
-
-      return {
-        codecName: videoStream?.codec_name,
-        connectionTimeout: connectionTimeout ? connectionTimeout.toString() : null,
-        description: streamMeta?.public?.description,
-        display_title: streamMeta?.public?.asset_metadata?.display_title,
-        drm: streamMeta?.live_recording_config?.drm_type,
-        dvrEnabled: streamMeta?.live_recording?.playout_config?.dvr_enabled,
-        dvrStartTime: streamMeta?.live_recording?.playout_config?.dvr_start_time,
-        dvrMaxDuration: dvrMaxDuration === undefined ? null : dvrMaxDuration.toString(),
-        egressEnabled: streamMeta?.live_recording_config?.srt_egress_enabled,
-        forensicWatermark,
-        format: probeType,
-        imageWatermark,
-        originUrl: streamMeta?.live_recording?.recording_config?.recording_params?.origin_url || streamMeta?.live_recording_config?.url,
-        partTtl: partTtl ? partTtl.toString() : null,
-        persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
-        playoutLadderProfile: streamMeta?.live_recording_config?.playout_ladder_profile,
-        reconnectionTimeout: reconnectionTimeout ? reconnectionTimeout.toString() : null,
-        referenceUrl: streamMeta?.live_recording_config?.reference_url,
-        simpleWatermark,
-        title: streamMeta?.public?.name,
-        videoBitrate: videoStream?.bit_rate,
-        audioStreamCount,
-        watermarkType: simpleWatermark ? "TEXT" : imageWatermark ? "IMAGE" : forensicWatermark ? "FORENSIC" : ""
-      };
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to load stream metadata", error);
-    }
-  });
-
-  LoadDetails = flow(function * ({libraryId, objectId, slug}) {
-    try {
-      if(!libraryId) {
-        libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      }
-
-      const streamMeta = yield this.client.ContentObjectMetadata({
-        objectId,
-        libraryId,
-        metadataSubtree: "public",
-        select: [
-          "name",
-          "description",
-          "asset_metadata/display_title",
-          "asset_metadata/title"
-        ]
-      });
-
-      const urlMeta = yield this.client.ContentObjectMetadata({
-        objectId,
-        libraryId,
-        metadataSubtree: "/",
-        select: [
-          "live_recording_config/url",
-          "live_recording/recording_config/recording_params/origin_url"
-        ]
-      });
-
-      this.rootStore.streamBrowseStore.UpdateStream({
-        key: slug,
-        value: {
-          title: streamMeta?.name,
-          description: streamMeta.description,
-          display_title: streamMeta.asset_metadata?.display_title,
-          originUrl: urlMeta?.live_recording?.recording_config?.recording_params?.origin_url || urlMeta?.live_recording_config?.url
-        }
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to load stream metadata", error);
-    }
-  });
-
   LoadPermission = flow(function * ({libraryId, objectId}) {
     try {
       if(!libraryId) {
@@ -427,8 +195,31 @@ class DataStore {
     }
   });
 
+  LoadDedicatedNodes = flow(function * (){
+    this.loadedDedicatedNodes = false;
+    try {
+      if(!this.siteLibraryId) {
+        const {siteObjectId, siteLibraryId} = yield this.LoadTenantData();
+        this.siteId = siteObjectId;
+        this.siteLibraryId = siteLibraryId;
+      }
+
+      const nodes = yield this.client.ContentObjectMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        metadataSubtree: "/dedicated_nodes"
+      });
+      this.UpdateDedicatedNodes({nodes});
+      this.loadedDedicatedNodes = true;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load dedicated stream URLs", error);
+    }
+  });
+
   LoadStreamUrls = flow(function * () {
     this.UpdateStreamUrls({});
+    this.loadedUrls = false;
     try {
       const response = yield this.client.StreamListUrls({siteId: this.siteId});
 
@@ -443,171 +234,10 @@ class DataStore {
       });
 
       this.UpdateStreamUrls({urls});
+      this.loadedUrls = true;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to load stream URLs", error);
-    }
-  });
-
-  LoadEdgeWriteTokenMeta = flow(function * ({
-    objectId,
-    libraryId
-  }) {
-    try {
-      if(!libraryId) {
-        libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      }
-
-      const edgeWriteToken = yield this.client.ContentObjectMetadata({
-        objectId,
-        libraryId,
-        metadataSubtree: "/live_recording/fabric_config/edge_write_token"
-      });
-
-      if(!edgeWriteToken) { return {}; }
-
-      let metadata;
-      try {
-        metadata = yield this.client.ContentObjectMetadata({
-          libraryId,
-          objectId,
-          writeToken: edgeWriteToken,
-          metadataSubtree: "live_recording",
-          select: ["recordings", "recording_config"]
-        });
-      } catch(error) {
-        // eslint-disable-next-line no-console
-        console.error("Unable to load edge write token metadata", error);
-      }
-
-      return {
-        // First stream recording start time
-        _recordingStartTime: metadata?.recording_config?.recording_start_time,
-        ...metadata?.recordings
-      };
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to load metadata with edge write token", error);
-      return {};
-    }
-  });
-
-  LoadRecordingConfigData = flow(function * ({
-    libraryId,
-    objectId
-  }) {
-    try {
-      if(!libraryId) {
-        libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      }
-
-      const streamMeta = yield this.client.ContentObjectMetadata({
-        objectId,
-        libraryId,
-        select: [
-          "live_recording/recording_config/recording_params/xc_params/connection_timeout",
-          "live_recording/recording_config/recording_params/reconnect_timeout",
-          "live_recording_config/part_ttl",
-          "live_recording/recording_config/recording_params/persistent",
-          "live_recording/recording_config/recording_params/xc_params/copy_mpegts"
-        ]
-      });
-
-      const {audioStreams, audioData} = yield this.LoadStreamProbeData({
-        libraryId,
-        objectId
-      });
-
-      return {
-        audioStreams,
-        audioData,
-        persistent: streamMeta?.live_recording?.recording_config?.recording_params?.persistent,
-        retention: streamMeta?.live_recording_config?.part_ttl,
-        connectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.connection_timeout,
-        reconnectionTimeout: streamMeta?.live_recording?.recording_config?.recording_params?.reconnect_timeout,
-        copyMpegTs: streamMeta?.live_recording?.recording_config?.recording_params?.xc_params?.copy_mpegts
-      };
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to load recording config data", error);
-      return {};
-    }
-  });
-
-  LoadStreamProbeData = flow(function * ({
-    objectId,
-    libraryId
-  }){
-    try {
-      if(!libraryId) {
-        libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      }
-
-      let probeMetadata = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_config/probe_info",
-      });
-
-      // Phase out as new streams will have live_recording_config/probe_info
-      if(!probeMetadata) {
-        probeMetadata = yield this.client.ContentObjectMetadata({
-          libraryId,
-          objectId,
-          metadataSubtree: "live_recording/probe_info",
-        });
-      }
-
-      if(!probeMetadata) {
-        return {audioStreams: [], audioData: {}};
-      }
-
-      const recordingParamsMetadata = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/recording_config/recording_params",
-        select: [
-          "ladder_specs"
-        ]
-      });
-
-      const audioConfig = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_config/audio"
-      });
-
-      const audioStreams = (probeMetadata.streams || [])
-        .filter(stream => stream.codec_type === "audio");
-
-      // Map used for form data
-      const audioData = {};
-      audioStreams.forEach((spec, i) => {
-        const audioConfigForIndex = audioConfig && audioConfig[spec.stream_index] ? audioConfig[spec.stream_index] : {};
-        const ladderSpecsForIndex = recordingParamsMetadata && (recordingParamsMetadata.ladder_specs).find(i => (i.stream_index === spec.stream_index) && i.representation.includes("audio"));
-
-        const initBitrate = RECORDING_BITRATE_OPTIONS.map(option => option.value).includes(spec.bit_rate) ? spec.bit_rate : 192000;
-
-        audioData[spec.stream_index] = {
-          bitrate: spec.bit_rate,
-          codec: spec.codec_name,
-          record: Object.hasOwn(audioConfigForIndex, "record") ? audioConfigForIndex.record : true,
-          recording_bitrate: initBitrate,
-          recording_channels: spec.channels,
-          playout: Object.hasOwn(audioConfigForIndex, "playout") ? audioConfigForIndex.playout : true,
-          playout_label: audioConfigForIndex.playout_label || `Audio ${i + 1}`,
-          lang: ladderSpecsForIndex?.lang,
-          default: ladderSpecsForIndex?.default
-        };
-      });
-
-      return {
-        audioStreams,
-        audioData
-      };
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to load live_recording metadata", error);
     }
   });
 
@@ -619,18 +249,6 @@ class DataStore {
     });
 
     this.srtUrlsByStream = srtUrls || {};
-  });
-
-  EmbedUrl = flow(function * ({objectId}) {
-    try {
-      const url = yield this.client.EmbedUrl({objectId, mediaType: "live_video"});
-
-      return url;
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error(error);
-      return "";
-    }
   });
 
   // TODO: Move this to client-js
@@ -729,12 +347,12 @@ class DataStore {
     }
   });
 
-  UpdateLadderProfiles = ({profiles}) => {
-    this.ladderProfiles = profiles;
-  };
-
   UpdateStreamUrls = ({urls}) => {
     this.liveStreamUrls = urls;
+  };
+
+  UpdateDedicatedNodes = ({nodes}) => {
+    this.dedicatedNodes = nodes;
   };
 
   UpdateSrtUrls({objectId, newData={}, removeData={}}) {

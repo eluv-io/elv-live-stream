@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {streamBrowseStore} from "@/stores/index.js";
-import {ActionIcon, AspectRatio, Box} from "@mantine/core";
+import {streamStore} from "@/stores/index.js";
+import {ActionIcon, AspectRatio, Box, Loader} from "@mantine/core";
 import {PlayCircleIcon as PlayIcon} from "@/assets/icons/index.js";
 import Video from "@/components/video/Video.jsx";
 import {IconX} from "@tabler/icons-react";
@@ -26,7 +26,7 @@ const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLeve
         }
       </Box>
       <Video
-        objectId={streamBrowseStore.streams[slug].objectId}
+        objectId={streamStore.streams[slug].objectId}
         playerOptions={{
           capLevelToPlayerSize,
           autoplay: true
@@ -38,6 +38,7 @@ const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLeve
 
 const PlaceholderContent = observer(({
   setPlay,
+  loading,
   showPreview,
   frameSegmentUrl,
   status,
@@ -54,7 +55,10 @@ const PlaceholderContent = observer(({
       disabled={!playable}
     >
       {
-        status === "running" &&
+        loading && <Loader />
+      }
+      {
+        status === "running" && !loading &&
         <PlayIcon width={45} height={45} color="white" style={{zIndex: 10}}/>
       }
       {
@@ -78,6 +82,7 @@ const PlaceholderContent = observer(({
 
 export const VideoContainer = observer(({
   slug,
+  id,
   index,
   showPreview,
   allowClose = true,
@@ -86,27 +91,36 @@ export const VideoContainer = observer(({
 }) => {
   const [play, setPlay] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
-  const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamBrowseStore.streamFrameUrls[slug]?.url);
-  const status = streamBrowseStore.streams?.[slug]?.status;
+  const [frameSegmentUrl, setFrameSegmentUrl] = useState(streamStore.streamFrameUrls[slug]?.url);
+  const [loading, setLoading] = useState(false);
+
+  if(!slug) {
+    slug = Object.keys(streamStore.streams).find(slug => streamStore.streams[slug].objectId === id);
+  }
+  const status = streamStore.streams?.[slug]?.status;
 
   useEffect(() => {
     if(!showPreview || play || status !== "running") {
       return;
     }
 
-    const existingFrame = streamBrowseStore.streamFrameUrls[slug];
-    // Frame loading already initialized - no delay needed
-    if(frameKey > 0 || (existingFrame && Date.now() - existingFrame.timestamp < 60000)) {
+    const existingFrame = streamStore.streamFrameUrls[slug];
+    // Fresh URL already loaded - use it directly
+    if(existingFrame?.url && Date.now() - existingFrame.timestamp < 60000 && frameKey === 0) {
       setFrameSegmentUrl(existingFrame.url);
-      // eslint-disable-next-line no-console
-      console.log("SKIP DELAY", slug);
+      return;
+    }
+    // Fetch already in progress - don't start another
+    if(existingFrame && !existingFrame.url) {
       return;
     }
 
     // Stagger frame loads
     const delay = Math.min(200 + 500 * index, 10000);
     const frameTimeout = setTimeout(async () => {
-      setFrameSegmentUrl(await streamBrowseStore.StreamFrameURL(slug));
+      setLoading(true);
+      setFrameSegmentUrl(await streamStore.StreamFrameURL(slug));
+      setLoading(false);
     }, delay);
 
     return () => clearTimeout(frameTimeout);
@@ -148,6 +162,7 @@ export const VideoContainer = observer(({
               showPreview={showPreview}
               frameSegmentUrl={frameSegmentUrl}
               borderRadius={borderRadius}
+              loading={loading}
             />
         }
       </AspectRatio>

@@ -16,6 +16,16 @@ module.exports = {
   },
   settings: { react: { version: "detect" } },
   plugins: ["react-refresh", "spellcheck"],
+  overrides: [
+    {
+      files: ["**/*.test.js", "**/*.test.jsx", "**/test/setup.js"],
+      rules: {
+        "spellcheck/spell-checker": "off",
+        "no-console": "off",
+        "no-undef": "off"
+      }
+    }
+  ],
   rules: {
     "react-hooks/exhaustive-deps": 0,
     "react/prop-types": 0,

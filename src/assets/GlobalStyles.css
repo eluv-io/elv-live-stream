@@ -13,3 +13,11 @@
 .mantine-Table-th.no-border-end {
   border-inline-end: none;
 }
+
+[data-selected] td {
+  background: var(--mantine-color-elv-blue-0) !important;
+}
+
+tr[data-selected] .mantine-datatable-row-selector-cell::before {
+  background: var(--mantine-color-elv-blue-0) !important;
+}

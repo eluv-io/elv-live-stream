@@ -1,14 +1,14 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Box, Button, Flex, Grid, Modal, Text} from "@mantine/core";
+import {Box, Button, Flex, Grid, List, Modal, Text} from "@mantine/core";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
 
 const ConfirmModal = observer(({
   message,
   customMessage,
   title,
-  name,
-  objectId,
+  detailData={},
+  batchSummary,
   ConfirmCallback,
   CloseCallback,
   show,
@@ -43,25 +43,46 @@ const ConfirmModal = observer(({
             )
         }
         {
-          name && objectId &&
+          (Object.keys(detailData ?? {}).length > 0) &&
           <Box mt={16}>
-            <Grid gutter={2}>
-              <Grid.Col span={3}>
-                <Text>Stream Name:</Text>
-              </Grid.Col>
-              <Grid.Col span={9}>
-                <Text c="elv-gray.9" fw={700}>{ name || "" }</Text>
-              </Grid.Col>
-            </Grid>
-            <Grid>
-              <Grid.Col span={3}>
-                <Text>Stream ID:</Text>
-              </Grid.Col>
-              <Grid.Col span={9}>
-                <Text>{ objectId || "" }</Text>
-              </Grid.Col>
-            </Grid>
+            {
+              detailData.name &&
+              <Grid gutter={2}>
+                <Grid.Col span={3}>
+                  <Text>{ detailData.nameKey ?? "Name:" }</Text>
+                </Grid.Col>
+                <Grid.Col span={9}>
+                  <Text c="elv-gray.9" fw={700}>{ detailData.name ?? "" }</Text>
+                </Grid.Col>
+              </Grid>
+            }
+            {
+              detailData.id &&
+              <Grid>
+                <Grid.Col span={3}>
+                  <Text>{ detailData.idKey }</Text>
+                </Grid.Col>
+                <Grid.Col span={9}>
+                  <Text>{ detailData.id }</Text>
+                </Grid.Col>
+              </Grid>
+            }
           </Box>
+        }
+        {
+          batchSummary &&
+          <List mt={12}>
+            {batchSummary.readyCount > 0 && (
+              <List.Item>
+                <Text>{batchSummary.readyCount} {batchSummary.readyCount === 1 ? "stream is" : "streams are"} ready to {batchSummary.op.toLowerCase()}</Text>
+              </List.Item>
+            )}
+            {batchSummary.notReadyCount > 0 && (
+              <List.Item>
+                <Text>{batchSummary.notReadyCount} {batchSummary.notReadyCount === 1 ? "stream is" : "streams are"} {batchSummary.skipLabel} and will be skipped</Text>
+              </List.Item>
+            )}
+          </List>
         }
         {
           loading && loadingText ?

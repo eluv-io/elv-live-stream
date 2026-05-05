@@ -1,0 +1,19 @@
+.button {
+  &:hover {
+    background: rgb(0 0 0 / 3%);
+  }
+
+  &[data-disabled] {
+    background: none;
+
+    .buttonInner {
+      .button[data-disabled] & {
+        color: var(--mantine-color-elv-gray-6);
+      }
+    }
+  }
+}
+
+.boxRounded {
+  border-radius: 4px;
+}

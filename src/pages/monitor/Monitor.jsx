@@ -1,14 +1,14 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 
-import {dataStore, modalStore, rootStore, streamBrowseStore} from "@/stores";
+import {dataStore, modalStore, rootStore, streamStore} from "@/stores";
 import {SortTable, StreamIsActive} from "@/utils/helpers";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {ExternalLinkIcon, TrashIcon} from "@/assets/icons/index.js";
-import StatusText from "@/components/status-text/StatusText.jsx";
+import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {
   IconCircleX,
   IconCopy,
@@ -18,7 +18,7 @@ import {
   IconPlayerPlay,
   IconPlayerStop, IconSearch
 } from "@tabler/icons-react";
-import {STATUS_MAP} from "@/utils/constants.js";
+import {QUALITY_MAP, STATUS_MAP} from "@/utils/constants.js";
 import {notifications} from "@mantine/notifications";
 import {useNavigate} from "react-router-dom";
 import styles from "./Monitor.module.css";
@@ -44,7 +44,7 @@ const OverflowMenu = observer(({stream}) => {
       Icon: <IconCopy {...iconProps} />,
       hide: !stream.embedUrl,
       onClick: async() => {
-        const url = await dataStore.EmbedUrl({objectId: stream.objectId});
+        const url = await streamStore.EmbedUrl({objectId: stream.objectId});
         clipboard.copy(url);
         notifications.show({title: "Copied embed url", message: ""});
       }
@@ -156,7 +156,7 @@ const GridItem = observer(({stream, index}) => {
       <VideoContainer
         index={index}
         slug={stream.slug}
-        showPreview={streamBrowseStore.showMonitorPreviews}
+        showPreview={streamStore.showMonitorPreviews}
         playable={stream.status === "running"}
         capLevelToPlayerSize
       />
@@ -201,7 +201,11 @@ const GridItem = observer(({stream, index}) => {
           <Flex align="flex-end" justify="space-between">
             {
               stream.status &&
-              <StatusText status={stream.status} size="xs" />
+              <StatusIndicator
+                status={stream.status}
+                size="sm"
+                showWarning={stream.status?.quality && stream.status.quality !== QUALITY_MAP.GOOD}
+              />
             }
           </Flex>
         </Flex>
@@ -214,8 +218,14 @@ const Monitor = observer(() => {
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
 
-  const streams = !streamBrowseStore.streams ? undefined :
-    Object.values(streamBrowseStore.streams || {})
+  useEffect(() => {
+    if(!dataStore.streamsLoaded) {
+      dataStore.LoadSiteStreams();
+    }
+  }, []);
+
+  const streams = !streamStore.streams ? undefined :
+    Object.values(streamStore.streams || {})
       .filter(record => {
         return (
           !debouncedFilter ||
@@ -240,33 +250,32 @@ const Monitor = observer(() => {
           onChange={event => setFilter(event.target.value)}
         />
         <Button
-          onClick={() => streamBrowseStore.ToggleMonitorPreviews()}
+          onClick={() => streamStore.ToggleMonitorPreviews()}
           variant="outline"
           ml="auto"
         >
-          { streamBrowseStore.showMonitorPreviews ? "Hide Previews" : "Show Previews" }
+          { streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews" }
         </Button>
       </Flex>
       {
-        !dataStore.tenantId ? null :
-          !streams ?
-            <Box maw={200}>
-              <Loader />
-            </Box> :
-            streams.length === 0 ? (debouncedFilter ? "No Matching Streams" : "No Streams Found") :
-              <SimpleGrid cols={4} spacing="lg">
-                {
-                  streams.map((stream, index) => {
-                    return (
-                      <GridItem
-                        key={stream.slug}
-                        stream={stream}
-                        index={index}
-                      />
-                    );
-                  })
-                }
-              </SimpleGrid>
+        !streams ?
+          <Box maw={200}>
+            <Loader />
+          </Box> :
+          streams.length === 0 ? (debouncedFilter ? "No Matching Streams" : "No Streams Found") :
+            <SimpleGrid cols={4} spacing="lg">
+              {
+                streams.map((stream, index) => {
+                  return (
+                    <GridItem
+                      key={stream.slug}
+                      stream={stream}
+                      index={index}
+                    />
+                  );
+                })
+              }
+            </SimpleGrid>
       }
     </PageContainer>
   );
