@@ -921,7 +921,8 @@ class StreamEditStore {
       ...existing,
       playout_config: {
         ...existing?.playout_config,
-        dvr_enabled: config?.playout_config?.dvr,
+        dvr_enabled: config?.playout_config?.dvr_enabled ?? config?.playout_config?.dvr,
+        dvr_max_duration: config?.playout_config?.dvr_max_duration,
         simple_watermark: config?.playout_config?.simple_watermark,
         image_watermark: config?.playout_config?.image_watermark,
         forensic_watermark: config?.playout_config?.forensic_watermark,
@@ -934,6 +935,7 @@ class StreamEditStore {
           part_ttl: config?.recording_config?.part_ttl,
           xc_params: {
             ...existing?.recording_config?.recording_params?.xc_params,
+            ...config?.recording_params?.xc_params,
             connection_timeout: config?.recording_config?.connection_timeout,
           }
         }
