@@ -264,8 +264,8 @@ const Create = observer(() => {
             description={
               profileStore.state !== "loaded" ? "Apply a predefined set of configuration settings to this stream." : (profilesData.length === 0) ? "No profiles are configured. Create a profile in Settings." : "Apply a predefined set of configuration settings to this stream. If no profile is selected, built-in settings will be applied."
             }
+            allowDeselect={false}
             {...form.getInputProps("configProfile")}
-            clearable
           />
         </SimpleGrid>
 

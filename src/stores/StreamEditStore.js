@@ -904,11 +904,11 @@ class StreamEditStore {
       finalize: false
     });
 
-    const existing = yield this.client.ContentObjectMetadata({
-      objectId,
-      libraryId,
-      metadataSubtree: "live_recording"
-    });
+    // const existing = yield this.client.ContentObjectMetadata({
+    //   objectId,
+    //   libraryId,
+    //   metadataSubtree: "live_recording"
+    // });
 
     const config = yield this.client.ContentObjectMetadata({
       objectId,
@@ -918,9 +918,9 @@ class StreamEditStore {
     });
 
     const updated = {
-      ...existing,
+      // ...existing,
       playout_config: {
-        ...existing?.playout_config,
+        // ...existing?.playout_config,
         dvr_enabled: config?.playout_config?.dvr_enabled ?? config?.playout_config?.dvr,
         dvr_max_duration: config?.playout_config?.dvr_max_duration,
         simple_watermark: config?.playout_config?.simple_watermark,
@@ -928,13 +928,13 @@ class StreamEditStore {
         forensic_watermark: config?.playout_config?.forensic_watermark,
       },
       recording_config: {
-        ...existing?.recording_config,
+        // ...existing?.recording_config,
         recording_params: {
-          ...existing?.recording_config?.recording_params,
+          // ...existing?.recording_config?.recording_params,
           reconnect_timeout: config?.recording_config?.reconnect_timeout,
           part_ttl: config?.recording_config?.part_ttl,
           xc_params: {
-            ...existing?.recording_config?.recording_params?.xc_params,
+            // ...existing?.recording_config?.recording_params?.xc_params,
             ...config?.recording_params?.xc_params,
             connection_timeout: config?.recording_config?.connection_timeout,
           }
@@ -1348,7 +1348,7 @@ class StreamEditStore {
 
       if(!audioData[audioIndex].record) { return; }
 
-      for(let j = 0; j < ladderSpecs.audio.length; j++) {
+      for(let j = 0; j < (ladderSpecs.audio || []).length; j++) {
         let element = ladderSpecs.audio[j];
         if(element.channels === audio.recordingChannels) {
           audioLadderSpec = {...element};
@@ -1357,7 +1357,7 @@ class StreamEditStore {
       }
 
       if(Object.keys(audioLadderSpec).length === 0) {
-        audioLadderSpec = {...ladderSpecs.audio[0]};
+        audioLadderSpec = {...(ladderSpecs.audio || [])[0]};
       }
 
       audioLadderSpec.representation = `audioaudio_aac@${audioLadderSpec.bit_rate}`;

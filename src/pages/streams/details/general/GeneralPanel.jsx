@@ -198,6 +198,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                     description={(profilesData.length > 0 || profileStore.state !== "loaded") ? "Apply a predefined set of configuration settings to this stream." : "No profiles are configured. Create a profile in Settings."}
                     value={configProfile}
                     onChange={(value) => setConfigProfile(value)}
+                    allowDeselect={false}
                   />
                 </SimpleGrid>
                 <Checkbox
