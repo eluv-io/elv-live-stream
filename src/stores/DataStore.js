@@ -54,7 +54,7 @@ class DataStore {
   LoadSiteStreams = flow(function * (reload=false) {
     this.streamsLoaded = false;
     try {
-      if(!this.streamMetadata) {
+      if(!this.streamMetadata || reload) {
         yield this.LoadTenantData();
       }
 
