@@ -181,8 +181,8 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
             />
 
             <DisabledTooltipWrapper
-              disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
-              tooltipLabel="Profile configuration is disabled while the stream is running"
+              disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.UNCONFIGURED].includes(status)}
+              tooltipLabel="Profile configuration is disabled while the stream is active"
             >
               <Box mb={29}>
                 <SimpleGrid cols={2} spacing={150}>
