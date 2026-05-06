@@ -959,7 +959,15 @@ class StreamEditStore {
       });
     }
 
-
+    if(!config?.recording_stream_config?.audio) {
+      yield this.client.DeleteMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording_config/recording_stream_config/audio"
+      });
+    }
+    
     yield this.UpdateStreamAudioSettings({
       objectId,
       writeToken,
