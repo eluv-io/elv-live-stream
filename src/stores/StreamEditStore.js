@@ -932,6 +932,7 @@ class StreamEditStore {
         config.recording_stream_config.audio = toJS(profile.recording_stream_config.audio);
       }
     } else {
+      // Profile has no audio config — clear it so StreamConfig rebuilds ladder_specs from scratch.
       yield this.client.DeleteMetadata({
         libraryId,
         objectId,
@@ -944,9 +945,11 @@ class StreamEditStore {
       }
     }
 
-    if(config?.input_stream_info) {
+    const probeInfo = config?.input_stream_info || config?.probe_info;
+    if(probeInfo) {
       yield this.client.StreamConfig({
         name: objectId,
+        inputStreamInfo: probeInfo,
         writeToken,
         finalize: false,
         liveRecordingConfig: config
@@ -986,13 +989,11 @@ class StreamEditStore {
       });
     }
 
-    if(profile?.recording_stream_config?.audio) {
-      yield this.UpdateStreamAudioSettings({
-        objectId,
-        writeToken,
-        finalize: false
-      });
-    }
+    yield this.UpdateStreamAudioSettings({
+      objectId,
+      writeToken,
+      finalize: false
+    });
 
     if(finalize) {
       yield this.client.FinalizeContentObject({
@@ -1382,9 +1383,9 @@ class StreamEditStore {
       const audioIndex = Object.keys(audioStreams)[i];
       const audio = audioStreams[audioIndex];
 
-      audioIndexMeta[i] = parseInt(Object.keys(audioStreams || {})[i]);
-
       if(!audioData[audioIndex].record) { return; }
+
+      audioIndexMeta[nAudio] = parseInt(audioIndex);
 
       for(let j = 0; j < (ladderSpecs.audio || []).length; j++) {
         let element = ladderSpecs.audio[j];
@@ -1454,6 +1455,46 @@ class StreamEditStore {
       });
     }
 
+    if(!audioData || Object.keys(audioData).length === 0) {
+      // No recording_stream_config/audio — derive audio_index from whatever StreamConfig wrote to ladder_specs.
+      const currentLadderSpecs = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/ladder_specs"
+      });
+
+      const audioEntries = (currentLadderSpecs || []).filter(spec =>
+        spec.media_type === 2 || (spec.stream_name || "").includes("audio")
+      );
+
+      const audioIndex = [0, 0, 0, 0, 0, 0, 0, 0];
+      audioEntries.forEach((entry, i) => {
+        audioIndex[i] = entry.stream_index ?? 0;
+      });
+
+      const xcParams = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
+      });
+
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
+        metadata: {
+          ...(xcParams || {}),
+          n_audio: audioEntries.length,
+          audio_index: audioIndex
+        }
+      });
+
+      return;
+    }
+
     const audioKeys = Object.keys(audioData || {});
     if(audioKeys.length === 1) {
       audioData = {...audioData, [audioKeys[0]]: {...audioData[audioKeys[0]], default: true}};
@@ -1507,23 +1548,24 @@ class StreamEditStore {
       metadata: newLadderSpecs
     });
 
-    yield this.client.MergeMetadata({
+    const xcParams = yield this.client.ContentObjectMetadata({
       libraryId,
       objectId,
       writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
-      metadata: {
-        audio_bitrate: globalAudioBitrate,
-        n_audio: nAudio
-      }
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
     });
 
     yield this.client.ReplaceMetadata({
       libraryId,
       objectId,
       writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/xc_params/audio_index",
-      metadata: audioIndexMeta
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
+      metadata: {
+        ...(xcParams || {}),
+        audio_bitrate: globalAudioBitrate,
+        n_audio: nAudio,
+        audio_index: audioIndexMeta
+      }
     });
 
     if(finalize) {
