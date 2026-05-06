@@ -917,6 +917,33 @@ class StreamEditStore {
       metadataSubtree: "live_recording_config"
     });
 
+    if(profile?.recording_stream_config?.audio) {
+      // StreamApplyProfile uses R.mergeDeepRight, which preserves old audio indices not in the new profile.
+      // Replace audio entirely so stale channels don't carry over.
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording_config/recording_stream_config/audio",
+        metadata: toJS(profile.recording_stream_config.audio)
+      });
+
+      if(config?.recording_stream_config) {
+        config.recording_stream_config.audio = toJS(profile.recording_stream_config.audio);
+      }
+    } else {
+      yield this.client.DeleteMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording_config/recording_stream_config/audio"
+      });
+
+      if(config?.recording_stream_config) {
+        delete config.recording_stream_config.audio;
+      }
+    }
+
     if(config?.input_stream_info) {
       yield this.client.StreamConfig({
         name: objectId,
@@ -959,20 +986,13 @@ class StreamEditStore {
       });
     }
 
-    if(!config?.recording_stream_config?.audio) {
-      yield this.client.DeleteMetadata({
-        libraryId,
+    if(profile?.recording_stream_config?.audio) {
+      yield this.UpdateStreamAudioSettings({
         objectId,
         writeToken,
-        metadataSubtree: "live_recording_config/recording_stream_config/audio"
+        finalize: false
       });
     }
-    
-    yield this.UpdateStreamAudioSettings({
-      objectId,
-      writeToken,
-      finalize: false
-    });
 
     if(finalize) {
       yield this.client.FinalizeContentObject({
