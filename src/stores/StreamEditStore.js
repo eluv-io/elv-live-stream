@@ -618,7 +618,7 @@ class StreamEditStore {
       }
       yield this.client.ReplaceMetadata({
         libraryId, objectId, writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/multipath",
+        metadataSubtree: "live_recording/fabric_config/multipath",
         metadata: multiPathMeta
       });
     }

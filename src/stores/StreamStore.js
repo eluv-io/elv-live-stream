@@ -462,6 +462,12 @@ class StreamStore {
         streams[slug].objectId === objectId
       ));
 
+      const multipathMeta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording/fabric_config/multipath"
+      });
+
       const liveRecordingMeta = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
@@ -477,7 +483,7 @@ class StreamStore {
       const connectionTimeout = liveRecordingConfigMeta?.connection_timeout ?? liveRecordingMeta?.recording_params?.xc_params?.connection_timeout;
       const inputCfg = liveRecordingMeta?.recording_params?.xc_params?.input_cfg;
       const copyMpegTs = liveRecordingMeta?.recording_params?.xc_params?.copy_mpegts ?? !!inputCfg;
-      const multiPath = liveRecordingMeta?.recording_params?.multipath;
+      const multiPath = multipathMeta;
       const persistent = liveRecordingMeta?.recording_params?.persistent;
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
       const reconnectionTimeout = liveRecordingConfigMeta?.reconnect_timeout ?? liveRecordingMeta?.recording_params?.reconnect_timeout;
