@@ -482,7 +482,7 @@ class StreamStore {
 
       const connectionTimeout = liveRecordingConfigMeta?.connection_timeout ?? liveRecordingMeta?.recording_params?.xc_params?.connection_timeout;
       const inputCfg = liveRecordingMeta?.recording_params?.xc_params?.input_cfg;
-      const copyMpegTs = liveRecordingMeta?.recording_params?.xc_params?.copy_mpegts ?? !!inputCfg;
+      const copyMpegTs = liveRecordingMeta?.recording_params?.xc_params?.copy_mpegts ?? Object.keys(inputCfg || {}).length > 0;
       const multiPath = multipathMeta;
       const persistent = liveRecordingMeta?.recording_params?.persistent;
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
