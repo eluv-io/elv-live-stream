@@ -130,6 +130,7 @@ const Settings = observer(() => {
   };
 
   if(profileStore.state === "pending") { return <Flex mt={12} justify="center"><Loader /></Flex>; }
+  if(profileStore.state === "error") { return <Text c="red" mt={12}>Failed to load config profiles. Check your connection and refresh.</Text>; }
 
   const draftEntries = Object.entries(profileStore.sortedDrafts);
   const newDrafts = draftEntries.filter(([key]) => !profileStore.profiles[key]);
