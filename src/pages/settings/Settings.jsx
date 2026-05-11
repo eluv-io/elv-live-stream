@@ -12,7 +12,9 @@ import {DataTable} from "mantine-datatable";
 import sharedStyles from "@/assets/shared.module.css";
 
 const ProfileEditorRow = ({record, onValidate}) => {
-  const [localValue, setLocalValue] = useState(JSON.stringify(record, null, 2));
+  // eslint-disable-next-line no-unused-vars
+  const {slug: _slug, readonly: _readonly, ...editableRecord} = record;
+  const [localValue, setLocalValue] = useState(JSON.stringify(editableRecord, null, 2));
   const [error, setError] = useState(null);
 
   return (
