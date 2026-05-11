@@ -179,11 +179,11 @@ const Settings = observer(() => {
       <Box className={sharedStyles.tableWrapper}>
         <DataTable
           idAccessor="slug"
-          minHeight={50}
           highlightOnHover
           styles={{header: {color: "var(--mantine-color-elv-gray-9)"}}}
           records={records}
           fetching={refreshing}
+          rowStyle={() => ({height: "50px"})}
           columns={[
             {
               accessor: "name",
