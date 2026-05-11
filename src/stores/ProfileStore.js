@@ -32,7 +32,7 @@ class ProfileStore {
 
   async LoadProfiles() {
     try {
-      const profiles = await this.client.StreamConfigProfiles({resolveLinks: true});
+      const profiles = await this.client.StreamConfigProfiles({resolveLinks: true}) ?? {};
 
       runInAction(() => {
         this.profiles = profiles;
