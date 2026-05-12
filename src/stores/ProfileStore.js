@@ -141,24 +141,51 @@ class ProfileStore {
           });
 
           if(profile && draft.name !== profile.name) {
+            const newKey = slugify(draft.name);
+            const libraryId = this.rootStore.dataStore.siteLibraryId;
+            const objectId = this.rootStore.dataStore.siteId;
+
             await this.client.DeleteFiles({
-              libraryId: this.rootStore.dataStore.siteLibraryId,
-              objectId: this.rootStore.dataStore.siteId,
+              libraryId,
+              objectId,
               writeToken,
               filePaths: [`live_stream_profiles/${slugify(profile.name)}.json`]
             });
 
             await this.client.DeleteMetadata({
-              libraryId: this.rootStore.dataStore.siteLibraryId,
-              objectId: this.rootStore.dataStore.siteId,
+              libraryId,
+              objectId,
               writeToken,
               metadataSubtree: `public/asset_metadata/profiles/${draftKey}`
+            });
+
+            const streamIds = await this.client.ContentObjectMetadata({
+              libraryId,
+              objectId,
+              metadataSubtree: `public/asset_metadata/profile_streams/${draftKey}`
+            }) || [];
+
+            if(streamIds.length > 0) {
+              await this.client.ReplaceMetadata({
+                libraryId,
+                objectId,
+                writeToken,
+                metadataSubtree: `public/asset_metadata/profile_streams/${newKey}`,
+                metadata: streamIds
+              });
+            }
+
+            await this.client.DeleteMetadata({
+              libraryId,
+              objectId,
+              writeToken,
+              metadataSubtree: `public/asset_metadata/profile_streams/${draftKey}`
             });
           }
 
           runInAction(() => {
-            const newKey = slugify(draft.name);
             if(profile && draft.name !== profile.name) {
+              const newKey = slugify(draft.name);
               delete this.profiles[draftKey];
               delete this.drafts[draftKey];
               this.profiles[newKey] = {...toJS(draft)};
