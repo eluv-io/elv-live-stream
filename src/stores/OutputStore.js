@@ -59,7 +59,7 @@ class OutputStore {
       let siteObjectId = this.rootStore.dataStore.siteId;
 
       if(!siteLibraryId) {
-        ({siteLibraryId, siteObjectId} = await this.client.StreamGetSiteData({resolveLinks: false}));
+        ({siteLibraryId, siteObjectId} = await this.client.StreamSiteSettings({resolveLinks: false}));
       }
 
       const outputs = await this.client.ContentObjectMetadata({
@@ -80,8 +80,9 @@ class OutputStore {
       if(!this.outputSettingsId) {
         await this.LoadOutputSettingsId();
       }
+
       const outputs = await this.client.OutputsList({
-        objectId: this.outputSettingsId,
+        objectId: this.outputSettingsId
       });
 
       runInAction(() => {
