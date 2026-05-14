@@ -771,13 +771,16 @@ class StreamEditStore {
       finalize: false
     });
 
+    let probeCleared = false;
     if(configProfile) {
-      const {siteWriteToken} = yield this.ApplyStreamProfile({
+      const {siteWriteToken, probeCleared: cleared} = yield this.ApplyStreamProfile({
         objectId,
         writeToken,
         profileSlug: configProfile,
         finalize: false
       });
+
+      probeCleared = cleared ?? false;
 
       if(siteWriteToken) {
         yield this.client.FinalizeContentObject({
@@ -819,6 +822,8 @@ class StreamEditStore {
         }
       });
     }
+
+    return {probeCleared};
   });
 
   UpdatePlayoutConfig = flow(function * ({
@@ -904,96 +909,13 @@ class StreamEditStore {
       finalize: false
     });
 
-    // const existing = yield this.client.ContentObjectMetadata({
-    //   objectId,
-    //   libraryId,
-    //   metadataSubtree: "live_recording"
-    // });
-
-    const config = yield this.client.ContentObjectMetadata({
-      objectId,
-      libraryId,
-      writeToken,
-      metadataSubtree: "live_recording_config"
-    });
-
-    if(profile?.recording_stream_config?.audio) {
-      // StreamApplyProfile uses R.mergeDeepRight, which preserves old audio indices not in the new profile.
-      // Replace audio entirely so stale channels don't carry over.
-      yield this.client.ReplaceMetadata({
-        libraryId,
+    if(!response?.probeCleared) {
+      yield this.UpdateStreamAudioSettings({
         objectId,
         writeToken,
-        metadataSubtree: "live_recording_config/recording_stream_config/audio",
-        metadata: toJS(profile.recording_stream_config.audio)
-      });
-
-      if(config?.recording_stream_config) {
-        config.recording_stream_config.audio = toJS(profile.recording_stream_config.audio);
-      }
-    } else {
-      // Profile has no audio config — clear it so StreamConfig rebuilds ladder_specs from scratch.
-      yield this.client.DeleteMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadataSubtree: "live_recording_config/recording_stream_config/audio"
-      });
-
-      if(config?.recording_stream_config) {
-        delete config.recording_stream_config.audio;
-      }
-    }
-
-    const probeInfo = config?.input_stream_info || config?.probe_info;
-    if(probeInfo) {
-      yield this.client.StreamConfig({
-        name: objectId,
-        inputStreamInfo: probeInfo,
-        writeToken,
-        finalize: false,
-        liveRecordingConfig: config
-      });
-    } else {
-      const updated = {
-        // ...existing,
-        playout_config: {
-          // ...existing?.playout_config,
-          dvr_enabled: config?.playout_config?.dvr_enabled ?? config?.playout_config?.dvr,
-          dvr_max_duration: config?.playout_config?.dvr_max_duration,
-          simple_watermark: config?.playout_config?.simple_watermark,
-          image_watermark: config?.playout_config?.image_watermark,
-          forensic_watermark: config?.playout_config?.forensic_watermark,
-        },
-        recording_config: {
-          // ...existing?.recording_config,
-          recording_params: {
-            // ...existing?.recording_config?.recording_params,
-            reconnect_timeout: config?.recording_config?.reconnect_timeout,
-            part_ttl: config?.recording_config?.part_ttl,
-            xc_params: {
-              // ...existing?.recording_config?.recording_params?.xc_params,
-              ...config?.recording_params?.xc_params,
-              connection_timeout: config?.recording_config?.connection_timeout,
-            }
-          }
-        }
-      };
-
-      yield this.client.ReplaceMetadata({
-        objectId,
-        libraryId,
-        writeToken,
-        metadataSubtree: "live_recording",
-        metadata: updated
+        finalize: false
       });
     }
-
-    yield this.UpdateStreamAudioSettings({
-      objectId,
-      writeToken,
-      finalize: false
-    });
 
     if(finalize) {
       yield this.client.FinalizeContentObject({

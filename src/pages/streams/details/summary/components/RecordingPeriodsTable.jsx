@@ -10,7 +10,7 @@ import {
   Pluralize,
   RecordingPeriodIsExpired,
   RelativeTime,
-  SortTable
+  SortTable, StreamIsActive
 } from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
 import CopyToVodModal from "@/pages/streams/details/summary/components/CopyToVodModal.jsx";
@@ -135,7 +135,7 @@ const RecordingPeriodsTable = observer(({
         return !expired;
       }
     });
-  const isDisconnected = !!records?.[0]?.end_time;
+  const isDisconnected = !!records?.[0]?.end_time || !StreamIsActive(status);
 
   const periodsSummaryData = [
     {label: "Status", id: "period-status", value: isDisconnected ? "Disconnected" : "Recording"},

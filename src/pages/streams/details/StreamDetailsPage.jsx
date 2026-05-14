@@ -61,11 +61,13 @@ const StreamDetailsPage = observer(() => {
     }
   }, [params.id]);
 
-  const DebouncedRefresh = useDebouncedCallback(() => {
+  const Refresh = () => {
     setPageVersion(prev => prev + 1);
     GetStatus();
     LoadEdgeWriteTokenMeta();
-  }, 500);
+  };
+
+  const DebouncedRefresh = useDebouncedCallback(Refresh, 500);
 
   if(!stream) {
     return <Loader />;
@@ -174,6 +176,7 @@ const StreamDetailsPage = observer(() => {
                   libraryId={stream.libraryId}
                   currentWatermarkType={stream.watermarkType}
                   PageVersionCallback={setPageVersion}
+                  Refresh={Refresh}
                 /> : <Loader />
               }
             </Tabs.Panel>

@@ -22,7 +22,7 @@ import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/Disabl
 import {STATUS_MAP} from "@/utils/constants.js";
 import {IconInfoCircle} from "@tabler/icons-react";
 
-const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
+const GeneralPanel = observer(({slug, currentConfigProfile, status, Refresh}) => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -33,7 +33,6 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
   });
   const [configProfile, setConfigProfile] = useState(currentConfigProfile || "");
   const [applyConfigProfile, setApplyConfigProfile] = useState(false);
-  const [profilesData, setProfilesData] = useState([]);
 
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [applyingProfileChanges, setApplyingProfileChanges] = useState(false);
@@ -42,7 +41,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
     permission: ""
   });
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const params = useParams();
 
   useEffect(() => {
@@ -50,7 +49,11 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
       try {
         setLoading(true);
         const libraryId = streamStore.streams[slug]?.libraryId;
-      await streamStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug});
+        await Promise.all([
+          streamStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug}),
+          dataStore.LoadAccessGroups(),
+          profileStore.state !== "loaded" ? profileStore.LoadProfiles() : Promise.resolve()
+        ]);
         const stream = streamStore.streams[slug];
 
         setFormData({
@@ -74,23 +77,9 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
     };
 
     if(params.id) {
-      dataStore.LoadAccessGroups();
       LoadData();
     }
   }, [params.id]);
-
-  useEffect(() => {
-    if(profileStore.state !== "loaded") {
-      profileStore.LoadProfiles().then(() => {});
-    }
-
-    if(profileStore.profiles) {
-      const options = Object.keys(profileStore.sortedProfiles)
-        .map(item => ({label: profileStore.profiles[item]?.name, value: item}));
-
-      setProfilesData(options);
-    }
-  }, [profileStore.sortedProfiles]);
 
   const HandleFormChange = (event) => {
     const {name, value} = event.target;
@@ -121,6 +110,12 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
         title: <NotificationMessage>Updated {formData.name || params.id}</NotificationMessage>,
         message: "Changes have been applied successfully"
       });
+
+      if(configProfile) {
+        Refresh?.();
+      } else {
+        await streamStore.LoadDetails({objectId: params.id, slug});
+      }
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to update metadata", error);
@@ -191,11 +186,11 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                     name="configProfile"
                     data={[
                       {label: "Built-in Configuration", value: ""},
-                      ...profilesData
+                      ...Object.keys(profileStore.sortedProfiles).map(item => ({label: profileStore.profiles[item]?.name, value: item}))
                     ]}
                     mb={12}
-                    placeholder={profileStore.state === "loaded" ? "Select Config Profile" : "Loading Profiles..."}
-                    description={(profilesData.length > 0 || profileStore.state !== "loaded") ? "Apply a predefined set of configuration settings to this stream." : "No profiles are configured. Create a profile in Settings."}
+                    placeholder="Select Config Profile"
+                    description={Object.keys(profileStore.sortedProfiles).length > 0 ? "Apply a predefined set of configuration settings to this stream." : "No profiles are configured. Create a profile in Settings."}
                     value={configProfile}
                     onChange={(value) => setConfigProfile(value)}
                     allowDeselect={false}
@@ -221,10 +216,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status}) => {
                               objectId: params.id,
                               profileSlug: currentConfigProfile
                             });
-                            await streamStore.LoadDetails({
-                              objectId: params.id,
-                              slug
-                            });
+                            Refresh?.();
                         } finally {
                           setApplyingProfileChanges(false);
                         }
