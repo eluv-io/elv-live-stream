@@ -10,7 +10,8 @@ import {
   Pluralize,
   RecordingPeriodIsExpired,
   RelativeTime,
-  SortTable, StreamIsActive
+  SortTable,
+  StreamIsActive
 } from "@/utils/helpers.js";
 import {DataTable} from "mantine-datatable";
 import CopyToVodModal from "@/pages/streams/details/summary/components/CopyToVodModal.jsx";
