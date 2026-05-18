@@ -23,7 +23,7 @@ const mockProfile = {
 const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => {
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib123"),
-    ContentObjectMetadata: vi.fn().mockResolvedValue({}),
+    ContentObjectMetadata: vi.fn().mockResolvedValue(null),
     EditContentObject: vi.fn().mockResolvedValue({writeToken: "wtoken123"}),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
     MergeMetadata: vi.fn().mockResolvedValue(undefined),
@@ -45,10 +45,16 @@ const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => 
 
   const store = new StreamEditStore(mockRootStore);
 
-  // Stub internal methods that aren't under test
+  // Stub internal methods that aren't under test.
+  // Note: MobX marks flow class fields as configurable:false, so Object.defineProperty
+  // cannot be used. Direct assignment works for the call-interception side; we avoid
+  // asserting on store.<method> directly and use the captured spy ref instead.
   store.UpdateDetailMetadata = vi.fn().mockResolvedValue(undefined);
   store.SetPermission = vi.fn().mockResolvedValue(undefined);
   store.UpdateAccessGroupPermission = vi.fn().mockResolvedValue(undefined);
+  // UpdateStreamAudioSettings runs when probeCleared is falsy. With ContentObjectMetadata
+  // returning null everywhere, the fallback path in UpdateStreamAudioSettings handles
+  // null ladder_specs gracefully — no additional stub needed.
 
   return {store, mockClient};
 };
@@ -134,16 +140,16 @@ const makeApplyProfileStore = () => {
   store.UpdateDetailMetadata = vi.fn().mockResolvedValue(undefined);
   store.SetPermission = vi.fn().mockResolvedValue(undefined);
   store.UpdateAccessGroupPermission = vi.fn().mockResolvedValue(undefined);
-  store.UpdateStreamAudioSettings = vi.fn().mockResolvedValue(undefined);
 
-  return {store, mockClient, mockRootStore};
-};
+  // Direct assignment installs the spy for call-interception purposes.
+  // MobX's configurable:false prevents Object.defineProperty, but writable:true
+  // allows plain assignment. Reading store.UpdateStreamAudioSettings goes through
+  // MobX's observable proxy and returns the original — so always use this captured
+  // reference for spy assertions, never `store.UpdateStreamAudioSettings`.
+  const updateAudioSpy = vi.fn().mockResolvedValue(undefined);
+  store.UpdateStreamAudioSettings = updateAudioSpy;
 
-const captureLiveRecordingWrite = (mockClient) => {
-  const call = mockClient.ReplaceMetadata.mock.calls.find(
-    ([args]) => args?.metadataSubtree === "live_recording"
-  );
-  return call?.[0]?.metadata;
+  return {store, mockClient, mockRootStore, updateAudioSpy};
 };
 
 describe("ApplyStreamProfile", () => {
@@ -151,44 +157,51 @@ describe("ApplyStreamProfile", () => {
     vi.clearAllMocks();
   });
 
-  it("syncs recording config fields from new profile to live_recording", async () => {
+  it("should call client.StreamApplyProfile with the profile object and stream write token", async () => {
     const {store, mockClient} = makeApplyProfileStore();
 
     await store.ApplyStreamProfile({objectId: "iq__123", profileSlug: "new-profile", finalize: false});
 
-    const metadata = captureLiveRecordingWrite(mockClient);
-    expect(metadata.recording_config.recording_params.part_ttl).toBe(7200);
-    expect(metadata.recording_config.recording_params.reconnect_timeout).toBe(60);
-    expect(metadata.recording_config.recording_params.xc_params.connection_timeout).toBe(30);
+    expect(mockClient.StreamApplyProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        objectId: "iq__123",
+        streamWriteToken: "wtoken123",
+        finalize: false,
+        profile: expect.objectContaining({name: "New Profile"})
+      })
+    );
   });
 
-  it("syncs playout config fields from new profile to live_recording", async () => {
-    const {store, mockClient} = makeApplyProfileStore();
+  it("should call UpdateStreamAudioSettings when probeCleared is falsy", async () => {
+    const {store, mockClient, updateAudioSpy} = makeApplyProfileStore();
+    // probeCleared not set → UpdateStreamAudioSettings must be invoked
+    mockClient.StreamApplyProfile.mockResolvedValue({});
 
     await store.ApplyStreamProfile({objectId: "iq__123", profileSlug: "new-profile", finalize: false});
 
-    const metadata = captureLiveRecordingWrite(mockClient);
-    expect(metadata.playout_config.dvr_enabled).toBe(true);
-  });
-
-  it("preserves existing live_recording fields not touched by the profile", async () => {
-    const {store, mockClient} = makeApplyProfileStore();
-
-    await store.ApplyStreamProfile({objectId: "iq__123", profileSlug: "new-profile", finalize: false});
-
-    const metadata = captureLiveRecordingWrite(mockClient);
-    // existing xc_params fields beyond connection_timeout should be preserved
-    expect(metadata.recording_config.recording_params).toBeDefined();
-  });
-
-  it("calls UpdateStreamAudioSettings to rebuild ladder specs with new audio streams", async () => {
-    const {store} = makeApplyProfileStore();
-
-    await store.ApplyStreamProfile({objectId: "iq__123", profileSlug: "new-profile", finalize: false});
-
-    expect(store.UpdateStreamAudioSettings).toHaveBeenCalledWith(
+    // Use the captured spy reference — reading store.UpdateStreamAudioSettings goes
+    // through MobX's proxy and returns the original unwrapped flow, not the spy.
+    expect(updateAudioSpy).toHaveBeenCalledWith(
       expect.objectContaining({objectId: "iq__123", writeToken: "wtoken123", finalize: false})
     );
+  });
+
+  it("should not call UpdateStreamAudioSettings when probeCleared is true", async () => {
+    const {store, mockClient, updateAudioSpy} = makeApplyProfileStore();
+    mockClient.StreamApplyProfile.mockResolvedValue({probeCleared: true});
+
+    await store.ApplyStreamProfile({objectId: "iq__123", profileSlug: "new-profile", finalize: false});
+
+    expect(updateAudioSpy).not.toHaveBeenCalled();
+  });
+
+  it("should return the response from client.StreamApplyProfile", async () => {
+    const {store, mockClient} = makeApplyProfileStore();
+    mockClient.StreamApplyProfile.mockResolvedValue({probeCleared: true, siteWriteToken: "site-abc"});
+
+    const result = await store.ApplyStreamProfile({objectId: "iq__123", profileSlug: "new-profile", finalize: false});
+
+    expect(result).toEqual({probeCleared: true, siteWriteToken: "site-abc"});
   });
 });
 

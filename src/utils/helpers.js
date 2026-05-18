@@ -229,6 +229,9 @@ export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
 
     return urlObject.toString();
   } catch(_e) {
+    // Only apply the regex fallback for strings that look like a URL (have a scheme).
+    // Plain invalid strings (e.g. "not a valid url") should return false.
+    if(!url.includes("://")) { return false; }
     // Fallback for URLs with out-of-range ports (e.g. rtp://) that new URL() rejects
     const paramsToRemove = ["passphrase", ...removeQueryParams];
     return paramsToRemove.reduce((acc, param) => {
