@@ -118,5 +118,5 @@ Never mock `LoadFoo` to reject — it surfaces as an Unhandled Rejection. Resolv
 - `vitest.config.js` configures the runner/environment/setup. `src/test/setup.js` already stubs `localStorage`, `matchMedia`, `ResizeObserver`, and `scrollIntoView`. Do NOT re-stub these.
 - Check `package.json` before writing tests to confirm available libraries.
 - Check `__mocks__/` for existing mocks before creating new ones.
-- Canonical patterns: `src/stores/StreamManagementStore.test.js` (store tests) and `src/pages/outputs/Outputs.test.jsx` (component tests).
+- Canonical patterns: `src/stores/StreamEditStore.test.js` (store tests) and `src/pages/outputs/Outputs.test.jsx` (component tests).
 - Format all test output as complete, ready-to-run files.

@@ -61,7 +61,7 @@ See `.claude/agents/live-stream-qa.md` for full testing standards. Key points:
 - Always mock `mantine-datatable` (jsdom can't measure layout)
 - Mock stores via `vi.mock("@/stores/index.js", ...)`
 - `dataStore` mock must include `client: { permissionLevels: {} }` for `GeneralPanel`
-- Canonical examples: `src/stores/StreamManagementStore.test.js` (stores), `src/pages/outputs/Outputs.test.jsx` (components)
+- Canonical examples: `src/stores/StreamEditStore.test.js` (stores), `src/pages/outputs/Outputs.test.jsx` (components)
 
 ## Security reviews
 
