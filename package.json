@@ -19,7 +19,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage --coverage.exclude=**/*.module.css --coverage.exclude=src/assets/**/* --coverage.exclude=**/constants.js"
   },
   "dependencies": {
     "@eluvio/elv-client-js": "eluv-io/elv-client-js#profile-bugs",
