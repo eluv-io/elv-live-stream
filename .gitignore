@@ -24,3 +24,6 @@ scratch/
 
 # Test coverage
 coverage/
+
+# AI
+tmp

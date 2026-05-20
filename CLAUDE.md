@@ -1,136 +1,75 @@
 # CLAUDE.md
 
-Project-level guidance for Claude when working in this repo. Read in addition
-to (not instead of) the user's chat-level testing standards.
+## What this app is
 
-## Framework Quirks & Workarounds
+A React app for creating and managing Eluvio live streams. It runs embedded inside Eluvio Core as a frame client — all SDK calls go through `FrameClient`, which posts messages to the parent window.
 
-These are jsdom + Mantine 8 + mantine-datatable rough edges we hit while
-writing component tests. Apply these patterns automatically — don't
-re-discover them.
+## Tech stack
 
-- **Mantine `<Switch>` toggles need `fireEvent.click`, not `userEvent.click`.**
-  Mantine 8 renders the Switch as `<input type="checkbox" role="switch">`
-  visually hidden behind a label. `userEvent`'s pointer-events visibility
-  check in jsdom rejects the click; `fireEvent.click` bypasses the check and
-  still fires `onChange`. Query by `screen.getByRole("switch")` (not
-  `"checkbox"` — Mantine sets `role="switch"` explicitly). Same fallback
-  applies to small `<ActionIcon>` buttons (copy icon, etc.) when
-  `user.click` silently no-ops.
+- **React 18** + **MobX 6** (observer pattern, strict actions enforced)
+- **Mantine 8** for UI components
+- **Vite** for bundling (`npm run serve` → port 8155)
+- **Vitest** + **React Testing Library** for tests (`npm run test:run`)
+- **`@eluvio/elv-client-js`** — the Eluvio SDK, the source of truth for all fabric operations
 
-- **`mantine-datatable` doesn't run its column `render(record)` functions
-  under jsdom — mock it.** The real library relies on layout measurement
-  that jsdom doesn't provide, so cell content never enters the DOM (rows
-  exist enough that selection works, but every per-cell interaction silently
-  fails). In any test that touches cell contents, register a `vi.mock` for
-  `mantine-datatable` with a minimal `<table>` that *does* call each
-  column's `render`. Include `aria-label`'d row-select and select-all
-  checkboxes if the test exercises selection. Pattern:
+## Key concepts
 
-  ```js
-  vi.mock("mantine-datatable", () => ({
-    DataTable: ({records=[], columns=[], selectedRecords=[], onSelectedRecordsChange}) => {
-      const selected = new Set((selectedRecords || []).map(r => r.slug));
-      return (
-        <table>
-          <thead>
-            <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  aria-label="select-all-rows"
-                  checked={records.length > 0 && selected.size === records.length}
-                  onChange={(e) => onSelectedRecordsChange?.(e.target.checked ? records : [])}
-                />
-              </th>
-              {columns.map(c => <th key={c.accessor}>{c.title}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {records.map(record => (
-              <tr key={record.slug} data-record-slug={record.slug}>
-                <td>
-                  <input
-                    type="checkbox"
-                    aria-label={`select-row-${record.slug}`}
-                    checked={selected.has(record.slug)}
-                    onChange={(e) =>
-                      onSelectedRecordsChange?.(
-                        e.target.checked
-                          ? [...(selectedRecords || []), record]
-                          : (selectedRecords || []).filter(r => r.slug !== record.slug)
-                      )
-                    }
-                  />
-                </td>
-                {columns.map(c => (
-                  <td key={c.accessor}>
-                    {c.render ? c.render(record) : record[c.accessor]}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      );
-    }
-  }));
-  ```
+**Streams** are content objects on the Eluvio Fabric. Each stream has metadata split across:
+- `live_recording_config` — user-configurable settings (URL, profile, audio, watermark, DRM)
+- `live_recording` — computed/applied config (written by `StreamConfig` and `StreamApplyProfile`)
 
-- **Mantine `Title`/`Text` with `lineClamp` defeats `getByText` exact
-  matching.** RTL's default text matcher walks individual text nodes;
-  lineClamp can split the visible string across nodes (and ancestors will
-  also satisfy a `textContent` check, tripping "Found multiple"). Use this
-  matcher to pin the leaf-most element whose `textContent` exactly equals
-  the target:
+**Profiles** are reusable configuration templates stored in the site object under `/profiles`. They are keyed by slug (derived from name). Stream↔profile associations are tracked in the site object under `stream_profiles: { profile_slug: [stream_ids] }`.
 
-  ```js
-  const byTextContent = (text) => (_, el) => {
-    if(!el || el.textContent !== text) { return false; }
-    return !Array.from(el.children).some(c => c.textContent === text);
-  };
-  // usage
-  screen.getByText(byTextContent(record.name));
-  ```
+**`StreamApplyProfile`** (client-js) applies a profile to a stream. It resets `live_recording` and `live_recording_overrides`, then calls `StreamConfig` internally if `input_stream_info` is present. It returns `{ probeCleared: true }` when probe data was cleared (profile had no `input_stream_info`).
 
-  When the element happens to have a `title` attribute set to the same
-  string (e.g., the row-name `<Title title={record.name}>`), prefer
-  `screen.getByTitle(record.name)` — it's both unique and intentional.
+## Store structure
 
-- **`navigator.clipboard.writeText` in jsdom 27 ignores plain
-  `defineProperty` replacement — use `vi.spyOn` instead.** jsdom re-wraps
-  the writeText reference after replacement, so a spy installed via
-  `Object.defineProperty(navigator, "clipboard", {value: {writeText: spy}})`
-  is *not* the function the component ends up calling. Install with
-  `vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined)`
-  in `beforeEach`, and call `vi.restoreAllMocks()` at the top of the same
-  `beforeEach` so the spy doesn't leak between tests.
+All stores live in `src/stores/` and are instantiated by `RootStore`:
 
-- **Don't let a useEffect-driven async loader reject in tests.** Components
-  often call `await store.LoadFoo()` inside `useEffect` without a `try/catch`
-  (the store catches internally). If your test mocks `LoadFoo` to *reject*,
-  the rejection surfaces as an Unhandled Rejection in vitest. Model the
-  store's real behavior instead — resolve the promise but mutate the store
-  to its error state (`store.state = "error"`).
+| Store | Responsibility |
+|-------|---------------|
+| `DataStore` | Tenant/site metadata, access groups, libraries, permissions |
+| `StreamStore` | Stream list, status polling, start/stop/reset |
+| `StreamEditStore` | All stream write operations (configure, save, apply profile) |
+| `ProfileStore` | Profile CRUD |
+| `ModalStore` | Centralized confirmation modal state |
+| `OutputStore` | Output stream settings |
+| `SiteStore` | Site object writes |
 
-- **Stores are imported from `@/stores/index.js`.** Mock with
-  `vi.mock("@/stores/index.js", () => ({ outputStore: { ... }, ... }))` and
-  mutate the in-memory mock object in `beforeEach` for per-test state. The
-  component reads through the same import so changes are visible on the
-  next render.
+Stores use MobX `flow()` for async methods. The `this.` warnings in nested flow functions are pre-existing lint noise — not real errors.
 
-- **Always wrap rendered components in `<MantineProvider>`.** Mantine
-  components throw without a provider context. Centralize via a
-  `renderWith(ui)` helper in larger test files.
+Stores are imported from `@/stores/index.js` in components.
 
-## Reminders
+## Path aliases
 
-- Test runner / environment / setup file are configured in
-  `vitest.config.js`. The setup file (`src/test/setup.js`) already stubs
-  `localStorage`, `matchMedia`, `ResizeObserver`, and `scrollIntoView`, and
-  suppresses known noisy console messages. Don't re-stub these in
-  individual tests.
-- See `src/stores/StreamManagementStore.test.js` for the canonical store
-  mocking pattern (no React render) and
-  `src/pages/outputs/Outputs.test.jsx` for the canonical component test
-  pattern (covers all of the quirks above).
+`@/` maps to `src/` (configured in `vite.config.js` and `jsconfig.json`).
+
+## Dev commands
+
+```
+npm run serve       # dev server on port 8155
+npm run test:run    # run tests once
+npm test            # watch mode
+npm run lint        # lint + autofix
+```
+
+## Testing conventions
+
+See `.claude/agents/live-stream-qa.md` for full testing standards. Key points:
+- Vitest + jsdom + React Testing Library
+- Always wrap renders in `<MantineProvider>`
+- Always mock `mantine-datatable` (jsdom can't measure layout)
+- Mock stores via `vi.mock("@/stores/index.js", ...)`
+- `dataStore` mock must include `client: { permissionLevels: {} }` for `GeneralPanel`
+- Canonical examples: `src/stores/StreamManagementStore.test.js` (stores), `src/pages/outputs/Outputs.test.jsx` (components)
+
+## Security reviews
+
+Run via the agent in `.claude/agents/security_review_agent.md`. Output goes to `tmp/sec_audit_report.md` (gitignored). Each run overwrites the previous report.
+
+## Important design decisions
+
+- Profile slugs are derived from name via `slugify()` — profile renames must update both `/profiles` and `stream_profiles` in the site object atomically
+- `LoadAccessGroups` in `DataStore` uses a promise singleton (`_accessGroupsPromise`) to prevent concurrent calls returning early with empty data
+- `GeneralPanel` initializes `loading` as `true` and awaits stream data, access groups, and profiles in parallel before showing the form — prevents value flicker on load
+- After applying a profile, call `Refresh()` (passed from `StreamDetailsPage`) to remount all panels and reload data across tabs
