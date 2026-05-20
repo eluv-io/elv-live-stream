@@ -3,7 +3,7 @@ import {flow, makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants.js";
-import {DeriveSourceAndPackaging} from "@/utils/helpers.js";
+import {DeriveSourceAndPackaging} from "@/utils/stream.js";
 
 class StreamStore {
   streams;

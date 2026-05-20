@@ -1,5 +1,5 @@
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
-import {StatusColor} from "@/utils/helpers.js";
+import {StatusColor} from "@/utils/stream.js";
 import {STATUS_TEXT} from "@/utils/constants.js";
 
 const StatusIndicator = ({status, ...props}) => (

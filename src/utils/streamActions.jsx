@@ -1,4 +1,5 @@
-import {SanitizeUrl, StreamIsActive} from "@/utils/helpers.js";
+import {StreamIsActive} from "@/utils/stream.js";
+import {SanitizeUrl} from "@/utils/helpers.js";
 import {STATUS_MAP} from "@/utils/constants.js";
 import {Stack, Text} from "@mantine/core";
 import {rootStore, modalStore, streamStore} from "@/stores/index.js";
