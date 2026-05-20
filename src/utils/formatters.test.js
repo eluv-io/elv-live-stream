@@ -81,6 +81,10 @@ describe("FormatTime", () => {
     expect(FormatTime({milliseconds: 0})).toBe("");
     expect(FormatTime({milliseconds: null})).toBe("");
   });
+
+  it("falls back to hh,mm when an unrecognized format is passed", () => {
+    expect(FormatTime({milliseconds: 3661000, format: "unknown"})).toBe("1h 1min");
+  });
 });
 
 describe("Pluralize", () => {

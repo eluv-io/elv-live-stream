@@ -1,5 +1,65 @@
 import { describe, it, expect } from "vitest";
-import {CheckExpiration, SanitizeUrl} from "./helpers";
+import {CheckExpiration, SanitizeUrl, SortTable} from "./helpers";
+
+describe("SortTable", () => {
+  const asc = {columnAccessor: "name", direction: "asc"};
+  const desc = {columnAccessor: "name", direction: "desc"};
+
+  it("sorts strings ascending", () => {
+    const sorter = SortTable({sortStatus: asc});
+    expect(sorter({name: "banana"}, {name: "apple"})).toBeGreaterThan(0);
+    expect(sorter({name: "apple"}, {name: "banana"})).toBeLessThan(0);
+  });
+
+  it("sorts strings descending", () => {
+    const sorter = SortTable({sortStatus: desc});
+    expect(sorter({name: "apple"}, {name: "banana"})).toBeGreaterThan(0);
+  });
+
+  it("returns 0 for equal values", () => {
+    const sorter = SortTable({sortStatus: asc});
+    expect(sorter({name: "apple"}, {name: "apple"})).toBe(0);
+  });
+
+  it("trims and lowercases strings before comparing", () => {
+    const sorter = SortTable({sortStatus: asc});
+    expect(sorter({name: "  Apple  "}, {name: "apple"})).toBe(0);
+  });
+
+  it("sorts numbers", () => {
+    const sorter = SortTable({sortStatus: {columnAccessor: "count", direction: "asc"}});
+    expect(sorter({count: 1}, {count: 2})).toBeLessThan(0);
+    expect(sorter({count: 2}, {count: 1})).toBeGreaterThan(0);
+    expect(sorter({count: 5}, {count: 5})).toBe(0);
+  });
+
+  it("treats NaN as 0 when sorting numbers", () => {
+    const sorter = SortTable({sortStatus: {columnAccessor: "count", direction: "asc"}});
+    expect(sorter({count: NaN}, {count: 0})).toBe(0);
+  });
+
+  it("falls back to empty string for null/undefined values", () => {
+    const sorter = SortTable({sortStatus: asc});
+    expect(sorter({name: null}, {name: "apple"})).toBeLessThan(0);
+    expect(sorter({name: undefined}, {name: "apple"})).toBeLessThan(0);
+  });
+
+  it("uses AdditionalCondition when it returns a defined value", () => {
+    const sorter = SortTable({
+      sortStatus: asc,
+      AdditionalCondition: (a, b) => b.priority - a.priority
+    });
+    expect(sorter({name: "apple", priority: 2}, {name: "banana", priority: 1})).toBeLessThan(0);
+  });
+
+  it("falls through AdditionalCondition when it returns undefined", () => {
+    const sorter = SortTable({
+      sortStatus: asc,
+      AdditionalCondition: () => undefined
+    });
+    expect(sorter({name: "banana"}, {name: "apple"})).toBeGreaterThan(0);
+  });
+});
 
 describe("CheckExpiration", () => {
   it("returns false for future dates", () => {
@@ -52,5 +112,19 @@ describe("SanitizeUrl", () => {
   it("returns false for invalid URLs", () => {
     const result = SanitizeUrl({ url: "not a valid url" });
     expect(result).toBe(false);
+  });
+
+  it("strips passphrase from URLs with out-of-range ports via regex fallback", () => {
+    const url = "rtp://host:99999?passphrase=secret&other=value";
+    const result = SanitizeUrl({ url });
+    expect(result).not.toContain("passphrase");
+    expect(result).toContain("other=value");
+  });
+
+  it("strips extra params from URLs with out-of-range ports via regex fallback", () => {
+    const url = "rtp://host:99999?token=abc&passphrase=secret";
+    const result = SanitizeUrl({ url, removeQueryParams: ["token"] });
+    expect(result).not.toContain("passphrase");
+    expect(result).not.toContain("token");
   });
 });
