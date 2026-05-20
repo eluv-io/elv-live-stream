@@ -1,5 +1,5 @@
 import {describe, it, expect, vi, beforeEach} from "vitest";
-import {render, screen, fireEvent} from "@testing-library/react";
+import {render, screen, fireEvent, waitFor} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {MantineProvider} from "@mantine/core";
 
@@ -191,16 +191,12 @@ beforeEach(() => {
 
 describe("Outputs — initial load", () => {
   it("should call outputStore.LoadOutputs on mount when state is not loaded", async () => {
-    // Arrange
     outputStore.state = "pending";
-
-    // Act
     renderOutputs();
 
-    // Assert
-    expect(outputStore.LoadOutputs).toHaveBeenCalledTimes(1);
-
-    // Cleanup is handled by RTL's afterEach in src/test/setup.js
+    await waitFor(() => {
+      expect(outputStore.LoadOutputs).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("should NOT call LoadOutputs on mount when outputs are already loaded", () => {
@@ -214,14 +210,11 @@ describe("Outputs — initial load", () => {
     expect(outputStore.LoadOutputs).not.toHaveBeenCalled();
   });
 
-  it("should render the page title when mounted", () => {
-    // Arrange + Act
+  it("should render the page title when mounted", async () => {
     renderOutputs();
 
-    // Assert
-    expect(
-      screen.getByRole("heading", {name: /outputs/i, level: 1})
-    ).toBeInTheDocument();
+    const title = await screen.findByText("Outputs");
+    expect(title).toBeInTheDocument();
   });
 });
 

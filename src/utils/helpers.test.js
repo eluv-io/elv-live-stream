@@ -8,7 +8,7 @@ import {
   MeetsDurationMin,
   IsWithinRetentionPeriod,
   SanitizeUrl,
-  ParseLiveConfigData,
+  ParseLiveConfigData, SampleRateReadable,
 } from "./helpers";
 import { STATUS_MAP } from "./constants";
 
@@ -40,6 +40,18 @@ describe("AudioBitrateReadable", () => {
   it("returns empty string for falsy values", () => {
     expect(AudioBitrateReadable(0)).toBe("");
     expect(AudioBitrateReadable(null)).toBe("");
+  });
+});
+
+describe("SampleRateReadable", () => {
+  it("converts sample rate to kHz", () => {
+    expect(SampleRateReadable(44100)).toBe("44 kHz");
+    expect(SampleRateReadable(48000)).toBe("48 kHz");
+  });
+
+  it("returns empty string for falsy values", () => {
+    expect(SampleRateReadable(0)).toBe("");
+    expect(SampleRateReadable(null)).toBe("");
   });
 });
 

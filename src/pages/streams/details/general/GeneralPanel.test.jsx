@@ -40,6 +40,7 @@ vi.mock("@/stores", () => ({
   },
   streamEditStore: {UpdateGeneralConfig: mockUpdateGeneralConfig},
   streamStore: {
+    LoadDetails: vi.fn().mockResolvedValue({}),
     LoadGeneralConfigData: vi.fn().mockResolvedValue(undefined),
     streams: {
       "test-slug": {
