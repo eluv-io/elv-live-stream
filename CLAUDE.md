@@ -65,7 +65,7 @@ See `.claude/agents/live-stream-qa.md` for full testing standards. Key points:
 
 ## Security reviews
 
-Run via the agent in `.claude/agents/security_review_agent.md`. Output goes to `tmp/sec_audit_report.md` (gitignored). Each run overwrites the previous report.
+Run via the agent in `.claude/agents/security-review-agent.md`. Output goes to `tmp/sec-audit-report.md` (gitignored). Each run overwrites the previous report.
 
 ## Important design decisions
 

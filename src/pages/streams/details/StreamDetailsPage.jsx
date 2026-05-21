@@ -5,12 +5,25 @@ import {rootStore, streamStore} from "@/stores/index.js";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
-import {DETAILS_TABS} from "@/utils/tabs.js";
 import styles from "@/pages/streams/details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import {QUALITY_MAP} from "@/utils/constants.js";
 import {IconExternalLink} from "@tabler/icons-react";
+import SummaryPanel from "@/pages/streams/details/summary/SummaryPanel.jsx";
+import GeneralPanel from "@/pages/streams/details/general/GeneralPanel.jsx";
+import RecordingPanel from "@/pages/streams/details/recording/RecordingPanel.jsx";
+import PlayoutPanel from "@/pages/streams/details/playout/PlayoutPanel.jsx";
+import TransportStreamPanel from "@/pages/streams/details/transport-stream/TransportStreamPanel.jsx";
+
+const DETAILS_TABS = [
+  {label: "Summary", value: "status", Component: SummaryPanel},
+  {label: "General Config", value: "general", Component: GeneralPanel},
+  {label: "Recording Config", value: "recording", Component: RecordingPanel},
+  {label: "Playout Config", value: "playout", Component: PlayoutPanel},
+  {label: "Transport Stream Distribution", value: "tsDistribution", Component: TransportStreamPanel, HideTab: (stream) => stream.originUrl?.includes("rtmp")}
+];
+
 
 const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();

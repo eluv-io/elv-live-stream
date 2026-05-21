@@ -1,11 +1,17 @@
 ---
 allowed-tools: Bash(git diff:*), Bash(git status:*), Bash(git log:*), Bash(git show:*), Bash(git remote show:*), Read, Glob, Grep, LS, Task
 description: Complete a security review of the pending changes on the current branch
-
-output the audit review to tmp/sec_audit_report.md
+model: claude-opus-4-7
+outcome: output the audit review to tmp/sec-audit-report.md
 ---
 
 You are a senior security engineer conducting a focused security review of the changes on this branch.
+
+APP CONTEXT:
+- React 18 + MobX frontend. No server-side code — all SDK calls go through FrameClient (postMessage to parent window). There is no backend in this repo to audit.
+- Authentication and authorization are enforced by the Eluvio fabric SDK, not this codebase. A lack of auth checks in client-side code is NOT a vulnerability.
+- React handles XSS by default. Only flag XSS if `dangerouslySetInnerHTML` or equivalent unsafe rendering is introduced.
+- FrameClient cross-frame messaging: flag if `postMessage` handlers are added without origin validation.
 
 GIT STATUS:
 
@@ -108,9 +114,11 @@ Phase 3 - Vulnerability Assessment:
 
 REQUIRED OUTPUT FORMAT:
 
-You MUST output your findings in markdown. The markdown output should contain the file, line number, severity, category (e.g. `sql_injection` or `xss`), description, exploit scenario, and fix recommendation.
+You MUST output your findings in markdown, starting with a one-line summary (e.g. "0 findings" or "3 findings: 2 HIGH, 1 MEDIUM"), then each finding below. Each finding must include the file, line number, severity, category (e.g. `sql_injection` or `xss`), description, exploit scenario, and fix recommendation.
 
 For example:
+
+**2 findings: 1 HIGH, 1 MEDIUM**
 
 # Vuln 1: XSS: `foo.py:42`
 
@@ -147,13 +155,12 @@ FALSE POSITIVE FILTERING:
 > 7. A lack of hardening measures. Code is not expected to implement all security best practices, only flag concrete vulnerabilities.
 > 8. Race conditions or timing attacks that are theoretical rather than practical issues. Only report a race condition if it is concretely problematic.
 > 9. Vulnerabilities related to outdated third-party libraries. These are managed separately and should not be reported here.
-> 10. Memory safety issues such as buffer overflows or use-after-free-vulnerabilities are impossible in rust. Do not report memory safety issues in rust or any other memory safe languages.
-> 11. Files that are only unit tests or only used as part of running tests.
-> 12. Log spoofing concerns. Outputting un-sanitized user input to logs is not a vulnerability.
-> 13. SSRF vulnerabilities that only control the path. SSRF is only a concern if it can control the host or protocol.
-> 14. Including user-controlled content in AI system prompts is not a vulnerability.
-> 15. Regex injection. Injecting untrusted content into a regex is not a vulnerability.
-> 16. Regex DOS concerns.
+> 10. Files that are only unit tests or only used as part of running tests.
+> 11. Log spoofing concerns. Outputting un-sanitized user input to logs is not a vulnerability.
+> 12. SSRF vulnerabilities that only control the path. SSRF is only a concern if it can control the host or protocol.
+> 13. Including user-controlled content in AI system prompts is not a vulnerability.
+> 14. Regex injection. Injecting untrusted content into a regex is not a vulnerability.
+> 15. Regex DOS concerns.
 > 16. Insecure documentation. Do not report any findings in documentation files such as markdown files.
 > 17. A lack of audit logs is not a vulnerability.
 >
@@ -167,9 +174,8 @@ FALSE POSITIVE FILTERING:
 > 7. Most vulnerabilities in github action workflows are not exploitable in practice. Before validating a github action workflow vulnerability ensure it is concrete and has a very specific attack path.
 > 8. A lack of permission checking or authentication in client-side JS/TS code is not a vulnerability. Client-side code is not trusted and does not need to implement these checks, they are handled on the server-side. The same applies to all flows that send untrusted data to the backend, the backend is responsible for validating and sanitizing all inputs.
 > 9. Only include MEDIUM findings if they are obvious and concrete issues.
-> 10. Most vulnerabilities in ipython notebooks (*.ipynb files) are not exploitable in practice. Before validating a notebook vulnerability ensure it is concrete and has a very specific attack path where untrusted input can trigger the vulnerability.
-> 11. Logging non-PII data is not a vulnerability even if the data may be sensitive. Only report logging vulnerabilities if they expose sensitive information such as secrets, passwords, or personally identifiable information (PII).
-> 12. Command injection vulnerabilities in shell scripts are generally not exploitable in practice since shell scripts generally do not run with untrusted user input. Only report command injection vulnerabilities in shell scripts if they are concrete and have a very specific attack path for untrusted input.
+> 10. Logging non-PII data is not a vulnerability even if the data may be sensitive. Only report logging vulnerabilities if they expose sensitive information such as secrets, passwords, or personally identifiable information (PII).
+> 11. Command injection vulnerabilities in shell scripts are generally not exploitable in practice since shell scripts generally do not run with untrusted user input. Only report command injection vulnerabilities in shell scripts if they are concrete and have a very specific attack path for untrusted input.
 >
 > SIGNAL QUALITY CRITERIA - For remaining findings, assess:
 > 1. Is there a concrete, exploitable vulnerability with a clear attack path?
