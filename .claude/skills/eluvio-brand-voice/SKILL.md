@@ -1,7 +1,7 @@
 # Skill: Eluvio Brand Voice - Live Stream Manager Edition
 
 ## Trigger
-- Activate this skill whenever the user requests to write, rewrite, edit, or critique marketing copy, technical documentation, release notes, or B2B customer-facing text within this repository.
+- Activate this skill whenever the user requests to write, rewrite, edit, or critique copy, technical documentation, release notes, or B2B customer-facing text within this repository.
 
 ## Core Persona & Mission
 - **Who we are:** Eluvio is the pioneer of the Content Fabric Protocol—a decentralized, next-generation utility network that completely transforms premium video distribution, monetization, and AI-driven video intelligence.
