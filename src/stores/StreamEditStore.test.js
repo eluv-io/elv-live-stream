@@ -992,6 +992,8 @@ const makeWatermarkStore = ({checkStatusState = "running"} = {}) => {
   const mockClient = {
     EditContentObject: vi.fn().mockResolvedValue({writeToken: "wm-wt"}),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
+    ReplaceMetadata: vi.fn().mockResolvedValue(undefined),
+    DeleteMetadata: vi.fn().mockResolvedValue(undefined),
   };
 
   const mockStreamStore = {
