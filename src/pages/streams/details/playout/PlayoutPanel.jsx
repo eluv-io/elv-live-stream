@@ -144,7 +144,7 @@ const PlayoutPanel = observer(({
       <SimpleGrid cols={1} spacing={150} mb={29}>
         <DisabledTooltipWrapper
           tooltipLabel="DRM configuration is disabled when the stream is active"
-          disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED].includes(status)}
+          disabled={status !== STATUS_MAP.INACTIVE}
         >
           <MultiSelect
             label="Playback Formats"
