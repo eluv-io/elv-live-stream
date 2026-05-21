@@ -113,6 +113,13 @@ beforeEach(() => {
 ### useEffect async loaders
 Never mock `LoadFoo` to reject — it surfaces as an Unhandled Rejection. Resolve the promise but mutate the store to its error state: `store.state = "error"`.
 
+## Store Test Conventions
+
+- Each `describe()` block stands alone with a blank line above it — no decorative comment separators (`// ─── Name ───`) before them. The describe label is the section title.
+- Each `describe` block gets its own factory function (e.g., `makeDeleteStreamStore`). Keep factories small and scoped to what that group needs.
+- For MobX flow class fields: direct assignment (`store.Method = vi.fn()`) replaces the method, but do NOT assert on `store.Method` — capture the spy reference before assigning and assert on that: `const spy = vi.fn(); store.Method = spy; return {store, spy};`
+- Suppress expected `console.error` / `console.log` output in tests using `vi.spyOn(console, "error").mockImplementation(() => {})` and restore it after the assertion.
+
 ## Reminders
 
 - `vitest.config.js` configures the runner/environment/setup. `src/test/setup.js` already stubs `localStorage`, `matchMedia`, `ResizeObserver`, and `scrollIntoView`. Do NOT re-stub these.

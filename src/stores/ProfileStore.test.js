@@ -36,8 +36,6 @@ const profile = (name = "My Profile", extra = {}) => ({
   ...extra
 });
 
-// ─── LoadProfiles ────────────────────────────────────────────────────────────
-
 describe("LoadProfiles", () => {
   it("sets state to loaded and populates profiles on success", async () => {
     const {store, mockClient} = makeStore();
@@ -74,8 +72,6 @@ describe("LoadProfiles", () => {
   });
 });
 
-// ─── DeleteProfile ───────────────────────────────────────────────────────────
-
 describe("DeleteProfile", () => {
   it("removes unsaved draft without any API calls", async () => {
     const {store, mockClient} = makeStore();
@@ -111,8 +107,6 @@ describe("DeleteProfile", () => {
     expect(store.drafts["my-profile"]).toBeUndefined();
   });
 });
-
-// ─── SaveProfiles ────────────────────────────────────────────────────────────
 
 describe("SaveProfiles", () => {
   it("throws when siteId is not configured", async () => {

@@ -1743,8 +1743,6 @@ describe("DeleteLiveRecordingCopy", () => {
   });
 });
 
-// ─── DeleteStream ─────────────────────────────────────────────────────────────
-
 const makeDeleteStreamStore = (streams = {}) => {
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-1"),
@@ -1811,8 +1809,6 @@ describe("DeleteStream", () => {
   });
 });
 
-// ─── DeleteStreamBatch ────────────────────────────────────────────────────────
-
 describe("DeleteStreamBatch", () => {
   it("opens a shared write token on the site object", async () => {
     const {store, mockClient} = makeDeleteStreamStore({"s1": {objectId: "iq__1"}});
@@ -1868,8 +1864,6 @@ describe("DeleteStreamBatch", () => {
     );
   });
 });
-
-// ─── UpdateConfigMetadata ─────────────────────────────────────────────────────
 
 const makeConfigMetaStore = ({existingConfig = {}} = {}) => {
   const mockClient = {
@@ -1980,8 +1974,6 @@ describe("UpdateConfigMetadata", () => {
   });
 });
 
-// ─── AddWatermark ─────────────────────────────────────────────────────────────
-
 const makeAddWatermarkStore = () => {
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-1"),
@@ -2052,8 +2044,6 @@ describe("AddWatermark", () => {
   });
 });
 
-// ─── RemoveWatermark ──────────────────────────────────────────────────────────
-
 const makeRemoveWatermarkStore = () => {
   const mockClient = {
     StreamRemoveWatermark: vi.fn().mockResolvedValue(undefined),
@@ -2109,8 +2099,6 @@ describe("RemoveWatermark", () => {
     expect(value.simpleWatermark).toBeUndefined();
   });
 });
-
-// ─── UpdatePlayoutConfig ──────────────────────────────────────────────────────
 
 const makePlayoutConfigStore = ({status = "inactive"} = {}) => {
   const mockClient = {
