@@ -311,6 +311,202 @@ describe("UpdateStreamAudioSettings", () => {
   });
 });
 
+const makeLadderStore = ({metadataAudioData = null} = {}) => {
+  const mockClient = {
+    ContentObjectMetadata: vi.fn().mockResolvedValue(metadataAudioData),
+  };
+  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}});
+  return {store, mockClient};
+};
+
+const audioEntry = ({
+  record = true,
+  recording_bitrate = 192000,
+  recording_channels = 2,
+  playout = false,
+  playout_label = "",
+  lang = "en",
+  defaultTrack = false
+} = {}) => ({record, recording_bitrate, recording_channels, playout, playout_label, lang, default: defaultTrack});
+
+const ladderAudio = (channels, bit_rate = 128000) => ({channels, bit_rate});
+
+describe("UpdateAudioLadderSpecs", () => {
+  it("fetches audioData from metadata when not provided", async () => {
+    const metaAudio = {0: audioEntry()};
+    const {store, mockClient} = makeLadderStore({metadataAudioData: metaAudio});
+    await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]}
+    });
+    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording_config/recording_stream_config/audio"})
+    );
+  });
+
+  it("skips metadata fetch when audioData is provided", async () => {
+    const {store, mockClient} = makeLadderStore();
+    await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {0: audioEntry()}
+    });
+    expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
+  });
+
+  it("returns nAudio=0 and empty audioLadderSpecs when no streams have record=true", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {0: audioEntry({record: false}), 1: audioEntry({record: false})}
+    });
+    expect(result.nAudio).toBe(0);
+    expect(result.audioLadderSpecs).toEqual([]);
+  });
+
+  it("counts only streams with record=true in nAudio", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {0: audioEntry({record: true}), 1: audioEntry({record: false}), 2: audioEntry({record: true})}
+    });
+    expect(result.nAudio).toBe(2);
+  });
+
+  it("matches ladder spec by channel count", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2, 128000), ladderAudio(6, 384000)]},
+      audioData: {0: audioEntry({recording_channels: 6})}
+    });
+    expect(result.audioLadderSpecs[0].channels).toBe(6);
+    expect(result.audioLadderSpecs[0].bit_rate).toBe(384000);
+  });
+
+  it("falls back to first ladder spec when no channel match is found", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2, 128000)]},
+      audioData: {0: audioEntry({recording_channels: 6})}
+    });
+    expect(result.audioLadderSpecs[0].bit_rate).toBe(128000);
+  });
+
+  it("sets representation string from bit_rate", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2, 192000)]},
+      audioData: {0: audioEntry()}
+    });
+    expect(result.audioLadderSpecs[0].representation).toBe("audioaudio_aac@192000");
+  });
+
+  it("sets stream_index and stream_name from audioIndex", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {3: audioEntry()}
+    });
+    expect(result.audioLadderSpecs[0].stream_index).toBe(3);
+    expect(result.audioLadderSpecs[0].stream_name).toBe("audio_3");
+  });
+
+  it("sets stream_label from playout_label when playout=true", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {0: audioEntry({playout: true, playout_label: "English"})}
+    });
+    expect(result.audioLadderSpecs[0].stream_label).toBe("English");
+  });
+
+  it("sets stream_label to null when playout=false", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {0: audioEntry({playout: false})}
+    });
+    expect(result.audioLadderSpecs[0].stream_label).toBeNull();
+  });
+
+  it("forces default=true for the only stream when edit=false", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {0: audioEntry({defaultTrack: false})}
+    });
+    expect(result.audioLadderSpecs[0].default).toBe(true);
+  });
+
+  it("uses audioData default value for the only stream when edit=true", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {0: audioEntry({defaultTrack: false})},
+      edit: true
+    });
+    expect(result.audioLadderSpecs[0].default).toBe(false);
+  });
+
+  it("uses audioData default for each stream when multiple streams exist", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {
+        0: audioEntry({defaultTrack: true}),
+        1: audioEntry({defaultTrack: false})
+      }
+    });
+    expect(result.audioLadderSpecs[0].default).toBe(true);
+    expect(result.audioLadderSpecs[1].default).toBe(false);
+  });
+
+  it("tracks globalAudioBitrate as the highest recording_bitrate across streams", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {
+        0: audioEntry({recording_bitrate: 192000}),
+        1: audioEntry({recording_bitrate: 384000})
+      }
+    });
+    expect(result.globalAudioBitrate).toBe(384000);
+  });
+
+  it("fills audioIndexMeta with parsed stream indices for recorded streams", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {2: audioEntry(), 5: audioEntry()}
+    });
+    expect(result.audioIndexMeta[0]).toBe(2);
+    expect(result.audioIndexMeta[1]).toBe(5);
+  });
+
+  it("sets media_type=2 on every ladder spec", async () => {
+    const {store} = makeLadderStore();
+    const result = await store.UpdateAudioLadderSpecs({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
+      ladderSpecs: {audio: [ladderAudio(2)]},
+      audioData: {0: audioEntry(), 1: audioEntry()}
+    });
+    expect(result.audioLadderSpecs.every(s => s.media_type === 2)).toBe(true);
+  });
+});
+
 describe("SyncAudioToProbe", () => {
   it("should fetch libraryId if it is not provided", async () => {
     const {store, mockClient} = makeSyncStore({});
@@ -1544,5 +1740,433 @@ describe("DeleteLiveRecordingCopy", () => {
     const {store} = makeDeleteCopyStore();
     const result = await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
     expect(result).toEqual({hash: "hq__finalized"});
+  });
+});
+
+// ─── DeleteStream ─────────────────────────────────────────────────────────────
+
+const makeDeleteStreamStore = (streams = {}) => {
+  const mockClient = {
+    ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-1"),
+    StreamRemoveLinkToSite: vi.fn().mockResolvedValue(undefined),
+    DeleteContentObject: vi.fn().mockResolvedValue(undefined),
+    EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-del"}),
+    FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
+  };
+  const mockStreamStore = {
+    streams,
+    UpdateStream: vi.fn(),
+    UpdateStreams: vi.fn(),
+  };
+  const store = new StreamEditStore({
+    client: mockClient,
+    dataStore: {siteId: "iq__site", siteLibraryId: "ilib-site"},
+    profileStore: {profiles: {}},
+    streamStore: mockStreamStore,
+  });
+  return {store, mockClient, mockStreamStore};
+};
+
+describe("DeleteStream", () => {
+  it("resolves slug from objectId when slug is not provided", async () => {
+    const {store, mockStreamStore} = makeDeleteStreamStore({"my-stream": {objectId: "iq__obj"}});
+    await store.DeleteStream({objectId: "iq__obj"});
+    const updatedStreams = mockStreamStore.UpdateStreams.mock.calls[0][0].streams;
+    expect(updatedStreams["my-stream"]).toBeUndefined();
+  });
+
+  it("calls StreamRemoveLinkToSite with objectId and slug", async () => {
+    const {store, mockClient} = makeDeleteStreamStore({"my-stream": {objectId: "iq__obj"}});
+    await store.DeleteStream({objectId: "iq__obj", slug: "my-stream"});
+    expect(mockClient.StreamRemoveLinkToSite).toHaveBeenCalledWith(
+      expect.objectContaining({objectId: "iq__obj", slug: "my-stream"})
+    );
+  });
+
+  it("calls DeleteContentObject after fetching libraryId", async () => {
+    const {store, mockClient} = makeDeleteStreamStore({"my-stream": {objectId: "iq__obj"}});
+    await store.DeleteStream({objectId: "iq__obj", slug: "my-stream"});
+    expect(mockClient.ContentObjectLibraryId).toHaveBeenCalledWith({objectId: "iq__obj"});
+    expect(mockClient.DeleteContentObject).toHaveBeenCalledWith({libraryId: "ilib-1", objectId: "iq__obj"});
+  });
+
+  it("continues silently when DeleteContentObject throws", async () => {
+    const {store, mockClient, mockStreamStore} = makeDeleteStreamStore({"my-stream": {objectId: "iq__obj"}});
+    mockClient.DeleteContentObject.mockRejectedValue(new Error("already gone"));
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await store.DeleteStream({objectId: "iq__obj", slug: "my-stream"});
+    consoleSpy.mockRestore();
+    expect(mockStreamStore.UpdateStreams).toHaveBeenCalled();
+  });
+
+  it("removes the slug from streams and calls UpdateStreams", async () => {
+    const {store, mockStreamStore} = makeDeleteStreamStore({
+      "my-stream": {objectId: "iq__obj"},
+      "other-stream": {objectId: "iq__other"}
+    });
+    await store.DeleteStream({objectId: "iq__obj", slug: "my-stream"});
+    const updatedStreams = mockStreamStore.UpdateStreams.mock.calls[0][0].streams;
+    expect(updatedStreams["my-stream"]).toBeUndefined();
+    expect(updatedStreams["other-stream"]).toBeDefined();
+  });
+});
+
+// ─── DeleteStreamBatch ────────────────────────────────────────────────────────
+
+describe("DeleteStreamBatch", () => {
+  it("opens a shared write token on the site object", async () => {
+    const {store, mockClient} = makeDeleteStreamStore({"s1": {objectId: "iq__1"}});
+    await store.DeleteStreamBatch({objects: [{objectId: "iq__1", slug: "s1"}]});
+    expect(mockClient.EditContentObject).toHaveBeenCalledWith({libraryId: "ilib-site", objectId: "iq__site"});
+  });
+
+  it("calls StreamRemoveLinkToSite with finalize=false for each object", async () => {
+    const {store, mockClient} = makeDeleteStreamStore({
+      "s1": {objectId: "iq__1"},
+      "s2": {objectId: "iq__2"}
+    });
+    await store.DeleteStreamBatch({objects: [
+      {objectId: "iq__1", slug: "s1"},
+      {objectId: "iq__2", slug: "s2"}
+    ]});
+    expect(mockClient.StreamRemoveLinkToSite).toHaveBeenCalledTimes(2);
+    expect(mockClient.StreamRemoveLinkToSite).toHaveBeenCalledWith(
+      expect.objectContaining({finalize: false, writeToken: "wt-del"})
+    );
+  });
+
+  it("continues silently when DeleteContentObject throws for a batch item", async () => {
+    const {store, mockClient, mockStreamStore} = makeDeleteStreamStore({"s1": {objectId: "iq__1"}});
+    mockClient.DeleteContentObject.mockRejectedValue(new Error("already gone"));
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await store.DeleteStreamBatch({objects: [{objectId: "iq__1", slug: "s1"}]});
+    consoleSpy.mockRestore();
+    expect(mockStreamStore.UpdateStreams).toHaveBeenCalled();
+  });
+
+  it("removes all batch slugs from streams", async () => {
+    const {store, mockStreamStore} = makeDeleteStreamStore({
+      "s1": {objectId: "iq__1"},
+      "s2": {objectId: "iq__2"},
+      "s3": {objectId: "iq__3"}
+    });
+    await store.DeleteStreamBatch({objects: [
+      {objectId: "iq__1", slug: "s1"},
+      {objectId: "iq__2", slug: "s2"}
+    ]});
+    const updatedStreams = mockStreamStore.UpdateStreams.mock.calls[0][0].streams;
+    expect(updatedStreams["s1"]).toBeUndefined();
+    expect(updatedStreams["s2"]).toBeUndefined();
+    expect(updatedStreams["s3"]).toBeDefined();
+  });
+
+  it("finalizes with correct commit message", async () => {
+    const {store, mockClient} = makeDeleteStreamStore({"s1": {objectId: "iq__1"}});
+    await store.DeleteStreamBatch({objects: [{objectId: "iq__1", slug: "s1"}]});
+    expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
+      expect.objectContaining({commitMessage: "Remove live streams"})
+    );
+  });
+});
+
+// ─── UpdateConfigMetadata ─────────────────────────────────────────────────────
+
+const makeConfigMetaStore = ({existingConfig = {}} = {}) => {
+  const mockClient = {
+    ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-1"),
+    EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-cfg"}),
+    ContentObjectMetadata: vi.fn().mockResolvedValue(existingConfig),
+    ReplaceMetadata: vi.fn().mockResolvedValue(undefined),
+    DeleteMetadata: vi.fn().mockResolvedValue(undefined),
+    FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
+  };
+  const mockStreamStore = {UpdateStream: vi.fn()};
+  const store = new StreamEditStore({
+    client: mockClient,
+    dataStore: {},
+    profileStore: {profiles: {}},
+    streamStore: mockStreamStore,
+  });
+  return {store, mockClient, mockStreamStore};
+};
+
+describe("UpdateConfigMetadata", () => {
+  it("writes dvr_enabled to both live_recording and live_recording_overrides", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, finalize: false});
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/playout_config/dvr_enabled", metadata: true})
+    );
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording_overrides/playout_config/dvr_enabled", metadata: true})
+    );
+  });
+
+  it("writes dvr_start_time to both paths when dvrEnabled and dvrStartTime are set", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    const startTime = new Date("2026-01-01T10:00:00Z");
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, dvrStartTime: startTime, finalize: false});
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/playout_config/dvr_start_time"})
+    );
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording_overrides/playout_config/dvr_start_time"})
+    );
+  });
+
+  it("writes dvr_max_duration as integer to both paths", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, dvrMaxDuration: "3600", finalize: false});
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/playout_config/dvr_max_duration", metadata: 3600})
+    );
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording_overrides/playout_config/dvr_max_duration", metadata: 3600})
+    );
+  });
+
+  it("deletes dvr_start_time and dvr_max_duration from both paths when dvrEnabled=false", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: false, finalize: false});
+    const deletedPaths = mockClient.DeleteMetadata.mock.calls.map(c => c[0].metadataSubtree);
+    expect(deletedPaths).toContain("live_recording/playout_config/dvr_start_time");
+    expect(deletedPaths).toContain("live_recording/playout_config/dvr_max_duration");
+    expect(deletedPaths).toContain("live_recording_overrides/playout_config/dvr_start_time");
+    expect(deletedPaths).toContain("live_recording_overrides/playout_config/dvr_max_duration");
+  });
+
+  it("skips all DVR writes when skipDvrSection=true", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, skipDvrSection: true, finalize: false});
+    const writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
+    expect(writtenPaths.some(p => p.includes("dvr"))).toBe(false);
+  });
+
+  it("skips DVR writes when dvrEnabled is undefined", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false});
+    const writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
+    expect(writtenPaths.some(p => p.includes("dvr"))).toBe(false);
+  });
+
+  it("writes retention as integer to live_recording", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", retention: "7200", finalize: false});
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/part_ttl", metadata: 7200})
+    );
+  });
+
+  it("calls FinalizeContentObject when finalize=true", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt"});
+    expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
+      expect.objectContaining({commitMessage: "Update recording config"})
+    );
+  });
+
+  it("skips FinalizeContentObject when finalize=false", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false});
+    expect(mockClient.FinalizeContentObject).not.toHaveBeenCalled();
+  });
+
+  it("calls UpdateStream with parsed dvrEnabled and retention values", async () => {
+    const {store, mockStreamStore} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", slug: "s1", dvrEnabled: true, retention: "3600", finalize: false});
+    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+      expect.objectContaining({key: "s1", value: expect.objectContaining({dvrEnabled: true, partTtl: 3600})})
+    );
+  });
+});
+
+// ─── AddWatermark ─────────────────────────────────────────────────────────────
+
+const makeAddWatermarkStore = () => {
+  const mockClient = {
+    ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-1"),
+    EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-wm"}),
+    StreamAddWatermark: vi.fn().mockResolvedValue(null),
+    FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
+  };
+  const mockStreamStore = {UpdateStream: vi.fn()};
+  const store = new StreamEditStore({
+    client: mockClient,
+    dataStore: {},
+    profileStore: {profiles: {}},
+    streamStore: mockStreamStore,
+  });
+  return {store, mockClient, mockStreamStore};
+};
+
+describe("AddWatermark", () => {
+  it("passes imageWatermark when provided", async () => {
+    const {store, mockClient} = makeAddWatermarkStore();
+    const wm = {url: "img.png"};
+    await store.AddWatermark({objectId: "iq__obj", writeToken: "wt", imageWatermark: wm, finalize: false});
+    expect(mockClient.StreamAddWatermark).toHaveBeenCalledWith(expect.objectContaining({imageWatermark: wm}));
+  });
+
+  it("passes simpleWatermark for text when no imageWatermark", async () => {
+    const {store, mockClient} = makeAddWatermarkStore();
+    const wm = {text: "hello"};
+    await store.AddWatermark({objectId: "iq__obj", writeToken: "wt", textWatermark: wm, finalize: false});
+    expect(mockClient.StreamAddWatermark).toHaveBeenCalledWith(expect.objectContaining({simpleWatermark: wm}));
+    expect(mockClient.StreamAddWatermark).not.toHaveBeenCalledWith(expect.objectContaining({imageWatermark: expect.anything()}));
+  });
+
+  it("passes forensicWatermark when no image or text watermark", async () => {
+    const {store, mockClient} = makeAddWatermarkStore();
+    const wm = {level: 1};
+    await store.AddWatermark({objectId: "iq__obj", writeToken: "wt", forensicWatermark: wm, finalize: false});
+    expect(mockClient.StreamAddWatermark).toHaveBeenCalledWith(expect.objectContaining({forensicWatermark: wm}));
+  });
+
+  it("calls FinalizeContentObject when finalize=true", async () => {
+    const {store, mockClient} = makeAddWatermarkStore();
+    await store.AddWatermark({objectId: "iq__obj", writeToken: "wt", textWatermark: {text: "hi"}, finalize: true});
+    expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
+      expect.objectContaining({commitMessage: "Set watermark"})
+    );
+  });
+
+  it("skips FinalizeContentObject when finalize=false", async () => {
+    const {store, mockClient} = makeAddWatermarkStore();
+    await store.AddWatermark({objectId: "iq__obj", writeToken: "wt", textWatermark: {text: "hi"}, finalize: false});
+    expect(mockClient.FinalizeContentObject).not.toHaveBeenCalled();
+  });
+
+  it("calls UpdateStream with response watermark fields when response is truthy", async () => {
+    const {store, mockClient, mockStreamStore} = makeAddWatermarkStore();
+    mockClient.StreamAddWatermark.mockResolvedValue({imageWatermark: null, textWatermark: {text: "hi"}, forensicWatermark: null});
+    await store.AddWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", textWatermark: {text: "hi"}, finalize: false});
+    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+      expect.objectContaining({key: "my-stream", value: expect.objectContaining({simpleWatermark: {text: "hi"}})})
+    );
+  });
+
+  it("skips UpdateStream when response is null", async () => {
+    const {store, mockStreamStore} = makeAddWatermarkStore();
+    await store.AddWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", textWatermark: {text: "hi"}, finalize: false});
+    expect(mockStreamStore.UpdateStream).not.toHaveBeenCalled();
+  });
+});
+
+// ─── RemoveWatermark ──────────────────────────────────────────────────────────
+
+const makeRemoveWatermarkStore = () => {
+  const mockClient = {
+    StreamRemoveWatermark: vi.fn().mockResolvedValue(undefined),
+  };
+  const mockStreamStore = {UpdateStream: vi.fn()};
+  const store = new StreamEditStore({
+    client: mockClient,
+    dataStore: {},
+    profileStore: {profiles: {}},
+    streamStore: mockStreamStore,
+  });
+  return {store, mockClient, mockStreamStore};
+};
+
+describe("RemoveWatermark", () => {
+  it("calls StreamRemoveWatermark with types and writeToken", async () => {
+    const {store, mockClient} = makeRemoveWatermarkStore();
+    await store.RemoveWatermark({objectId: "iq__obj", slug: "s", writeToken: "wt", types: ["image"], finalize: false});
+    expect(mockClient.StreamRemoveWatermark).toHaveBeenCalledWith(
+      expect.objectContaining({types: ["image"], writeToken: "wt", finalize: false})
+    );
+  });
+
+  it("clears imageWatermark on stream when type is image", async () => {
+    const {store, mockStreamStore} = makeRemoveWatermarkStore();
+    await store.RemoveWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", types: ["image"], finalize: false});
+    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+      expect.objectContaining({key: "my-stream", value: expect.objectContaining({imageWatermark: undefined})})
+    );
+  });
+
+  it("clears simpleWatermark on stream when type is text", async () => {
+    const {store, mockStreamStore} = makeRemoveWatermarkStore();
+    await store.RemoveWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", types: ["text"], finalize: false});
+    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+      expect.objectContaining({key: "my-stream", value: expect.objectContaining({simpleWatermark: undefined})})
+    );
+  });
+
+  it("clears forensicWatermark on stream when type is forensic", async () => {
+    const {store, mockStreamStore} = makeRemoveWatermarkStore();
+    await store.RemoveWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", types: ["forensic"], finalize: false});
+    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+      expect.objectContaining({key: "my-stream", value: expect.objectContaining({forensicWatermark: undefined})})
+    );
+  });
+
+  it("clears all named watermarks when multiple types are provided", async () => {
+    const {store, mockStreamStore} = makeRemoveWatermarkStore();
+    await store.RemoveWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", types: ["image", "text"], finalize: false});
+    const value = mockStreamStore.UpdateStream.mock.calls[0][0].value;
+    expect(value.imageWatermark).toBeUndefined();
+    expect(value.simpleWatermark).toBeUndefined();
+  });
+});
+
+// ─── UpdatePlayoutConfig ──────────────────────────────────────────────────────
+
+const makePlayoutConfigStore = ({status = "inactive"} = {}) => {
+  const mockClient = {
+    ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-1"),
+    EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-playout"}),
+    FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
+  };
+  const mockStreamStore = {
+    CheckStatus: vi.fn().mockResolvedValue({state: status}),
+    UpdateStream: vi.fn(),
+  };
+  const store = new StreamEditStore({
+    client: mockClient,
+    dataStore: {},
+    profileStore: {profiles: {}},
+    streamStore: mockStreamStore,
+  });
+  const watermarkSpy = vi.fn().mockResolvedValue(undefined);
+  const drmSpy = vi.fn().mockResolvedValue(undefined);
+  const configMetaSpy = vi.fn().mockResolvedValue(undefined);
+  store.WatermarkConfiguration = watermarkSpy;
+  store.DrmConfiguration = drmSpy;
+  store.UpdateConfigMetadata = configMetaSpy;
+  return {store, mockClient, mockStreamStore, watermarkSpy, drmSpy, configMetaSpy};
+};
+
+describe("UpdatePlayoutConfig", () => {
+  const baseParams = {
+    objectId: "iq__obj", slug: "my-stream", status: "inactive",
+    watermarkParams: {watermarkType: "TEXT", textWatermark: "{}", imageWatermark: null, forensicWatermark: null, existingTextWatermark: null, existingImageWatermark: null, existingForensicWatermark: null},
+    drmParams: {existingPlayoutFormats: ["hls-clear"], playoutFormats: ["hls-clear"]},
+    configMetaParams: {dvrEnabled: false, dvrMaxDuration: "0", dvrStartTime: null, skipDvrSection: false}
+  };
+
+  it("calls WatermarkConfiguration, DrmConfiguration, UpdateConfigMetadata each with finalize=false", async () => {
+    const {store, watermarkSpy, drmSpy, configMetaSpy} = makePlayoutConfigStore();
+    await store.UpdatePlayoutConfig(baseParams);
+    expect(watermarkSpy).toHaveBeenCalledWith(expect.objectContaining({finalize: false}));
+    expect(drmSpy).toHaveBeenCalledWith(expect.objectContaining({finalize: false}));
+    expect(configMetaSpy).toHaveBeenCalledWith(expect.objectContaining({finalize: false}));
+  });
+
+  it("finalizes with the playout settings commit message", async () => {
+    const {store, mockClient} = makePlayoutConfigStore();
+    await store.UpdatePlayoutConfig(baseParams);
+    expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
+      expect.objectContaining({commitMessage: "Apply playout settings"})
+    );
+  });
+
+  it("checks status and updates stream after finalize", async () => {
+    const {store, mockStreamStore} = makePlayoutConfigStore({status: "stopped"});
+    await store.UpdatePlayoutConfig(baseParams);
+    expect(mockStreamStore.CheckStatus).toHaveBeenCalledWith({objectId: "iq__obj"});
+    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+      expect.objectContaining({key: "my-stream", value: {status: "stopped"}})
+    );
   });
 });
