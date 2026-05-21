@@ -229,7 +229,8 @@ const Settings = observer(() => {
                       size={22}
                       variant="transparent"
                       color="elv-gray.6"
-                      onClick={() => {
+                      onClick={(event) => {
+                        event.stopPropagation();
                         setPendingDeleteItem({slug: record.slug, name: record.name});
                         setShowModal(true);
                       }}

@@ -127,6 +127,7 @@ class ProfileStore {
     for(let draftKey in this.drafts) {
       const draft = this.drafts[draftKey];
       const profile = this.profiles[draftKey];
+      const newKey = slugify(draft.name);
 
       const isDirty = JSON.stringify(draft) !== JSON.stringify(profile);
 
@@ -139,9 +140,7 @@ class ProfileStore {
             writeToken,
             finalize: false
           });
-
           if(profile && draft.name !== profile.name) {
-            const newKey = slugify(draft.name);
             const libraryId = this.rootStore.dataStore.siteLibraryId;
             const objectId = this.rootStore.dataStore.siteId;
 
@@ -184,8 +183,7 @@ class ProfileStore {
           }
 
           runInAction(() => {
-            if(profile && draft.name !== profile.name) {
-              const newKey = slugify(draft.name);
+            if(draftKey !== newKey) {
               delete this.profiles[draftKey];
               delete this.drafts[draftKey];
               this.profiles[newKey] = {...toJS(draft)};
