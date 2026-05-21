@@ -64,7 +64,7 @@ const PlayoutPanel = observer(({
       } = await streamStore.LoadPlayoutConfigData({objectId: params.id});
 
       setDrm(drmMeta ?? []);
-      setDvrEnabled(dvrEnabledMeta);
+      setDvrEnabled(dvrEnabledMeta ?? false);
       setDvrMaxDuration(dvrMaxDurationMeta !== undefined ? dvrMaxDurationMeta : "0");
       setDvrStartTime(dvrStartTimeMeta);
       setWatermarkType(watermarkTypeMeta);
