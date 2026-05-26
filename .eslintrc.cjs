@@ -24,6 +24,27 @@ module.exports = {
         "no-console": "off",
         "no-undef": "off"
       }
+    },
+    {
+      files: ["**/*.ts", "**/*.tsx"],
+      parser: "@typescript-eslint/parser",
+      parserOptions: {
+        ecmaVersion: "latest",
+        sourceType: "module"
+      },
+      plugins: ["@typescript-eslint"],
+      rules: {
+        "no-undef": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unused-vars": ["error", {argsIgnorePattern: "^_"}]
+      }
+    },
+    {
+      files: ["**/*.test.ts", "**/*.test.tsx"],
+      rules: {
+        "spellcheck/spell-checker": "off",
+        "no-console": "off"
+      }
     }
   ],
   rules: {
