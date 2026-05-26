@@ -28,3 +28,4 @@ coverage/
 # AI
 tmp/
 .claude/
+CLAUDE.md
