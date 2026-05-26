@@ -26,5 +26,5 @@ scratch/
 coverage/
 
 # AI
-tmp
+tmp/
 .claude/
