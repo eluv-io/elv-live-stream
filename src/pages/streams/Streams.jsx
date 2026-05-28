@@ -5,7 +5,7 @@ import {useDisclosure} from "@mantine/hooks";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import {dataStore, modalStore, streamStore} from "@/stores";
 import {SortTable} from "@/utils/helpers";
-import {useDebouncedCallback, useDebouncedValue} from "@mantine/hooks";
+import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import Actions from "@/components/table/actions/Actions.jsx";
@@ -17,7 +17,6 @@ const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
-  const [debouncedFilter] = useDebouncedValue(streamStore.tableFilter, 200);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,15 +29,7 @@ const Streams = observer(() => {
     await dataStore.LoadSiteStreams(true);
   }, 500);
 
-  const records = Object.values(streamStore.streams || {})
-    .filter(record => {
-      return (
-        !debouncedFilter ||
-        record.title?.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
-        record.objectId?.toLowerCase().includes(debouncedFilter.toLowerCase())
-      );
-    })
-    .sort(SortTable({sortStatus}));
+  const records = streamStore.filteredStreams.slice().sort(SortTable({sortStatus}));
 
   const refreshSelectedStatus = () =>
     Promise.all(selectedRecords.map(r => streamStore.CheckStatus({objectId: r.objectId, slug: r.slug, update: true})));

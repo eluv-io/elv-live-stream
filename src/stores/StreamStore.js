@@ -22,6 +22,15 @@ class StreamStore {
     return this.rootStore.client;
   }
 
+  get filteredStreams() {
+    const filter = this.tableFilter.toLowerCase();
+    return Object.values(this.streams || {}).filter(s =>
+      !filter ||
+      s.title?.toLowerCase().includes(filter) ||
+      s.objectId?.toLowerCase().includes(filter)
+    );
+  }
+
   ToggleMonitorPreviews() {
     this.showMonitorPreviews = !this.showMonitorPreviews;
   }

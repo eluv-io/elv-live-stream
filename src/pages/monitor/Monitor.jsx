@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
@@ -225,16 +225,17 @@ const Monitor = observer(() => {
     }
   }, []);
 
-  const streams = !streamStore.streams ? undefined :
-    Object.values(streamStore.streams || {})
-      .filter(record => {
-        return (
-          !debouncedFilter ||
-          record.title.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
-          record.objectId.toLowerCase().includes(debouncedFilter.toLowerCase())
-        );
-      })
+  const streams = useMemo(() => {
+    if(!streamStore.streams) { return undefined; }
+    const filter = debouncedFilter.toLowerCase();
+    return Object.values(streamStore.streams)
+      .filter(record =>
+        !filter ||
+        record.title.toLowerCase().includes(filter) ||
+        record.objectId.toLowerCase().includes(filter)
+      )
       .sort(SortTable({sortStatus: {columnAccessor: "title", direction: "asc"}}));
+  }, [streamStore.streams, debouncedFilter]);
 
   return (
     <PageContainer

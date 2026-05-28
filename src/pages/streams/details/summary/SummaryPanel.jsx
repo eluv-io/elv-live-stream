@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {
   ActionIcon,
   Badge,
@@ -131,7 +131,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
 
   const stream = streamStore.streams[slug];
 
-  const recordingData = [
+  const recordingData = useMemo(() => [
     {
       label: "Recording Start",
       value: recordingInfo?._recordingStartTime ?
@@ -162,19 +162,29 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         currentTimeMs, active: true, format: "hh:mm:ss"
       }) : ""
     }
-  ].map(({label, value}) => ({label, value}));
+  ], [recordingInfo, status, currentTimeMs]);
 
-  const sourceData = [
+  const sourceAudioOptions = useMemo(() =>
+    Object.keys(stream?.audioStreams || {}).map(key => ({value: key, label: String(parseInt(key) + 1)})),
+    [stream?.audioStreams]
+  );
+
+  const packagingAudioOptions = useMemo(() =>
+    Object.keys(stream?.audioData || {}).map(key => ({value: key, label: key})),
+    [stream?.audioData]
+  );
+
+  const sourceData = useMemo(() => [
     {label: "Input", value: <Group gap={4}>{stream?.source?.map(el => <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge>)}</Group>},
     {label: "Packets Recv / Drop (%)", value: status ? `${status?.input_stats?.ts?.packets_received?.toLocaleString() ?? 0} / ${status?.input_stats?.ts?.packets_dropped?.toLocaleString() ?? 0} (${status?.input_stats?.ts?.packets_received ? (status.input_stats.ts.packets_dropped / status.input_stats.ts.packets_received).toFixed(2) : 0}%)` : ""},
     {label: "Seq Errors / Gap", value: status ? `${status?.input_stats?.rtp?.seq_num_skip_tot ?? 0} / ${status?.input_stats?.rtp?.seq_num_skip_count ?? 0}` : ""},
-  ];
+  ], [stream?.source, status]);
 
-  const packagingData = [
+  const packagingData = useMemo(() => [
     {label: "Packaging", value: <Group gap={4}> {stream?.packaging?.map(el => <Badge key={`source-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>{el}</Badge>)}</Group>},
     {label: "Bytes", value: loadingStatus ? null : status?.recordingStatus?.video?.bytes_written ? BytesToMb(status?.recordingStatus?.video?.bytes_written) : ""},
     {label: "Incidents", value: 0}
-  ];
+  ], [stream?.packaging, status, loadingStatus]);
 
   return (
     <>
@@ -225,7 +235,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
               />
               <SubDetailCard
                 title="Audio"
-                titleRightSection={<Select value={String(selectedSourceAudio)} onChange={(value) => setSelectedSourceAudio(parseInt(value))} data={Object.keys(stream?.audioStreams || {}).map(key => ({value: key, label: String(parseInt(key) + 1)}))} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
+                titleRightSection={<Select value={String(selectedSourceAudio)} onChange={(value) => setSelectedSourceAudio(parseInt(value))} data={sourceAudioOptions} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
                 data={[
                   {label: "Stream ID", value: stream?.audioStreams?.[selectedSourceAudio]?.stream_id},
                   {label: "Bitrate", value: AudioBitrateReadable(stream?.audioStreams?.[selectedSourceAudio]?.bit_rate)},
@@ -251,7 +261,7 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
               />
               <SubDetailCard
                 title="Audio"
-                titleRightSection={<Select value={String(selectedPackagingAudio)} onChange={(value) => setSelectedPackagingAudio(value)} data={Object.keys(stream?.audioData || {}).map(key => ({value: key, label: key}))} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
+                titleRightSection={<Select value={String(selectedPackagingAudio)} onChange={(value) => setSelectedPackagingAudio(value)} data={packagingAudioOptions} classNames={{input: styles.audioSelectInput, wrapper: styles.audioSelectWrapper}} allowDeselect={false} />}
                 data={[
                   {label: "Stream ID", value: selectedPackagingAudio},
                   {label: "Bitrate", value: AudioBitrateReadable(stream?.audioData?.[selectedPackagingAudio]?.recording_bitrate)},
