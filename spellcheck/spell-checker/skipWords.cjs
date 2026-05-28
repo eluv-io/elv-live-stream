@@ -57,6 +57,7 @@ module.exports = [
   "iq",
   "iten",
   "jitter",
+  "jsx",
   "Kbps",
   "lang",
   "lh",
