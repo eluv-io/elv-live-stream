@@ -120,7 +120,7 @@ const StreamDetailsPage = observer(() => {
   return (
     <PageContainer
       key={`stream-details-${pageVersion}`}
-      title={`Edit ${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
+      title={`${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
       subtitle={stream.objectId}
       subtitleRightSection={
         <ActionIcon
