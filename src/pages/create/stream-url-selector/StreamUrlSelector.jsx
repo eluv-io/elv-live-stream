@@ -155,6 +155,7 @@ const StreamUrlSelector = observer(({
           onProtocolChange={(value) => {
             onProtocolChange(value);
             setDedicatedProtocol(value);
+            setDedicatedUrl("");
             setDedicatedUrlOptions(dataStore.DedicatedNodeUrls({nodeId: value}));
             onUrlChange("");
           }}
@@ -184,6 +185,7 @@ const StreamUrlSelector = observer(({
           onProtocolChange={(value) => {
             onProtocolChange(value);
             setPublicProtocol(value);
+            setPublicUrl("");
             onUrlChange("");
           }}
           onUrlChange={(value) => {

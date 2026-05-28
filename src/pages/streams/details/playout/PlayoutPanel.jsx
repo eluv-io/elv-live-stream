@@ -64,7 +64,7 @@ const PlayoutPanel = observer(({
       } = await streamStore.LoadPlayoutConfigData({objectId: params.id});
 
       setDrm(drmMeta ?? []);
-      setDvrEnabled(dvrEnabledMeta);
+      setDvrEnabled(dvrEnabledMeta ?? false);
       setDvrMaxDuration(dvrMaxDurationMeta !== undefined ? dvrMaxDurationMeta : "0");
       setDvrStartTime(dvrStartTimeMeta);
       setWatermarkType(watermarkTypeMeta);
@@ -144,7 +144,7 @@ const PlayoutPanel = observer(({
       <SimpleGrid cols={1} spacing={150} mb={29}>
         <DisabledTooltipWrapper
           tooltipLabel="DRM configuration is disabled when the stream is active"
-          disabled={![STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED].includes(status)}
+          disabled={status !== STATUS_MAP.INACTIVE}
         >
           <MultiSelect
             label="Playback Formats"

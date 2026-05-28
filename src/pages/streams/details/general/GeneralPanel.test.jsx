@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import {vi, describe, it, expect, beforeEach} from "vitest";
 import {MemoryRouter, Route, Routes} from "react-router-dom";
 import {MantineProvider} from "@mantine/core";
+// Import the mocked store so individual tests can mutate per-test stream data.
+// vi.mock is hoisted, so this import resolves to the mock factory's return value.
+import {streamStore} from "@/stores";
 
 const {mockUpdateGeneralConfig, mockNotificationShow} = vi.hoisted(() => ({
   mockUpdateGeneralConfig: vi.fn(),
@@ -28,9 +31,17 @@ vi.mock("@/stores", () => ({
     loadedDedicatedNodes: true,
     dedicatedNodesList: [],
     accessGroups: {},
+    client: {
+      permissionLevels: {
+        editable: {short: "Editable", description: "Can edit content"},
+        owner: {short: "Owner", description: "Full owner access"},
+      }
+    },
   },
   streamEditStore: {UpdateGeneralConfig: mockUpdateGeneralConfig},
   streamStore: {
+    LoadDetails: vi.fn().mockResolvedValue({}),
+    LoadGeneralConfigData: vi.fn().mockResolvedValue(undefined),
     streams: {
       "test-slug": {
         title: "Test Stream",
@@ -88,8 +99,17 @@ const renderGeneralPanel = (props = {}) => {
 };
 
 describe("GeneralPanel", () => {
+  const baseStream = {
+    title: "Test Stream",
+    description: "A test stream",
+    display_title: "Test Stream Title",
+    originUrl: "udp://host.example.com:1234"
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset stream to base state so per-test mutations don't leak.
+    streamStore.streams["test-slug"] = {...baseStream};
   });
 
   describe("Config Profile", () => {
@@ -128,6 +148,10 @@ describe("GeneralPanel", () => {
     });
 
     it("initializes with currentConfigProfile when provided", async () => {
+      // The useEffect reads stream.configProfile to set the select value.
+      // Ensure the mock stream carries the profile slug so the loaded state
+      // matches the prop, otherwise setConfigProfile("") would reset it.
+      streamStore.streams["test-slug"] = {...baseStream, configProfile: "my-profile"};
       renderGeneralPanel({currentConfigProfile: "my-profile"});
 
       const select = await screen.findByDisplayValue("My Profile");

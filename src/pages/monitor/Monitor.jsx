@@ -4,7 +4,8 @@ import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, Te
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 
 import {dataStore, modalStore, rootStore, streamStore} from "@/stores";
-import {SortTable, StreamIsActive} from "@/utils/helpers";
+import {StreamIsActive} from "@/utils/stream";
+import {SortTable} from "@/utils/helpers";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {ExternalLinkIcon, TrashIcon} from "@/assets/icons/index.js";

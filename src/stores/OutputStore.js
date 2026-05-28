@@ -1,6 +1,7 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
 import {makeAutoObservable, runInAction} from "mobx";
-import {DeriveSourceAndPackaging, SortTable} from "@/utils/helpers.js";
+import {DeriveSourceAndPackaging} from "@/utils/stream.js";
+import {SortTable} from "@/utils/helpers.js";
 
 class OutputStore {
   state = "pending";
@@ -59,7 +60,7 @@ class OutputStore {
       let siteObjectId = this.rootStore.dataStore.siteId;
 
       if(!siteLibraryId) {
-        ({siteLibraryId, siteObjectId} = await this.client.StreamGetSiteData({resolveLinks: false}));
+        ({siteLibraryId, siteObjectId} = await this.client.StreamSiteSettings({resolveLinks: false}));
       }
 
       const outputs = await this.client.ContentObjectMetadata({
@@ -80,8 +81,9 @@ class OutputStore {
       if(!this.outputSettingsId) {
         await this.LoadOutputSettingsId();
       }
+
       const outputs = await this.client.OutputsList({
-        objectId: this.outputSettingsId,
+        objectId: this.outputSettingsId
       });
 
       runInAction(() => {

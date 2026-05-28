@@ -32,7 +32,7 @@ class ProfileStore {
 
   async LoadProfiles() {
     try {
-      const profiles = await this.client.StreamConfigProfiles({resolveLinks: true});
+      const profiles = await this.client.StreamConfigProfiles({resolveLinks: true}) ?? {};
 
       runInAction(() => {
         this.profiles = profiles;
@@ -127,6 +127,7 @@ class ProfileStore {
     for(let draftKey in this.drafts) {
       const draft = this.drafts[draftKey];
       const profile = this.profiles[draftKey];
+      const newKey = slugify(draft.name);
 
       const isDirty = JSON.stringify(draft) !== JSON.stringify(profile);
 
@@ -139,26 +140,50 @@ class ProfileStore {
             writeToken,
             finalize: false
           });
-
           if(profile && draft.name !== profile.name) {
+            const libraryId = this.rootStore.dataStore.siteLibraryId;
+            const objectId = this.rootStore.dataStore.siteId;
+
             await this.client.DeleteFiles({
-              libraryId: this.rootStore.dataStore.siteLibraryId,
-              objectId: this.rootStore.dataStore.siteId,
+              libraryId,
+              objectId,
               writeToken,
               filePaths: [`live_stream_profiles/${slugify(profile.name)}.json`]
             });
 
             await this.client.DeleteMetadata({
-              libraryId: this.rootStore.dataStore.siteLibraryId,
-              objectId: this.rootStore.dataStore.siteId,
+              libraryId,
+              objectId,
               writeToken,
               metadataSubtree: `public/asset_metadata/profiles/${draftKey}`
+            });
+
+            const streamIds = await this.client.ContentObjectMetadata({
+              libraryId,
+              objectId,
+              metadataSubtree: `public/asset_metadata/profile_streams/${draftKey}`
+            }) || [];
+
+            if(streamIds.length > 0) {
+              await this.client.ReplaceMetadata({
+                libraryId,
+                objectId,
+                writeToken,
+                metadataSubtree: `public/asset_metadata/profile_streams/${newKey}`,
+                metadata: streamIds
+              });
+            }
+
+            await this.client.DeleteMetadata({
+              libraryId,
+              objectId,
+              writeToken,
+              metadataSubtree: `public/asset_metadata/profile_streams/${draftKey}`
             });
           }
 
           runInAction(() => {
-            const newKey = slugify(draft.name);
-            if(profile && draft.name !== profile.name) {
+            if(draftKey !== newKey) {
               delete this.profiles[draftKey];
               delete this.drafts[draftKey];
               this.profiles[newKey] = {...toJS(draft)};

@@ -22,7 +22,7 @@ import {
   FormatTime,
   SampleRateReadable,
   VideoBitrateReadable
-} from "@/utils/helpers.js";
+} from "@/utils/formatters.js";
 import {
   STATUS_MAP,
   QUALITY_TEXT,

@@ -1,6 +1,6 @@
 // Handles stream configuration writes: create, delete, metadata, recording config, playout (watermarks, DRM, audio), profiles, permissions, and VOD copy.
 import {flow, makeAutoObservable, toJS} from "mobx";
-import {ParseLiveConfigData} from "@/utils/helpers.js";
+import {ParseLiveConfigData} from "@/utils/stream.js";
 import {STATUS_MAP} from "@/utils/constants.js";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 
@@ -618,7 +618,7 @@ class StreamEditStore {
       }
       yield this.client.ReplaceMetadata({
         libraryId, objectId, writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/multipath",
+        metadataSubtree: "live_recording/fabric_config/multipath",
         metadata: multiPathMeta
       });
     }
@@ -629,11 +629,21 @@ class StreamEditStore {
         metadataSubtree: "live_recording/playout_config/dvr_enabled",
         metadata: dvrEnabled
       });
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording_overrides/playout_config/dvr_enabled",
+        metadata: dvrEnabled
+      });
       if(dvrEnabled) {
         if(dvrStartTime != null) {
           yield this.client.ReplaceMetadata({
             libraryId, objectId, writeToken,
             metadataSubtree: "live_recording/playout_config/dvr_start_time",
+            metadata: new Date(dvrStartTime).toISOString()
+          });
+          yield this.client.ReplaceMetadata({
+            libraryId, objectId, writeToken,
+            metadataSubtree: "live_recording_overrides/playout_config/dvr_start_time",
             metadata: new Date(dvrStartTime).toISOString()
           });
         }
@@ -643,10 +653,17 @@ class StreamEditStore {
             metadataSubtree: "live_recording/playout_config/dvr_max_duration",
             metadata: parseInt(dvrMaxDuration)
           });
+          yield this.client.ReplaceMetadata({
+            libraryId, objectId, writeToken,
+            metadataSubtree: "live_recording_overrides/playout_config/dvr_max_duration",
+            metadata: parseInt(dvrMaxDuration)
+          });
         }
       } else {
         yield this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording/playout_config/dvr_start_time"});
         yield this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording/playout_config/dvr_max_duration"});
+        yield this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording_overrides/playout_config/dvr_start_time"});
+        yield this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording_overrides/playout_config/dvr_max_duration"});
       }
     }
 
@@ -771,13 +788,16 @@ class StreamEditStore {
       finalize: false
     });
 
+    let probeCleared = false;
     if(configProfile) {
-      const {siteWriteToken} = yield this.ApplyStreamProfile({
+      const {siteWriteToken, probeCleared: cleared} = yield this.ApplyStreamProfile({
         objectId,
         writeToken,
         profileSlug: configProfile,
         finalize: false
       });
+
+      probeCleared = cleared ?? false;
 
       if(siteWriteToken) {
         yield this.client.FinalizeContentObject({
@@ -819,6 +839,8 @@ class StreamEditStore {
         }
       });
     }
+
+    return {probeCleared};
   });
 
   UpdatePlayoutConfig = flow(function * ({
@@ -904,57 +926,13 @@ class StreamEditStore {
       finalize: false
     });
 
-    const existing = yield this.client.ContentObjectMetadata({
-      objectId,
-      libraryId,
-      metadataSubtree: "live_recording"
-    });
-
-    const config = yield this.client.ContentObjectMetadata({
-      objectId,
-      libraryId,
-      writeToken,
-      metadataSubtree: "live_recording_config"
-    });
-
-    const updated = {
-      ...existing,
-      playout_config: {
-        ...existing?.playout_config,
-        dvr_enabled: config?.playout_config?.dvr_enabled ?? config?.playout_config?.dvr,
-        dvr_max_duration: config?.playout_config?.dvr_max_duration,
-        simple_watermark: config?.playout_config?.simple_watermark,
-        image_watermark: config?.playout_config?.image_watermark,
-        forensic_watermark: config?.playout_config?.forensic_watermark,
-      },
-      recording_config: {
-        ...existing?.recording_config,
-        recording_params: {
-          ...existing?.recording_config?.recording_params,
-          reconnect_timeout: config?.recording_config?.reconnect_timeout,
-          part_ttl: config?.recording_config?.part_ttl,
-          xc_params: {
-            ...existing?.recording_config?.recording_params?.xc_params,
-            ...config?.recording_params?.xc_params,
-            connection_timeout: config?.recording_config?.connection_timeout,
-          }
-        }
-      }
-    };
-
-    yield this.client.ReplaceMetadata({
-      objectId,
-      libraryId,
-      writeToken,
-      metadataSubtree: "live_recording",
-      metadata: updated
-    });
-
-    yield this.UpdateStreamAudioSettings({
-      objectId,
-      writeToken,
-      finalize: false
-    });
+    if(!response?.probeCleared) {
+      yield this.UpdateStreamAudioSettings({
+        objectId,
+        writeToken,
+        finalize: false
+      });
+    }
 
     if(finalize) {
       yield this.client.FinalizeContentObject({
@@ -1185,6 +1163,26 @@ class StreamEditStore {
         writeToken,
         finalize: false
       });
+
+      if(imageWatermark) {
+        yield this.client.ReplaceMetadata({
+          libraryId, objectId, writeToken,
+          metadataSubtree: "live_recording_overrides/playout_config/image_watermark",
+          metadata: JSON.parse(imageWatermark)
+        });
+      } else if(textWatermark) {
+        yield this.client.ReplaceMetadata({
+          libraryId, objectId, writeToken,
+          metadataSubtree: "live_recording_overrides/playout_config/simple_watermark",
+          metadata: JSON.parse(textWatermark)
+        });
+      } else if(forensicWatermark) {
+        yield this.client.ReplaceMetadata({
+          libraryId, objectId, writeToken,
+          metadataSubtree: "live_recording_overrides/playout_config/forensic_watermark",
+          metadata: JSON.parse(forensicWatermark)
+        });
+      }
     }
 
     if(removeTypes.length > 0) {
@@ -1195,6 +1193,14 @@ class StreamEditStore {
         finalize: false,
         types: removeTypes
       });
+
+      for(const type of removeTypes) {
+        const subtree = type === "image" ? "image_watermark" : type === "text" ? "simple_watermark" : "forensic_watermark";
+        yield this.client.DeleteMetadata({
+          libraryId, objectId, writeToken,
+          metadataSubtree: `live_recording_overrides/playout_config/${subtree}`
+        });
+      }
     }
 
     let updateValue = {};
@@ -1247,6 +1253,14 @@ class StreamEditStore {
       libraryId,
       writeToken,
       metadataSubtree: "live_recording/playout_config/playout_formats",
+      metadata: playoutFormats
+    });
+
+    yield this.client.ReplaceMetadata({
+      objectId,
+      libraryId,
+      writeToken,
+      metadataSubtree: "live_recording_overrides/playout_config/playout_formats",
       metadata: playoutFormats
     });
 
@@ -1344,11 +1358,11 @@ class StreamEditStore {
       const audioIndex = Object.keys(audioStreams)[i];
       const audio = audioStreams[audioIndex];
 
-      audioIndexMeta[i] = parseInt(Object.keys(audioStreams || {})[i]);
-
       if(!audioData[audioIndex].record) { return; }
 
-      for(let j = 0; j < ladderSpecs.audio.length; j++) {
+      audioIndexMeta[nAudio] = parseInt(audioIndex);
+
+      for(let j = 0; j < (ladderSpecs.audio || []).length; j++) {
         let element = ladderSpecs.audio[j];
         if(element.channels === audio.recordingChannels) {
           audioLadderSpec = {...element};
@@ -1357,7 +1371,7 @@ class StreamEditStore {
       }
 
       if(Object.keys(audioLadderSpec).length === 0) {
-        audioLadderSpec = {...ladderSpecs.audio[0]};
+        audioLadderSpec = {...(ladderSpecs.audio || [])[0]};
       }
 
       audioLadderSpec.representation = `audioaudio_aac@${audioLadderSpec.bit_rate}`;
@@ -1416,6 +1430,46 @@ class StreamEditStore {
       });
     }
 
+    if(!audioData || Object.keys(audioData).length === 0) {
+      // No recording_stream_config/audio — derive audio_index from whatever StreamConfig wrote to ladder_specs.
+      const currentLadderSpecs = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/ladder_specs"
+      });
+
+      const audioEntries = (currentLadderSpecs || []).filter(spec =>
+        spec.media_type === 2 || (spec.stream_name || "").includes("audio")
+      );
+
+      const audioIndex = [0, 0, 0, 0, 0, 0, 0, 0];
+      audioEntries.forEach((entry, i) => {
+        audioIndex[i] = entry.stream_index ?? 0;
+      });
+
+      const xcParams = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
+      });
+
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
+        metadata: {
+          ...(xcParams || {}),
+          n_audio: audioEntries.length,
+          audio_index: audioIndex
+        }
+      });
+
+      return;
+    }
+
     const audioKeys = Object.keys(audioData || {});
     if(audioKeys.length === 1) {
       audioData = {...audioData, [audioKeys[0]]: {...audioData[audioKeys[0]], default: true}};
@@ -1469,23 +1523,24 @@ class StreamEditStore {
       metadata: newLadderSpecs
     });
 
-    yield this.client.MergeMetadata({
+    const xcParams = yield this.client.ContentObjectMetadata({
       libraryId,
       objectId,
       writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
-      metadata: {
-        audio_bitrate: globalAudioBitrate,
-        n_audio: nAudio
-      }
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
     });
 
     yield this.client.ReplaceMetadata({
       libraryId,
       objectId,
       writeToken,
-      metadataSubtree: "live_recording/recording_config/recording_params/xc_params/audio_index",
-      metadata: audioIndexMeta
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
+      metadata: {
+        ...(xcParams || {}),
+        audio_bitrate: globalAudioBitrate,
+        n_audio: nAudio,
+        audio_index: audioIndexMeta
+      }
     });
 
     if(finalize) {

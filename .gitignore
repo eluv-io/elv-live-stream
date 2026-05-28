@@ -24,3 +24,8 @@ scratch/
 
 # Test coverage
 coverage/
+
+# AI
+tmp/
+.claude/
+CLAUDE.md

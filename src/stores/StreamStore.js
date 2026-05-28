@@ -3,7 +3,7 @@ import {flow, makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants.js";
-import {DeriveSourceAndPackaging} from "@/utils/helpers.js";
+import {DeriveSourceAndPackaging} from "@/utils/stream.js";
 
 class StreamStore {
   streams;
@@ -538,6 +538,12 @@ class StreamStore {
         metadataSubtree: "live_recording_config/playout_config"
       });
 
+      const liveRecordingOverridesMeta = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording_overrides/playout_config"
+      });
+
       // Special case to retrieve playout formats in case profile has no specification and is created with a default value
       const playoutFormatMeta = yield this.client.ContentObjectMetadata({
         libraryId,
@@ -545,17 +551,18 @@ class StreamStore {
         metadataSubtree: "offerings/default/playout/playout_formats"
       });
 
-      let drm = liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats ?? Object.keys(playoutFormatMeta ?? {});
+      let drm = liveRecordingOverridesMeta?.playout_formats ?? liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats ?? Object.keys(playoutFormatMeta ?? {});
       // Playout formats must be an array of values from PLAYOUT_FORMAT_OPTIONS
       if(!Array.isArray(drm)) {
         drm = [];
       }
-      const dvrEnabled = liveRecordingConfigMeta?.dvr ?? liveRecordingMeta?.dvr_enabled;
-      const dvrMaxDuration = liveRecordingMeta?.dvr_max_duration === undefined ? null : (liveRecordingMeta.dvr_max_duration).toString();
-      const dvrStartTime = liveRecordingMeta?.dvr_start_time;
-      const imageWatermark = liveRecordingConfigMeta?.image_watermark ?? liveRecordingMeta?.image_watermark;
-      const forensicWatermark = liveRecordingConfigMeta?.forensic_watermark ?? liveRecordingMeta?.forensic_watermark;
-      const simpleWatermark = liveRecordingConfigMeta?.simple_watermark ?? liveRecordingMeta?.simple_watermark;
+      const dvrEnabled = liveRecordingOverridesMeta?.dvr_enabled ?? liveRecordingConfigMeta?.dvr ?? liveRecordingMeta?.dvr_enabled;
+      const rawDvrMax = liveRecordingOverridesMeta?.dvr_max_duration ?? liveRecordingMeta?.dvr_max_duration;
+      const dvrMaxDuration = rawDvrMax === undefined ? null : rawDvrMax.toString();
+      const dvrStartTime = liveRecordingOverridesMeta?.dvr_start_time ?? liveRecordingMeta?.dvr_start_time;
+      const imageWatermark = liveRecordingOverridesMeta?.image_watermark ?? liveRecordingConfigMeta?.image_watermark ?? liveRecordingMeta?.image_watermark;
+      const forensicWatermark = liveRecordingOverridesMeta?.forensic_watermark ?? liveRecordingConfigMeta?.forensic_watermark ?? liveRecordingMeta?.forensic_watermark;
+      const simpleWatermark = liveRecordingOverridesMeta?.simple_watermark ?? liveRecordingConfigMeta?.simple_watermark ?? liveRecordingMeta?.simple_watermark;
       const watermarkType = simpleWatermark ? "TEXT" : imageWatermark ? "IMAGE" : forensicWatermark ? "FORENSIC" : "";
 
       const playoutData = {

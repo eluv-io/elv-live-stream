@@ -232,7 +232,7 @@ const RecordingPanel = observer(({
                 >
                   <Group mt={20} gap={18}>
                     <Radio
-                      value="ts"
+                      value="raw_ts"
                       label="TS"
                       description=""
                     />
@@ -253,7 +253,7 @@ const RecordingPanel = observer(({
                 >
                   <Group mt={20} gap={18}>
                     <Radio
-                      value="raw"
+                      value="raw_ts"
                       label="Raw"
                       description=""
                     />
