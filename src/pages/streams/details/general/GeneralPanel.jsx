@@ -12,7 +12,7 @@ import {
   TextInput,
   Tooltip
 } from "@mantine/core";
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {dataStore, streamEditStore, streamStore, profileStore} from "@/stores/index.js";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
@@ -130,6 +130,37 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status, Refresh}) =>
     }
   };
 
+  const profileOptions = useMemo(() => [
+    {label: "Built-in Configuration", value: ""},
+    ...Object.keys(profileStore.sortedProfiles).map(item => ({label: profileStore.profiles[item]?.name, value: item}))
+  ], [profileStore.sortedProfiles, profileStore.profiles]);
+
+  const accessGroupOptions = useMemo(() =>
+    Object.keys(dataStore.accessGroups || {}).map(name => ({
+      label: name,
+      value: dataStore.accessGroups[name]?.address
+    })),
+    [dataStore.accessGroups]
+  );
+
+  const permissionOptions = useMemo(() =>
+    Object.keys(dataStore.client.permissionLevels || {}).map(name => ({
+      label: dataStore.client.permissionLevels[name].short,
+      value: name
+    })),
+    []
+  );
+
+  const permissionTooltipContent = useMemo(() =>
+    Object.values(dataStore.client.permissionLevels).map(({short, description}) =>
+      <Flex key={`permission-info-${short}`} gap="1rem" lh={1.25} pb={5}>
+        <Flex flex="0 0 25%">{short}:</Flex>
+        <Text fz="sm">{description}</Text>
+      </Flex>
+    ),
+    []
+  );
+
   if(loading) { return <Loader />; }
 
   return (
@@ -184,10 +215,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status, Refresh}) =>
                   <Select
                     label="Config Profile"
                     name="configProfile"
-                    data={[
-                      {label: "Built-in Configuration", value: ""},
-                      ...Object.keys(profileStore.sortedProfiles).map(item => ({label: profileStore.profiles[item]?.name, value: item}))
-                    ]}
+                    data={profileOptions}
                     mb={12}
                     placeholder="Select Config Profile"
                     description={Object.keys(profileStore.sortedProfiles).length > 0 ? "Apply a predefined set of configuration settings to this stream." : "No profiles are configured. Create a profile in Settings."}
@@ -236,14 +264,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status, Refresh}) =>
                 label="Access Group"
                 description="Access Group responsible for managing your live stream object."
                 name="accessGroup"
-                data={
-                  Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
-                    {
-                      label: accessGroupName,
-                      value: dataStore.accessGroups[accessGroupName]?.address
-                    }
-                  ))
-                }
+                data={accessGroupOptions}
                 value={formData.accessGroup}
                 placeholder="Select Access Group"
                 onChange={(value) => HandleFormChange({
@@ -258,19 +279,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status, Refresh}) =>
                     <Tooltip
                       multiline
                       w={460}
-                      label={
-                        Object.values(dataStore.client.permissionLevels).map(({short, description}) =>
-                          <Flex
-                            key={`permission-info-${short}`}
-                            gap="1rem"
-                            lh={1.25}
-                            pb={5}
-                          >
-                            <Flex flex="0 0 25%">{ short }:</Flex>
-                            <Text fz="sm">{ description }</Text>
-                          </Flex>
-                        )
-                      }
+                      label={permissionTooltipContent}
                     >
                       <Flex w={16}>
                         <IconInfoCircle color="var(--mantine-color-elv-gray-8)" />
@@ -285,14 +294,7 @@ const GeneralPanel = observer(({slug, currentConfigProfile, status, Refresh}) =>
                 onChange={(value) => HandleFormChange({
                   target: {name: "permission", value}}
                 )}
-                data={
-                  Object.keys(dataStore.client.permissionLevels || {}).map(permissionName => (
-                    {
-                      label: dataStore.client.permissionLevels[permissionName].short,
-                      value: permissionName
-                    }
-                  ))
-                }
+                data={permissionOptions}
                 allowDeselect={false}
               />
             </SimpleGrid>
