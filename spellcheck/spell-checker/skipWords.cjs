@@ -89,6 +89,7 @@ module.exports = [
   "playout",
   "playready",
   "popups",
+  "pos",
   "qfab",
   "qspace",
   "readonly",
