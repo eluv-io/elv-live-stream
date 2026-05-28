@@ -152,11 +152,11 @@ const OverflowMenu = observer(({stream}) => {
   );
 });
 
-const GridItem = observer(({stream}) => {
+const GridItem = observer(({stream, index}) => {
   return (
     <Flex direction="column" w="100%">
       <VideoContainer
-        index={0}
+        index={index}
         slug={stream.slug}
         showPreview={streamStore.showMonitorPreviews}
         playable={stream.status === "running"}
@@ -284,7 +284,7 @@ const Monitor = observer(() => {
           </Box> :
           streams.length === 0 ? (debouncedFilter ? "No Matching Streams" : "No Streams Found") :
             <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
-              {rowVirtualizer.getVirtualItems().map(virtualRow => {
+              {rowVirtualizer.getVirtualItems().map((virtualRow, rowPos) => {
                 const rowStreams = rows[virtualRow.index];
                 return (
                   <div
@@ -303,8 +303,8 @@ const Monitor = observer(() => {
                       paddingBottom: "var(--mantine-spacing-lg)",
                     }}
                   >
-                    {rowStreams.map(stream => (
-                      <GridItem key={stream.slug} stream={stream} />
+                    {rowStreams.map((stream, colIndex) => (
+                      <GridItem key={stream.slug} stream={stream} index={rowPos * COLS + colIndex} />
                     ))}
                   </div>
                 );
