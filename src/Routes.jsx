@@ -1,16 +1,20 @@
+import {lazy, Suspense} from "react";
 import {Navigate, Route, Routes} from "react-router-dom";
 import {observer} from "mobx-react-lite";
-import Create from "@/pages/create/Create.jsx";
-import Streams from "@/pages/streams/Streams.jsx";
-import Monitor from "@/pages/monitor/Monitor.jsx";
-import StreamPreview from "@/components/stream-preview/StreamPreview.jsx";
-import StreamDetailsPage from "@/pages/streams/details/StreamDetailsPage";
-import Settings from "@/pages/settings/Settings.jsx";
-import Outputs from "@/pages/outputs/Outputs.jsx";
-import OutputDetails from "@/pages/outputs/details/OutputDetails.jsx";
+import {Flex, Loader} from "@mantine/core";
+
+const Create = lazy(() => import("@/pages/create/Create.jsx"));
+const Streams = lazy(() => import("@/pages/streams/Streams.jsx"));
+const Monitor = lazy(() => import("@/pages/monitor/Monitor.jsx"));
+const StreamPreview = lazy(() => import("@/components/stream-preview/StreamPreview.jsx"));
+const StreamDetailsPage = lazy(() => import("@/pages/streams/details/StreamDetailsPage"));
+const Settings = lazy(() => import("@/pages/settings/Settings.jsx"));
+const Outputs = lazy(() => import("@/pages/outputs/Outputs.jsx"));
+const OutputDetails = lazy(() => import("@/pages/outputs/details/OutputDetails.jsx"));
 
 const AppRoutes = observer(() => {
   return (
+    <Suspense fallback={<Flex justify="center" align="center" h="100%"><Loader /></Flex>}>
     <Routes>
       <Route path="/" element={<Navigate replace to="/streams" />} />
       <Route path="/monitor" element={<Monitor />} />
@@ -25,6 +29,7 @@ const AppRoutes = observer(() => {
 
       <Route path="/settings" element={<Settings />} />
     </Routes>
+    </Suspense>
   );
 });
 
