@@ -1,7 +1,8 @@
 import {useEffect, useMemo, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput, Title} from "@mantine/core";
+import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, Text, TextInput, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
+import {useWindowVirtualizer} from "@tanstack/react-virtual";
 
 import {dataStore, modalStore, rootStore, streamStore} from "@/stores";
 import {StreamIsActive} from "@/utils/stream";
@@ -151,11 +152,11 @@ const OverflowMenu = observer(({stream}) => {
   );
 });
 
-const GridItem = observer(({stream, index}) => {
+const GridItem = observer(({stream}) => {
   return (
     <Flex direction="column" w="100%">
       <VideoContainer
-        index={index}
+        index={0}
         slug={stream.slug}
         showPreview={streamStore.showMonitorPreviews}
         playable={stream.status === "running"}
@@ -237,6 +238,23 @@ const Monitor = observer(() => {
       .sort(SortTable({sortStatus: {columnAccessor: "title", direction: "asc"}}));
   }, [streamStore.streams, debouncedFilter]);
 
+  const COLS = 4;
+  const rows = useMemo(() => {
+    if(!streams) return [];
+    const result = [];
+    for(let i = 0; i < streams.length; i += COLS) {
+      result.push(streams.slice(i, i + COLS));
+    }
+
+    return result;
+  }, [streams]);
+
+  const rowVirtualizer = useWindowVirtualizer({
+    count: rows.length,
+    estimateSize: () => 375,
+    overscan: 2
+  });
+
   return (
     <PageContainer
       title="Monitor"
@@ -265,19 +283,33 @@ const Monitor = observer(() => {
             <Loader />
           </Box> :
           streams.length === 0 ? (debouncedFilter ? "No Matching Streams" : "No Streams Found") :
-            <SimpleGrid cols={4} spacing="lg">
-              {
-                streams.map((stream, index) => {
-                  return (
-                    <GridItem
-                      key={stream.slug}
-                      stream={stream}
-                      index={index}
-                    />
-                  );
-                })
-              }
-            </SimpleGrid>
+            <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
+              {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                const rowStreams = rows[virtualRow.index];
+                return (
+                  <div
+                    key={virtualRow.key}
+                    data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+                      gap: "var(--mantine-spacing-lg)",
+                      paddingBottom: "var(--mantine-spacing-lg)",
+                    }}
+                  >
+                    {rowStreams.map(stream => (
+                      <GridItem key={stream.slug} stream={stream} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
       }
     </PageContainer>
   );

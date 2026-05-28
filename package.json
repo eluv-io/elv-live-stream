@@ -30,6 +30,7 @@
     "@mantine/hooks": "8.0.1",
     "@mantine/notifications": "8.0.1",
     "@tabler/icons-react": "^3.41.1",
+    "@tanstack/react-virtual": "^3.13.26",
     "dayjs": "^1.11.13",
     "fraction.js": "^4.3.7",
     "mantine-datatable": "7.14.5",
