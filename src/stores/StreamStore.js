@@ -22,6 +22,12 @@ class StreamStore {
     return this.rootStore.client;
   }
 
+  get streamsByObjectId() {
+    return Object.fromEntries(
+      Object.entries(this.streams || {}).map(([slug, s]) => [s.objectId, slug])
+    );
+  }
+
   get filteredStreams() {
     const filter = this.tableFilter.toLowerCase();
     return Object.values(this.streams || {}).filter(s =>

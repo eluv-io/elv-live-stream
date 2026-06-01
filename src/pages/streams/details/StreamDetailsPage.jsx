@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useNavigate, useParams} from "react-router-dom";
 import {rootStore, streamStore} from "@/stores/index.js";
@@ -28,30 +28,21 @@ const DETAILS_TABS = [
 const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
   const params = useParams();
-  let streamSlug, stream;
   const [activeTab, setActiveTab] = useState(DETAILS_TABS[0].value);
   const [recordingInfo, setRecordingInfo] = useState(null);
   const [checkVersion, setCheckVersion] = useState(0);
 
-  if(!streamSlug) {
-    streamSlug = Object.keys(streamStore.streams || {}).find(slug => (
-      streamStore.streams[slug].objectId === params.id
-    ));
-  }
+  const streamSlug = streamStore.streamsByObjectId[params.id];
+  const stream = streamSlug ? streamStore.streams[streamSlug] : undefined;
 
-  if(streamSlug) {
-    stream = undefined;
-    stream = streamStore.streams[streamSlug];
-  }
-
-  const GetStatus = async () => {
+  const GetStatus = useCallback(async () => {
     await streamStore.CheckStatus({
       objectId: params.id,
       update: true
     });
-  };
+  }, [params.id]);
 
-  const LoadEdgeWriteTokenMeta = async() => {
+  const LoadEdgeWriteTokenMeta = useCallback(async() => {
     const metadata = await streamStore.LoadEdgeWriteTokenMeta({
       objectId: params.id
     });
@@ -64,20 +55,20 @@ const StreamDetailsPage = observer(() => {
 
       setRecordingInfo(metadata);
     }
-  };
+  }, [params.id]);
 
   useEffect(() => {
     if(params.id) {
       GetStatus();
       LoadEdgeWriteTokenMeta();
     }
-  }, [params.id]);
+  }, [GetStatus, LoadEdgeWriteTokenMeta]);
 
-  const Refresh = () => {
+  const Refresh = useCallback(() => {
     setCheckVersion(prev => prev + 1);
     GetStatus();
     LoadEdgeWriteTokenMeta();
-  };
+  }, [GetStatus, LoadEdgeWriteTokenMeta]);
 
   const DebouncedRefresh = useDebouncedCallback(Refresh, 500);
 
@@ -85,19 +76,24 @@ const StreamDetailsPage = observer(() => {
     return <Loader />;
   }
 
-  const streamActions = GetStreamActions({
-    record: streamStore.streams?.[streamSlug],
-    onCheckComplete: () => setCheckVersion(prev => prev + 1),
-    onDeleteComplete: () => navigate("/streams"),
-    view: "stream-details"
-  });
+  const streamActions = useMemo(() => (
+    GetStreamActions({
+      record: streamStore.streams?.[streamSlug],
+      onCheckComplete: () => setCheckVersion(prev => prev + 1),
+      onDeleteComplete: () => navigate("/streams"),
+      view: "stream-details"
+    })
+  ));
 
-  const primaryActions = streamActions.filter(a => a.primary && !a.hidden)
+  const primaryActions = useMemo(() => (
+    streamActions.filter(a => a.primary && !a.hidden)
     .map(a => {
       a.buttonVariant = "filled";
       return a;
-    });
-  const secondaryActions = streamActions.filter(a => !a.primary && !a.hidden);
+    })
+  ));
+
+  const secondaryActions = useMemo(() => streamActions.filter(a => !a.primary && !a.hidden));
 
   const actions = [
     {

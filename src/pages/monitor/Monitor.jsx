@@ -25,6 +25,8 @@ import {notifications} from "@mantine/notifications";
 import {useNavigate} from "react-router-dom";
 import styles from "./Monitor.module.css";
 
+const COLS = 4;
+
 const OverflowMenu = observer(({stream}) => {
   const clipboard = useClipboard({timeout: 400});
   const navigate = useNavigate();
@@ -238,7 +240,6 @@ const Monitor = observer(() => {
       .sort(SortTable({sortStatus: {columnAccessor: "title", direction: "asc"}}));
   }, [streamStore.streams, debouncedFilter]);
 
-  const COLS = 4;
   const rows = useMemo(() => {
     if(!streams) return [];
     const result = [];
