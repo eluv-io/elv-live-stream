@@ -26,11 +26,9 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const RecordingPanel = observer(({
-  title,
   slug,
   status,
   PageVersionCallback,
-  url,
   checkVersion
 }) => {
   const params = useParams();
@@ -48,6 +46,8 @@ const RecordingPanel = observer(({
 
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const title = streamStore.streams?.[slug].title;
 
   const LoadConfigData = async () => {
     try {
@@ -207,7 +207,7 @@ const RecordingPanel = observer(({
         </DisabledTooltipWrapper>
 
         {
-          !(url || "").includes("rtmp") &&
+          !(streamStore.streams?.[slug].originUrl || "").includes("rtmp") &&
           <DisabledTooltipWrapper
             disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
             tooltipLabel="Transport Stream configuration is disabled when the stream is running"

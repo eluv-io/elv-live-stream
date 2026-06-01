@@ -170,24 +170,7 @@ const StreamDetailsPage = observer(() => {
                   active={activeTab === tab.value}
                   status={stream.status}
                   slug={stream.slug}
-                  currentDrm={stream.drm}
-                  simpleWatermark={stream.simpleWatermark}
-                  imageWatermark={stream.imageWatermark}
-                  forensicWatermark={stream.forensicWatermark}
-                  title={stream.title}
-                  embedUrl={stream.embedUrl}
-                  url={stream.originUrl}
                   recordingInfo={recordingInfo}
-                  currentRetention={stream.partTtl}
-                  currentPersistent={stream.persistent}
-                  currentConnectionTimeout={stream.connectionTimeout}
-                  currentReconnectionTimeout={stream.reconnectionTimeout}
-                  currentDvrEnabled={stream.dvrEnabled}
-                  currentDvrMaxDuration={stream.dvrMaxDuration}
-                  currentDvrStartTime={stream.dvrStartTime}
-                  currentConfigProfile={stream.configProfile}
-                  libraryId={stream.libraryId}
-                  currentWatermarkType={stream.watermarkType}
                   PageVersionCallback={setPageVersion}
                   Refresh={Refresh}
                 /> : <Loader />

@@ -22,7 +22,8 @@ import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/Disabl
 import {STATUS_MAP} from "@/utils/constants.js";
 import {IconInfoCircle} from "@tabler/icons-react";
 
-const GeneralPanel = observer(({slug, currentConfigProfile, status, Refresh}) => {
+const GeneralPanel = observer(({slug, status, Refresh}) => {
+  const currentConfigProfile = streamStore.streams?.[slug].configProfile;
   const [formData, setFormData] = useState({
     name: "",
     description: "",

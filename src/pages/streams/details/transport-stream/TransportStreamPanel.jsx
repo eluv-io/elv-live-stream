@@ -17,7 +17,7 @@ import {CheckExpiration} from "@/utils/helpers.js";
 import SavedLinks from "@/pages/streams/details/transport-stream/saved-links/SavedLinks.jsx";
 import QuickLinks from "@/pages/streams/details/transport-stream/quick-links/QuickLinks.jsx";
 
-const TransportStreamPanel = observer(({url, active, slug}) => {
+const TransportStreamPanel = observer(({active, slug}) => {
   const params = useParams();
 
   const initModalData = {
@@ -27,6 +27,7 @@ const TransportStreamPanel = observer(({url, active, slug}) => {
     regionValue: "",
     label: ""
   };
+  const url = streamStore.streams?.[slug].originUrl;
 
   const [loading, setLoading] = useState(false);
   const [copyMpegTs, setCopyMpegTs] = useState(false);

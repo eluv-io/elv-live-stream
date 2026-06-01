@@ -67,8 +67,8 @@ export const Runtime = ({
   return time;
 };
 
-const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetention, currentPersistent, slug, status: cachedStatus}) => {
-  const [status, setStatus] = useState({state: cachedStatus});
+const SummaryPanel = observer(({recordingInfo, slug}) => {
+  const [status, setStatus] = useState({state: streamStore.streams?.[slug]?.status});
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
@@ -79,10 +79,10 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
   const params = useParams();
   const clipboard = useClipboard({timeout: 2000});
   const currentTimeMs = new Date().getTime();
+  const libraryId = streamStore.streams?.[slug]?.libraryId;
 
   useEffect(() => {
     const LoadData = async() => {
-      const libraryId = streamStore.streams[slug]?.libraryId;
       await streamStore.LoadSummaryData({objectId: params.id, libraryId, slug});
     };
 
@@ -316,13 +316,12 @@ const SummaryPanel = observer(({libraryId, title, recordingInfo, currentRetentio
         libraryId={libraryId}
         objectId={params.id}
         records={recordingInfo?.live_offering}
-        title={title}
+        title={streamStore.streams?.[slug]?.title}
         CopyCallback={LoadLiveRecordingCopies}
         currentTimeMs={currentTimeMs}
-        retention={currentRetention}
-        persistent={currentPersistent}
         status={status}
         loading={loading}
+        slug={slug}
       />
     </>
   );

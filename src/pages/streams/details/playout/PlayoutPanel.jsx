@@ -30,11 +30,6 @@ import NotificationMessage from "@/components/notification-message/NotificationM
 const PlayoutPanel = observer(({
   status,
   slug,
-  currentDrm,
-  simpleWatermark,
-  imageWatermark,
-  forensicWatermark,
-  title,
   checkVersion
 }) => {
   const [drm, setDrm] = useState([]);
@@ -47,6 +42,12 @@ const PlayoutPanel = observer(({
   const [loading, setLoading] = useState(false);
   const [applyingChanges, setApplyingChanges] = useState(false);
   const params = useParams();
+
+  const currentDrm = streamStore.streams?.[slug].drm;
+  const simpleWatermark = streamStore.streams?.[slug].simpleWatermark;
+  const imageWatermark = streamStore.streams?.[slug].imageWatermark;
+  const forensicWatermark = streamStore.streams?.[slug].forensicWatermark;
+  const title = streamStore.streams?.[slug].title;
 
   const LoadConfigData = async () => {
     try {
