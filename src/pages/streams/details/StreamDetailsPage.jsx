@@ -29,7 +29,6 @@ const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
   const params = useParams();
   let streamSlug, stream;
-  const [pageVersion, setPageVersion] = useState(0);
   const [activeTab, setActiveTab] = useState(DETAILS_TABS[0].value);
   const [recordingInfo, setRecordingInfo] = useState(null);
   const [checkVersion, setCheckVersion] = useState(0);
@@ -75,7 +74,7 @@ const StreamDetailsPage = observer(() => {
   }, [params.id]);
 
   const Refresh = () => {
-    setPageVersion(prev => prev + 1);
+    setCheckVersion(prev => prev + 1);
     GetStatus();
     LoadEdgeWriteTokenMeta();
   };
@@ -119,7 +118,6 @@ const StreamDetailsPage = observer(() => {
 
   return (
     <PageContainer
-      key={`stream-details-${pageVersion}`}
       title={`${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
       subtitle={stream.objectId}
       subtitleRightSection={
@@ -166,12 +164,13 @@ const StreamDetailsPage = observer(() => {
               {
                 stream.status ?
                 <tab.Component
+                  key={`${tab.value}-${checkVersion}`}
                   checkVersion={checkVersion}
                   active={activeTab === tab.value}
                   status={stream.status}
                   slug={stream.slug}
                   recordingInfo={recordingInfo}
-                  PageVersionCallback={setPageVersion}
+                  PageVersionCallback={setCheckVersion}
                   Refresh={Refresh}
                 /> : <Loader />
               }

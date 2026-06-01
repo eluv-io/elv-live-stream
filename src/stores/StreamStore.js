@@ -361,23 +361,23 @@ class StreamStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const [{audioStreams, audioData}, liveRecordingMeta] = yield Promise.all([
+      const [{audioStreams, audioData}, liveRecordingMeta, videoStream] = yield Promise.all([
         this.LoadStreamProbeData({objectId, libraryId}),
         this.client.ContentObjectMetadata({
           libraryId,
           objectId,
           metadataSubtree: "live_recording/recording_config/recording_params",
           select: ["xc_params", "persistent", "part_ttl"]
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config",
+          select: ["probe_info/streams", "input_stream_info/streams"]
         })
       ]);
 
       const xcParams = liveRecordingMeta?.xc_params;
-      const videoStream = (yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_config",
-        select: ["probe_info/streams", "input_stream_info/streams"]
-      }));
       const probeStreams = videoStream?.probe_info?.streams ?? videoStream?.input_stream_info?.streams ?? [];
       const videoStreamProbe = probeStreams.find(s => s.codec_type === "video");
 
@@ -467,23 +467,24 @@ class StreamStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const multipathMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/fabric_config/multipath"
-      });
-
-      const liveRecordingMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/recording_config"
-      });
-
-      const liveRecordingConfigMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_config/recording_config"
-      });
+      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, {audioStreams, audioData}] = yield Promise.all([
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording/fabric_config/multipath"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording/recording_config"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config/recording_config"
+        }),
+        this.LoadStreamProbeData({libraryId, objectId})
+      ]);
 
       const connectionTimeout = liveRecordingConfigMeta?.connection_timeout ?? liveRecordingMeta?.recording_params?.xc_params?.connection_timeout;
       const inputCfg = liveRecordingMeta?.recording_params?.xc_params?.input_cfg;
@@ -492,11 +493,6 @@ class StreamStore {
       const persistent = liveRecordingMeta?.recording_params?.persistent;
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
       const reconnectionTimeout = liveRecordingConfigMeta?.reconnect_timeout ?? liveRecordingMeta?.recording_params?.reconnect_timeout;
-
-      const {audioStreams, audioData} = yield this.LoadStreamProbeData({
-        libraryId,
-        objectId
-      });
 
       const recordingData = {
         audioStreams,
@@ -526,30 +522,29 @@ class StreamStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const liveRecordingMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/playout_config"
-      });
-
-      const liveRecordingConfigMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_config/playout_config"
-      });
-
-      const liveRecordingOverridesMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_overrides/playout_config"
-      });
-
-      // Special case to retrieve playout formats in case profile has no specification and is created with a default value
-      const playoutFormatMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "offerings/default/playout/playout_formats"
-      });
+      // Special case: playoutFormatMeta is a fallback when profile has no playout_formats specified
+      const [liveRecordingMeta, liveRecordingConfigMeta, liveRecordingOverridesMeta, playoutFormatMeta] = yield Promise.all([
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording/playout_config"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config/playout_config"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_overrides/playout_config"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "offerings/default/playout/playout_formats"
+        })
+      ]);
 
       let drm = liveRecordingOverridesMeta?.playout_formats ?? liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats ?? Object.keys(playoutFormatMeta ?? {});
       // Playout formats must be an array of values from PLAYOUT_FORMAT_OPTIONS
