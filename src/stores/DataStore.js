@@ -139,23 +139,33 @@ class DataStore {
   LoadAccessGroups = flow(function * () {
     if(this.accessGroups) { return; }
 
+    if(this._accessGroupsPromise) {
+      yield this._accessGroupsPromise;
+      return;
+    }
+
+    let resolve;
+    this._accessGroupsPromise = new Promise(res => { resolve = res; });
+
     try {
-      if(!this.accessGroups) {
-        this.accessGroups = {};
-        const accessGroups = yield this.client.ListAccessGroups() || [];
-        accessGroups
-          .sort((a, b) => (a.meta.name || a.id).localeCompare(b.meta.name || b.id))
-          .map(async accessGroup => {
-            if(accessGroup.meta["name"]){
-              this.accessGroups[accessGroup.meta["name"]] = accessGroup;
-            } else {
-              this.accessGroups[accessGroup.id] = accessGroup;
-            }
-          });
-      }
+      const accessGroups = (yield this.client.ListAccessGroups()) || [];
+      const result = {};
+      accessGroups
+        .sort((a, b) => (a.meta.name || a.id).localeCompare(b.meta.name || b.id))
+        .forEach(accessGroup => {
+          if(accessGroup.meta["name"]) {
+            result[accessGroup.meta["name"]] = accessGroup;
+          } else {
+            result[accessGroup.id] = accessGroup;
+          }
+        });
+      this.accessGroups = result;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to load access groups", error);
+    } finally {
+      resolve();
+      this._accessGroupsPromise = null;
     }
   });
 

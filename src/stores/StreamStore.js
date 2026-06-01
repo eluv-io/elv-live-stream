@@ -459,17 +459,13 @@ class StreamStore {
 
   LoadRecordingConfigData = flow(function * ({
     libraryId,
-    objectId
+    objectId,
+    slug
   }) {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
-
-      const streams = this.streams || {};
-      const slug = Object.keys(streams).find(slug => (
-        streams[slug].objectId === objectId
-      ));
 
       const multipathMeta = yield this.client.ContentObjectMetadata({
         libraryId,
@@ -524,16 +520,11 @@ class StreamStore {
     }
   });
 
-  LoadPlayoutConfigData = flow(function * ({libraryId, objectId}) {
+  LoadPlayoutConfigData = flow(function * ({libraryId, objectId, slug}) {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
-
-      const streams = this.streams || {};
-      const slug = Object.keys(streams).find(slug => (
-        streams[slug].objectId === objectId
-      ));
 
       const liveRecordingMeta = yield this.client.ContentObjectMetadata({
         libraryId,

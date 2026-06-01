@@ -63,7 +63,7 @@ const RecordingPanel = observer(({
         copyMpegTs: copyMpegTsMeta,
         inputCfg,
         multiPath: multiPathMeta
-      } = await streamStore.LoadRecordingConfigData({objectId: params.id});
+      } = await streamStore.LoadRecordingConfigData({objectId: params.id, slug});
 
       retentionMeta = persistentMeta ? "indefinite" : retentionMeta ? retentionMeta.toString() : null;
       connectionTimeoutMeta = connectionTimeoutMeta ? connectionTimeoutMeta.toString() : null;

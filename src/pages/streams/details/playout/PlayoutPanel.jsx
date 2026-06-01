@@ -61,7 +61,7 @@ const PlayoutPanel = observer(({
         imageWatermark: imageWatermarkMeta,
         simpleWatermark: simpleWatermarkMeta,
         watermarkType: watermarkTypeMeta
-      } = await streamStore.LoadPlayoutConfigData({objectId: params.id});
+      } = await streamStore.LoadPlayoutConfigData({objectId: params.id, slug});
 
       setDrm(drmMeta ?? []);
       setDvrEnabled(dvrEnabledMeta ?? false);

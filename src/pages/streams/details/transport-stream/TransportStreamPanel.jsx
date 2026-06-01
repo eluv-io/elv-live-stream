@@ -17,7 +17,7 @@ import {CheckExpiration} from "@/utils/helpers.js";
 import SavedLinks from "@/pages/streams/details/transport-stream/saved-links/SavedLinks.jsx";
 import QuickLinks from "@/pages/streams/details/transport-stream/quick-links/QuickLinks.jsx";
 
-const TransportStreamPanel = observer(({url, active}) => {
+const TransportStreamPanel = observer(({url, active, slug}) => {
   const params = useParams();
 
   const initModalData = {
@@ -36,7 +36,7 @@ const TransportStreamPanel = observer(({url, active}) => {
     const LoadConfigData = async() => {
       let {
         copyMpegTs: copyMpegTsMeta
-      } = await streamStore.LoadRecordingConfigData({objectId: params.id});
+      } = await streamStore.LoadRecordingConfigData({objectId: params.id, slug});
       await dataStore.LoadSrtPlayoutUrls();
 
       setCopyMpegTs(copyMpegTsMeta);
