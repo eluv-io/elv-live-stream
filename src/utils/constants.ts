@@ -1,3 +1,14 @@
+// TYPES
+
+export type StreamStatus = typeof STATUS_MAP[keyof typeof STATUS_MAP];
+export type PlayoutFormat = typeof PLAYOUT_FORMAT_OPTIONS[number]["value"];
+export type Quality = typeof QUALITY_MAP[keyof typeof QUALITY_MAP];
+export type StreamFormat = keyof typeof FORMAT_TEXT;
+export type RecordingStatus = keyof typeof RECORDING_STATUS_TEXT;
+export type FabricNodeRegion = typeof FABRIC_NODE_REGIONS[number]["value"];
+
+// CONSTANTS
+
 export const STATUS_MAP = {
   UNCONFIGURED: "unconfigured",
   UNINITIALIZED: "uninitialized",
@@ -10,8 +21,6 @@ export const STATUS_MAP = {
   DEGRADED: "degraded",
   UNAVAILABLE: "unavailable"
 } as const;
-
-export type StreamStatus = typeof STATUS_MAP[keyof typeof STATUS_MAP];
 
 export const DEFAULT_WATERMARK_TEXT = {
   "font_color": "white@0.5",
@@ -53,13 +62,11 @@ export const PLAYOUT_FORMAT_OPTIONS = [
   // {value: "dash-playready-cenc", label: "Dash PlayReady"},
 ] as const;
 
-export type PlayoutFormat = typeof PLAYOUT_FORMAT_OPTIONS[number]["value"];
-
 export const QUALITY_MAP = {
   DEGRADED: "degraded",
   SEVERE: "severe",
   GOOD: "good"
-};
+} as const;
 
 export const RECORDING_BITRATE_OPTIONS = [
   {label: "512 Kbps", value: 512000},
@@ -122,7 +129,7 @@ export const FORMAT_TEXT = {
   srt: "SRT",
   "srt-caller": "SRT Caller",
   rtmp: "RTMP"
-};
+} as const;
 
 export const CODEC_TEXT = {
   h264: "H.264",
@@ -134,7 +141,7 @@ export const RECORDING_STATUS_TEXT = {
   EXPIRED: "Expired",
   PARTIALLY_AVAILABLE: "Partially Available",
   AVAILABLE: "Available"
-};
+} as const;
 
 export const QUALITY_TEXT = {
   "good": "Good",
@@ -156,7 +163,7 @@ export const SOURCE_PACKAGING_COLOR_MAP = {
   fmp4: "elv-orange.0"
 };
 
-export const AudioCodec = (value) => {
+export const AudioCodec = (value: string): string => {
   if(value === "aac") {
     return "aac";
   } else if(value === "mp3") {
@@ -189,4 +196,4 @@ export const FABRIC_NODE_REGIONS = [
   {value: "eu-west-south", label: "EU Southwest"},
   {value: "as-east", label: "AS East"},
   {value: "au-east", label: "AU East"},
-];
+] as const;
