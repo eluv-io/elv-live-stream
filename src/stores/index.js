@@ -1,4 +1,4 @@
-import RootStore from "./RootStore.js";
+import RootStore from "./RootStore.ts";
 import {configure} from "mobx";
 
 // Force strict mode so mutations are only allowed within actions.
