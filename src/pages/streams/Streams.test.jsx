@@ -27,6 +27,7 @@ const { mockDataStore, mockStreamStore, mockModalStore } = vi.hoisted(() => {
         "stream-1": { objectId: "123", slug: "stream-1", title: "Live Sports News" },
         "stream-2": { objectId: "456", slug: "stream-2", title: "Music Festival Feed" },
       },
+      get filteredStreams() { return Object.values(this.streams); },
       SetTableFilter: vi.fn(),
       CheckStatus: vi.fn().mockResolvedValue({}),
     },
