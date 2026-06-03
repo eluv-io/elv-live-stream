@@ -2,7 +2,7 @@ import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {DataTable} from "mantine-datatable";
 import {ActionIcon, Box, Group, Stack, Text, Title} from "@mantine/core";
-import {DateFormat} from "@/utils/formatters.js";
+import {DateFormat} from "@/utils/formatters.ts";
 import {SortTable} from "@/utils/helpers.js";
 import {streamStore, streamEditStore} from "@/stores/index.js";
 import {IconExternalLink, IconTrash} from "@tabler/icons-react";

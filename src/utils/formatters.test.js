@@ -8,7 +8,7 @@ import {
   DateFormat,
   BytesToMb,
   RelativeTime
-} from "@/utils/formatters.js";
+} from "@/utils/formatters.ts";
 
 describe("VideoBitrateReadable", () => {
   it("converts bitrate to Mbps", () => {

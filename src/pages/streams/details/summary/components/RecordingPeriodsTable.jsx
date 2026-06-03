@@ -5,7 +5,7 @@ import {streamEditStore, streamStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";
 import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constants.js";
 import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} from "@mantine/core";
-import {DateFormat, Pluralize, RelativeTime} from "@/utils/formatters.js";
+import {DateFormat, Pluralize, RelativeTime} from "@/utils/formatters.ts";
 import {RecordingPeriodIsExpired} from "@/utils/recording.js";
 import {SortTable} from "@/utils/helpers.js";
 import {StreamIsActive} from "@/utils/stream.ts";

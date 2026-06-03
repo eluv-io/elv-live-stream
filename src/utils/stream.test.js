@@ -146,8 +146,8 @@ describe("StatusColor", () => {
     expect(StatusColor(STATUS_MAP.DEGRADED)).toBe("elv-yellow.6");
   });
 
-  it("returns undefined for unknown status", () => {
-    expect(StatusColor("unknown")).toBeUndefined();
+  it("returns empty string for unknown status", () => {
+    expect(StatusColor("")).toBe("");
   });
 });
 

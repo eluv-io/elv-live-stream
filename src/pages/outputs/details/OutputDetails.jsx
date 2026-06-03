@@ -28,7 +28,7 @@ import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
 import {FABRIC_NODE_REGIONS, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.js";
 import styles from "@/components/detail-card/DetailCard.module.css";
 import {outputModalStore} from "@/stores/index.js";
-import {DateFormat, BytesToMb} from "@/utils/formatters.js";
+import {DateFormat, BytesToMb} from "@/utils/formatters.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";

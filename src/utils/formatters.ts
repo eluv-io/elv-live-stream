@@ -1,13 +1,13 @@
 import Fraction from "fraction.js";
 
-export const VideoBitrateReadable = (bitrate) => {
+export const VideoBitrateReadable = (bitrate: number): string => {
   if(!bitrate) { return ""; }
   let value = (bitrate / 1000000).toFixed(1);
 
   return `${value}Mbps`;
 };
 
-export const AudioBitrateReadable = (bitrate) => {
+export const AudioBitrateReadable = (bitrate: number): string => {
   if(!bitrate) { return ""; }
   const denominator = 1000;
   const value = (bitrate / denominator).toFixed(0);
@@ -15,12 +15,12 @@ export const AudioBitrateReadable = (bitrate) => {
   return `${value} Kbps`;
 };
 
-export const SampleRateReadable = (sampleRate) => {
+export const SampleRateReadable = (sampleRate: number): string => {
   if(!sampleRate) { return ""; }
   return `${(sampleRate / 1000).toFixed(0)} kHz`;
 };
 
-export const FormatTime = ({milliseconds, iso, format="hh,mm,ss"}) => {
+export const FormatTime = ({milliseconds, iso, format="hh,mm,ss"}: {milliseconds?: number, iso?: string, format?: string}): string => {
   if(iso) {
     milliseconds = new Date(iso).getTime();
   }
@@ -60,32 +60,36 @@ export const FormatTime = ({milliseconds, iso, format="hh,mm,ss"}) => {
   return timeString;
 };
 
-export const Pluralize = ({base, suffix="s", count}) => {
+export const Pluralize = ({base, suffix="s", count}: {base: string, suffix?: string, count: number}) => {
   return `${count} ${base}${count > 1 ? suffix : ""}`;
 };
 
-export const DateFormat = ({time, format="sec", options={month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true}}) => {
-  if(!["sec", "iso", "ms"].includes(format)) { throw Error("Invalid format type provided."); }
+const DEFAULT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true};
 
+export const DateFormat = ({time, format="sec", options=DEFAULT_DATE_OPTIONS}: {time: number | string, format?: "sec" | "iso" | "ms", options?: Intl.DateTimeFormatOptions}): string => {
   if(format === "sec") {
-    time = time * 1000;
+    time = (time as number) * 1000;
   }
 
   if(format === "iso") {
-    time = Date.parse(time);
+    time = Date.parse(time as string);
+  }
+
+  if(!["sec", "iso", "ms"].includes(format)) {
+    throw Error("Invalid format type provided.");
   }
 
   return new Date(time).toLocaleString(navigator.language, options);
 };
 
-export const BytesToMb = (bytes) => {
+export const BytesToMb = (bytes: number): string => {
   if(!bytes) { return "0 MB"; }
   return `${(bytes / 1_000_000).toLocaleString(navigator.language, {maximumFractionDigits: 2})} MB`;
 };
 
 const rtf = new Intl.RelativeTimeFormat("en", {numeric: "auto"});
 
-export const RelativeTime = (date) => {
+export const RelativeTime = (date: string): string => {
   if(!date) { return ""; }
 
   const diff = Math.floor((new Date(date).getTime() - Date.now()) / 1000);
