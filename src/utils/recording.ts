@@ -1,4 +1,4 @@
-export const MeetsDurationMin = ({startTime, endTime}) => {
+export const MeetsDurationMin = ({startTime, endTime}: {startTime: number, endTime: number}): boolean => {
   startTime = new Date(startTime).getTime();
   endTime = new Date(endTime).getTime();
 
@@ -8,7 +8,7 @@ export const MeetsDurationMin = ({startTime, endTime}) => {
   return (endTime - startTime) >= 61000;
 };
 
-export const IsWithinRetentionPeriod = ({startTime, persistent, retention}) => {
+export const IsWithinRetentionPeriod = ({startTime, persistent, retention}: {startTime: number, persistent?: boolean, retention: string}): boolean => {
   const currentTimeMs = new Date().getTime();
   const startTimeMs = new Date(startTime).getTime();
 
@@ -26,7 +26,7 @@ export const RecordingPeriodIsExpired = ({
   startTime,
   endTime,
   retention
-}) => {
+}: {parts: string[], startTime: number, endTime: number, retention: string}): boolean => {
   const videoIsEmpty = parts.length === 0;
 
   if(

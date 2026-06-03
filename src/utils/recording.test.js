@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {MeetsDurationMin, IsWithinRetentionPeriod, RecordingPeriodIsExpired} from "@/utils/recording.js";
+import {MeetsDurationMin, IsWithinRetentionPeriod, RecordingPeriodIsExpired} from "@/utils/recording.ts";
 
 describe("MeetsDurationMin", () => {
   it("returns true when duration is at least 61 seconds", () => {
