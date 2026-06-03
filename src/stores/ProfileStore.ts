@@ -2,13 +2,16 @@
 import {makeAutoObservable, runInAction, toJS} from "mobx";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 import {defaultConfigProfile} from "@/utils/defaultProfile.js";
+import RootStore from "@/stores/RootStore";
+import {LiveRecordingConfigProfile} from "@/utils/stream";
 
 class ProfileStore {
-  state = "pending";
-  profiles = {}; // original, never touched after load
-  drafts = {}; // what user is editing
+  state: "pending" | "loaded" | "error" = "pending";
+  profiles: Record<string, LiveRecordingConfigProfile> = {}; // original, never touched after load
+  drafts: Record<string, LiveRecordingConfigProfile> = {}; // what user is editing
+  rootStore: RootStore;
 
-  constructor(rootStore) {
+  constructor(rootStore: RootStore) {
     makeAutoObservable(this);
 
     this.rootStore = rootStore;
@@ -18,21 +21,21 @@ class ProfileStore {
     return this.rootStore.client;
   }
 
-  get sortedDrafts() {
+  get sortedDrafts(): Record<string, LiveRecordingConfigProfile> {
     return Object.fromEntries(
       Object.entries(this.drafts).sort(([a], [b]) => a.localeCompare(b))
     );
   }
 
-  get sortedProfiles() {
+  get sortedProfiles(): Record<string, LiveRecordingConfigProfile> {
     return Object.fromEntries(
       Object.entries(this.profiles).sort(([a], [b]) => a.localeCompare(b))
     );
   }
 
-  async LoadProfiles() {
+  async LoadProfiles(): Promise<void> {
     try {
-      const profiles = await this.client.StreamConfigProfiles({resolveLinks: true}) ?? {};
+      const profiles: Record<string, LiveRecordingConfigProfile> = await this.client.StreamConfigProfiles({resolveLinks: true}) ?? {};
 
       runInAction(() => {
         this.profiles = profiles;
@@ -50,19 +53,19 @@ class ProfileStore {
     }
   }
 
-  AddDraft() {
+  AddDraft(): string {
     const draftName = `Config Profile ${Object.keys(this.drafts).length + 1}`;
     const draftKey = slugify(draftName);
     runInAction(() => {
       this.drafts[draftKey] = {
-        ...defaultConfigProfile,
+        ...(defaultConfigProfile as LiveRecordingConfigProfile),
         name: draftName
       };
     });
     return draftKey;
   }
 
-  UpdateDraft(key, jsonString) {
+  UpdateDraft(key: string, jsonString: string) {
     try {
       this.drafts[key] = JSON.parse(jsonString);
     } catch {
@@ -70,7 +73,7 @@ class ProfileStore {
     }
   }
 
-  async DeleteProfile(slug) {
+  async DeleteProfile(slug: string): Promise<void> {
     const libraryId = this.rootStore.dataStore.siteLibraryId;
     const objectId = this.rootStore.dataStore.siteId;
 
@@ -110,11 +113,7 @@ class ProfileStore {
     });
   }
 
-  ResetProfile(slug) {
-    this.drafts[slug] = this.profiles[slug];
-  }
-
-  async SaveProfiles() {
+  async SaveProfiles(): Promise<void> {
     if(!this.rootStore.dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
 
     const {writeToken} = await this.client.EditContentObject({
