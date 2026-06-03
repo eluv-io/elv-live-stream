@@ -7,7 +7,7 @@ import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constan
 import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} from "@mantine/core";
 import {DateFormat, Pluralize, RelativeTime} from "@/utils/formatters.ts";
 import {RecordingPeriodIsExpired} from "@/utils/recording.js";
-import {SortTable} from "@/utils/helpers.js";
+import {SortTable} from "@/utils/helpers.ts";
 import {StreamIsActive} from "@/utils/stream.ts";
 import {DataTable} from "mantine-datatable";
 import CopyToVodModal from "@/pages/streams/details/summary/components/CopyToVodModal.jsx";

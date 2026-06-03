@@ -21,7 +21,7 @@ export const SortTable = ({sortStatus, AdditionalCondition}) => {
   };
 };
 
-export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
+export const SanitizeUrl = ({url, removeQueryParams=[]}: {url?: string, removeQueryParams: string[]}) : string => {
   if(!url) {
     return "";
   }
@@ -34,10 +34,10 @@ export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
     });
 
     return urlObject.toString();
-  } catch(_e) {
+  } catch {
     // Only apply the regex fallback for strings that look like a URL (have a scheme).
     // Plain invalid strings (e.g. "not a valid url") should return false.
-    if(!url.includes("://")) { return false; }
+    if(!url.includes("://")) { return ""; }
     // Fallback for URLs with out-of-range ports (e.g. rtp://) that new URL() rejects
     const paramsToRemove = ["passphrase", ...removeQueryParams];
     return paramsToRemove.reduce((acc, param) => {
@@ -48,7 +48,7 @@ export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
   }
 };
 
-export const CheckExpiration = (date) => {
+export const CheckExpiration = (date: number | "string"): boolean => {
   if(typeof date !== "number") { return false; }
 
   const today = new Date();

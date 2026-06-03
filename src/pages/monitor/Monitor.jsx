@@ -6,7 +6,7 @@ import {useWindowVirtualizer} from "@tanstack/react-virtual";
 
 import {dataStore, modalStore, rootStore, streamStore} from "@/stores";
 import {StreamIsActive} from "@/utils/stream.ts";
-import {SortTable} from "@/utils/helpers";
+import {SortTable} from "@/utils/helpers.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {ExternalLinkIcon, TrashIcon} from "@/assets/icons/index.js";

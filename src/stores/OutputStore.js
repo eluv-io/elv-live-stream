@@ -1,7 +1,7 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
 import {makeAutoObservable, runInAction} from "mobx";
 import {DeriveSourceAndPackaging} from "@/utils/stream.ts";
-import {SortTable} from "@/utils/helpers.js";
+import {SortTable} from "@/utils/helpers.ts";
 
 class OutputStore {
   state = "pending";

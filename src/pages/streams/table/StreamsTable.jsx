@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Badge, Box, Group, Stack, Text, Title, UnstyledButton} from "@mantine/core";
 import {DataTable} from "mantine-datatable";
-import {SanitizeUrl} from "@/utils/helpers.js";
+import {SanitizeUrl} from "@/utils/helpers.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";

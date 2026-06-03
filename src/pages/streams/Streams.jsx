@@ -4,7 +4,7 @@ import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import {dataStore, modalStore, streamStore} from "@/stores";
-import {SortTable} from "@/utils/helpers";
+import {SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";

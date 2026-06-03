@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import {Box, Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
 import styles from "./modals.module.css";
-import {SortTable} from "@/utils/helpers.js";
+import {SortTable} from "@/utils/helpers.ts";
 import {useEffect, useState} from "react";
 import {dataStore, outputStore, streamStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";

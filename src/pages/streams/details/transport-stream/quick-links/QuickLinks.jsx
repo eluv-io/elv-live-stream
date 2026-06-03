@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {useClipboard} from "@mantine/hooks";
-import {SortTable} from "@/utils/helpers.js";
+import {SortTable} from "@/utils/helpers.ts";
 import {ActionIcon, Box, Button, Group, Select, SimpleGrid, Title, Tooltip} from "@mantine/core";
 import sharedStyles from "@/assets/shared.module.css";
 import {DataTable} from "mantine-datatable";

@@ -3,7 +3,7 @@ import {ActionIcon, Box, Group, Text, Title, Tooltip} from "@mantine/core";
 import sharedStyles from "@/assets/shared.module.css";
 import {DataTable} from "mantine-datatable";
 import {useState} from "react";
-import {SortTable} from "@/utils/helpers.js";
+import {SortTable} from "@/utils/helpers.ts";
 import {useClipboard} from "@mantine/hooks";
 import SrtLinkForm from "@/pages/streams/details/transport-stream/common/SrtLinkForm.jsx";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";

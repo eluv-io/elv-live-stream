@@ -13,7 +13,7 @@ import {
 } from "@mantine/core";
 import {outputModalStore, outputStore, rootStore} from "@/stores/index.js";
 import {DataTable} from "mantine-datatable";
-import {SanitizeUrl} from "@/utils/helpers.js";
+import {SanitizeUrl} from "@/utils/helpers.ts";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {
   IconCancel,
