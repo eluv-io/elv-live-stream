@@ -9,7 +9,9 @@ export const STATUS_MAP = {
   STALLED: "stalled",
   DEGRADED: "degraded",
   UNAVAILABLE: "unavailable"
-};
+} as const;
+
+export type StreamStatus = typeof STATUS_MAP[keyof typeof STATUS_MAP];
 
 export const DEFAULT_WATERMARK_TEXT = {
   "font_color": "white@0.5",
@@ -49,7 +51,9 @@ export const PLAYOUT_FORMAT_OPTIONS = [
   {value: "dash-clear", label: "Dash Clear"},
   {value: "dash-widevine", label: "Dash Widevine"},
   // {value: "dash-playready-cenc", label: "Dash PlayReady"},
-];
+] as const;
+
+export type PlayoutFormat = typeof PLAYOUT_FORMAT_OPTIONS[number]["value"];
 
 export const QUALITY_MAP = {
   DEGRADED: "degraded",

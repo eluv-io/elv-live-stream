@@ -1,4 +1,9 @@
-export const ValidateTextField = ({value, key}={}) => {
+interface ValidateTextFieldProps {
+  value?: string;
+  key?: string;
+}
+
+export const ValidateTextField = ({value, key}: ValidateTextFieldProps={}): string | null => {
   const name = key ?? "Value";
 
   if(!value) { return `${name} is required`; }

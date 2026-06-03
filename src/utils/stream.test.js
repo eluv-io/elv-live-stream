@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor} from "@/utils/stream.js";
+import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor} from "@/utils/stream.ts";
 import {STATUS_MAP} from "@/utils/constants.js";
 
 describe("ParseLiveConfigData", () => {

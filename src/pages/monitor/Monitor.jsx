@@ -5,7 +5,7 @@ import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 import {useWindowVirtualizer} from "@tanstack/react-virtual";
 
 import {dataStore, modalStore, rootStore, streamStore} from "@/stores";
-import {StreamIsActive} from "@/utils/stream";
+import {StreamIsActive} from "@/utils/stream.ts";
 import {SortTable} from "@/utils/helpers";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";

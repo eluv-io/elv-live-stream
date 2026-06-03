@@ -20,7 +20,7 @@ import {IconInfoCircle} from "@tabler/icons-react";
 
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import styles from "./Create.module.css";
-import {ValidateTextField} from "@/utils/validators.js";
+import {ValidateTextField} from "@/utils/validators.ts";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import StreamUrlSelector from "@/pages/create/stream-url-selector/StreamUrlSelector.jsx";
 

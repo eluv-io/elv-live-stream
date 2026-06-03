@@ -8,7 +8,7 @@ import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} fr
 import {DateFormat, Pluralize, RelativeTime} from "@/utils/formatters.js";
 import {RecordingPeriodIsExpired} from "@/utils/recording.js";
 import {SortTable} from "@/utils/helpers.js";
-import {StreamIsActive} from "@/utils/stream.js";
+import {StreamIsActive} from "@/utils/stream.ts";
 import {DataTable} from "mantine-datatable";
 import CopyToVodModal from "@/pages/streams/details/summary/components/CopyToVodModal.jsx";
 import {Runtime} from "@/pages/streams/details/summary/SummaryPanel.jsx";
