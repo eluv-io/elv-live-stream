@@ -588,8 +588,6 @@ class StreamStore {
   });
 
   LoadStreams = flow(function * ({streamMetadata}) {
-    this.UpdateStreams({});
-
     yield this.client.utils.LimitedMap(
       10,
       Object.keys(streamMetadata),

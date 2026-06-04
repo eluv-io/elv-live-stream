@@ -7,7 +7,7 @@ import ModalStore from "@/stores/ModalStore.js";
 import SiteStore from "@/stores/SiteStore";
 import ProfileStore from "@/stores/ProfileStore";
 import OutputStore from "@/stores/OutputStore";
-import OutputModalStore from "@/stores/OutputModalStore.js";
+import OutputModalStore from "@/stores/OutputModalStore";
 
 // Force strict mode so mutations are only allowed within actions.
 configure({

@@ -1,6 +1,23 @@
-import {makeAutoObservable, runInAction} from "mobx";
+import {makeAutoObservable} from "mobx";
+import RootStore from "@/stores/RootStore";
+import OutputStore from "@/stores/OutputStore";
 
-const MODAL_CONFIG = {
+interface ModalConfigProp {
+  title: string;
+  descriptionSingular: string;
+  descriptionPlural: string;
+  confirmLabel: string;
+  closeOnConfirm: boolean;
+  successTitle?: string;
+  successMessage?: string;
+  errorMessage?: string;
+}
+
+type ModalAction = "map" | "remap" | "unmap" | "enable" | "disable" | "delete" | "reset";
+
+type ModalConfigProps = Record<Exclude<ModalAction, "map">, ModalConfigProp>
+
+const MODAL_CONFIG: ModalConfigProps = {
   remap: {
     title: "Remapping Stream Confirmation",
     descriptionSingular: "This output is already mapped to a stream. Continuing will replace the existing mapping with the new one.",
@@ -64,26 +81,27 @@ class OutputModalStore {
   activeModal = null;
   modalSlugs = [];
   onSuccess = null;
+  rootStore: RootStore;
 
-  constructor(rootStore) {
-    makeAutoObservable(this);
+  constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
+    makeAutoObservable(this);
   }
 
-  get outputStore() {
+  get outputStore(): OutputStore {
     return this.rootStore.outputStore;
   }
 
-  get isConfirmModalOpen() {
+  get isConfirmModalOpen(): boolean {
     return this.activeModal in MODAL_CONFIG;
   }
 
-  get outputName() {
+  get outputName(): string {
     if(this.modalSlugs.length !== 1) { return ""; }
     return this.outputStore.outputs[this.modalSlugs[0]]?.name ?? "";
   }
 
-  get confirmConfig() {
+  get confirmConfig(): ModalConfigProp {
     const config = MODAL_CONFIG[this.activeModal];
     if(!config) { return null; }
     return {
@@ -92,7 +110,7 @@ class OutputModalStore {
     };
   }
 
-  OpenModal = (modal, slugs = [], onSuccess) => {
+  OpenModal = (modal: ModalAction, slugs: string[] = [], onSuccess: () => any) => {
     this.modalSlugs = slugs;
     this.onSuccess = onSuccess ?? null;
 
@@ -104,53 +122,47 @@ class OutputModalStore {
     }
   };
 
-  CloseModal = () => {
+  CloseModal = (): void => {
     this.activeModal = null;
   };
 
-  Confirm = async () => {
-    if(this.activeModal === "remap") {
-      runInAction(() => {
+  *Confirm(): Generator<any, void> {
+    switch(this.activeModal) {
+      case "remap":
         this.activeModal = "map";
-      });
-      return;
+        return;
+      case "unmap":
+        yield this.outputStore.UnmapStreamBatch({outputs: [...this.modalSlugs]});
+        break;
+      case "reset":
+        yield this.outputStore.ResetOutput({outputId: this.modalSlugs[0]});
+        break;
+      case "enable":
+        if(this.modalSlugs.length === 1) {
+          yield this.outputStore.EnableOutput({outputId: this.modalSlugs[0]});
+        } else {
+          yield this.outputStore.EnableOutputBatch({outputs: [...this.modalSlugs]});
+        }
+        break;
+      case "disable":
+        if(this.modalSlugs.length === 1) {
+          yield this.outputStore.DisableOutput({outputId: this.modalSlugs[0]});
+        } else {
+          yield this.outputStore.DisableOutputBatch({outputs: [...this.modalSlugs]});
+        }
+        break;
+      case "delete":
+        if(this.modalSlugs.length === 1) {
+          yield this.outputStore.DeleteOutput({outputId: this.modalSlugs[0]});
+        } else {
+          yield this.outputStore.DeleteOutputBatch({outputs: [...this.modalSlugs]});
+        }
+        break;
     }
 
-    if(this.activeModal === "unmap") {
-      await this.outputStore.UnmapStreamBatch({outputs: [...this.modalSlugs]});
-    }
-
-    if(this.activeModal === "reset") {
-      await this.outputStore.ResetOutput({outputId: this.modalSlugs[0]});
-    }
-
-    if(this.activeModal === "enable") {
-      if(this.modalSlugs.length === 1) {
-        await this.outputStore.EnableOutput({outputId: this.modalSlugs[0]});
-      } else {
-        await this.outputStore.EnableOutputBatch({outputs: [...this.modalSlugs]});
-      }
-    }
-
-    if(this.activeModal === "disable") {
-      if(this.modalSlugs.length === 1) {
-        await this.outputStore.DisableOutput({outputId: this.modalSlugs[0]});
-      } else {
-        await this.outputStore.DisableOutputBatch({outputs: [...this.modalSlugs]});
-      }
-    }
-
-    if(this.activeModal === "delete") {
-      if(this.modalSlugs.length === 1) {
-        await this.outputStore.DeleteOutput({outputId: this.modalSlugs[0]});
-      } else {
-        await this.outputStore.DeleteOutputBatch({outputs: [...this.modalSlugs]});
-      }
-    }
-
-    await this.onSuccess?.();
+    yield this.onSuccess?.();
     this.CloseModal();
-  };
+  }
 }
 
 export default OutputModalStore;
