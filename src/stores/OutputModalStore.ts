@@ -4,7 +4,6 @@ import OutputStore from "@/stores/OutputStore";
 
 interface ModalConfigProp {
   title: string;
-  description?: string;
   descriptionSingular: string;
   descriptionPlural: string;
   confirmLabel: string;
@@ -102,7 +101,7 @@ class OutputModalStore {
     return this.outputStore.outputs[this.modalSlugs[0]]?.name ?? "";
   }
 
-  get confirmConfig(): ModalConfigProp {
+  get confirmConfig(): (ModalConfigProp & { description: string } | null) {
     const config = MODAL_CONFIG[this.activeModal];
     if(!config) { return null; }
     return {
