@@ -11,7 +11,7 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {dataStore, streamStore} from "@/stores/index.js";
 import {useEffect, useState} from "react";
 import {useParams} from "react-router-dom";
-import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
+import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {CheckExpiration} from "@/utils/helpers.ts";
 import SavedLinks from "@/pages/streams/details/transport-stream/saved-links/SavedLinks.jsx";

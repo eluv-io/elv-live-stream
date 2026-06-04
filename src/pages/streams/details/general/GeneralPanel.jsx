@@ -19,7 +19,7 @@ import {notifications} from "@mantine/notifications";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {STATUS_MAP} from "@/utils/constants.js";
+import {STATUS_MAP} from "@/utils/constants.ts";
 import {IconInfoCircle} from "@tabler/icons-react";
 
 const GeneralPanel = observer(({slug, status, Refresh}) => {

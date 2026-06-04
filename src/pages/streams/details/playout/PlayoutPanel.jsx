@@ -20,7 +20,7 @@ import {
   DVR_DURATION_OPTIONS,
   PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
-} from "@/utils/constants.js";
+} from "@/utils/constants.ts";
 import {streamEditStore, streamStore} from "@/stores/index.js";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";

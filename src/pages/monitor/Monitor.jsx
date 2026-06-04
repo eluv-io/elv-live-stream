@@ -20,7 +20,7 @@ import {
   IconPlayerPlay,
   IconPlayerStop, IconSearch
 } from "@tabler/icons-react";
-import {QUALITY_MAP, STATUS_MAP} from "@/utils/constants.js";
+import {QUALITY_MAP, STATUS_MAP} from "@/utils/constants.ts";
 import {notifications} from "@mantine/notifications";
 import {useNavigate} from "react-router-dom";
 import styles from "./Monitor.module.css";

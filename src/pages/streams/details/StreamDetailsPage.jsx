@@ -8,7 +8,7 @@ import {useDebouncedCallback} from "@mantine/hooks";
 import styles from "@/pages/streams/details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
-import {QUALITY_MAP} from "@/utils/constants.js";
+import {QUALITY_MAP} from "@/utils/constants.ts";
 import {IconExternalLink} from "@tabler/icons-react";
 import SummaryPanel from "@/pages/streams/details/summary/SummaryPanel.jsx";
 import GeneralPanel from "@/pages/streams/details/general/GeneralPanel.jsx";

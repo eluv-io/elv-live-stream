@@ -4,9 +4,9 @@ import DataStore from "@/stores/DataStore";
 import StreamStore from "@/stores/StreamStore.js";
 import StreamEditStore from "@/stores/StreamEditStore.js";
 import ModalStore from "@/stores/ModalStore.js";
-import SiteStore from "@/stores/SiteStore.js";
-import ProfileStore from "@/stores/ProfileStore.js";
-import OutputStore from "@/stores/OutputStore.js";
+import SiteStore from "@/stores/SiteStore";
+import ProfileStore from "@/stores/ProfileStore";
+import OutputStore from "@/stores/OutputStore";
 import OutputModalStore from "@/stores/OutputModalStore.js";
 
 // Force strict mode so mutations are only allowed within actions.

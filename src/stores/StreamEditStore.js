@@ -1,7 +1,7 @@
 // Handles stream configuration writes: create, delete, metadata, recording config, playout (watermarks, DRM, audio), profiles, permissions, and VOD copy.
 import {flow, makeAutoObservable, toJS} from "mobx";
 import {ParseLiveConfigData} from "@/utils/stream.ts";
-import {STATUS_MAP} from "@/utils/constants.js";
+import {STATUS_MAP} from "@/utils/constants.ts";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 
 class StreamEditStore {

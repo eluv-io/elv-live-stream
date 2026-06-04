@@ -263,13 +263,16 @@ export const StatusColor = (status: StreamStatus): "elv-orange.6" | "elv-green.5
   return "";
 };
 
-export const DeriveSourceAndPackaging = ({url, inputCfg}: {url: string, inputCfg: RecordingInputCfg}): {source: ("srt" | "ts" | "rtp" | "rtmp")[] | undefined, packaging: ("rtp" | "ts" | "fmp4")[]} => {
+export type StreamSource = "srt" | "ts" | "rtp" | "rtmp";
+export type StreamPackaging = "rtp" | "ts" | "fmp4";
+
+export const DeriveSourceAndPackaging = ({url, inputCfg}: {url: string, inputCfg: RecordingInputCfg}): {source: StreamSource[] | undefined, packaging: StreamPackaging[]} => {
   const protocol = url?.match(/^(\w+):\/\//)?.[1];
   const copyMode = inputCfg?.copy_mode;
   const copyPackaging = inputCfg?.copy_packaging;
 
-  const packaging = [];
-  let source: ("srt" | "ts" | "rtp" | "rtmp")[] | undefined;
+  const packaging: StreamPackaging[] = [];
+  let source: StreamSource[] | undefined;
 
   if(copyPackaging === "rtp_ts") { packaging.push("rtp"); }
   if(copyMode === "raw") { packaging.push("ts"); }

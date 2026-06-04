@@ -1,5 +1,5 @@
 import {makeAutoObservable} from "mobx";
-import {STATUS_MAP} from "@/utils/constants.js";
+import {STATUS_MAP} from "@/utils/constants.ts";
 
 const BATCH_READY_STATUSES = {
   START: {statuses: [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED], skipLabel: "already active or not configured"},

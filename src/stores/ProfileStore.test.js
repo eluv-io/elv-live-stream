@@ -8,7 +8,7 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
-import ProfileStore from "src/stores/ProfileStore.ts";
+import ProfileStore from "@/stores/ProfileStore.ts";
 
 const makeStore = ({siteId = "iq__site", siteLibraryId = "ilib-site", client = {}} = {}) => {
   const mockClient = {

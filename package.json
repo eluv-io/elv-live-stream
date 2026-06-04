@@ -19,7 +19,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage --coverage.exclude=**/*.module.css --coverage.exclude=src/assets/**/* --coverage.exclude=**/constants.js"
+    "test:coverage": "vitest run --coverage --coverage.exclude=**/*.module.css --coverage.exclude=src/assets/**/* --coverage.exclude=**/constants.ts"
   },
   "dependencies": {
     "@eluvio/elv-client-js": "^4.2.17",

@@ -1,16 +1,52 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
 import {makeAutoObservable, runInAction} from "mobx";
-import {DeriveSourceAndPackaging} from "@/utils/stream.ts";
-import {SortTable} from "@/utils/helpers.ts";
+import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/stream";
+import {SortTable} from "@/utils/helpers";
+import RootStore from "@/stores/RootStore";
+
+export interface OutputInput {
+  stream?: string;
+  name?: string;
+  status?: string;
+  url?: string;
+  embedUrl?: string;
+  source?: StreamSource[];
+  packaging?: StreamPackaging[];
+  quality?: string;
+  stats?: any;
+}
+
+interface OutputSrtPull {
+  node_ids?: string[];
+  urls?: string[];
+  connection?: {
+    enforced_encryption?: string;
+  };
+  passphrase?: string;
+  strip_rtp?: boolean;
+}
+
+export interface Output {
+  enabled?: boolean;
+  input?: OutputInput;
+  name?: string;
+  description?: string;
+  reset?: boolean;
+  srt_pull?: OutputSrtPull;
+  state?: any;
+}
+
+export type Outputs = Record<string, Output>;
 
 class OutputStore {
-  state = "pending";
-  outputs = {};
+  state: "loaded" | "error" | "pending" = "pending";
+  outputs: Outputs = {};
   outputSettingsId = "";
   tableFilter = "";
   sortStatus = {columnAccessor: "name", direction: "asc"};
+  rootStore: RootStore;
 
-  constructor(rootStore) {
+  constructor(rootStore: RootStore) {
     makeAutoObservable(this);
 
     this.rootStore = rootStore;
@@ -20,7 +56,7 @@ class OutputStore {
     return this.rootStore.client;
   }
 
-  get outputList() {
+  get outputList(): (Output & { slug: string; streamName: string | undefined })[] {
     const list = Object.entries(this.outputs)
       .map(([slug, output]) => ({
         slug,
@@ -42,19 +78,19 @@ class OutputStore {
     return filtered.sort(SortTable({sortStatus: this.sortStatus}));
   }
 
-  SetTableFilter = (filter) => {
+  SetTableFilter = (filter: string): void => {
     this.tableFilter = filter;
   };
 
-  SetSortStatus = (sortStatus) => {
+  SetSortStatus = (sortStatus: {columnAccessor: string, direction: string}): void => {
     this.sortStatus = sortStatus;
   };
 
-  UpdateOutput = ({slug, updates}) => {
+  UpdateOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
     this.outputs[slug] = {...this.outputs[slug], ...updates};
   };
 
-  async LoadOutputSettingsId() {
+  async LoadOutputSettingsId(): Promise<void> {
     try {
       let siteLibraryId = this.rootStore.dataStore.siteLibraryId;
       let siteObjectId = this.rootStore.dataStore.siteId;
@@ -76,7 +112,7 @@ class OutputStore {
     }
   }
 
-  async LoadOutputs() {
+  async LoadOutputs(): Promise<void> {
     try {
       if(!this.outputSettingsId) {
         await this.LoadOutputSettingsId();
@@ -99,7 +135,7 @@ class OutputStore {
     }
   }
 
-  async LoadOutputItem({outputId, includeState=true}) {
+  async LoadOutputItem({outputId, includeState=true}: {outputId: string, includeState: boolean}): Promise<void> {
     try {
       if(!this.outputSettingsId) {
         await this.LoadOutputSettingsId();
@@ -120,7 +156,7 @@ class OutputStore {
     }
   }
 
-  async LoadOutputStreamInfo({slug, streamObjectId}) {
+  async LoadOutputStreamInfo({slug, streamObjectId}: {slug: string, streamObjectId: string}): Promise<{url: string, embedUrl: string, source: StreamSource[] | undefined, packaging: StreamPackaging[], quality: string, stats: any}> {
     try {
       const metadata = await this.client.ContentObjectMetadata({
         libraryId: await this.client.ContentObjectLibraryId({objectId: streamObjectId}),
@@ -153,7 +189,7 @@ class OutputStore {
           slug,
           updates: {
             input: {
-              ...this.outputs[slug].input,
+              ...this.outputs[slug]?.input,
               ...streamInfo
             }
           }
@@ -174,7 +210,7 @@ class OutputStore {
     passphrase,
     encryption,
     stripRtp
-  }) {
+  }: {name?: string, externalId?: string, geos: string[], passphrase?: string, encryption?: string, stripRtp?: boolean}): Promise<void> {
     try {
       if(!this.outputSettingsId) {
         throw "No output settings object found. Please create one before adding outputs.";
@@ -210,7 +246,7 @@ class OutputStore {
     }
   }
 
-  async MapStream({outputId, streamObjectId}) {
+  async MapStream({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Promise<void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
@@ -237,7 +273,7 @@ class OutputStore {
         output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
-      const stream = Object.values(this.rootStore.streamStore.streams || {})
+      const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
         .find(s => s.objectId === streamObjectId);
 
       runInAction(() => {
@@ -261,7 +297,7 @@ class OutputStore {
     }
   }
 
-  async MapStreamBatch({outputs, streamObjectId}) {
+  async MapStreamBatch({outputs, streamObjectId}: {outputs: string[], streamObjectId: string}): Promise<void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
@@ -288,7 +324,7 @@ class OutputStore {
         })
       );
 
-      const outputsMap = Object.fromEntries(
+      const outputsMap: Record<string, any> = Object.fromEntries(
         updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
       );
 
@@ -298,7 +334,7 @@ class OutputStore {
         outputs: outputsMap
       });
 
-      const stream = Object.values(this.rootStore.streamStore.streams || {})
+      const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
         .find(s => s.objectId === streamObjectId);
 
       runInAction(() => {
@@ -324,7 +360,7 @@ class OutputStore {
     }
   }
 
-  async UnmapStreamBatch({outputs}) {
+  async UnmapStreamBatch({outputs}: {outputs: string[]}): Promise<void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
@@ -382,13 +418,13 @@ class OutputStore {
     passphrase,
     encryption,
     stripRtp
-  }) {
+  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean}): Promise<void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
 
       const existing = await this.client.OutputsListItem({objectId, outputId, includeState: false});
-      // eslint-disable-next-line no-unused-vars
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
 
       const output = {
@@ -428,7 +464,7 @@ class OutputStore {
     }
   }
 
-  async EnableOutput({outputId}) {
+  async EnableOutput({outputId}: {outputId: string}): Promise<void> {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
 
@@ -470,7 +506,7 @@ class OutputStore {
     }
   }
 
-  async EnableOutputBatch({outputs}){
+  async EnableOutputBatch({outputs}: {outputs: string[]}): Promise<void>{
     try {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
@@ -520,7 +556,7 @@ class OutputStore {
     }
   }
 
-  async DisableOutput({outputId}) {
+  async DisableOutput({outputId}: {outputId: string}): Promise<void> {
     const objectId = this.outputSettingsId;
     const libraryId = await this.client.ContentObjectLibraryId({objectId});
 
@@ -558,7 +594,7 @@ class OutputStore {
     }
   }
 
-  async DisableOutputBatch({outputs}){
+  async DisableOutputBatch({outputs}: {outputs: string[]}): Promise<void>{
     try {
       const objectId = this.outputSettingsId;
       const libraryId = await this.client.ContentObjectLibraryId({objectId});
@@ -608,7 +644,7 @@ class OutputStore {
     }
   }
 
-  async DeleteOutput({outputId}) {
+  async DeleteOutput({outputId}: {outputId: string}): Promise<void> {
     const objectId = this.outputSettingsId;
     const libraryId = await this.client.ContentObjectLibraryId({objectId});
 
@@ -629,14 +665,14 @@ class OutputStore {
     }
   }
 
-  async DeleteOutputBatch({outputs}) {
+  async DeleteOutputBatch({outputs}: {outputs: string[]}): Promise<void> {
     await Promise.all(
       outputs.map(outputId => this.DeleteOutput({outputId})
       )
     );
   }
 
-  async ResetOutput({outputId}) {
+  async ResetOutput({outputId}: {outputId: string}): Promise<void> {
     const objectId = this.outputSettingsId;
     const libraryId = await this.client.ContentObjectLibraryId({objectId});
 

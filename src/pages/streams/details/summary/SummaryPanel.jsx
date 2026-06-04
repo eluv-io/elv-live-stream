@@ -28,7 +28,7 @@ import {
   QUALITY_TEXT,
   QUALITY_COLOR_MAP,
   SOURCE_PACKAGING_COLOR_MAP, CODEC_TEXT
-} from "@/utils/constants.js";
+} from "@/utils/constants.ts";
 import RecordingPeriodsTable from "@/pages/streams/details/summary/components/RecordingPeriodsTable.jsx";
 import RecordingCopiesTable from "@/pages/streams/details/summary/components/RecordingCopiesTable.jsx";
 import {IconCopy} from "@tabler/icons-react";

@@ -20,7 +20,7 @@ import {
   CONNECTION_TIMEOUT_OPTIONS,
   RECONNECTION_TIMEOUT_OPTIONS,
   RETENTION_OPTIONS, STATUS_MAP
-} from "@/utils/constants.js";
+} from "@/utils/constants.ts";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";

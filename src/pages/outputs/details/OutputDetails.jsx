@@ -25,7 +25,7 @@ import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
-import {FABRIC_NODE_REGIONS, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.js";
+import {FABRIC_NODE_REGIONS, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import styles from "@/components/detail-card/DetailCard.module.css";
 import {outputModalStore} from "@/stores/index.js";
 import {DateFormat, BytesToMb} from "@/utils/formatters.ts";

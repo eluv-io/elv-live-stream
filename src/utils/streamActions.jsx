@@ -1,6 +1,6 @@
 import {StreamIsActive} from "@/utils/stream.ts";
 import {SanitizeUrl} from "@/utils/helpers.ts";
-import {STATUS_MAP} from "@/utils/constants.js";
+import {STATUS_MAP} from "@/utils/constants.ts";
 import {Stack, Text} from "@mantine/core";
 import {rootStore, modalStore, streamStore} from "@/stores/index.js";
 import {notifications} from "@mantine/notifications";

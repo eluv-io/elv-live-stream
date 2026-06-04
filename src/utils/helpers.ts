@@ -1,4 +1,4 @@
-export const SortTable = ({sortStatus, AdditionalCondition}) => {
+export const SortTable = ({sortStatus, AdditionalCondition}: {sortStatus: {columnAccessor: string, direction: string}, AdditionalCondition?: (a: unknown, b: unknown) => number | undefined}) => {
   return (a, b) => {
     if(AdditionalCondition && typeof AdditionalCondition(a, b) !== "undefined") {
       return AdditionalCondition(a, b);

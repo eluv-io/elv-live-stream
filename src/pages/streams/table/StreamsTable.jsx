@@ -5,7 +5,7 @@ import {SanitizeUrl} from "@/utils/helpers.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
-import {SOURCE_PACKAGING_COLOR_MAP, QUALITY_MAP} from "@/utils/constants.js";
+import {SOURCE_PACKAGING_COLOR_MAP, QUALITY_MAP} from "@/utils/constants.ts";
 
 const StreamsTable = observer(({
   records,
