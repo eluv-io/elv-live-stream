@@ -17,9 +17,10 @@ class DataStore {
   srtUrlsByStream;
   loadedDedicatedNodes = false;
   streamsLoaded = false;
+  _loadingStreams = false;
 
   constructor(rootStore) {
-    makeAutoObservable(this, {streamMetadata: observable.ref});
+    makeAutoObservable(this, {streamMetadata: observable.ref, _loadingStreams: false});
 
     runInAction(() => {
       this.rootStore = rootStore;
@@ -52,6 +53,8 @@ class DataStore {
   });
 
   LoadSiteStreams = flow(function * (reload=false) {
+    if(this._loadingStreams && !reload) { return; }
+    this._loadingStreams = true;
     this.streamsLoaded = false;
     try {
       if(!this.streamMetadata || reload) {
@@ -64,6 +67,8 @@ class DataStore {
       yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
       this.streamsLoaded = true;
+    } finally {
+      this._loadingStreams = false;
     }
   });
 
