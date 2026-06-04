@@ -2,6 +2,8 @@
 import {makeAutoObservable, observable, toJS} from "mobx";
 import RootStore, {NetworkName} from "@/stores/RootStore";
 
+export type PermissionLevel = "owner" | "editable" | "viewable" | "listable" | "public";
+
 type PublicProtocol = "rtmp" | "srt" | "mpegts";
 type DedicatedProtocol = "rtmp" | "mpegts";
 type Region =
@@ -75,16 +77,50 @@ interface AccessGroupInfo {
 
 type AccessGroupMap = Record<string, AccessGroupInfo>
 
-interface StreamInfo {
+export interface StreamInfo {
   ".": {
     source: string;
-  },
+  };
   display_title: string;
   order: number;
   slug: string;
+  sources: Record<string, {
+    ".": {container: string};
+    "/": string;
+  }>;
   title: string;
   title_type: string;
   video_type: string;
+  // Fields added by LoadStreams enrichment
+  objectId?: string;
+  versionHash?: string;
+  libraryId?: string;
+  originUrl?: string;
+  source?: string[];
+  packaging?: string[];
+  // Fields added by LoadSummaryData
+  videoStreamProbe?: any;
+  audioStreams?: any;
+  audioData?: any;
+  publishingVideo?: {bit_rate: any; frame_rate: any; resolution: string; codec: string};
+  publishingAudio?: {sample_rate: any};
+  partTtl?: string | null;
+  persistent?: any;
+  status?: string;
+  warnings?: any;
+  quality?: any;
+  embedUrl?: string;
+  // Fields added by LoadDetails
+  description?: string;
+  // Fields added by LoadPlayoutConfigData
+  drm?: any;
+  dvrEnabled?: any;
+  dvrMaxDuration?: string | null;
+  dvrStartTime?: any;
+  forensicWatermark?: any;
+  imageWatermark?: any;
+  simpleWatermark?: any;
+  watermarkType?: string;
 }
 
 type StreamMap = Record<string, StreamInfo>;
@@ -280,7 +316,7 @@ class DataStore {
     }
   }
 
-  *LoadPermission({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, string> {
+  *LoadPermission({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, PermissionLevel> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});

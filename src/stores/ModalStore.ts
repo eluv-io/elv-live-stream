@@ -2,7 +2,7 @@ import {makeAutoObservable} from "mobx";
 import {STATUS_MAP, StreamStatus} from "@/utils/constants";
 import RootStore from "@/stores/RootStore";
 
-type StreamOp = "CHECK" | "START" | "STOP" | "DEACTIVATE" | "DELETE";
+export type StreamOp = "CHECK" | "START" | "STOP" | "DEACTIVATE" | "DELETE";
 
 interface BatchActionProps {
   statuses: StreamStatus[];
