@@ -12,7 +12,7 @@ import {
   TextInput,
   Tooltip
 } from "@mantine/core";
-import {streamStore, streamEditStore} from "@/stores/index.js";
+import {streamStore, streamEditStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {useParams} from "react-router-dom";
 import {

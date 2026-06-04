@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {dataStore, rootStore, streamEditStore, profileStore} from "@/stores";
+import {dataStore, rootStore, streamEditStore, profileStore} from "@/stores/index.ts";
 import {useNavigate} from "react-router-dom";
 import {
   Box,

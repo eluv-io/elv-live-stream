@@ -3,7 +3,7 @@ import {Box, Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/
 import styles from "./modals.module.css";
 import {SortTable} from "@/utils/helpers.ts";
 import {useEffect, useState} from "react";
-import {dataStore, outputStore, streamStore} from "@/stores/index.js";
+import {dataStore, outputStore, streamStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {IconSearch} from "@tabler/icons-react";

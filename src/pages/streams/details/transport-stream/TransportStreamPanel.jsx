@@ -8,7 +8,7 @@ import {
 } from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {dataStore, streamStore} from "@/stores/index.js";
+import {dataStore, streamStore} from "@/stores/index.ts";
 import {useEffect, useState} from "react";
 import {useParams} from "react-router-dom";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";

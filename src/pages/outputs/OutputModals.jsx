@@ -1,5 +1,5 @@
 import {observer} from "mobx-react-lite";
-import {outputModalStore} from "@/stores/index.js";
+import {outputModalStore} from "@/stores/index.ts";
 import CreateOutputModal from "@/pages/outputs/modals/CreateOutputModal.jsx";
 import MapToStreamModal from "@/pages/outputs/modals/MapToStreamModal.jsx";
 import OutputConfirmModal from "@/pages/outputs/modals/OutputConfirmModal.jsx";

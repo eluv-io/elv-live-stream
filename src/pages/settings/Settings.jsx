@@ -1,7 +1,7 @@
 import {ActionIcon, Box, Button, CopyButton, Flex, Group, JsonInput, Loader, Text, Tooltip} from "@mantine/core";
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {profileStore} from "@/stores/index.js";
+import {profileStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";

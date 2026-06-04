@@ -113,7 +113,7 @@ vi.mock("@mantine/notifications", () => ({
   notifications: {show: mockNotificationShow}
 }));
 
-vi.mock("@/assets/icons/index.js", () => ({
+vi.mock("@/assets/icons/index.ts", () => ({
   CircleInfoIcon: () => null,
   PlusIcon: () => null,
 }));

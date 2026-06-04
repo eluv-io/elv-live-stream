@@ -1,4 +1,4 @@
-import RootStore from "./RootStore.ts";
+import RootStore from "./RootStore";
 import {configure} from "mobx";
 
 // Force strict mode so mutations are only allowed within actions.
@@ -8,8 +8,8 @@ configure({
 
 export const rootStore = new RootStore();
 
-window.rootStore = rootStore;
-window.client = rootStore.client;
+window["rootStore"] = rootStore;
+window["client"] = rootStore.client;
 
 export const dataStore = rootStore.dataStore;
 export const streamStore = rootStore.streamStore;

@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {BrowserRouter} from "react-router-dom";
-import {rootStore} from "@/stores";
+import {rootStore} from "@/stores/index.ts";
 
 import "@mantine/core/styles.css";
 import "mantine-datatable/styles.css";

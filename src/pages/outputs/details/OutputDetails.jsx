@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {outputStore} from "@/stores/index.js";
+import {outputStore} from "@/stores/index.ts";
 import {
   ActionIcon,
   Box,
@@ -27,7 +27,7 @@ import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.js
 import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
 import {FABRIC_NODE_REGIONS, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import styles from "@/components/detail-card/DetailCard.module.css";
-import {outputModalStore} from "@/stores/index.js";
+import {outputModalStore} from "@/stores/index.ts";
 import {DateFormat, BytesToMb} from "@/utils/formatters.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import {useForm} from "@mantine/form";

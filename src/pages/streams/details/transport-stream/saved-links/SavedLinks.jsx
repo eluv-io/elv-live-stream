@@ -7,7 +7,7 @@ import {SortTable} from "@/utils/helpers.ts";
 import {useClipboard} from "@mantine/hooks";
 import SrtLinkForm from "@/pages/streams/details/transport-stream/common/SrtLinkForm.jsx";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
-import {dataStore} from "@/stores/index.js";
+import {dataStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {IconLink, IconPencil, IconTrash} from "@tabler/icons-react";

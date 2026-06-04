@@ -4,7 +4,7 @@ import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, Text, TextInput, Tit
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
 import {useWindowVirtualizer} from "@tanstack/react-virtual";
 
-import {dataStore, modalStore, rootStore, streamStore} from "@/stores";
+import {dataStore, modalStore, rootStore, streamStore} from "@/stores/index.ts";
 import {StreamIsActive} from "@/utils/stream.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";

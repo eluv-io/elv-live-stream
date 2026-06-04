@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useMemo, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {rootStore, streamStore} from "@/stores/index.js";
+import {rootStore, streamStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";

@@ -1,5 +1,5 @@
 import {observer} from "mobx-react-lite";
-import {rootStore} from "@/stores";
+import {rootStore} from "@/stores/index.ts";
 import {ActionIcon, Box, Text} from "@mantine/core";
 import {IconX} from "@tabler/icons-react";
 import styles from "./ErrorBanner.module.css";

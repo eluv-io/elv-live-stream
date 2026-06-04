@@ -4,7 +4,7 @@ import {DataTable} from "mantine-datatable";
 import {ActionIcon, Box, Group, Stack, Text, Title} from "@mantine/core";
 import {DateFormat} from "@/utils/formatters.ts";
 import {SortTable} from "@/utils/helpers.ts";
-import {streamStore, streamEditStore} from "@/stores/index.js";
+import {streamStore, streamEditStore} from "@/stores/index.ts";
 import {IconExternalLink, IconTrash} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";

@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/streams/details/recording/audio-tracks-table/AudioTracksTable.jsx";
-import {outputStore, streamEditStore, streamStore} from "@/stores/index.js";
+import {outputStore, streamEditStore, streamStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
 import {
   Box,

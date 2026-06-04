@@ -61,7 +61,7 @@ const {mockDataStore} = vi.hoisted(() => ({
   }
 }));
 
-vi.mock("@/stores/index.js", () => ({dataStore: mockDataStore}));
+vi.mock("@/stores/index.ts", () => ({dataStore: mockDataStore}));
 
 import StreamUrlSelector from "./StreamUrlSelector";
 

@@ -21,7 +21,7 @@ import {
   PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants.ts";
-import {streamEditStore, streamStore} from "@/stores/index.js";
+import {streamEditStore, streamStore} from "@/stores/index.ts";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";

@@ -8,7 +8,7 @@ from the core app, which owns user account information and keys
 import URI from "urijs";
 import {observer} from "mobx-react-lite";
 import React, {useEffect, useRef} from "react";
-import {rootStore} from "@/stores/index.js";
+import {rootStore} from "@/stores/index.ts";
 
 // Ensure error objects can be properly serialized in messages
 if(!("toJSON" in Error.prototype)) {

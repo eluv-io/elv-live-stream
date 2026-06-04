@@ -14,12 +14,14 @@ configure({
   enforceActions: "always"
 });
 
+export type NetworkName = "demo" | "main" | "test";
+
 // The central hub, instantiating and coordinating all other MobX stores.
 class RootStore {
   client: InstanceType<typeof FrameClient>;
   loaded = false;
   networkInfo?: {
-    name: "demo" | "main" | "test",
+    name: NetworkName,
     id: string,
     configUrl: string
   };

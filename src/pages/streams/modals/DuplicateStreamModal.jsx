@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {Box, Button, Divider, Flex, Loader, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
-import {dataStore, streamEditStore, streamStore} from "@/stores/index.js";
+import {dataStore, streamEditStore, streamStore} from "@/stores/index.ts";
 import {useForm} from "@mantine/form";
 import {useEffect, useState} from "react";
 import {notifications} from "@mantine/notifications";

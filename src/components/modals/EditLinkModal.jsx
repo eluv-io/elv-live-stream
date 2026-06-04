@@ -2,7 +2,7 @@ import {Box, Button, Flex, Modal} from "@mantine/core";
 import SrtLinkForm from "@/pages/streams/details/transport-stream/common/SrtLinkForm.jsx";
 import {useEffect, useState} from "react";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
-import {dataStore} from "@/stores/index.js";
+import {dataStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 
 const EditLinkModal = observer(({

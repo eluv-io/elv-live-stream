@@ -1,5 +1,5 @@
 import {isNotEmpty, useForm} from "@mantine/form";
-import {outputStore} from "@/stores/index.js";
+import {outputStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
 import {notifications} from "@mantine/notifications";

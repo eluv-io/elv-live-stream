@@ -7,7 +7,7 @@ import {DataTable} from "mantine-datatable";
 import {useEffect, useState} from "react";
 import {useForm} from "@mantine/form";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
-import {dataStore} from "@/stores/index.js";
+import {dataStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";

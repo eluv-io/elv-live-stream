@@ -85,7 +85,7 @@ vi.mock("mantine-datatable", () => ({
 
 // Replace the real MobX stores with plain in-memory mocks the tests can mutate.
 // The Outputs component reads outputStore / outputModalStore / rootStore from here.
-vi.mock("@/stores/index.js", () => ({
+vi.mock("@/stores/index.ts", () => ({
   outputStore: {
     state: "pending",
     outputList: [],
@@ -105,7 +105,7 @@ vi.mock("@/stores/index.js", () => ({
 
 // Imports must come AFTER vi.mock so the component picks up mocks
 import Outputs from "./Outputs.jsx";
-import {outputStore, outputModalStore, rootStore} from "@/stores/index.js";
+import {outputStore, outputModalStore, rootStore} from "@/stores/index.ts";
 
 // --- Factories (no hardcoded ids) -------------------------------------------
 
