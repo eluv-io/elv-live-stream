@@ -3,15 +3,32 @@ import {describe, it, expect, vi} from "vitest";
 vi.mock("mobx", async () => ({
   ...(await vi.importActual("mobx")),
   configure: vi.fn(),
-  toJS: (val) => val
+  toJS: (val: unknown) => val
 }));
 
 vi.mock("@/stores", () => ({}));
 
 import ProfileStore from "@/stores/ProfileStore.ts";
 
-const makeStore = ({siteId = "iq__site", siteLibraryId = "ilib-site", client = {}} = {}) => {
-  const mockClient = {
+interface MockClient {
+  StreamConfigProfiles: ReturnType<typeof vi.fn>;
+  EditContentObject: ReturnType<typeof vi.fn>;
+  DeleteFiles: ReturnType<typeof vi.fn>;
+  DeleteMetadata: ReturnType<typeof vi.fn>;
+  FinalizeContentObject: ReturnType<typeof vi.fn>;
+  StreamSaveConfigProfile: ReturnType<typeof vi.fn>;
+  ContentObjectMetadata: ReturnType<typeof vi.fn>;
+  ReplaceMetadata: ReturnType<typeof vi.fn>;
+}
+
+interface MakeStoreOptions {
+  siteId?: string | null;
+  siteLibraryId?: string;
+  client?: Partial<MockClient>;
+}
+
+const makeStore = ({siteId = "iq__site", siteLibraryId = "ilib-site", client = {}}: MakeStoreOptions = {}) => {
+  const mockClient: MockClient = {
     StreamConfigProfiles: vi.fn().mockResolvedValue({}),
     EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-abc"}),
     DeleteFiles: vi.fn().mockResolvedValue(undefined),
@@ -26,11 +43,11 @@ const makeStore = ({siteId = "iq__site", siteLibraryId = "ilib-site", client = {
     client: mockClient,
     dataStore: {siteId, siteLibraryId}
   };
-  const store = new ProfileStore(rootStore);
+  const store = new ProfileStore(rootStore as any);
   return {store, mockClient};
 };
 
-const profile = (name = "My Profile", extra = {}) => ({
+const profile = (name = "My Profile", extra: Record<string, unknown> = {}) => ({
   name,
   playout_config: {playout_formats: ["hls-clear"]},
   ...extra
