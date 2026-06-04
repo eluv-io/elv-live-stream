@@ -4,6 +4,7 @@ import OutputStore from "@/stores/OutputStore";
 
 interface ModalConfigProp {
   title: string;
+  description?: string;
   descriptionSingular: string;
   descriptionPlural: string;
   confirmLabel: string;
