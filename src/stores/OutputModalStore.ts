@@ -2,7 +2,7 @@ import {makeAutoObservable} from "mobx";
 import RootStore from "@/stores/RootStore";
 import OutputStore from "@/stores/OutputStore";
 
-interface ModalConfigProp {
+interface ModalConfig {
   title: string;
   descriptionSingular: string;
   descriptionPlural: string;
@@ -15,7 +15,7 @@ interface ModalConfigProp {
 
 type ModalAction = "map" | "remap" | "unmap" | "enable" | "disable" | "delete" | "reset";
 
-type ModalConfigProps = Record<Exclude<ModalAction, "map">, ModalConfigProp>
+type ModalConfigProps = Record<Exclude<ModalAction, "map">, ModalConfig>
 
 const MODAL_CONFIG: ModalConfigProps = {
   remap: {
@@ -101,7 +101,7 @@ class OutputModalStore {
     return this.outputStore.outputs[this.modalSlugs[0]]?.name ?? "";
   }
 
-  get confirmConfig(): (ModalConfigProp & { description: string } | null) {
+  get confirmConfig(): (ModalConfig & { description: string } | null) {
     const config = MODAL_CONFIG[this.activeModal];
     if(!config) { return null; }
     return {

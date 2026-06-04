@@ -1,7 +1,98 @@
 import {makeAutoObservable} from "mobx";
-import {STATUS_MAP} from "@/utils/constants.ts";
+import {STATUS_MAP, StreamStatus} from "@/utils/constants";
+import RootStore from "@/stores/RootStore";
 
-const BATCH_READY_STATUSES = {
+type StreamOp = "CHECK" | "START" | "STOP" | "DEACTIVATE" | "DELETE";
+
+interface BatchActionProps {
+  statuses: StreamStatus[];
+  skipLabel: string;
+}
+
+interface DetailData {
+  id: string | null;
+  idKey: string;
+  name: string;
+  nameKey: string;
+}
+
+interface BatchSummary {
+  readyCount: number;
+  notReadyCount: number;
+  op: StreamOp;
+  skipLabel: string;
+}
+
+interface ModalDataProps {
+  objectId: string | null;
+  show?: boolean;
+  title: string;
+  message: string;
+  name: string;
+  loadingText: string;
+  ConfirmCallback: (() => any) | null;
+  CloseCallback: (() => any) | null;
+  confirmText: string;
+  detailData?: DetailData | null;
+  batchSummary?: BatchSummary | null;
+  customMessage?: string;
+}
+
+interface NotificationResult {
+  success: { title: string; message: string };
+  error: { title: string; message: string };
+}
+
+interface OpConfig {
+  title: string;
+  message: string;
+  messageInactive?: string;
+  confirmText: string;
+  Method: (params: { objectId?: string; slug?: string }) => any;
+  notification: (params?: { objectId?: string }) => NotificationResult;
+  batchNotification?: (count: number) => NotificationResult;
+  errorMessage: string;
+}
+
+interface NotificationSystem {
+  show: (notification: { title: string; message: string; color?: string }) => void;
+}
+
+interface StreamRecord {
+  objectId: string;
+  slug: string;
+}
+
+interface BatchStreamRecord extends StreamRecord {
+  status: StreamStatus;
+}
+
+type BatchOp = Exclude<StreamOp, "CHECK">;
+
+interface HandleStreamActionParams {
+  records: StreamRecord[];
+  op: StreamOp;
+  Callback?: () => void | Promise<void>;
+  notifications?: NotificationSystem;
+}
+
+interface SetBatchModalParams {
+  records: BatchStreamRecord[];
+  op: BatchOp;
+  Callback?: () => void | Promise<void>;
+  notifications?: NotificationSystem;
+}
+
+interface SetModalParams {
+  data: Partial<Omit<ModalDataProps, "ConfirmCallback" | "CloseCallback">> & { objectId?: string | null; name?: string };
+  op: StreamOp;
+  activeMessage?: boolean;
+  slug: string;
+  Callback?: () => void | Promise<void>;
+  notifications?: NotificationSystem;
+}
+
+const BATCH_READY_STATUSES: Record<BatchOp, BatchActionProps> = {
   START: {statuses: [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED], skipLabel: "already active or not configured"},
   STOP: {statuses: [STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED], skipLabel: "not currently running"},
   DEACTIVATE: {statuses: [STATUS_MAP.STOPPED], skipLabel: "not in a stopped state"},
@@ -10,7 +101,8 @@ const BATCH_READY_STATUSES = {
 
 // Centralizes control over all modal windows, managing their visibility, content, and properties.
 class ModalStore {
-  modalData = {
+  rootStore: RootStore;
+  modalData: ModalDataProps = {
     objectId: null,
     show: false,
     title: "",
@@ -22,7 +114,7 @@ class ModalStore {
     confirmText: "",
   };
 
-  OP_MAP = {
+  OP_MAP: Record<StreamOp, OpConfig> = {
     "CHECK": {
       title: "Check Stream Confirmation",
       message: "Are you sure you want to check the stream?",
@@ -115,24 +207,23 @@ class ModalStore {
     }
   };
 
-  constructor(rootStore) {
+  constructor(rootStore: RootStore) {
+    this.rootStore = rootStore;
     makeAutoObservable(this, {
       OP_MAP: false
     });
-
-    this.rootStore = rootStore;
   }
 
-  HandleStreamAction = async({records, op, Callback, notifications}) => {
+*HandleStreamAction({records, op, Callback, notifications}: HandleStreamActionParams) {
     const {Method, errorMessage, batchNotification, notification} = this.OP_MAP[op];
     const isBatch = records.length > 1;
     const notif = isBatch ? batchNotification(records.length) : notification({objectId: records[0]?.objectId});
 
     try {
       if(isBatch && op === "DELETE") {
-        await this.rootStore.streamEditStore.DeleteStreamBatch({objects: records});
+        yield this.rootStore.streamEditStore.DeleteStreamBatch({objects: records});
       } else {
-        await Promise.all(records.map(record => Method({objectId: record.objectId, slug: record.slug})));
+        yield Promise.all(records.map(record => Method({objectId: record.objectId, slug: record.slug})));
       }
 
       if(notifications && notif) {
@@ -141,7 +232,7 @@ class ModalStore {
 
       if(Callback && typeof Callback === "function") {
         const result = Callback();
-        if(result instanceof Promise) { await result; }
+        if(result instanceof Promise) { yield result; }
       }
     } catch(error) {
       if(errorMessage) {
@@ -155,13 +246,13 @@ class ModalStore {
 
       throw error;
     }
-  };
+  }
 
   StreamOpMessaging = ({
     op,
     activeMessage=true,
     customMessage
-  }) => {
+  }: {op: StreamOp, activeMessage?: boolean, customMessage?: string}) : {message: string, customMessage: string, title: string, confirmText: string} => {
 
     if(!this.OP_MAP[op]) {
       // eslint-disable-next-line no-console
@@ -187,7 +278,7 @@ class ModalStore {
     slug,
     Callback,
     notifications
-  }) => {
+  }: SetModalParams): void => {
     this.modalData = {
       ...this.modalData,
       ...this.StreamOpMessaging({
@@ -213,9 +304,9 @@ class ModalStore {
     };
   };
 
-  SetBatchModal = ({records, op, Callback, notifications}) => {
+  SetBatchModal = ({records, op, Callback, notifications}: SetBatchModalParams): void => {
     const {title, message, confirmText} = this.OP_MAP[op];
-    const {statuses: readyStatuses, skipLabel} = BATCH_READY_STATUSES[op] || {};
+    const {statuses: readyStatuses, skipLabel} = BATCH_READY_STATUSES[op];
     const readyCount = records.filter(r => readyStatuses.includes(r.status)).length;
     const notReadyCount = records.length - readyCount;
 

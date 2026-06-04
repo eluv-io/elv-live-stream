@@ -1,9 +1,9 @@
 import {configure, makeAutoObservable} from "mobx";
 import {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
 import DataStore from "@/stores/DataStore";
-import StreamStore from "@/stores/StreamStore.js";
-import StreamEditStore from "@/stores/StreamEditStore.js";
-import ModalStore from "@/stores/ModalStore.js";
+import StreamStore from "@/stores/StreamStore";
+import StreamEditStore from "@/stores/StreamEditStore";
+import ModalStore from "@/stores/ModalStore";
 import SiteStore from "@/stores/SiteStore";
 import ProfileStore from "@/stores/ProfileStore";
 import OutputStore from "@/stores/OutputStore";
