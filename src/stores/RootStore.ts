@@ -36,8 +36,6 @@ class RootStore {
   outputModalStore: OutputModalStore;
 
   constructor() {
-    makeAutoObservable(this);
-
     this.dataStore = new DataStore(this);
     this.streamStore = new StreamStore(this);
     this.streamEditStore = new StreamEditStore(this);
@@ -46,6 +44,8 @@ class RootStore {
     this.profileStore = new ProfileStore(this);
     this.outputStore = new OutputStore(this);
     this.outputModalStore = new OutputModalStore(this);
+
+    makeAutoObservable(this);
   }
 
   *Initialize(): Generator<any, void> {

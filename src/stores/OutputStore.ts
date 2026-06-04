@@ -47,9 +47,9 @@ class OutputStore {
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
-    makeAutoObservable(this);
-
     this.rootStore = rootStore;
+
+    makeAutoObservable(this);
   }
 
   get client() {
