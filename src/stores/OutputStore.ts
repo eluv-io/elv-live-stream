@@ -90,7 +90,7 @@ class OutputStore {
     this.outputs[slug] = {...this.outputs[slug], ...updates};
   };
 
-  *LoadOutputSettingsId(): Generator<any, void, any> {
+  *LoadOutputSettingsId(): Generator<any, void> {
     try {
       let siteLibraryId = this.rootStore.dataStore.siteLibraryId;
       let siteObjectId = this.rootStore.dataStore.siteId;
@@ -112,7 +112,7 @@ class OutputStore {
     }
   }
 
-  *LoadOutputs(): Generator<any, void, any> {
+  *LoadOutputs(): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
         yield this.LoadOutputSettingsId();
@@ -130,7 +130,7 @@ class OutputStore {
     }
   }
 
-  *LoadOutputItem({outputId, includeState=true}: {outputId: string, includeState: boolean}): Generator<any, void, any> {
+  *LoadOutputItem({outputId, includeState=true}: {outputId: string, includeState: boolean}): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
         yield this.LoadOutputSettingsId();
@@ -203,7 +203,7 @@ class OutputStore {
     passphrase,
     encryption,
     stripRtp
-  }: {name?: string, externalId?: string, geos: string[], passphrase?: string, encryption?: string, stripRtp?: boolean}): Generator<any, void, any> {
+  }: {name?: string, externalId?: string, geos: string[], passphrase?: string, encryption?: string, stripRtp?: boolean}): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
         throw "No output settings object found. Please create one before adding outputs.";
@@ -237,7 +237,7 @@ class OutputStore {
     }
   }
 
-  *MapStream({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void, any> {
+  *MapStream({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -286,7 +286,7 @@ class OutputStore {
     }
   }
 
-  *MapStreamBatch({outputs, streamObjectId}: {outputs: string[], streamObjectId: string}): Generator<any, void, any> {
+  *MapStreamBatch({outputs, streamObjectId}: {outputs: string[], streamObjectId: string}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -347,7 +347,7 @@ class OutputStore {
     }
   }
 
-  *UnmapStreamBatch({outputs}: {outputs: string[]}): Generator<any, void, any> {
+  *UnmapStreamBatch({outputs}: {outputs: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -403,7 +403,7 @@ class OutputStore {
     passphrase,
     encryption,
     stripRtp
-  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean}): Generator<any, void, any> {
+  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -447,7 +447,7 @@ class OutputStore {
     }
   }
 
-  *EnableOutput({outputId}: {outputId: string}): Generator<any, void, any> {
+  *EnableOutput({outputId}: {outputId: string}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -486,7 +486,7 @@ class OutputStore {
     }
   }
 
-  *EnableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void, any>{
+  *EnableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void>{
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -534,7 +534,7 @@ class OutputStore {
     }
   }
 
-  *DisableOutput({outputId}: {outputId: string}): Generator<any, void, any> {
+  *DisableOutput({outputId}: {outputId: string}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -569,7 +569,7 @@ class OutputStore {
     }
   }
 
-  *DisableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void, any>{
+  *DisableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void>{
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -617,7 +617,7 @@ class OutputStore {
     }
   }
 
-  *DeleteOutput({outputId}: {outputId: string}): Generator<any, void, any> {
+  *DeleteOutput({outputId}: {outputId: string}): Generator<any, void> {
     const objectId = this.outputSettingsId;
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
@@ -636,14 +636,14 @@ class OutputStore {
     }
   }
 
-  *DeleteOutputBatch({outputs}: {outputs: string[]}): Generator<any, void, any> {
+  *DeleteOutputBatch({outputs}: {outputs: string[]}): Generator<any, void> {
     yield Promise.all(
       outputs.map(outputId => this.DeleteOutput({outputId})
       )
     );
   }
 
-  *ResetOutput({outputId}: {outputId: string}): Generator<any, void, any> {
+  *ResetOutput({outputId}: {outputId: string}): Generator<any, void> {
     const objectId = this.outputSettingsId;
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 

@@ -33,7 +33,7 @@ class SiteStore {
     };
   };
 
-  *UpdateStreamLink({objectId, slug}: {objectId: string, slug: string}) {
+  *UpdateStreamLink({objectId, slug}: {objectId: string, slug: string}): Generator<any, void> {
     try {
       const originalLink = yield this.client.ContentObjectMetadata({
         libraryId: this.rootStore.dataStore.siteLibraryId,

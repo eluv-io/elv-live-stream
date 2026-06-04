@@ -33,23 +33,19 @@ class ProfileStore {
     );
   }
 
-  async LoadProfiles(): Promise<void> {
+  *LoadProfiles(): Generator<any, void> {
     try {
-      const profiles: Record<string, LiveRecordingConfigProfile> = await this.client.StreamConfigProfiles({resolveLinks: true}) ?? {};
+      const profiles: Record<string, LiveRecordingConfigProfile> = (yield this.client.StreamConfigProfiles({resolveLinks: true})) ?? {};
 
-      runInAction(() => {
-        this.profiles = profiles;
-        this.drafts = Object.fromEntries(
-          Object.entries(profiles).map(([key, value]) => [key, {...value}])
-        );
-        this.state = "loaded";
-      });
+      this.profiles = profiles;
+      this.drafts = Object.fromEntries(
+        Object.entries(profiles).map(([key, value]) => [key, {...value}])
+      );
+      this.state = "loaded";
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to load profiles.", error);
-      runInAction(() => {
-        this.state = "error";
-      });
+      this.state = "error";
     }
   }
 
@@ -73,115 +69,117 @@ class ProfileStore {
     }
   }
 
-  async DeleteProfile(slug: string): Promise<void> {
-    const libraryId = this.rootStore.dataStore.siteLibraryId;
-    const objectId = this.rootStore.dataStore.siteId;
+  *DeleteProfile(slug: string): Generator<any, void> {
+    try {
+      const libraryId = this.rootStore.dataStore.siteLibraryId;
+      const objectId = this.rootStore.dataStore.siteId;
 
-    // Deleting an existing profile
-    // For a profile that hasn't been saved, only the draft needs removal
-    if(slug in this.profiles) {
-      const {writeToken} = await this.client.EditContentObject({
-        libraryId,
-        objectId
-      });
+      // For a profile that hasn't been saved, only the draft needs removal
+      if(slug in this.profiles) {
+        const {writeToken} = yield this.client.EditContentObject({
+          libraryId,
+          objectId
+        });
 
-      await this.client.DeleteFiles({
-        libraryId,
-        objectId,
-        writeToken,
-        filePaths: [`live_stream_profiles/${slug}.json`]
-      });
+        yield this.client.DeleteFiles({
+          libraryId,
+          objectId,
+          writeToken,
+          filePaths: [`live_stream_profiles/${slug}.json`]
+        });
 
-      await this.client.DeleteMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadataSubtree: `public/asset_metadata/profiles/${slug}`
-      });
+        yield this.client.DeleteMetadata({
+          libraryId,
+          objectId,
+          writeToken,
+          metadataSubtree: `public/asset_metadata/profiles/${slug}`
+        });
 
-      await this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        commitMessage: "Delete config profile"
-      });
-    }
+        yield this.client.FinalizeContentObject({
+          libraryId,
+          objectId,
+          writeToken,
+          commitMessage: "Delete config profile"
+        });
+      }
 
-    runInAction(() => {
       delete this.drafts[slug];
       delete this.profiles[slug];
-    });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to delete profile.", error);
+      throw error;
+    }
   }
 
-  async SaveProfiles(): Promise<void> {
+  *SaveProfiles(): Generator<any, void> {
     if(!this.rootStore.dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
 
-    const {writeToken} = await this.client.EditContentObject({
-      libraryId: this.rootStore.dataStore.siteLibraryId,
-      objectId: this.rootStore.dataStore.siteId
-    });
+    try {
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId: this.rootStore.dataStore.siteLibraryId,
+        objectId: this.rootStore.dataStore.siteId
+      });
 
-    let needsFinalize = false;
+      let needsFinalize = false;
 
-    for(let draftKey in this.drafts) {
-      const draft = this.drafts[draftKey];
-      const profile = this.profiles[draftKey];
-      const newKey = slugify(draft.name);
+      for(let draftKey in this.drafts) {
+        const draft = this.drafts[draftKey];
+        const profile = this.profiles[draftKey];
+        const newKey = slugify(draft.name);
+        const isDirty = JSON.stringify(draft) !== JSON.stringify(profile);
 
-      const isDirty = JSON.stringify(draft) !== JSON.stringify(profile);
-
-      if(isDirty) {
-        // Profile is uploaded with the same filename/path, overwriting existing file
-        needsFinalize = true;
-        try {
-          await this.client.StreamSaveConfigProfile({
-            profileMetadata: toJS(draft),
-            writeToken,
-            finalize: false
-          });
-          if(profile && draft.name !== profile.name) {
-            const libraryId = this.rootStore.dataStore.siteLibraryId;
-            const objectId = this.rootStore.dataStore.siteId;
-
-            await this.client.DeleteFiles({
-              libraryId,
-              objectId,
+        if(isDirty) {
+          needsFinalize = true;
+          try {
+            yield this.client.StreamSaveConfigProfile({
+              profileMetadata: toJS(draft),
               writeToken,
-              filePaths: [`live_stream_profiles/${slugify(profile.name)}.json`]
+              finalize: false
             });
 
-            await this.client.DeleteMetadata({
-              libraryId,
-              objectId,
-              writeToken,
-              metadataSubtree: `public/asset_metadata/profiles/${draftKey}`
-            });
+            if(profile && draft.name !== profile.name) {
+              const libraryId = this.rootStore.dataStore.siteLibraryId;
+              const objectId = this.rootStore.dataStore.siteId;
 
-            const streamIds = await this.client.ContentObjectMetadata({
-              libraryId,
-              objectId,
-              metadataSubtree: `public/asset_metadata/profile_streams/${draftKey}`
-            }) || [];
-
-            if(streamIds.length > 0) {
-              await this.client.ReplaceMetadata({
+              yield this.client.DeleteFiles({
                 libraryId,
                 objectId,
                 writeToken,
-                metadataSubtree: `public/asset_metadata/profile_streams/${newKey}`,
-                metadata: streamIds
+                filePaths: [`live_stream_profiles/${slugify(profile.name)}.json`]
+              });
+
+              yield this.client.DeleteMetadata({
+                libraryId,
+                objectId,
+                writeToken,
+                metadataSubtree: `public/asset_metadata/profiles/${draftKey}`
+              });
+
+              const streamIds = (yield this.client.ContentObjectMetadata({
+                libraryId,
+                objectId,
+                metadataSubtree: `public/asset_metadata/profile_streams/${draftKey}`
+              })) ?? [];
+
+              if(streamIds.length > 0) {
+                yield this.client.ReplaceMetadata({
+                  libraryId,
+                  objectId,
+                  writeToken,
+                  metadataSubtree: `public/asset_metadata/profile_streams/${newKey}`,
+                  metadata: streamIds
+                });
+              }
+
+              yield this.client.DeleteMetadata({
+                libraryId,
+                objectId,
+                writeToken,
+                metadataSubtree: `public/asset_metadata/profile_streams/${draftKey}`
               });
             }
 
-            await this.client.DeleteMetadata({
-              libraryId,
-              objectId,
-              writeToken,
-              metadataSubtree: `public/asset_metadata/profile_streams/${draftKey}`
-            });
-          }
-
-          runInAction(() => {
             if(draftKey !== newKey) {
               delete this.profiles[draftKey];
               delete this.drafts[draftKey];
@@ -190,21 +188,25 @@ class ProfileStore {
             } else {
               this.profiles[draftKey] = {...toJS(draft)};
             }
-          });
-        } catch(error) {
-          // eslint-disable-next-line no-console
-          console.error("Failed to create content object.", error);
+          } catch(error) {
+            // eslint-disable-next-line no-console
+            console.error("Failed to save profile.", error);
+          }
         }
       }
-    }
 
-    if(needsFinalize) {
-      await this.client.FinalizeContentObject({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
-        writeToken,
-        commitMessage: "Update config profiles"
-      });
+      if(needsFinalize) {
+        yield this.client.FinalizeContentObject({
+          libraryId: this.rootStore.dataStore.siteLibraryId,
+          objectId: this.rootStore.dataStore.siteId,
+          writeToken,
+          commitMessage: "Update config profiles"
+        });
+      }
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to save profiles.", error);
+      throw error;
     }
   }
 }

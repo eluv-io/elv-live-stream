@@ -48,7 +48,7 @@ class RootStore {
     this.outputModalStore = new OutputModalStore(this);
   }
 
-  *Initialize(): Generator<any, void, any> {
+  *Initialize(): Generator<any, void> {
     try {
       this.client = new FrameClient({
         target: window.parent,
@@ -69,7 +69,7 @@ class RootStore {
     }
   }
 
-  *ExecuteFrameRequest ({request, Respond}: any) : Generator<any, void, any> {
+  *ExecuteFrameRequest ({request, Respond}: any) : Generator<any, void> {
     Respond(yield this.client.PassRequest({request, Respond}));
   }
 
