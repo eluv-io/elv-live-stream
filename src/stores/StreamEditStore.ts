@@ -7,9 +7,10 @@ import {
   LadderSpec,
   LiveRecordingConfigProfile,
   ParseLiveConfigData,
-  RecordingInputCfg, RecordingPeriod,
+  RecordingInputCfg,
+  RecordingPeriod,
   SimpleWatermark,
-  StreamMetadata
+  StreamRecord
 } from "@/utils/stream";
 import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
@@ -366,7 +367,7 @@ class StreamEditStore {
     }
   }
 
-  *DeleteStream({objectId, slug}: {objectId: string, slug: string}): Generator<any, void> {
+  *DeleteStream({objectId, slug}: {objectId: string, slug?: string}): Generator<any, void> {
     const streams = Object.assign({}, this.rootStore.streamStore.streams);
 
     if(!slug) {
@@ -391,7 +392,7 @@ class StreamEditStore {
     this.rootStore.streamStore.UpdateStreams({streams});
   }
 
-  *DeleteStreamBatch({objects}: {objects: StreamMetadata[]}): Generator<any, void> {
+  *DeleteStreamBatch({objects}: {objects: StreamRecord[]}): Generator<any, void> {
     const streams = Object.assign({}, this.rootStore.streamStore.streams);
 
     const resolved = objects.map(object => ({
@@ -1088,7 +1089,7 @@ class StreamEditStore {
     slug,
     probeMetadata,
     syncAudioToProbe=true
-  }: {objectId: string, slug: string, probeMetadata: ProbeData, syncAudioToProbe?: boolean}): Generator<any, void> {
+  }: {objectId: string, slug: string, probeMetadata?: ProbeData, syncAudioToProbe?: boolean}): Generator<any, void> {
     try {
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 

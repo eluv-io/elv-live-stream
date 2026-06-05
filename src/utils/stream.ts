@@ -234,6 +234,11 @@ interface ParseLiveConfigDataProps {
   skipDvrSection?: boolean;
 }
 
+export interface StreamRecord {
+  objectId: string;
+  slug: string;
+}
+
 export interface StreamMetadata {
   objectId: string;
   slug: string;

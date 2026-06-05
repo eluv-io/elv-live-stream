@@ -1,6 +1,7 @@
 import {makeAutoObservable} from "mobx";
 import {STATUS_MAP, StreamStatus} from "@/utils/constants";
 import RootStore from "@/stores/RootStore";
+import {StreamRecord} from "@/utils/stream";
 
 export type StreamOp = "CHECK" | "START" | "STOP" | "DEACTIVATE" | "DELETE";
 
@@ -56,11 +57,6 @@ interface OpConfig {
 
 interface NotificationSystem {
   show: (notification: { title: string; message: string; color?: string }) => void;
-}
-
-interface StreamRecord {
-  objectId: string;
-  slug: string;
 }
 
 interface BatchStreamRecord extends StreamRecord {
