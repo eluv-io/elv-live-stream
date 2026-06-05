@@ -67,10 +67,6 @@ vi.mock("@mantine/notifications", () => ({
   notifications: {show: mockNotificationShow}
 }));
 
-vi.mock("@/assets/icons/index.ts", () => ({
-  CircleInfoIcon: () => null,
-}));
-
 vi.mock("@/components/section-title/SectionTitle.jsx", () => ({
   default: ({children}) => <div>{children}</div>
 }));

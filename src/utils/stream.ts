@@ -201,7 +201,7 @@ export interface LiveRecordingConfigProfile {
   probe_info?: Record<string, unknown>;
 }
 
-export interface AudioTrackFormEntry {
+interface AudioTrackFormEntry {
   bitrate: number;
   codec: string;
   record: boolean;

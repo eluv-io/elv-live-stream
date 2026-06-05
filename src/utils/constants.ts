@@ -2,10 +2,6 @@
 
 export type StreamStatus = typeof STATUS_MAP[keyof typeof STATUS_MAP];
 export type PlayoutFormat = typeof PLAYOUT_FORMAT_OPTIONS[number]["value"];
-export type Quality = typeof QUALITY_MAP[keyof typeof QUALITY_MAP];
-export type StreamFormat = keyof typeof FORMAT_TEXT;
-export type RecordingStatus = keyof typeof RECORDING_STATUS_TEXT;
-export type FabricNodeRegion = typeof FABRIC_NODE_REGIONS[number]["value"];
 
 // CONSTANTS
 
@@ -123,13 +119,6 @@ export const STATUS_TEXT = {
   terminating: "Terminating",
   unavailable: "Temporarily Unavailable"
 };
-
-export const FORMAT_TEXT = {
-  udp: "MPEGTS",
-  srt: "SRT",
-  "srt-caller": "SRT Caller",
-  rtmp: "RTMP"
-} as const;
 
 export const CODEC_TEXT = {
   h264: "H.264",

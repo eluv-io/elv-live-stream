@@ -11,17 +11,17 @@ import RootStore from "@/stores/RootStore";
 import {StreamInfo, PermissionLevel} from "@/stores/DataStore";
 import {StreamOp} from "@/stores/ModalStore";
 
-export type SummaryData = Pick<StreamMetadata,
+type SummaryData = Pick<StreamMetadata,
   "videoStreamProbe" | "publishingVideo" | "publishingAudio" | "partTtl" | "persistent"
 > & ProbeData;
 
 // Processed shape for the UI — camelCase, populated by LoadPlayoutConfigData
-export type PlayoutConfigData = Pick<StreamMetadata,
+type PlayoutConfigData = Pick<StreamMetadata,
   "drm" | "dvrEnabled" | "dvrMaxDuration" | "dvrStartTime" |
   "forensicWatermark" | "imageWatermark" | "simpleWatermark" | "watermarkType"
 >;
 
-export type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persistent" | "reconnectionTimeout"> & ProbeData & {
+type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persistent" | "reconnectionTimeout"> & ProbeData & {
   copyMpegTs: boolean;
   inputCfg: RecordingInputCfg;
   multiPath: {
@@ -50,9 +50,9 @@ export interface ProbeData {
   audioData: AudioDataMap;
 }
 
-export type StreamListData = Pick<StreamMetadata, "title" | "originUrl" | "source" | "packaging" | "inputCfg">;
+type StreamListData = Pick<StreamMetadata, "title" | "originUrl" | "source" | "packaging" | "inputCfg">;
 
-export type GeneralConfigData = Pick<StreamMetadata,
+type GeneralConfigData = Pick<StreamMetadata,
   "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile"
 > & {
   permission: PermissionLevel;

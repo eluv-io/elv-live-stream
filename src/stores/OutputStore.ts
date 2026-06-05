@@ -4,7 +4,7 @@ import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/s
 import {SortTable} from "@/utils/helpers";
 import RootStore from "@/stores/RootStore";
 
-export interface OutputInput {
+interface OutputInput {
   stream?: string;
   name?: string;
   status?: string;
@@ -26,7 +26,7 @@ interface OutputSrtPull {
   strip_rtp?: boolean;
 }
 
-export interface Output {
+interface Output {
   enabled?: boolean;
   input?: OutputInput;
   name?: string;
@@ -36,7 +36,7 @@ export interface Output {
   state?: any;
 }
 
-export type Outputs = Record<string, Output>;
+type Outputs = Record<string, Output>;
 
 class OutputStore {
   state: "loaded" | "error" | "pending" = "pending";

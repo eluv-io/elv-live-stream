@@ -113,11 +113,6 @@ vi.mock("@mantine/notifications", () => ({
   notifications: {show: mockNotificationShow}
 }));
 
-vi.mock("@/assets/icons/index.ts", () => ({
-  CircleInfoIcon: () => null,
-  PlusIcon: () => null,
-}));
-
 import Create from "./Create";
 
 const renderCreate = () => {
