@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useNavigate, useParams} from "react-router-dom";
 import {rootStore, streamStore} from "@/stores/index.ts";
@@ -76,24 +76,20 @@ const StreamDetailsPage = observer(() => {
     return <Loader />;
   }
 
-  const streamActions = useMemo(() => (
-    GetStreamActions({
-      record: streamStore.streams?.[streamSlug],
-      onCheckComplete: () => setCheckVersion(prev => prev + 1),
-      onDeleteComplete: () => navigate("/streams"),
-      view: "stream-details"
-    })
-  ));
+  const streamActions = GetStreamActions({
+    record: streamStore.streams?.[streamSlug],
+    onCheckComplete: () => setCheckVersion(prev => prev + 1),
+    onDeleteComplete: () => navigate("/streams"),
+    view: "stream-details"
+  });
 
-  const primaryActions = useMemo(() => (
-    streamActions.filter(a => a.primary && !a.hidden)
+  const primaryActions = streamActions.filter(a => a.primary && !a.hidden)
     .map(a => {
       a.buttonVariant = "filled";
       return a;
-    })
-  ));
+    });
 
-  const secondaryActions = useMemo(() => streamActions.filter(a => !a.primary && !a.hidden));
+  const secondaryActions = streamActions.filter(a => !a.primary && !a.hidden);
 
   const actions = [
     {
