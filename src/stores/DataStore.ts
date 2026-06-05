@@ -1,6 +1,7 @@
 // Handles all metadata reads — tenant info, stream metadata, recording/playout config, probe data, permissions, and ladder profiles.
 import {makeAutoObservable, observable, toJS} from "mobx";
 import RootStore, {NetworkName} from "@/stores/RootStore";
+import {StreamStatus} from "@/utils/constants";
 
 export type PermissionLevel = "owner" | "editable" | "viewable" | "listable" | "public";
 
@@ -109,7 +110,7 @@ export interface StreamInfo {
   publishingAudio?: {sample_rate: any};
   partTtl?: string | number | null;
   persistent?: any;
-  status?: string;
+  status?: StreamStatus;
   warnings?: any;
   quality?: any;
   embedUrl?: string;

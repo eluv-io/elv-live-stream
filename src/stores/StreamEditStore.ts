@@ -57,24 +57,24 @@ interface UpdateDetailMetadataParams {
 
 interface UpdateConfigMetadataParams {
   libraryId?: string;
-  objectId: string;
-  writeToken: string;
-  finalize: boolean;
-  slug: string;
-  retention: string;
-  persistent: boolean;
-  connectionTimeout: string;
-  reconnectionTimeout: string;
+  objectId?: string;
+  writeToken?: string;
+  finalize?: boolean;
+  slug?: string;
+  retention?: string;
+  persistent?: boolean;
+  connectionTimeout?: string;
+  reconnectionTimeout?: string;
   skipDvrSection?: boolean;
   dvrEnabled?: boolean;
   dvrStartTime?: number;
   dvrMaxDuration?: string;
-  copyMpegTs: boolean;
-  inputPackaging: RecordingInputCfg;
-  copyMode: string;
-  customReadLoop: boolean;
-  audioData: AudioDataMap,
-  multiPathEnabled: boolean;
+  copyMpegTs?: boolean;
+  inputPackaging?: RecordingInputCfg;
+  copyMode?: string;
+  customReadLoop?: boolean;
+  audioData?: AudioDataMap;
+  multiPathEnabled?: boolean;
 }
 
 interface UpdateGeneralConfigParams {
@@ -96,7 +96,7 @@ interface UpdateGeneralConfigParams {
   };
 }
 
-interface UpdatePlayoutConfigParams {
+export interface UpdatePlayoutConfigParams {
   objectId: string;
   slug: string;
   status: StreamStatus;
@@ -114,26 +114,36 @@ interface UpdatePlayoutConfigParams {
     existingPlayoutFormats?: PlayoutFormat[];
   };
   configMetaParams: Omit<UpdateConfigMetadataParams,
-    "libraryId" | "objectId" | "writeToken" | "finalize" | "slug" | "skipDvrSection"
+    "libraryId" | "objectId" | "writeToken" | "finalize" | "slug"
   >;
 }
 
 interface AddWatermarkParams {
   objectId: string;
-  slug: string;
-  textWatermark?: string;
-  imageWatermark?: string;
-  forensicWatermark?: string;
+  slug?: string;
+   
+  textWatermark?: any;
+   
+  imageWatermark?: any;
+   
+  forensicWatermark?: any;
   finalize?: boolean;
   writeToken?: string;
 }
 
-interface WatermarkConfigurationParams extends AddWatermarkParams {
+interface WatermarkConfigurationParams {
+  objectId: string;
+  slug?: string;
   libraryId?: string;
+  textWatermark?: string;
+  imageWatermark?: string;
+  forensicWatermark?: string;
   existingTextWatermark?: SimpleWatermark;
   existingImageWatermark?: ImageWatermark;
   existingForensicWatermark?: ForensicWatermark;
   watermarkType?: string;
+  finalize?: boolean;
+  writeToken?: string;
 }
 
 interface RemoveWatermarkParams {
@@ -160,46 +170,46 @@ interface UpdateRecordingConfigParams {
 }
 
 interface DrmConfigurationParams {
-  libraryId: string;
+  libraryId?: string;
   objectId: string;
   slug: string;
   playoutFormats?: PlayoutFormat[];
   existingPlayoutFormats?: PlayoutFormat[];
-  writeToken: string;
-  status: StreamStatus;
-  finalize: boolean;
+  writeToken?: string;
+  status?: StreamStatus;
+  finalize?: boolean;
 }
 
 interface UpdateAudioLadderSpecsParams {
   objectId: string;
   libraryId: string;
   writeToken: string;
-  ladderSpecs: {audio: LadderSpec[]},
-  audioData: AudioDataMap,
-  edit: boolean;
+  ladderSpecs: {audio: Array<Partial<LadderSpec>>};
+  audioData?: AudioDataMap;
+  edit?: boolean;
 }
 
 interface UpdateStreamAudioSettingsParams {
   objectId: string;
-  writeToken: string;
-  finalize: boolean;
+  writeToken?: string;
+  finalize?: boolean;
   audioData?: AudioDataMap;
   edit?: boolean;
 }
 
 interface CopyToVodParams {
   objectId: string;
-  targetLibraryId: string;
-  accessGroup: string;
-  selectedPeriods: RecordingPeriod[];
-  title: string;
+  targetLibraryId?: string;
+  accessGroup?: string;
+  selectedPeriods?: RecordingPeriod[];
+  title?: string;
 }
 
 class StreamEditStore {
   rootStore: RootStore;
 
-  constructor(rootStore: RootStore) {
-    this.rootStore = rootStore;
+  constructor(rootStore: RootStore | Record<string, unknown>) {
+    this.rootStore = rootStore as RootStore;
     makeAutoObservable(this);
   }
 
@@ -1679,7 +1689,7 @@ class StreamEditStore {
     }
   }
 
-  *SyncAudioToProbe({libraryId, objectId, writeToken, finalize=true}: {libraryId?: string, objectId: string, writeToken: string, finalize?: boolean}): Generator<any, void> {
+  *SyncAudioToProbe({libraryId, objectId, writeToken, finalize=true}: {libraryId?: string, objectId: string, writeToken?: string, finalize?: boolean}): Generator<any, void> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
