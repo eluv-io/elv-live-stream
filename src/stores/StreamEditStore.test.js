@@ -12,7 +12,7 @@ vi.mock("@/utils/constants", () => ({
   DETAILS_TABS: []
 }));
 
-import StreamEditStore from "src/stores/StreamEditStore.ts";
+import StreamEditStore from "@/stores/StreamEditStore.ts";
 
 const mockProfile = {
   name: "My Profile",
@@ -56,7 +56,7 @@ const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => 
   // returning null everywhere, the fallback path in UpdateStreamAudioSettings handles
   // null ladder_specs gracefully — no additional stub needed.
 
-  return {store, mockClient};
+  return {store, mockClient, streamStore: mockRootStore.streamStore};
 };
 
 // Existing live_recording before profile is applied (stream was configured with input_stream_info only)
@@ -776,7 +776,7 @@ describe("UpdateGeneralConfig", () => {
   });
 
   it("updates the stream store with the new configProfile slug", async () => {
-    const {store} = makeStore();
+    const {store, streamStore} = makeStore();
 
     await store.UpdateGeneralConfig({
       objectId: "iq__123",
@@ -785,7 +785,7 @@ describe("UpdateGeneralConfig", () => {
       configProfile: "my-profile"
     });
 
-    expect(store.rootStore.streamStore.UpdateStream).toHaveBeenCalledWith(
+    expect(streamStore.UpdateStream).toHaveBeenCalledWith(
       expect.objectContaining({
         key: "test-stream",
         value: expect.objectContaining({configProfile: "my-profile"})

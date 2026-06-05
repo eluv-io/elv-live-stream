@@ -1,5 +1,5 @@
 // Handles stream configuration writes: create, delete, metadata, recording config, playout (watermarks, DRM, audio), profiles, permissions, and VOD copy.
-import {flow, makeAutoObservable, toJS} from "mobx";
+import {makeAutoObservable, toJS} from "mobx";
 import {
   FinalizeContentObjectResponse,
   ForensicWatermark,
@@ -7,14 +7,14 @@ import {
   LadderSpec,
   LiveRecordingConfigProfile,
   ParseLiveConfigData,
-  RecordingInputCfg,
+  RecordingInputCfg, RecordingPeriod,
   SimpleWatermark,
   StreamMetadata
 } from "@/utils/stream";
 import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 import RootStore from "@/stores/RootStore";
-import {AudioDataMap, ProbeData} from "@/stores/StreamStore";
+import type {AudioDataMap, ProbeData} from "@/stores/StreamStore";
 import {PermissionLevel} from "@/stores/DataStore";
 
 interface InitLiveStreamObjectParams {
@@ -176,6 +176,22 @@ interface UpdateAudioLadderSpecsParams {
   ladderSpecs: {audio: LadderSpec[]},
   audioData: AudioDataMap,
   edit: boolean;
+}
+
+interface UpdateStreamAudioSettingsParams {
+  objectId: string;
+  writeToken: string;
+  finalize: boolean;
+  audioData?: AudioDataMap;
+  edit?: boolean;
+}
+
+interface CopyToVodParams {
+  objectId: string;
+  targetLibraryId: string;
+  accessGroup: string;
+  selectedPeriods: RecordingPeriod[];
+  title: string;
 }
 
 class StreamEditStore {
@@ -831,7 +847,6 @@ class StreamEditStore {
     yield this.UpdateStreamAudioSettings({
       objectId,
       writeToken,
-      slug,
       audioData: audioFormData,
       finalize: false,
       edit: true
@@ -1514,13 +1529,13 @@ class StreamEditStore {
     };
   }
 
-  UpdateStreamAudioSettings = flow(function * ({
+  *UpdateStreamAudioSettings({
     objectId,
     writeToken,
     finalize=true,
     audioData,
     edit=false
-  }) {
+  }: UpdateStreamAudioSettingsParams): Generator<any, void> {
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
     if(!writeToken) {
@@ -1661,9 +1676,9 @@ class StreamEditStore {
         awaitCommitConfirmation: true
       });
     }
-  });
+  }
 
-  SyncAudioToProbe = flow(function * ({libraryId, objectId, writeToken, finalize=true}) {
+  *SyncAudioToProbe({libraryId, objectId, writeToken, finalize=true}: {libraryId?: string, objectId: string, writeToken: string, finalize?: boolean}): Generator<any, void> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -1728,11 +1743,11 @@ class StreamEditStore {
       // eslint-disable-next-line no-console
       console.error("Unable to sync audio settings to probe data", error);
     }
-  });
+  }
 
   // VOD
 
-  FetchLiveRecordingCopies = flow(function * ({objectId, libraryId}) {
+  *FetchLiveRecordingCopies({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Record<string, {create_time: number, endTime: number, startTime: number, title: string}>> {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
     }
@@ -1742,9 +1757,9 @@ class StreamEditStore {
       libraryId,
       metadataSubtree: "live_recording_copies"
     });
-  });
+  }
 
-  DeleteLiveRecordingCopy = flow(function * ({streamId, recordingCopyId}) {
+  *DeleteLiveRecordingCopy({streamId, recordingCopyId}: {streamId: string, recordingCopyId: string}) : Generator<any, FinalizeContentObjectResponse> {
     const liveRecordingCopies = yield this.FetchLiveRecordingCopies({objectId: streamId});
 
     delete liveRecordingCopies[recordingCopyId];
@@ -1763,25 +1778,23 @@ class StreamEditStore {
       metadata: liveRecordingCopies
     });
 
-    const response = yield this.client.FinalizeContentObject({
+    return this.client.FinalizeContentObject({
       objectId: streamId,
       libraryId,
       writeToken,
       commitMessage: "Remove live recording copy"
     });
+  }
 
-    return response;
-  });
-
-  CopyToVod = flow(function * ({
+  *CopyToVod({
     objectId,
     targetLibraryId,
     accessGroup,
     selectedPeriods=[],
     title
-  }) {
-    let recordingPeriod, startTime, endTime;
-    const timeSeconds = {};
+  }: CopyToVodParams): Generator<any, StreamStatus> {
+    let recordingPeriod: number, startTime: string, endTime: string;
+    const timeSeconds: Partial<{startTime: number, endTime: number}> = {};
     const firstPeriod = selectedPeriods[0];
     const currentDateTime = new Date();
 
@@ -1862,7 +1875,7 @@ class StreamEditStore {
       });
     }
 
-    let response;
+    let response: StreamStatus;
     try {
       response = yield this.client.StreamCopyToVod({
         name: objectId,
@@ -1921,7 +1934,7 @@ class StreamEditStore {
 
       return response;
     }
-  });
+  }
 }
 
 export default StreamEditStore;

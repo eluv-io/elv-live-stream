@@ -62,6 +62,51 @@ interface RecordingConfig {
   persistent?: boolean;
 }
 
+export interface RecordingPeriod {
+  id: number;
+  audio_mez_duration_ts: number;
+  audio_sample_rate: number;
+  audio_timescale: number;
+  cues: {
+    list: any[];
+    trimmed: number;
+  };
+  current_parts: Record<string, {
+    qlhash: string;
+    qlhash_next: string;
+    qpwt: string;
+    qpwt_next: string;
+  }>;
+  end_time: string;
+  end_time_epoch_sec: number;
+  finalized_parts_info: Record<string, {
+    last_finalization_time: number;
+    n_parts: number;
+  }>;
+  last_update_time: string;
+  last_update_time_epoch_sec: number;
+  live_recording_handle: string;
+  sources: Record<string, {
+    name: string;
+    trimmed: number;
+    type: number;
+    parts: Array<{
+      close_time: number;
+      creation_time: number;
+      finalization_time: number;
+      first_write_time: number;
+      hash: string;
+      last_write_time: number;
+      open_time: number;
+      size: number;
+    }>;
+  }>;
+  start_time: string;
+  start_time_epoch_sec: number;
+  video_mez_duration_ts: number;
+  video_timescale: number;
+}
+
 interface LadderAudioSpec {
   bit_rate?: number;
   channels?: number;
