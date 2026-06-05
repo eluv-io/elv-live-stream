@@ -82,6 +82,7 @@ export interface StreamInfo {
     source: string;
   };
   display_title: string;
+  name?: string;
   order: number;
   slug: string;
   sources: Record<string, {
@@ -98,13 +99,15 @@ export interface StreamInfo {
   originUrl?: string;
   source?: string[];
   packaging?: string[];
+  connectionTimeout: number;
+  reconnectionTimeout: number;
   // Fields added by LoadSummaryData
   videoStreamProbe?: any;
   audioStreams?: any;
   audioData?: any;
   publishingVideo?: {bit_rate: any; frame_rate: any; resolution: string; codec: string};
   publishingAudio?: {sample_rate: any};
-  partTtl?: string | null;
+  partTtl?: string | number | null;
   persistent?: any;
   status?: string;
   warnings?: any;

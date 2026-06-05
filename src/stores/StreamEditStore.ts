@@ -1,14 +1,97 @@
 // Handles stream configuration writes: create, delete, metadata, recording config, playout (watermarks, DRM, audio), profiles, permissions, and VOD copy.
 import {flow, makeAutoObservable, toJS} from "mobx";
-import {ParseLiveConfigData} from "@/utils/stream.ts";
-import {STATUS_MAP} from "@/utils/constants.ts";
+import {
+  FinalizeContentObjectResponse,
+  LiveRecordingConfigProfile,
+  ParseLiveConfigData,
+  RecordingInputCfg, StreamMetadata
+} from "@/utils/stream";
+import {PlayoutFormat, STATUS_MAP} from "@/utils/constants";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
+import RootStore from "@/stores/RootStore";
+import {AudioDataEntry} from "@/stores/StreamStore";
+import {PermissionLevel} from "@/stores/DataStore";
+
+interface InitLiveStreamObjectParams {
+  objectId: string;
+  accessGroup: string;
+  description: string;
+  displayTitle: string;
+  encryption: PlayoutFormat[];
+  libraryId: string;
+  name: string;
+  nodeId: string;
+  permission: string;
+  configProfile: LiveRecordingConfigProfile;
+  retention: number | string;
+  persistent: boolean;
+  url: string;
+}
+
+interface DuplicateStreamParams {
+  libraryId: string;
+  originalVersionHash: string;
+  originalSlug: string;
+  name: string;
+  url: string;
+  nodeId: string;
+}
+
+interface UpdateDetailMetadataParams {
+  libraryId: string;
+  objectId: string;
+  writeToken: string;
+  finalize: boolean;
+  name: string;
+  url: string;
+  description: string;
+  displayTitle: string;
+  slug: string;
+}
+
+interface UpdateConfigMetadataParams {
+  libraryId?: string;
+  objectId: string;
+  writeToken: string;
+  finalize: boolean;
+  slug: string;
+  retention: string;
+  persistent: boolean;
+  connectionTimeout: string;
+  reconnectionTimeout: string;
+  skipDvrSection?: boolean;
+  dvrEnabled?: boolean;
+  dvrStartTime?: number;
+  dvrMaxDuration?: string;
+  copyMpegTs: boolean;
+  inputPackaging: RecordingInputCfg;
+  copyMode: string;
+  customReadLoop: boolean;
+  audioData: Record<string, AudioDataEntry>,
+  multiPathEnabled: boolean;
+}
+
+interface UpdateRecordingConfigParams {
+  libraryId?: string;
+  objectId: string;
+  slug: string;
+  writeToken?: string;
+  audioFormData: Record<string, AudioDataEntry>;
+  configFormData: Pick<UpdateConfigMetadataParams,
+    "retention" | "persistent" | "connectionTimeout" | "reconnectionTimeout"
+  >;
+  tsFormData: Pick<UpdateConfigMetadataParams,
+    "copyMpegTs" | "inputPackaging" | "copyMode" | "customReadLoop"
+  >;
+  multiPathEnabled?: boolean;
+}
 
 class StreamEditStore {
-  constructor(rootStore) {
-    makeAutoObservable(this);
+  rootStore: RootStore;
 
+  constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
+    makeAutoObservable(this);
   }
 
   get client() {
@@ -17,27 +100,10 @@ class StreamEditStore {
 
   // Stream Lifecycle
 
-  CreateContentObject = flow(function * ({
-    libraryId
-  }) {
-    let response;
-    try {
-      response = yield this.client.CreateContentObject({
-        libraryId,
-        options: { type: this.rootStore.dataStore.contentType }
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to create content object.", error);
-    }
-
-    return response;
-  });
-
   /**
    * Creates a new live stream content object and registers it in the stream store.
    */
-  InitLiveStreamObject = flow(function * ({
+  *InitLiveStreamObject({
     objectId,
     accessGroup,
     description,
@@ -51,7 +117,7 @@ class StreamEditStore {
     retention,
     persistent,
     url
-  }) {
+  }: InitLiveStreamObjectParams): Generator<any, {objectId: string, slug: string}> {
     try {
       const config = ParseLiveConfigData({
         encryption,
@@ -113,16 +179,16 @@ class StreamEditStore {
       console.error("Failed to create stream", error);
       throw error;
     }
-  });
+  }
 
-  DuplicateStream = flow(function * ({
+  *DuplicateStream({
     libraryId,
     originalVersionHash,
     originalSlug,
     name,
     url,
     nodeId
-  }) {
+  }: DuplicateStreamParams): Generator<any, FinalizeContentObjectResponse> {
     try {
       const originalStream = this.rootStore.streamStore.streams[originalSlug];
       const targetTitle = name ?? `Copy ${originalStream?.name}`;
@@ -190,9 +256,9 @@ class StreamEditStore {
       console.error("Failed to copy stream", error);
       throw error;
     }
-  });
+  }
 
-  DeleteStream = flow(function * ({objectId, slug}) {
+  *DeleteStream({objectId, slug}: {objectId: string, slug: string}): Generator<any, void> {
     const streams = Object.assign({}, this.rootStore.streamStore.streams);
 
     if(!slug) {
@@ -210,14 +276,14 @@ class StreamEditStore {
       });
     } catch(error) {
       // eslint-disable-next-line no-console
-      console.log(`Content object ${objectId} has already been deleted. Removed from the site object.`);
+      console.log(`Content object ${objectId} has already been deleted. Removed from the site object.`, error);
     }
 
     delete streams[slug];
     this.rootStore.streamStore.UpdateStreams({streams});
-  });
+  }
 
-  DeleteStreamBatch = flow(function * ({objects}) {
+  *DeleteStreamBatch({objects}: {objects: StreamMetadata[]}): Generator<any, void> {
     const streams = Object.assign({}, this.rootStore.streamStore.streams);
 
     const resolved = objects.map(object => ({
@@ -240,7 +306,7 @@ class StreamEditStore {
         });
       } catch(error) {
         // eslint-disable-next-line no-console
-        console.log(`Content object ${objectId} has already been deleted. Removed from the site object.`);
+        console.log(`Content object ${objectId} has already been deleted. Removed from the site object.`, error);
       }
 
       delete streams[slug];
@@ -255,11 +321,11 @@ class StreamEditStore {
     });
 
     this.rootStore.streamStore.UpdateStreams({streams});
-  });
+  }
 
   // Permissions & Access
 
-  SetPermission = flow(function * ({objectId, permission}) {
+  *SetPermission({objectId, permission}: {objectId: string, permission: PermissionLevel}): Generator<any, void> {
     try {
       const response = yield this.client.SetPermission({
         objectId,
@@ -273,13 +339,13 @@ class StreamEditStore {
       // eslint-disable-next-line no-console
       console.error("Unable to set permission.", error);
     }
-  });
+  }
 
-  AddAccessGroupPermission = flow(function * ({
+  *AddAccessGroupPermission({
     objectId,
     groupName,
     groupAddress
-  }) {
+  }: {objectId: string, groupName?: string, groupAddress?: string}): Generator<any, void> {
     try {
       if(!groupAddress) {
         groupAddress = this.rootStore.dataStore.accessGroups[groupName]?.address;
@@ -294,12 +360,12 @@ class StreamEditStore {
       // eslint-disable-next-line no-console
       console.error(`Unable to add group permission for group: ${groupName || groupAddress}`, error);
     }
-  });
+  }
 
   RemoveAccessGroupPermission = ({
     objectId,
     groupAddress
-  }) => {
+  }: {objectId: string, groupAddress: string}): Generator<any, void> => {
     try {
       return this.client.RemoveContentObjectGroupPermission({
         objectId,
@@ -312,7 +378,7 @@ class StreamEditStore {
     }
   };
 
-  UpdateAccessGroupPermission = flow(function * ({objectId, addGroup, removeGroup}) {
+  *UpdateAccessGroupPermission({objectId, addGroup, removeGroup}: {objectId: string, addGroup: string, removeGroup: string}): Generator<any, void> {
     if(removeGroup) {
       yield this.RemoveAccessGroupPermission({
         objectId,
@@ -326,59 +392,11 @@ class StreamEditStore {
         groupAddress: addGroup
       });
     }
-  });
+  }
 
   // Metadata Writes
 
-  AddMetadata = flow(function * ({
-    libraryId,
-    objectId,
-    writeToken,
-    config,
-    name,
-    description,
-    displayTitle,
-    finalize=true
-  }) {
-    if(!writeToken) {
-      ({writeToken} = yield this.client.EditContentObject({
-        libraryId,
-        objectId
-      }));
-    }
-
-    yield this.client.MergeMetadata({
-      libraryId,
-      objectId,
-      writeToken,
-      metadata: {
-        public: {
-          name,
-          description,
-          asset_metadata: {
-            display_title: displayTitle || name,
-            title: name || displayTitle,
-            title_type: "live_stream",
-            video_type: "live",
-            slug: slugify(name)
-          }
-        },
-        "live_recording_config": config
-      }
-    });
-
-    if(finalize) {
-      yield this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        commitMessage: "Add metadata",
-        awaitCommitConfirmation: true
-      });
-    }
-  });
-
-  UpdateDetailMetadata = flow(function * ({
+  *UpdateDetailMetadata({
     libraryId,
     objectId,
     writeToken,
@@ -388,7 +406,7 @@ class StreamEditStore {
     description,
     displayTitle,
     slug
-  }) {
+  }: UpdateDetailMetadataParams): Generator<any, FinalizeContentObjectResponse> {
     try {
       const updateValue = {};
 
@@ -451,7 +469,7 @@ class StreamEditStore {
         metadata
       });
 
-      let response;
+      let response: FinalizeContentObjectResponse;
       if(finalize) {
         response = this.client.FinalizeContentObject({
           libraryId,
@@ -472,9 +490,9 @@ class StreamEditStore {
       // eslint-disable-next-line no-console
       console.error("Unable to update metadata", error);
     }
-  });
+  }
 
-  UpdateConfigMetadata = flow(function * ({
+  *UpdateConfigMetadata({
     libraryId,
     objectId,
     writeToken,
@@ -494,7 +512,7 @@ class StreamEditStore {
     customReadLoop,
     audioData,
     multiPathEnabled
-  }){
+  }: UpdateConfigMetadataParams) : Generator<any, {writeToken: string}> {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
     }
@@ -605,7 +623,7 @@ class StreamEditStore {
     }
 
     if(multiPathEnabled !== undefined) {
-      let multiPathMeta = {enabled: false};
+      let multiPathMeta: {enabled: boolean; stream_names?: string[]} = {enabled: false};
       if(multiPathEnabled) {
         const streamNames = [
           "video",
@@ -692,9 +710,9 @@ class StreamEditStore {
     return {
       writeToken
     };
-  });
+  }
 
-  UpdateRecordingConfig = flow(function * ({
+  *UpdateRecordingConfig({
     libraryId,
     objectId,
     slug,
@@ -703,7 +721,7 @@ class StreamEditStore {
     configFormData,
     tsFormData,
     multiPathEnabled
-  }) {
+  }: UpdateRecordingConfigParams): Generator<any, void> {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
     }
@@ -751,7 +769,7 @@ class StreamEditStore {
       commitMessage: "Update recording config",
       awaitCommitConfirmation: true
     });
-  });
+  }
 
   UpdateGeneralConfig = flow(function * ({
     objectId,

@@ -2,6 +2,17 @@ import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {toJS} from "mobx";
 
 // TYPES
+export interface PublishingVideo {
+  bit_rate: number;
+  frame_rate: string;
+  resolution: string;
+  codec: string;
+}
+
+export interface PublishingAudio {
+  sample_rate: number;
+}
+
 export interface ForensicWatermark {
   algo: number;
   forensic_duration: number;
@@ -14,27 +25,27 @@ export interface ForensicWatermark {
 }
 
 export interface ImageWatermark {
-  align_h: string;
-  align_v: string;
-  image: string;
-  margin_h: string;
-  margin_v: string;
-  target_video_height: number;
-  wm_enabled: boolean;
+  align_h?: string;
+  align_v?: string;
+  image?: string;
+  margin_h?: string;
+  margin_v?: string;
+  target_video_height?: number;
+  wm_enabled?: boolean;
 }
 
 export interface SimpleWatermark {
-  font_color: string;
-  font_relative_height: number;
-  shadow: boolean;
-  template: string;
-  timecode: string;
-  timecode_rate: number;
-  x: string;
-  y: string;
+  font_color?: string;
+  font_relative_height?: number;
+  shadow?: boolean;
+  template?: string;
+  timecode?: string;
+  timecode_rate?: number;
+  x?: string;
+  y?: string;
 }
 
-interface RecordingInputCfg {
+export interface RecordingInputCfg {
   bypass_libav_reader?: boolean;
   copy_mode?: string;
   copy_packaging?: "raw_ts" | "rtp_ts";
@@ -51,23 +62,6 @@ interface RecordingConfig {
   persistent?: boolean;
 }
 
-interface ProfileSimpleWatermark {
-  font_color?: string;
-  font_relative_height?: number;
-  shadow?: boolean;
-  shadow_color?: string;
-  template?: string;
-  x?: string;
-  y?: string;
-}
-
-interface ProfileImageWatermark {
-  align_h?: string;
-  align_v?: string;
-  image?: string;
-  wm_enabled?: boolean;
-}
-
 interface LadderAudioSpec {
   bit_rate?: number;
   channels?: number;
@@ -81,13 +75,14 @@ interface LadderVideoSpec {
   width?: number;
 }
 
+// Raw fabric metadata shape — written to/read from the content object
 interface PlayoutConfig {
   dvr?: boolean;
   forensic_watermark?: ForensicWatermark;
-  image_watermark?: ProfileImageWatermark;
+  image_watermark?: ImageWatermark;
   ladder_specs?: { audio?: LadderAudioSpec[]; video?: LadderVideoSpec[] };
   playout_formats?: PlayoutFormat[];
-  simple_watermark?: ProfileSimpleWatermark;
+  simple_watermark?: SimpleWatermark;
 }
 
 interface AudioStreamConfig {
@@ -126,6 +121,12 @@ interface XcParams {
   video_seg_duration_ts?: number;
   video_time_base?: string | null;
   xc_type?: number;
+}
+
+export interface FinalizeContentObjectResponse {
+  objectId: string;
+  hash: string;
+  object_id: string;
 }
 
 export interface LiveRecordingConfigProfile {
@@ -169,6 +170,84 @@ interface ParseLiveConfigDataProps {
   retention?: number | string;
   simpleWatermark?: SimpleWatermark;
   skipDvrSection?: boolean;
+}
+
+export interface StreamMetadata {
+  objectId: string;
+  slug: string;
+  inputCfg: RecordingInputCfg | undefined;
+  // Stream Table Details
+  audioStreamCount: number | undefined;
+  codecName: string;
+  packaging: StreamPackaging[];
+  source: StreamSource[] | undefined;
+  videoBitrate: number;
+  // General Config
+  configProfile: string;
+  description: string;
+  display_title: string;
+  originUrl: string;
+  referenceUrl: string;
+  title: string;
+  // Recording Config
+  connectionTimeout: string | null;
+  partTtl: string | null;
+  persistent: boolean;
+  reconnectionTimeout: string | null;
+  // Playout Config
+  drm: PlayoutFormat[];
+  dvrEnabled: boolean;
+  dvrMaxDuration: string | number | null;
+  dvrStartTime: string;
+  forensicWatermark: ForensicWatermark;
+  imageWatermark: ImageWatermark;
+  simpleWatermark: SimpleWatermark;
+  watermarkType: string;
+  // Other Details
+  egressEnabled: boolean;
+  profileLastUpdated: string;
+  videoStreamProbe: ProbeStream[];
+  publishingVideo: PublishingVideo;
+  publishingAudio: PublishingAudio;
+  sourceInputStats: {
+    packets_received: number;
+    packets_dropped: number;
+    packetsPercentage: number;
+    seq_num_skip_tot: number;
+    seq_num_skip_count: number;
+  };
+}
+
+export interface ProbeStream {
+  avg_frame_rate: string;
+  bit_rate: number;
+  channel_layout: number;
+  codec_id: number;
+  codec_name: string;
+  codec_type: "video" | "audio";
+  color_primaries: string;
+  color_range: string;
+  color_space: string;
+  color_transfer: string;
+  display_aspect_ratio: string;
+  duration_ts: number;
+  frame_rate: string;
+  has_b_frame: boolean;
+  level: number;
+  pix_fmt: number;
+  profile: number;
+  sample_aspect_ratio: string;
+  start_time: number;
+  stream_id: number;
+  stream_index: number;
+  time_base: string;
+  // video-only
+  field_order?: string;
+  height?: number;
+  width?: number;
+  // audio-only
+  channels?: number;
+  sample_rate?: number;
 }
 
 // FUNCTIONS

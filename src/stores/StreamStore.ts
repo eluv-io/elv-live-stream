@@ -3,119 +3,33 @@ import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
-import {DeriveSourceAndPackaging, StreamSource, StreamPackaging} from "@/utils/stream";
+import {
+  DeriveSourceAndPackaging,
+  StreamMetadata, ProbeStream, RecordingInputCfg
+} from "@/utils/stream";
 import RootStore from "@/stores/RootStore";
 import {StreamInfo, PermissionLevel} from "@/stores/DataStore";
 import {StreamOp} from "@/stores/ModalStore";
 
-interface PublishingVideo {
-  bit_rate: any;
-  frame_rate: any;
-  resolution: string;
-  codec: string;
-}
+export type SummaryData = Pick<StreamMetadata,
+  "videoStreamProbe" | "publishingVideo" | "publishingAudio" | "partTtl" | "persistent"
+> & ProbeData;
 
-export interface SummaryData {
-  videoStreamProbe: any;
-  audioStreams: any;
-  audioData: any;
-  publishingVideo: PublishingVideo;
-  publishingAudio: {sample_rate: any};
-  partTtl: string | null;
-  persistent: any;
-}
+// Processed shape for the UI — camelCase, populated by LoadPlayoutConfigData
+export type PlayoutConfigData = Pick<StreamMetadata,
+  "drm" | "dvrEnabled" | "dvrMaxDuration" | "dvrStartTime" |
+  "forensicWatermark" | "imageWatermark" | "simpleWatermark" | "watermarkType"
+>;
 
-export interface PlayoutConfigData {
-  drm: any;
-  dvrEnabled: any;
-  dvrMaxDuration: string | null;
-  dvrStartTime: any;
-  forensicWatermark: any;
-  imageWatermark: any;
-  simpleWatermark: any;
-  watermarkType: string;
-}
-
-export interface RecordingConfigData {
-  audioStreams: any;
-  audioData: any;
-  connectionTimeout: any;
-  copyMpegTs: any;
-  inputCfg: any;
-  multiPath: any;
-  persistent: any;
-  reconnectionTimeout: any;
-  retention: any;
-}
-
-export interface StreamMetadata {
-  // Stream Table Details
-  audioStreamCount: number | undefined;
-  codecName: any;
-  packaging: StreamPackaging[];
-  source: StreamSource[] | undefined;
-  videoBitrate: any;
-  // General Config
-  configProfile: string;
-  description: any;
-  display_title: any;
-  originUrl: any;
-  referenceUrl: any;
-  title: any;
-  // Recording Config
-  connectionTimeout: string | null;
-  partTtl: string | null;
-  persistent: any;
-  reconnectionTimeout: string | null;
-  // Playout Config
-  drm: any;
-  dvrEnabled: any;
-  dvrMaxDuration: string | null;
-  dvrStartTime: any;
-  forensicWatermark: any;
-  imageWatermark: any;
-  simpleWatermark: any;
-  watermarkType: string;
-  // Other Details
-  egressEnabled: any;
-  profileLastUpdated: any;
-  videoStreamProbe: any;
-  publishingVideo: any;
-  publishingAudio: any;
-  sourceInputStats: any;
-}
-
-export interface ProbeStream {
-  avg_frame_rate: string;
-  bit_rate: number;
-  channel_layout: number;
-  codec_id: number;
-  codec_name: string;
-  codec_type: "video" | "audio";
-  color_primaries: string;
-  color_range: string;
-  color_space: string;
-  color_transfer: string;
-  display_aspect_ratio: string;
-  duration_ts: number;
-  frame_rate: string;
-  has_b_frame: boolean;
-  level: number;
-  pix_fmt: number;
-  profile: number;
-  sample_aspect_ratio: string;
-  start_time: number;
-  stream_id: number;
-  stream_index: number;
-  time_base: string;
-  // video-only
-  field_order?: string;
-  height?: number;
-  width?: number;
-  // audio-only
-  channels?: number;
-  sample_rate?: number;
-}
+export type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persistent" | "reconnectionTimeout"> & ProbeData & {
+  copyMpegTs: boolean;
+  inputCfg: RecordingInputCfg;
+  multiPath: {
+    enabled: boolean;
+    stream_names: string[]
+  };
+  retention: string;
+};
 
 export interface AudioDataEntry {
   bitrate: number;
@@ -134,28 +48,18 @@ export interface ProbeData {
   audioData: Record<string, AudioDataEntry>;
 }
 
-export interface StreamListData {
-  title: any;
-  originUrl: any;
-  source: StreamSource[] | undefined;
-  packaging: StreamPackaging[];
-  inputCfg: any;
-}
+export type StreamListData = Pick<StreamMetadata, "title" | "originUrl" | "source" | "packaging" | "inputCfg">;
 
-export interface GeneralConfigData {
-  title: string;
-  description: string;
-  display_title: string;
-  originUrl: string;
-  referenceUrl: string;
-  configProfile: string;
+export type GeneralConfigData = Pick<StreamMetadata,
+  "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile"
+> & {
   permission: PermissionLevel;
   accessGroup: any;
-}
+};
 
 interface StreamFrameUrl {
   timestamp: number;
-  promise: Generator<any, string | undefined, any> | Promise<unknown>;
+  promise: Generator<any, string | undefined> | Promise<unknown>;
   url?: string;
 }
 
@@ -826,7 +730,7 @@ class StreamStore {
     }
   }
 
-  *LoadStreamMetadata({objectId, libraryId}: {objectId: string, libraryId: string}): Generator<any, StreamMetadata | undefined> {
+  *LoadStreamMetadata({objectId, libraryId}: {objectId: string, libraryId: string}): Generator<any, Partial<StreamMetadata> | undefined> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -914,7 +818,7 @@ class StreamStore {
       const sourceInputStats = {
         packets_received: status?.input_stats?.ts?.packets_received ?? 0,
         packets_dropped: status?.input_stats?.ts?.packets_dropped ?? 0,
-        packetsPercentage: status?.input_stats?.ts?.packets_received !== undefined ? (status?.input_stats?.ts?.packets_dropped / status?.input_stats?.ts?.packets_received).toFixed(2) : 0,
+        packetsPercentage: status?.input_stats?.ts?.packets_received !== undefined ? parseFloat((status?.input_stats?.ts?.packets_dropped / status?.input_stats?.ts?.packets_received).toFixed(2)) : 0,
         seq_num_skip_tot: status?.input_stats?.rtp?.seq_num_skip_tot ?? 0,
         seq_num_skip_count: status?.input_stats?.rtp?.seq_num_skip_count ?? 0
       };

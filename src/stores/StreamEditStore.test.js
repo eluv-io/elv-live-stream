@@ -12,7 +12,7 @@ vi.mock("@/utils/constants", () => ({
   DETAILS_TABS: []
 }));
 
-import StreamEditStore from "./StreamEditStore";
+import StreamEditStore from "src/stores/StreamEditStore.ts";
 
 const mockProfile = {
   name: "My Profile",
