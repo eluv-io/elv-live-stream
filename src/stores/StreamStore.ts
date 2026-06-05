@@ -7,7 +7,7 @@ import {
   DeriveSourceAndPackaging,
   StreamMetadata, ProbeStream, RecordingInputCfg
 } from "@/utils/stream";
-import RootStore from "@/stores/RootStore";
+import type RootStore from "@/stores/RootStore";
 import {StreamInfo, PermissionLevel} from "@/stores/DataStore";
 import {StreamOp} from "@/stores/ModalStore";
 

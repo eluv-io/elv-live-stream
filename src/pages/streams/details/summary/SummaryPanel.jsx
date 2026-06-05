@@ -19,7 +19,6 @@ import {
   AudioBitrateReadable,
   BytesToMb,
   DateFormat,
-  FormatTime,
   SampleRateReadable,
   VideoBitrateReadable
 } from "@/utils/formatters.ts";
@@ -39,33 +38,7 @@ import {useClipboard} from "@mantine/hooks";
 import DetailCard, {DetailCardBody, SubDetailCard} from "@/components/detail-card/DetailCard.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import sharedStyles from "@/assets/shared.module.css";
-
-export const Runtime = ({
-  startTime,
-  endTime,
-  currentTimeMs,
-  format="hh,mm,ss",
-  active
-}) => {
-  let time;
-
-  if(!endTime && !active) {
-    return "--";
-  } else if(!endTime) {
-    endTime = currentTimeMs;
-  }
-
-  if(!startTime) {
-    time = "--";
-  } else {
-    time = FormatTime({
-      milliseconds: endTime - startTime,
-      format
-    });
-  }
-
-  return time;
-};
+import {Runtime} from "@/utils/helpers.ts";
 
 const SummaryPanel = observer(({recordingInfo, slug}) => {
   const [status, setStatus] = useState({state: streamStore.streams?.[slug]?.status});

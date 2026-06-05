@@ -1,6 +1,6 @@
 // Manages the live stream platform's core "site" object, including its properties and actions related to platform-level administration.
 import {flow, makeObservable, observable} from "mobx";
-import RootStore from "@/stores/RootStore";
+import type RootStore from "@/stores/RootStore";
 
 class SiteStore {
   rootStore: RootStore;

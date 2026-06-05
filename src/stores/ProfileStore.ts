@@ -2,7 +2,7 @@
 import {makeAutoObservable, runInAction, toJS} from "mobx";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 import {defaultConfigProfile} from "@/utils/defaultProfile.js";
-import RootStore from "@/stores/RootStore";
+import type RootStore from "@/stores/RootStore";
 import {LiveRecordingConfigProfile} from "@/utils/stream";
 
 class ProfileStore {

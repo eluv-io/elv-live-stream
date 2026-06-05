@@ -1,3 +1,5 @@
+import {FormatTime} from "@/utils/formatters";
+
 export const SortTable = ({sortStatus, AdditionalCondition}: {sortStatus: {columnAccessor: string, direction: string}, AdditionalCondition?: (a: unknown, b: unknown) => number | undefined}) => {
   return (a, b) => {
     if(AdditionalCondition && typeof AdditionalCondition(a, b) !== "undefined") {
@@ -58,4 +60,39 @@ export const CheckExpiration = (date: number | "string"): boolean => {
   today.setHours(0, 0, 0, 0);
 
   return inputDate < today;
+};
+
+interface RuntimeParams {
+  startTime: number;
+  endTime?: number;
+  currentTimeMs: number;
+  format: string;
+  active: boolean;
+}
+
+export const Runtime = ({
+  startTime,
+  endTime,
+  currentTimeMs,
+  format="hh,mm,ss",
+  active
+}: RuntimeParams): string => {
+  let time: string;
+
+  if(!endTime && !active) {
+    return "--";
+  } else if(!endTime) {
+    endTime = currentTimeMs;
+  }
+
+  if(!startTime) {
+    time = "--";
+  } else {
+    time = FormatTime({
+      milliseconds: endTime - startTime,
+      format
+    });
+  }
+
+  return time;
 };

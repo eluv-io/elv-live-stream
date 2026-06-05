@@ -11,7 +11,7 @@ import {SortTable} from "@/utils/helpers.ts";
 import {StreamIsActive} from "@/utils/stream.ts";
 import {DataTable} from "mantine-datatable";
 import CopyToVodModal from "@/pages/streams/details/summary/components/CopyToVodModal.jsx";
-import {Runtime} from "@/pages/streams/details/summary/SummaryPanel.jsx";
+import {Runtime} from "@/utils/helpers.ts";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 import styles from "./RecordingPeriodsTable.module.css";

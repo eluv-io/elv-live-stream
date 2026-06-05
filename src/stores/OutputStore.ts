@@ -2,7 +2,7 @@
 import {makeAutoObservable} from "mobx";
 import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/stream";
 import {SortTable} from "@/utils/helpers";
-import RootStore from "@/stores/RootStore";
+import type RootStore from "@/stores/RootStore";
 
 interface OutputInput {
   stream?: string;
