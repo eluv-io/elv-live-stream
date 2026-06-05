@@ -2,14 +2,19 @@
 import {flow, makeAutoObservable, toJS} from "mobx";
 import {
   FinalizeContentObjectResponse,
+  ForensicWatermark,
+  ImageWatermark,
+  LadderSpec,
   LiveRecordingConfigProfile,
   ParseLiveConfigData,
-  RecordingInputCfg, StreamMetadata
+  RecordingInputCfg,
+  SimpleWatermark,
+  StreamMetadata
 } from "@/utils/stream";
-import {PlayoutFormat, STATUS_MAP} from "@/utils/constants";
+import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
 import RootStore from "@/stores/RootStore";
-import {AudioDataEntry} from "@/stores/StreamStore";
+import {AudioDataMap, ProbeData} from "@/stores/StreamStore";
 import {PermissionLevel} from "@/stores/DataStore";
 
 interface InitLiveStreamObjectParams {
@@ -38,7 +43,7 @@ interface DuplicateStreamParams {
 }
 
 interface UpdateDetailMetadataParams {
-  libraryId: string;
+  libraryId?: string;
   objectId: string;
   writeToken: string;
   finalize: boolean;
@@ -67,8 +72,75 @@ interface UpdateConfigMetadataParams {
   inputPackaging: RecordingInputCfg;
   copyMode: string;
   customReadLoop: boolean;
-  audioData: Record<string, AudioDataEntry>,
+  audioData: AudioDataMap,
   multiPathEnabled: boolean;
+}
+
+interface UpdateGeneralConfigParams {
+  objectId: string;
+  libraryId?: string;
+  writeToken?: string;
+  slug: string;
+  configProfile?: string;
+  updatePermission?: boolean;
+  updateAccessGroup?: boolean;
+  removeAccessGroup?: string;
+  formData: {
+    accessGroup: string;
+    name: string;
+    url: string;
+    description: string;
+    displayTitle: string;
+    permission: PermissionLevel;
+  };
+}
+
+interface UpdatePlayoutConfigParams {
+  objectId: string;
+  slug: string;
+  status: StreamStatus;
+  watermarkParams: {
+    textWatermark?: string;
+    imageWatermark?: string;
+    forensicWatermark?: string;
+    existingTextWatermark?: SimpleWatermark;
+    existingImageWatermark?: ImageWatermark;
+    existingForensicWatermark?: ForensicWatermark;
+    watermarkType?: string;
+  };
+  drmParams: {
+    playoutFormats?: PlayoutFormat[];
+    existingPlayoutFormats?: PlayoutFormat[];
+  };
+  configMetaParams: Omit<UpdateConfigMetadataParams,
+    "libraryId" | "objectId" | "writeToken" | "finalize" | "slug" | "skipDvrSection"
+  >;
+}
+
+interface AddWatermarkParams {
+  objectId: string;
+  slug: string;
+  textWatermark?: string;
+  imageWatermark?: string;
+  forensicWatermark?: string;
+  finalize?: boolean;
+  writeToken?: string;
+}
+
+interface WatermarkConfigurationParams extends AddWatermarkParams {
+  libraryId?: string;
+  existingTextWatermark?: SimpleWatermark;
+  existingImageWatermark?: ImageWatermark;
+  existingForensicWatermark?: ForensicWatermark;
+  watermarkType?: string;
+}
+
+interface RemoveWatermarkParams {
+  objectId: string;
+  slug: string;
+  types: ("image" | "text" | "forensic")[];
+  writeToken: string;
+  finalize?: boolean;
 }
 
 interface UpdateRecordingConfigParams {
@@ -76,7 +148,7 @@ interface UpdateRecordingConfigParams {
   objectId: string;
   slug: string;
   writeToken?: string;
-  audioFormData: Record<string, AudioDataEntry>;
+  audioFormData: AudioDataMap;
   configFormData: Pick<UpdateConfigMetadataParams,
     "retention" | "persistent" | "connectionTimeout" | "reconnectionTimeout"
   >;
@@ -84,6 +156,26 @@ interface UpdateRecordingConfigParams {
     "copyMpegTs" | "inputPackaging" | "copyMode" | "customReadLoop"
   >;
   multiPathEnabled?: boolean;
+}
+
+interface DrmConfigurationParams {
+  libraryId: string;
+  objectId: string;
+  slug: string;
+  playoutFormats?: PlayoutFormat[];
+  existingPlayoutFormats?: PlayoutFormat[];
+  writeToken: string;
+  status: StreamStatus;
+  finalize: boolean;
+}
+
+interface UpdateAudioLadderSpecsParams {
+  objectId: string;
+  libraryId: string;
+  writeToken: string;
+  ladderSpecs: {audio: LadderSpec[]},
+  audioData: AudioDataMap,
+  edit: boolean;
 }
 
 class StreamEditStore {
@@ -771,7 +863,7 @@ class StreamEditStore {
     });
   }
 
-  UpdateGeneralConfig = flow(function * ({
+  *UpdateGeneralConfig({
     objectId,
     libraryId,
     formData,
@@ -781,7 +873,7 @@ class StreamEditStore {
     updatePermission=false,
     updateAccessGroup=false,
     removeAccessGroup
-  }) {
+  }: UpdateGeneralConfigParams): Generator<any, {probeCleared: boolean}> {
     const {accessGroup, name, url, description, displayTitle, permission} = formData;
 
     if(!libraryId) {
@@ -859,16 +951,16 @@ class StreamEditStore {
     }
 
     return {probeCleared};
-  });
+  }
 
-  UpdatePlayoutConfig = flow(function * ({
+  *UpdatePlayoutConfig({
     objectId,
     slug,
     status,
     watermarkParams,
     drmParams,
     configMetaParams
-  }){
+  }: UpdatePlayoutConfigParams): Generator<any, void> {
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
     const {writeToken} = yield this.client.EditContentObject({
       libraryId,
@@ -885,8 +977,7 @@ class StreamEditStore {
 
     yield this.WatermarkConfiguration({
       ...basicCallParams,
-      ...watermarkParams,
-      status
+      ...watermarkParams
     });
 
     yield this.DrmConfiguration({
@@ -898,7 +989,7 @@ class StreamEditStore {
     yield this.UpdateConfigMetadata({
       ...basicCallParams,
       ...configMetaParams,
-      skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
+      skipDvrSection: !([STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED] as StreamStatus[]).includes(status)
     });
 
     yield this.client.FinalizeContentObject({
@@ -918,14 +1009,14 @@ class StreamEditStore {
         status: statusResponse.state
       }
     });
-  });
+  }
 
-  ApplyStreamProfile = flow(function * ({
+  *ApplyStreamProfile({
     objectId,
     writeToken,
     profileSlug,
     finalize=true
-  }) {
+  }: {objectId: string, writeToken?: string, profileSlug: string, finalize?: boolean}) : Generator<any, {streamWriteToken?: string, siteWriteToken?: string, config?: LiveRecordingConfigProfile}> {
     const profile = this.rootStore.profileStore.profiles[profileSlug];
 
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -973,16 +1064,16 @@ class StreamEditStore {
     }
 
     return response;
-  });
+  }
 
   // Stream Configuration (probe, watermark, DRM, audio)
 
-  ConfigureStream = flow(function * ({
+  *ConfigureStream({
     objectId,
     slug,
     probeMetadata,
     syncAudioToProbe=true
-  }) {
+  }: {objectId: string, slug: string, probeMetadata: ProbeData, syncAudioToProbe?: boolean}): Generator<any, void> {
     try {
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
@@ -1048,15 +1139,15 @@ class StreamEditStore {
       console.error("Unable to configure stream", error);
       throw error;
     }
-  });
+  }
 
-  RemoveWatermark = flow(function * ({
+  *RemoveWatermark({
     objectId,
     slug,
     types,
     writeToken,
     finalize
-  }) {
+  }: RemoveWatermarkParams): Generator<any, void> {
     yield this.client.StreamRemoveWatermark({
       objectId,
       types,
@@ -1064,7 +1155,7 @@ class StreamEditStore {
       finalize
     });
 
-    const updateValue = {};
+    const updateValue: {imageWatermark?: undefined, simpleWatermark?: undefined, forensicWatermark?: undefined} = {};
 
     types.forEach(type => {
       if(type === "image") {
@@ -1080,9 +1171,9 @@ class StreamEditStore {
       key: slug,
       value: updateValue
     });
-  });
+  }
 
-  AddWatermark = flow(function * ({
+  *AddWatermark({
     objectId,
     slug,
     textWatermark,
@@ -1090,7 +1181,7 @@ class StreamEditStore {
     forensicWatermark,
     finalize=true,
     writeToken
-  }){
+  }: AddWatermarkParams): Generator<any, void> {
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
     if(!writeToken) {
@@ -1132,9 +1223,9 @@ class StreamEditStore {
         }
       });
     }
-  });
+  }
 
-  WatermarkConfiguration = flow(function * ({
+  *WatermarkConfiguration({
     textWatermark,
     imageWatermark,
     forensicWatermark,
@@ -1147,7 +1238,7 @@ class StreamEditStore {
     slug,
     writeToken,
     finalize=true
-  }) {
+  }: WatermarkConfigurationParams) : Generator<any, void> {
     const removeTypes = [];
     const payload = {
       objectId,
@@ -1243,9 +1334,9 @@ class StreamEditStore {
       key: slug,
       value: updateValue
     });
-  });
+  }
 
-  DrmConfiguration = flow(function * ({
+  *DrmConfiguration({
     libraryId,
     objectId,
     slug,
@@ -1254,7 +1345,7 @@ class StreamEditStore {
     writeToken,
     status,
     finalize=true
-  }) {
+  }: DrmConfigurationParams): Generator<any, {drmNeedsInit: boolean, drmInitPayload: {name: string, drm: boolean, format: string}} | void> {
     if(existingPlayoutFormats === playoutFormats) { return; }
 
     libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -1284,7 +1375,7 @@ class StreamEditStore {
 
     let updateValue = {}, drmNeedsInit = false;
 
-    if(![STATUS_MAP.UNINITIALIZED, STATUS_MAP.UNCONFIGURED].includes(status)) {
+    if(!([STATUS_MAP.UNINITIALIZED, STATUS_MAP.UNCONFIGURED] as StreamStatus[]).includes(status)) {
       yield this.client.StreamInitialize({
         name: objectId,
         drm: !!playoutFormats.some(format => !format.includes("clear")),
@@ -1325,9 +1416,9 @@ class StreamEditStore {
         format: playoutFormats.join(",")
       }
     };
-  });
+  }
 
-  CreateAudioStreamsConfig = ({audioData={}}) => {
+  CreateAudioStreamsConfig = ({audioData={}}: {audioData?: AudioDataMap | {}}): Record<string, {playoutLabel: string, recordingBitrate: number, recordingChannels: number}> => {
     let audioStreams = {};
 
     for(let i = 0; i < Object.keys(audioData || {}).length; i++) {
@@ -1347,14 +1438,14 @@ class StreamEditStore {
     return audioStreams;
   };
 
-  UpdateAudioLadderSpecs = flow(function * ({
+  *UpdateAudioLadderSpecs({
     objectId,
     libraryId,
     writeToken,
     ladderSpecs,
     audioData,
     edit=false
-  }) {
+  }: UpdateAudioLadderSpecsParams): Generator<any, {nAudio: number, globalAudioBitrate: number, audioLadderSpecs: LadderSpec[], audioIndexMeta: number[]}> {
     let globalAudioBitrate = 0;
     let nAudio = 0;
     const audioLadderSpecs = [];
@@ -1372,7 +1463,7 @@ class StreamEditStore {
 
     const audioStreams = this.CreateAudioStreamsConfig({audioData});
     Object.keys(audioStreams || {}).forEach((stream, i) => {
-      let audioLadderSpec = {};
+      let audioLadderSpec: Partial<LadderSpec> = {};
       const audioIndex = Object.keys(audioStreams)[i];
       const audio = audioStreams[audioIndex];
 
@@ -1421,7 +1512,7 @@ class StreamEditStore {
       audioLadderSpecs,
       audioIndexMeta
     };
-  });
+  }
 
   UpdateStreamAudioSettings = flow(function * ({
     objectId,

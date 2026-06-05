@@ -115,6 +115,7 @@ export interface StreamInfo {
   embedUrl?: string;
   // Fields added by LoadDetails
   description?: string;
+  configProfile?: string;
   // Fields added by LoadPlayoutConfigData
   drm?: any;
   dvrEnabled?: any;

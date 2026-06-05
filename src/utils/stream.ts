@@ -75,6 +75,23 @@ interface LadderVideoSpec {
   width?: number;
 }
 
+export interface LadderSpec {
+  bit_rate: number;
+  codecs: string;
+  media_type: number;
+  representation: string;
+  stream_index: number;
+  stream_name: string;
+  // video-only
+  height?: number;
+  width?: number;
+  // audio-only
+  channels?: number;
+  default?: boolean;
+  stream_label?: string;
+  lang?: string;
+}
+
 // Raw fabric metadata shape — written to/read from the content object
 interface PlayoutConfig {
   dvr?: boolean;

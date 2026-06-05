@@ -43,9 +43,11 @@ export interface AudioDataEntry {
   default?: boolean;
 }
 
+export type AudioDataMap = Record<string, AudioDataEntry>;
+
 export interface ProbeData {
   audioStreams: ProbeStream[];
-  audioData: Record<string, AudioDataEntry>;
+  audioData: AudioDataMap;
 }
 
 export type StreamListData = Pick<StreamMetadata, "title" | "originUrl" | "source" | "packaging" | "inputCfg">;
@@ -730,7 +732,7 @@ class StreamStore {
     }
   }
 
-  *LoadStreamMetadata({objectId, libraryId}: {objectId: string, libraryId: string}): Generator<any, Partial<StreamMetadata> | undefined> {
+  *LoadStreamMetadata({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Partial<StreamMetadata> | undefined> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
