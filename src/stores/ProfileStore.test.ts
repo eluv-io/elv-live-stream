@@ -1,4 +1,5 @@
 import {describe, it, expect, vi} from "vitest";
+import type {LiveRecordingConfigProfile} from "@/utils/stream";
 
 vi.mock("mobx", async () => ({
   ...(await vi.importActual("mobx")),
@@ -8,7 +9,7 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
-import ProfileStore from "@/stores/ProfileStore.ts";
+import ProfileStore from "@/stores/ProfileStore";
 
 interface MockClient {
   StreamConfigProfiles: ReturnType<typeof vi.fn>;
@@ -47,11 +48,11 @@ const makeStore = ({siteId = "iq__site", siteLibraryId = "ilib-site", client = {
   return {store, mockClient};
 };
 
-const profile = (name = "My Profile", extra: Record<string, unknown> = {}) => ({
+const profile = (name = "My Profile", extra: Record<string, unknown> = {}): LiveRecordingConfigProfile => ({
   name,
   playout_config: {playout_formats: ["hls-clear"]},
   ...extra
-});
+} as unknown as LiveRecordingConfigProfile);
 
 describe("LoadProfiles", () => {
   it("sets state to loaded and populates profiles on success", async () => {
