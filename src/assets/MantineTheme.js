@@ -45,7 +45,7 @@ const theme = createTheme({
     "elv-blue-gray": [
       "#edf5fe",
       "#e4ebf3", // eluvio color
-      "#bcccde",
+      "#c4d4da", // eluvio color
       "#97afcc",
       "#7897bc",
       "#6488b3",
@@ -73,7 +73,7 @@ const theme = createTheme({
       "#d7d7d7", // eluvio color
       "#bdbdbd", // eluvio color
       "rgba(0,0,0,0.06)", // eluvio color
-      "#8b8b8b",
+      "#a8a8a8", // eluvio color
       "#868e96", // eluvio color
       "#6b6b6b", // eluvio color
       "#4b494e", // eluvio color

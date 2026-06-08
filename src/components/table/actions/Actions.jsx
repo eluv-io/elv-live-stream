@@ -1,3 +1,4 @@
+import {useCallback, useState} from "react";
 import {Button, CheckIcon, Combobox, Flex, Group, TextInput, useCombobox} from "@mantine/core";
 import {IconSearch} from "@tabler/icons-react";
 import styles from "./Actions.module.css";
@@ -14,6 +15,11 @@ const Actions = ({
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
   });
+  const [dropdownWidth, setDropdownWidth] = useState(undefined);
+
+  const measureInput = useCallback(node => {
+    if(node) { setDropdownWidth(Math.round(node.offsetWidth * 1.35)); }
+  }, []);
 
   const filteredTags = tagOptions.filter(tag =>
     tag.toLowerCase().includes((searchValue || "").toLowerCase())
@@ -31,11 +37,15 @@ const Actions = ({
         <Combobox
           store={combobox}
           onOptionSubmit={toggleTag}
+          classNames={{dropdown: styles.comboboxDropdown, option: styles.comboboxOption}}
+          width={dropdownWidth}
+          position="bottom-start"
           flex={2}
           maw={400}
         >
           <Combobox.Target>
             <TextInput
+              ref={measureInput}
               classNames={{input: styles.searchBar}}
               placeholder="Search by name or ID"
               leftSection={<IconSearch width={15} height={15} />}
@@ -52,11 +62,13 @@ const Actions = ({
             <Combobox.Dropdown>
               <Combobox.Options>
                 {filteredTags.map(tag => (
-                  <Combobox.Option key={tag} value={tag}>
+                  <Combobox.Option key={tag} value={tag} active={tagFilter.includes(tag)}>
                     <Group gap="sm">
-                      <span style={{width: 16, display: "inline-flex", alignItems: "center"}}>
-                        {tagFilter.includes(tag) && <CheckIcon size={12} />}
-                      </span>
+                      {tagFilter.includes(tag) && (
+                        <span className={styles.comboboxCheck}>
+                          <CheckIcon size={12} />
+                        </span>
+                      )}
                       {tag}
                     </Group>
                   </Combobox.Option>
