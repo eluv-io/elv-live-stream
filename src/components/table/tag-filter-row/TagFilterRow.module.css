@@ -20,8 +20,23 @@
   border: 1px solid var(--mantine-color-elv-gray-3);
 }
 
+.pillLabel {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
 .pillRemove {
   line-height: var(--pill-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pillRemove svg {
+  display: block;
+  width: 15px;
+  height: 15px;
 }
 
 .pillSelected {

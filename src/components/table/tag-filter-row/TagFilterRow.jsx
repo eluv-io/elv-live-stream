@@ -46,6 +46,7 @@ const TagFilterRow = ({tags=[], selectedTags=[], onTagToggle}) => {
             size="md"
             classNames={{
               root: selected ? styles.pillSelected : styles.pill,
+              label: styles.pillLabel,
               remove: styles.pillRemove
             }}
             onClick={() => {
