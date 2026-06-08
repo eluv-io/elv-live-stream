@@ -164,6 +164,15 @@ const theme = createTheme({
         }
       })
     },
+    Pill: {
+      styles: () => ({
+        label: {
+          display: "inline-flex",
+          alignItems: "center",
+          lineHeight: 1
+        }
+      })
+    },
     Badge: {
       styles: () => ({
         root: {
