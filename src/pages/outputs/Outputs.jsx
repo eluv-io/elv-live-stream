@@ -32,6 +32,7 @@ import sharedStyles from "@/assets/shared.module.css";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {useNavigate} from "react-router-dom";
 import Actions from "@/components/table/actions/Actions.jsx";
+import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 
 
 const Outputs = observer(() => {
@@ -88,6 +89,18 @@ const Outputs = observer(() => {
             ]}
             searchValue={outputStore.tableFilter}
             onSearchChange={event => outputStore.SetTableFilter(event.target.value)}
+            tagOptions={outputStore.allMappedStreamTags}
+            tagFilter={outputStore.tableTagFilter}
+            onTagFilterChange={(tags) => outputStore.SetTableTagFilter(tags)}
+          />
+          <TagFilterRow
+            tags={outputStore.allMappedStreamTags}
+            selectedTags={outputStore.tableTagFilter}
+            onTagToggle={(tag) => outputStore.SetTableTagFilter(
+              outputStore.tableTagFilter.includes(tag)
+                ? outputStore.tableTagFilter.filter(t => t !== tag)
+                : [...outputStore.tableTagFilter, tag]
+            )}
           />
           <BatchActions
             actions={actions}

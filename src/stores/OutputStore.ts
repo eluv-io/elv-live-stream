@@ -43,6 +43,7 @@ class OutputStore {
   outputs: Outputs = {};
   outputSettingsId = "";
   tableFilter = "";
+  tableTagFilter: string[] = [];
   sortStatus = {columnAccessor: "name", direction: "asc"};
   rootStore: RootStore;
 
@@ -56,7 +57,24 @@ class OutputStore {
     return this.rootStore.client;
   }
 
+  get allMappedStreamTags(): string[] {
+    const tags = new Set<string>();
+    const streams = this.rootStore.streamStore.streams || {};
+    Object.values(this.outputs).forEach(output => {
+      const streamId = output.input?.stream;
+      if(streamId) {
+        const stream = Object.values(streams).find(s => s.objectId === streamId);
+        stream?.tags?.forEach(t => tags.add(t));
+      }
+    });
+    return Array.from(tags).sort();
+  }
+
   get outputList(): (Output & { slug: string; streamName: string | undefined })[] {
+    const streams = this.rootStore.streamStore.streams || {};
+    const filter = this.tableFilter.toLowerCase();
+    const tagFilter = this.tableTagFilter;
+
     const list = Object.entries(this.outputs)
       .map(([slug, output]) => ({
         slug,
@@ -64,22 +82,33 @@ class OutputStore {
         ...output
       }));
 
-    if(!this.tableFilter) { return list.sort(SortTable({sortStatus: this.sortStatus})); }
+    const filtered = list.filter(output => {
+      const matchesText = !filter ||
+        output.slug?.toLowerCase().includes(filter) ||
+        output.name?.toLowerCase().includes(filter) ||
+        output.description?.toLowerCase().includes(filter) ||
+        output.input?.stream?.toLowerCase().includes(filter) ||
+        output.input?.name?.toLowerCase().includes(filter);
 
-    const filter = this.tableFilter.toLowerCase();
-    const filtered = list.filter(output =>
-      output.slug?.toLowerCase().includes(filter) ||
-      output.name?.toLowerCase().includes(filter) ||
-      output.description?.toLowerCase().includes(filter) ||
-      output.input?.stream?.toLowerCase().includes(filter) ||
-      output.input?.name?.toLowerCase().includes(filter)
-    );
+      const matchesTags = tagFilter.length === 0 || (() => {
+        const streamId = output.input?.stream;
+        if(!streamId) { return false; }
+        const stream = Object.values(streams).find(s => s.objectId === streamId);
+        return tagFilter.some(tag => stream?.tags?.includes(tag));
+      })();
+
+      return matchesText && matchesTags;
+    });
 
     return filtered.sort(SortTable({sortStatus: this.sortStatus}));
   }
 
   SetTableFilter = (filter: string): void => {
     this.tableFilter = filter;
+  };
+
+  SetTableTagFilter = (tags: string[]): void => {
+    this.tableTagFilter = tags;
   };
 
   SetSortStatus = (sortStatus: {columnAccessor: string, direction: string}): void => {

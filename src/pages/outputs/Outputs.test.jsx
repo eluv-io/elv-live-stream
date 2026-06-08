@@ -90,9 +90,12 @@ vi.mock("@/stores/index.ts", () => ({
     state: "pending",
     outputList: [],
     tableFilter: "",
+    tableTagFilter: [],
+    allMappedStreamTags: [],
     sortStatus: {columnAccessor: "name", direction: "asc"},
     LoadOutputs: vi.fn(),
     SetTableFilter: vi.fn(),
+    SetTableTagFilter: vi.fn(),
     SetSortStatus: vi.fn()
   },
   outputModalStore: {
@@ -167,6 +170,8 @@ beforeEach(() => {
   outputStore.state = "pending";
   outputStore.outputList = [];
   outputStore.tableFilter = "";
+  outputStore.tableTagFilter = [];
+  outputStore.allMappedStreamTags = [];
   outputStore.sortStatus = {columnAccessor: "name", direction: "asc"};
   outputStore.LoadOutputs.mockResolvedValue(undefined);
 
@@ -326,7 +331,7 @@ describe("Outputs — interactions", () => {
     // Arrange
     const user = userEvent.setup();
     renderOutputs();
-    const search = screen.getByPlaceholderText(/search by name or id/i);
+    const search = screen.getByPlaceholderText(/search by name/i);
     const typedChar = "x";
 
     // Act
