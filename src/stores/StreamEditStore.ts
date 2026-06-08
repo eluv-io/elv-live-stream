@@ -53,6 +53,7 @@ interface UpdateDetailMetadataParams {
   description: string;
   displayTitle: string;
   slug: string;
+  tags?: string[];
 }
 
 interface UpdateConfigMetadataParams {
@@ -93,6 +94,7 @@ interface UpdateGeneralConfigParams {
     description: string;
     displayTitle: string;
     permission: PermissionLevel;
+    tags?: string[];
   };
 }
 
@@ -524,7 +526,8 @@ class StreamEditStore {
     url,
     description,
     displayTitle,
-    slug
+    slug,
+    tags
   }: UpdateDetailMetadataParams): Generator<any, FinalizeContentObjectResponse> {
     try {
       const updateValue = {};
@@ -580,6 +583,8 @@ class StreamEditStore {
       if(displayTitle) {
         metadata.public.asset_metadata["display_title"] = displayTitle;
       }
+
+      metadata.public.asset_metadata["tags"] = tags ?? [];
 
       yield this.client.MergeMetadata({
         libraryId,
@@ -900,7 +905,7 @@ class StreamEditStore {
     updateAccessGroup=false,
     removeAccessGroup
   }: UpdateGeneralConfigParams): Generator<any, {probeCleared: boolean}> {
-    const {accessGroup, name, url, description, displayTitle, permission} = formData;
+    const {accessGroup, name, url, description, displayTitle, permission, tags} = formData;
 
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -919,6 +924,7 @@ class StreamEditStore {
       url,
       description,
       displayTitle,
+      tags,
       slug,
       writeToken,
       finalize: false
@@ -967,14 +973,13 @@ class StreamEditStore {
       commitMessage: "Apply general config"
     });
 
-    if(configProfile) {
-      this.rootStore.streamStore.UpdateStream({
-        key: slug,
-        value: {
-          configProfile
-        }
-      });
-    }
+    this.rootStore.streamStore.UpdateStream({
+      key: slug,
+      value: {
+        tags: tags ?? [],
+        ...(configProfile ? {configProfile} : {})
+      }
+    });
 
     return {probeCleared};
   }

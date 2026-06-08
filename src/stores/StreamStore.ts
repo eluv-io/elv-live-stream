@@ -50,10 +50,10 @@ export interface ProbeData {
   audioData: AudioDataMap;
 }
 
-type StreamListData = Pick<StreamMetadata, "title" | "originUrl" | "source" | "packaging" | "inputCfg">;
+type StreamListData = Pick<StreamMetadata, "title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags">;
 
 type GeneralConfigData = Pick<StreamMetadata,
-  "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile"
+  "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
 > & {
   permission: PermissionLevel;
   accessGroup: any;
@@ -73,6 +73,7 @@ class StreamStore {
   showMonitorPreviews = false;
   loadingStatus = false;
   tableFilter = "";
+  tableTagFilter: string[] = [];
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
@@ -90,13 +91,23 @@ class StreamStore {
     );
   }
 
+  get allTags(): string[] {
+    const tags = new Set<string>();
+    Object.values(this.streams || {}).forEach(s => s.tags?.forEach(t => tags.add(t)));
+    return Array.from(tags).sort();
+  }
+
   get filteredStreams(): StreamInfo[] {
     const filter = this.tableFilter.toLowerCase();
-    return Object.values(this.streams || {}).filter(s =>
-      !filter ||
-      s.title?.toLowerCase().includes(filter) ||
-      s.objectId?.toLowerCase().includes(filter)
-    );
+    const tagFilter = this.tableTagFilter;
+    return Object.values(this.streams || {}).filter(s => {
+      const matchesText = !filter ||
+        s.title?.toLowerCase().includes(filter) ||
+        s.objectId?.toLowerCase().includes(filter);
+      const matchesTags = tagFilter.length === 0 ||
+        tagFilter.some(tag => s.tags?.includes(tag));
+      return matchesText && matchesTags;
+    });
   }
 
   ToggleMonitorPreviews() {
@@ -119,6 +130,10 @@ class StreamStore {
 
   SetTableFilter = (filter: string) => {
     this.tableFilter = filter;
+  };
+
+  SetTableTagFilter = (tags: string[]) => {
+    this.tableTagFilter = tags;
   };
 
   *CheckStatus({
@@ -487,7 +502,7 @@ class StreamStore {
           libraryId,
           objectId,
           metadataSubtree: "public",
-          select: ["name", "description", "asset_metadata/display_title"]
+          select: ["name", "description", "asset_metadata/display_title", "asset_metadata/tags"]
         }),
         this.client.ContentObjectMetadata({
           libraryId,
@@ -508,6 +523,7 @@ class StreamStore {
         title: generalMeta?.name,
         description: generalMeta?.description,
         display_title: generalMeta?.asset_metadata?.display_title,
+        tags: generalMeta?.asset_metadata?.tags ?? [],
         originUrl: liveRecordingConfigMeta?.url ?? liveRecordingOriginUrl,
         referenceUrl: liveRecordingConfigMeta?.reference_url,
         configProfile: slugify(liveRecordingConfigMeta?.name),
@@ -706,6 +722,7 @@ class StreamStore {
         objectId,
         select: [
           "public/name",
+          "public/asset_metadata/tags",
           "live_recording/recording_config/recording_params/xc_params/input_cfg",
           "live_recording_config/url",
           "live_recording_config/recording_config/input_cfg"
@@ -721,6 +738,7 @@ class StreamStore {
 
       return {
         title: meta?.public?.name,
+        tags: meta?.public?.asset_metadata?.tags ?? [],
         originUrl: url,
         source,
         packaging,
@@ -881,7 +899,8 @@ class StreamStore {
           "name",
           "description",
           "asset_metadata/display_title",
-          "asset_metadata/title"
+          "asset_metadata/title",
+          "asset_metadata/tags"
         ]
       });
 
@@ -901,6 +920,7 @@ class StreamStore {
           title: streamMeta?.name,
           description: streamMeta.description,
           display_title: streamMeta.asset_metadata?.display_title,
+          tags: streamMeta.asset_metadata?.tags ?? [],
           originUrl: urlMeta?.live_recording?.recording_config?.recording_params?.origin_url || urlMeta?.live_recording_config?.url
         }
       });

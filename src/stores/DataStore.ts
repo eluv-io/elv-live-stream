@@ -127,6 +127,7 @@ export interface StreamInfo {
   imageWatermark?: any;
   simpleWatermark?: any;
   watermarkType?: string;
+  tags?: string[];
 }
 
 type StreamMap = Record<string, StreamInfo>;

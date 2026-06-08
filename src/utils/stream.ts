@@ -283,6 +283,7 @@ export interface StreamMetadata {
     seq_num_skip_tot: number;
     seq_num_skip_count: number;
   };
+  tags?: string[];
 }
 
 export interface ProbeStream {

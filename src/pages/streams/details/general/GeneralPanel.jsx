@@ -8,6 +8,7 @@ import {
   Loader,
   Select,
   SimpleGrid,
+  TagsInput,
   Text,
   TextInput,
   Tooltip
@@ -31,6 +32,7 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
     accessGroup: "",
     permission: "",
     url: "",
+    tags: [],
   });
   const [configProfile, setConfigProfile] = useState(currentConfigProfile || "");
   const [applyConfigProfile, setApplyConfigProfile] = useState(false);
@@ -63,7 +65,8 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
           displayTitle: stream.display_title || "",
           permission: stream.permission || "",
           accessGroup: stream.accessGroup || "",
-          url: stream.originUrl || ""
+          url: stream.originUrl || "",
+          tags: stream.tags || []
         });
 
         setConfigProfile(stream.configProfile || "");
@@ -256,6 +259,17 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
                 }
               </Box>
             </DisabledTooltipWrapper>
+
+            <TagsInput
+              label="Tags"
+              description="Add tags to organize and quickly find streams."
+              placeholder="Type and press Enter to add a tag"
+              data={streamStore.allTags}
+              value={formData.tags}
+              onChange={(value) => setFormData(prev => ({...prev, tags: value}))}
+              mb={29}
+              clearable
+            />
 
             <Divider mb={29} />
 

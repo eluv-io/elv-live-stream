@@ -326,7 +326,7 @@ describe("Outputs — interactions", () => {
     // Arrange
     const user = userEvent.setup();
     renderOutputs();
-    const search = screen.getByPlaceholderText(/search by object name or id/i);
+    const search = screen.getByPlaceholderText(/search by name or id/i);
     const typedChar = "x";
 
     // Act

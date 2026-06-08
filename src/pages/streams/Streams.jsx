@@ -9,6 +9,7 @@ import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import Actions from "@/components/table/actions/Actions.jsx";
+import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {notifications} from "@mantine/notifications";
 import {IconCopy, IconPlayerPlay, IconPlayerStop, IconTrash} from "@tabler/icons-react";
@@ -90,7 +91,21 @@ const Streams = observer(() => {
         ]}
         searchValue={streamStore.tableFilter}
         onSearchChange={(event) => streamStore.SetTableFilter(event.target.value)}
+        tagOptions={streamStore.allTags}
+        tagFilter={streamStore.tableTagFilter}
+        onTagFilterChange={(tags) => streamStore.SetTableTagFilter(tags)}
       />
+      <TagFilterRow
+        tags={streamStore.allTags}
+        selectedTags={streamStore.tableTagFilter}
+        onTagToggle={(tag) => {
+          const current = streamStore.tableTagFilter;
+          streamStore.SetTableTagFilter(
+            current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag]
+          );
+        }}
+      />
+
       <BatchActions
         selectedRecords={selectedRecords}
         SelectAll={() => setSelectedRecords(records)}
