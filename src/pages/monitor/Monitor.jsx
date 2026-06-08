@@ -1,7 +1,9 @@
 import {useEffect, useMemo, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, Text, TextInput, Title} from "@mantine/core";
+import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, Text, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
+import Actions from "@/components/table/actions/Actions.jsx";
+import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import {useWindowVirtualizer} from "@tanstack/react-virtual";
 
 import {dataStore, modalStore, rootStore, streamStore} from "@/stores/index.ts";
@@ -18,7 +20,7 @@ import {
   IconDotsVertical,
   IconListCheck,
   IconPlayerPlay,
-  IconPlayerStop, IconSearch
+  IconPlayerStop
 } from "@tabler/icons-react";
 import {QUALITY_MAP, STATUS_MAP} from "@/utils/constants.ts";
 import {notifications} from "@mantine/notifications";
@@ -220,6 +222,7 @@ const GridItem = observer(({stream, index}) => {
 
 const Monitor = observer(() => {
   const [filter, setFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState([]);
   const [debouncedFilter] = useDebouncedValue(filter, 200);
 
   useEffect(() => {
@@ -230,15 +233,18 @@ const Monitor = observer(() => {
 
   const streams = useMemo(() => {
     if(!streamStore.streams) { return undefined; }
-    const filter = debouncedFilter.toLowerCase();
+    const textFilter = debouncedFilter.toLowerCase();
     return Object.values(streamStore.streams)
-      .filter(record =>
-        !filter ||
-        record.title.toLowerCase().includes(filter) ||
-        record.objectId.toLowerCase().includes(filter)
-      )
+      .filter(record => {
+        const matchesText = !textFilter ||
+          record.title?.toLowerCase().includes(textFilter) ||
+          record.objectId?.toLowerCase().includes(textFilter);
+        const matchesTags = tagFilter.length === 0 ||
+          tagFilter.some(tag => record.tags?.includes(tag));
+        return matchesText && matchesTags;
+      })
       .sort(SortTable({sortStatus: {columnAccessor: "title", direction: "asc"}}));
-  }, [streamStore.streams, debouncedFilter]);
+  }, [streamStore.streams, debouncedFilter, tagFilter]);
 
   const rows = useMemo(() => {
     if(!streams) return [];
@@ -260,24 +266,27 @@ const Monitor = observer(() => {
     <PageContainer
       title="Monitor"
     >
-      <Flex w="100%" align="center" mb={16}>
-        <TextInput
-          flex={2}
-          maw={400}
-          classNames={{input: styles.searchBar}}
-          placeholder="Search by object name or ID"
-          leftSection={<IconSearch width="18px" height="18px" />}
-          value={filter}
-          onChange={event => setFilter(event.target.value)}
-        />
-        <Button
-          onClick={() => streamStore.ToggleMonitorPreviews()}
-          variant="outline"
-          ml="auto"
-        >
-          { streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews" }
-        </Button>
-      </Flex>
+      <Actions
+        mb={16}
+        actions={[{
+          label: streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews",
+          id: "toggle-previews",
+          variant: "outline",
+          onClick: () => streamStore.ToggleMonitorPreviews()
+        }]}
+        searchValue={filter}
+        onSearchChange={event => setFilter(event.target.value)}
+        tagOptions={streamStore.allTags}
+        tagFilter={tagFilter}
+        onTagFilterChange={setTagFilter}
+      />
+      <TagFilterRow
+        tags={streamStore.allTags}
+        selectedTags={tagFilter}
+        onTagToggle={(tag) => setTagFilter(current =>
+          current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag]
+        )}
+      />
       {
         !streams ?
           <Box maw={200}>
