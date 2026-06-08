@@ -47,7 +47,7 @@ const Actions = ({
             <TextInput
               ref={measureInput}
               classNames={{input: styles.searchBar}}
-              placeholder="Search by name or ID"
+              placeholder="Search by name, ID, or tags"
               leftSection={<IconSearch width={15} height={15} />}
               value={searchValue}
               onChange={(e) => {
