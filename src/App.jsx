@@ -21,7 +21,7 @@ import OutputModals from "@/pages/outputs/OutputModals.jsx";
 
 const App = observer(() => {
   return (
-    <MantineProvider withCSSVariables theme={MantineTheme}>
+    <MantineProvider theme={MantineTheme}>
       <BrowserRouter>
         <AppShell
           padding="0"
