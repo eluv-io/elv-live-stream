@@ -1,5 +1,5 @@
 import {useCallback, useState} from "react";
-import {Button, CheckIcon, Combobox, Flex, Group, TextInput, useCombobox} from "@mantine/core";
+import {Button, CheckIcon, Combobox, Flex, Group, ScrollArea, TextInput, useCombobox} from "@mantine/core";
 import {IconSearch} from "@tabler/icons-react";
 import styles from "./Actions.module.css";
 
@@ -60,20 +60,22 @@ const Actions = ({
           </Combobox.Target>
           {filteredTags.length > 0 && (
             <Combobox.Dropdown>
-              <Combobox.Options>
-                {filteredTags.map(tag => (
-                  <Combobox.Option key={tag} value={tag} active={tagFilter.includes(tag)}>
-                    <Group gap="sm">
-                      {tagFilter.includes(tag) && (
-                        <span className={styles.comboboxCheck}>
-                          <CheckIcon size={12} />
-                        </span>
-                      )}
-                      {tag}
-                    </Group>
-                  </Combobox.Option>
-                ))}
-              </Combobox.Options>
+              <ScrollArea.Autosize mah={300} type="scroll">
+                <Combobox.Options>
+                  {filteredTags.map(tag => (
+                    <Combobox.Option key={tag} value={tag} active={tagFilter.includes(tag)}>
+                      <Group gap="sm">
+                        {tagFilter.includes(tag) && (
+                          <span className={styles.comboboxCheck}>
+                            <CheckIcon size={12} />
+                          </span>
+                        )}
+                        {tag}
+                      </Group>
+                    </Combobox.Option>
+                  ))}
+                </Combobox.Options>
+              </ScrollArea.Autosize>
             </Combobox.Dropdown>
           )}
         </Combobox>
