@@ -126,6 +126,8 @@ class StreamStore {
 
   UpdateStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
+    const remaining = this.allTags;
+    this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
   };
 
   SetTableFilter = (filter: string) => {
