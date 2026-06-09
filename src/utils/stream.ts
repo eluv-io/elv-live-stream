@@ -428,7 +428,7 @@ export const DeriveSourceAndPackaging = ({url, inputCfg}: {url: string, inputCfg
 
   switch(protocol) {
     case "srt":
-      source = ["srt", "ts"];
+      source = copyPackaging ? ["srt", "rtp", "ts"] : ["srt", "ts"];
       break;
     case "udp": source = ["ts"]; break;
     case "rtp": source = ["rtp", "ts"]; break;
