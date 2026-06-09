@@ -73,6 +73,7 @@ module.exports = [
   "Mezz",
   "mb",
   "mbps",
+  "minmax",
   "mobiledata",
   "monospace",
   "moz",
