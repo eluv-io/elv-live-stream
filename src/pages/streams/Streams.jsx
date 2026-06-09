@@ -138,7 +138,7 @@ const Streams = observer(() => {
       <EditTagsModal
         opened={showEditTagsModal}
         onClose={closeEditTags}
-        records={selectedRecords}
+        records={selectedRecords.map(r => streamStore.streams[r.slug] ?? r)}
       />
     </PageContainer>
   );

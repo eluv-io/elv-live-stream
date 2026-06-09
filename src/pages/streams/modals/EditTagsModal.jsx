@@ -8,13 +8,16 @@ import styles from "@/pages/outputs/modals/modals.module.css";
 import pillStyles from "./EditTagsModal.module.css";
 
 const EditTagsModal = observer(({opened, onClose, records=[]}) => {
+  const [initialSavedTags, setInitialSavedTags] = useState([]);
   const [savedTags, setSavedTags] = useState([]);
   const [newTags, setNewTags] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if(opened) {
-      setSavedTags(Array.from(new Set(records.flatMap(r => r.tags || []))));
+      const unionTags = Array.from(new Set(records.flatMap(r => r.tags || [])));
+      setInitialSavedTags(unionTags);
+      setSavedTags(unionTags);
       setNewTags([]);
     }
   }, [opened]);
@@ -24,11 +27,16 @@ const EditTagsModal = observer(({opened, onClose, records=[]}) => {
   const HandleSave = async() => {
     try {
       setIsSaving(true);
+      const removedTags = initialSavedTags.filter(t => !savedTags.includes(t));
       for(const record of records) {
+        const recordTags = Array.from(new Set([
+          ...(record.tags || []).filter(t => !removedTags.includes(t)),
+          ...newTags
+        ]));
         await streamEditStore.UpdateStreamTags({
           objectId: record.objectId,
           slug: record.slug,
-          tags: allCurrentTags
+          tags: recordTags
         });
       }
       notifications.show({

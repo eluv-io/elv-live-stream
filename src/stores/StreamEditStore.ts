@@ -584,13 +584,19 @@ class StreamEditStore {
         metadata.public.asset_metadata["display_title"] = displayTitle;
       }
 
-      metadata.public.asset_metadata["tags"] = tags ?? [];
-
       yield this.client.MergeMetadata({
         libraryId,
         objectId,
         writeToken,
         metadata
+      });
+
+      yield this.client.ReplaceMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "public/asset_metadata/tags",
+        metadata: tags ?? []
       });
 
       let response: FinalizeContentObjectResponse;
@@ -1956,15 +1962,12 @@ class StreamEditStore {
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
       const {writeToken} = yield this.client.EditContentObject({libraryId, objectId});
 
-      yield this.client.MergeMetadata({
+      yield this.client.ReplaceMetadata({
         libraryId,
         objectId,
         writeToken,
-        metadata: {
-          public: {
-            asset_metadata: {tags}
-          }
-        }
+        metadataSubtree: "public/asset_metadata/tags",
+        metadata: tags
       });
 
       yield this.client.FinalizeContentObject({
