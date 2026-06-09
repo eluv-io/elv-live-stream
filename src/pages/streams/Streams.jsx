@@ -1,4 +1,4 @@
-import {useEffect, useState, useDeferredValue} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
@@ -34,7 +34,6 @@ const Streams = observer(() => {
   }, 500);
 
   const records = streamStore.filteredStreams.slice().sort(SortTable({sortStatus}));
-  const deferredRecords = useDeferredValue(records);
 
   const refreshSelectedStatus = () =>
     Promise.all(selectedRecords.map(r => streamStore.CheckStatus({objectId: r.objectId, slug: r.slug, update: true})));
@@ -126,7 +125,7 @@ const Streams = observer(() => {
         actions={batchActions}
       />
       <StreamsTable
-        records={deferredRecords}
+        records={records}
         sortStatus={sortStatus}
         onSortStatusChange={setSortStatus}
         selectedRecords={selectedRecords}

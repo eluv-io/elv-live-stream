@@ -9,7 +9,7 @@ const TagFilterRow = ({tags=[], selectedTags=[], onTagToggle, onClearAll}) => {
     <Flex direction="row" align="center" mb={20}>
       {
         selectedTags.length > 0 &&
-        <UnstyledButton onClick={onClearAll} pr={12} flex={1}>
+        <UnstyledButton onClick={onClearAll} pr={12}>
           <Text tt="uppercase" c="elv-blue.3" fw={700} fz="0.875rem" textWrap="nowrap">Clear All</Text>
         </UnstyledButton>
       }
