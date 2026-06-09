@@ -145,8 +145,8 @@ export const VideoContainer = observer(({
   }, [playable]);
 
   return (
-    <Box className={styles.videoWrapper} style={{borderRadius}}>
-      <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%" className={styles.aspectRatio}>
+    <Box className={styles.videoWrapper} w="100%" style={{borderRadius}}>
+      <AspectRatio ratio={16 / 9} pos="relative" className={styles.aspectRatio}>
         {
           play ?
             <VideoContent

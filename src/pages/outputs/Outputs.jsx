@@ -101,6 +101,7 @@ const Outputs = observer(() => {
                 ? outputStore.tableTagFilter.filter(t => t !== tag)
                 : [...outputStore.tableTagFilter, tag]
             )}
+            onClearAll={() => outputStore.SetTableTagFilter([])}
           />
           <BatchActions
             actions={actions}

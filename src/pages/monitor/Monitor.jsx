@@ -158,7 +158,7 @@ const OverflowMenu = observer(({stream}) => {
 
 const GridItem = observer(({stream, index}) => {
   return (
-    <Flex direction="column" w="100%">
+    <Flex direction="column" w="100%" style={{minWidth: 0}}>
       <VideoContainer
         index={index}
         slug={stream.slug}
@@ -286,6 +286,7 @@ const Monitor = observer(() => {
         onTagToggle={(tag) => setTagFilter(current =>
           current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag]
         )}
+        onClearAll={() => setTagFilter([])}
       />
       {
         !streams ?
@@ -308,7 +309,7 @@ const Monitor = observer(() => {
                       width: "100%",
                       transform: `translateY(${virtualRow.start}px)`,
                       display: "grid",
-                      gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+                      gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
                       gap: "var(--mantine-spacing-lg)",
                       paddingBottom: "var(--mantine-spacing-lg)",
                     }}
