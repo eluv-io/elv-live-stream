@@ -34,6 +34,7 @@ interface Output {
   reset?: boolean;
   srt_pull?: OutputSrtPull;
   state?: any;
+  tags?: string[];
 }
 
 type Outputs = Record<string, Output>;
@@ -57,21 +58,15 @@ class OutputStore {
     return this.rootStore.client;
   }
 
-  get allMappedStreamTags(): string[] {
+  get allOutputTags(): string[] {
     const tags = new Set<string>();
-    const streams = this.rootStore.streamStore.streams || {};
     Object.values(this.outputs).forEach(output => {
-      const streamId = output.input?.stream;
-      if(streamId) {
-        const stream = Object.values(streams).find(s => s.objectId === streamId);
-        stream?.tags?.forEach(t => tags.add(t));
-      }
+      output.tags?.forEach(t => tags.add(t));
     });
     return Array.from(tags).sort();
   }
 
   get outputList(): (Output & { slug: string; streamName: string | undefined })[] {
-    const streams = this.rootStore.streamStore.streams || {};
     const filter = this.tableFilter.toLowerCase();
     const tagFilter = this.tableTagFilter;
 
@@ -90,12 +85,8 @@ class OutputStore {
         output.input?.stream?.toLowerCase().includes(filter) ||
         output.input?.name?.toLowerCase().includes(filter);
 
-      const matchesTags = tagFilter.length === 0 || (() => {
-        const streamId = output.input?.stream;
-        if(!streamId) { return false; }
-        const stream = Object.values(streams).find(s => s.objectId === streamId);
-        return tagFilter.some(tag => stream?.tags?.includes(tag));
-      })();
+      const matchesTags = tagFilter.length === 0 ||
+        tagFilter.some(tag => output.tags?.includes(tag));
 
       return matchesText && matchesTags;
     });
@@ -431,8 +422,9 @@ class OutputStore {
     name,
     passphrase,
     encryption,
-    stripRtp
-  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean}): Generator<any, void> {
+    stripRtp,
+    tags
+  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -444,6 +436,7 @@ class OutputStore {
       const output = {
         ...existing,
         ...(name !== undefined && {name: name.trim()}),
+        ...(tags !== undefined && {tags}),
         input: cleanInput,
         srt_pull: {
           ...existing.srt_pull,
@@ -670,6 +663,36 @@ class OutputStore {
       outputs.map(outputId => this.DeleteOutput({outputId})
       )
     );
+  }
+
+  *UpdateOutputTags({outputId, tags}: {outputId: string, tags: string[]}): Generator<any, void> {
+    try {
+      const objectId = this.outputSettingsId;
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
+      const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {name: _n, status: _s, ...cleanInput} = existing.input || {};
+
+      const output = {
+        ...existing,
+        input: cleanInput,
+        tags
+      };
+
+      yield this.client.OutputsModify({
+        libraryId,
+        objectId,
+        outputId,
+        output: JSON.parse(JSON.stringify(output))
+      });
+
+      this.UpdateOutput({slug: outputId, updates: {tags}});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to update output tags.", error);
+      throw error;
+    }
   }
 
   *ResetOutput({outputId}: {outputId: string}): Generator<any, void> {

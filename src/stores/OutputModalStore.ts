@@ -13,7 +13,7 @@ interface ModalConfig {
   errorMessage?: string;
 }
 
-type ModalAction = "map" | "remap" | "unmap" | "enable" | "disable" | "delete" | "reset";
+type ModalAction = "map" | "remap" | "unmap" | "enable" | "disable" | "delete" | "reset" | "tags" | "create";
 
 type ModalConfigProps = Record<Exclude<ModalAction, "map">, ModalConfig>
 
