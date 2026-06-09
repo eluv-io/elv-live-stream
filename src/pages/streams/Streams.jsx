@@ -23,6 +23,7 @@ const Streams = observer(() => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    streamStore.SetTableTagFilter([]);
     if(!dataStore.streamsLoaded) {
       dataStore.LoadSiteStreams();
     }

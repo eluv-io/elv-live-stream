@@ -190,7 +190,7 @@ const GridItem = observer(({stream, index}) => {
                 }}
               >
                 <Group gap={5}>
-                  <Text fz={12} fw={600}>
+                  <Text fz={12} fw={600} truncate>
                     Start Stream
                   </Text>
                 </Group>
