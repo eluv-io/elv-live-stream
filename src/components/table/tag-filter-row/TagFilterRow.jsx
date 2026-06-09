@@ -1,11 +1,16 @@
 import {Flex, Pill, Scroller} from "@mantine/core";
 import styles from "./TagFilterRow.module.css";
+import {IconChevronLeft, IconChevronRight} from "@tabler/icons-react";
 
 const TagFilterRow = ({tags=[], selectedTags=[], onTagToggle}) => {
   if(!tags.length) { return null; }
 
   return (
-    <Scroller mb={20}>
+    <Scroller
+      mb={20}
+      startControlIcon={<IconChevronLeft size={24} color="var(--mantine-color-elv-gray-6)" />}
+      endControlIcon={<IconChevronRight size={24} color="var(--mantine-color-elv-gray-6)" />}
+    >
       <Flex
         gap={8}
       >
