@@ -1,0 +1,32 @@
+.pill {
+  background-color: var(--mantine-color-elv-blue-0);
+  color: var(--mantine-color-elv-gray-9);
+  border: 1px solid var(--mantine-color-elv-blue-0);
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.pillLabel {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.pillRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pillRemove svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+
+.emptyTags {
+  font-size: 0.875rem;
+  color: var(--mantine-color-elv-gray-5);
+  font-style: italic;
+}

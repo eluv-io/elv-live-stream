@@ -1951,6 +1951,37 @@ class StreamEditStore {
       return response;
     }
   }
+  *UpdateStreamTags({objectId, slug, tags}: {objectId: string, slug: string, tags: string[]}): Generator<any, void> {
+    try {
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      const {writeToken} = yield this.client.EditContentObject({libraryId, objectId});
+
+      yield this.client.MergeMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadata: {
+          public: {
+            asset_metadata: {tags}
+          }
+        }
+      });
+
+      yield this.client.FinalizeContentObject({
+        libraryId,
+        objectId,
+        writeToken,
+        commitMessage: "Update tags",
+        awaitCommitConfirmation: true
+      });
+
+      this.rootStore.streamStore.UpdateStream({key: slug, value: {tags}});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to update stream tags.", error);
+      throw error;
+    }
+  }
 }
 
 export default StreamEditStore;

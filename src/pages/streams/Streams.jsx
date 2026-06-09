@@ -3,6 +3,7 @@ import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
+import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
 import {dataStore, modalStore, streamStore} from "@/stores/index.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
@@ -12,12 +13,13 @@ import Actions from "@/components/table/actions/Actions.jsx";
 import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {notifications} from "@mantine/notifications";
-import {IconCopy, IconPlayerPlay, IconPlayerStop, IconTrash} from "@tabler/icons-react";
+import {IconCopy, IconLabel, IconPlayerPlay, IconPlayerStop, IconTrash} from "@tabler/icons-react";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
+  const [showEditTagsModal, {open: openEditTags, close: closeEditTags}] = useDisclosure(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -78,6 +80,13 @@ const Streams = observer(() => {
       onClick: openDuplicate,
       disabled: selectedRecords.length !== 1
     },
+    {
+      label: "Edit Tags",
+      id: "edit-tags-batch-action",
+      icon: IconLabel,
+      onClick: openEditTags,
+      disabled: selectedRecords.length === 0
+    }
   ];
 
   return (
@@ -124,6 +133,11 @@ const Streams = observer(() => {
       <DuplicateStreamModal
         opened={showDuplicateModal}
         onClose={closeDuplicate}
+        records={selectedRecords}
+      />
+      <EditTagsModal
+        opened={showEditTagsModal}
+        onClose={closeEditTags}
         records={selectedRecords}
       />
     </PageContainer>
