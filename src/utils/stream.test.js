@@ -73,12 +73,11 @@ describe("ParseLiveConfigData", () => {
     });
 
     it("builds inputCfg when copyMpegTs is true", () => {
-      const result = ParseLiveConfigData({copyMpegTs: true, copyMode: "raw", inputPackaging: "raw_ts", customReadLoop: false});
+      const result = ParseLiveConfigData({copyMpegTs: true, copyMode: "raw", inputPackaging: "raw_ts"});
       expect(result.recording_config.input_cfg).toEqual({
         bypass_libav_reader: true,
         copy_mode: "raw",
         copy_packaging: "raw_ts",
-        custom_read_loop_enabled: false,
         input_packaging: "raw_ts"
       });
     });

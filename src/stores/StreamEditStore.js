@@ -491,7 +491,6 @@ class StreamEditStore {
     copyMpegTs,
     inputPackaging,
     copyMode,
-    customReadLoop,
     audioData,
     multiPathEnabled
   }){
@@ -523,8 +522,8 @@ class StreamEditStore {
         bypass_libav_reader: true,
         copy_mode: copyMode,
         copy_packaging: inputPackaging,
-        custom_read_loop_enabled: customReadLoop,
-        input_packaging: inputPackaging
+        input_packaging: inputPackaging,
+        custom_read_loop_enabled: true
       } : {};
     }
 
@@ -598,7 +597,7 @@ class StreamEditStore {
           bypass_libav_reader: true,
           copy_mode: copyMode,
           copy_packaging: inputPackaging,
-          custom_read_loop_enabled: customReadLoop,
+          custom_read_loop_enabled: true,
           input_packaging: inputPackaging
         } : {}
       });
@@ -716,7 +715,7 @@ class StreamEditStore {
     }
 
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
-    const {copyMpegTs, inputPackaging, copyMode, customReadLoop} = tsFormData;
+    const {copyMpegTs, inputPackaging, copyMode} = tsFormData;
 
     yield this.UpdateStreamAudioSettings({
       objectId,
@@ -737,7 +736,6 @@ class StreamEditStore {
       copyMpegTs,
       inputPackaging,
       copyMode,
-      customReadLoop,
       audioData: audioFormData,
       multiPathEnabled,
       writeToken,
