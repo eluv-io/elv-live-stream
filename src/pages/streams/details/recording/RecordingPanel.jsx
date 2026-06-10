@@ -40,7 +40,6 @@ const RecordingPanel = observer(({
 
   const [copyMpegTs, setCopyMpegTs] = useState(false);
   const [inputPackaging, setInputPackaging] = useState("rtp_ts");
-  const [customReadLoop, setCustomReadLoop] = useState(false);
   const [copyMode, setCopyMode] = useState("raw_only");
   const [multiPathEnabled, setMultiPathEnabled] = useState(false);
 
@@ -82,7 +81,6 @@ const RecordingPanel = observer(({
       setCopyMpegTs(copyMpegTsMeta === undefined ? false : copyMpegTsMeta);
       setCopyMode(inputCfg?.copy_mode ?? "raw");
       setInputPackaging(inputCfg?.input_packaging ?? "rtp_ts");
-      setCustomReadLoop(inputCfg?.custom_read_loop_enabled ?? true);
     } finally {
       setLoading(false);
     }
@@ -123,8 +121,7 @@ const RecordingPanel = observer(({
         tsFormData: {
           copyMpegTs,
           inputPackaging,
-          copyMode,
-          customReadLoop
+          copyMode
         },
         edit: true,
         multiPathEnabled
@@ -265,16 +262,7 @@ const RecordingPanel = observer(({
                   </Group>
                 </Radio.Group>
               </SimpleGrid>
-              <SimpleGrid cols={2} spacing={150} mb={29} ml={34}>
-                <Box>
-                  <Checkbox
-                    label="Enable Legacy Reader"
-                    description="Enable for compatibility with older hardware or legacy playback engines."
-                    checked={customReadLoop}
-                    onChange={(event) => setCustomReadLoop(event.target.checked)}
-                  />
-                </Box>
-              </SimpleGrid>
+
             </Collapse>
             <Divider mb={29} />
           </DisabledTooltipWrapper>
