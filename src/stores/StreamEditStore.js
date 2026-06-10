@@ -597,7 +597,7 @@ class StreamEditStore {
           bypass_libav_reader: true,
           copy_mode: copyMode,
           copy_packaging: inputPackaging,
-          custom_read_loop_enabed: true,
+          custom_read_loop_enabled: true,
           input_packaging: inputPackaging
         } : {}
       });
