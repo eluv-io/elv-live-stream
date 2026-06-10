@@ -218,7 +218,7 @@ const RecordingPanel = observer(({
               />
             </SimpleGrid>
 
-            <Collapse in={copyMpegTs}>
+            <Collapse expanded={copyMpegTs}>
               <SimpleGrid cols={2} spacing={150} mb={29} ml={34}>
                 <Radio.Group
                   name="input-packaging"
