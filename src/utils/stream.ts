@@ -219,7 +219,6 @@ interface ParseLiveConfigDataProps {
   connectionTimeout?: number | string;
   copyMode?: "raw_ts" | "raw_only";
   copyMpegTs?: boolean;
-  customReadLoop?: boolean;
   dvrEnabled?: boolean;
   dvrMaxDuration?: number | string;
   dvrStartTime?: string;
@@ -326,7 +325,6 @@ export const ParseLiveConfigData = ({
   connectionTimeout,
   copyMode,
   copyMpegTs,
-  customReadLoop,
   dvrEnabled,
   dvrMaxDuration,
   dvrStartTime,
@@ -356,7 +354,6 @@ export const ParseLiveConfigData = ({
     bypass_libav_reader: true,
     copy_mode: copyMode,
     copy_packaging: inputPackaging,
-    custom_read_loop_enabled: customReadLoop,
     input_packaging: inputPackaging
   } : copyMpegTs === false ? {} : undefined;
 
