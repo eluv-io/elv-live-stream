@@ -52,6 +52,7 @@ module.exports = [
   "helvetica",
   "hls",
   "iat",
+  "identifier",
   "ilib",
   "ip",
   "iq",
