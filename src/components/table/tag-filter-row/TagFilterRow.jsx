@@ -7,12 +7,9 @@ const TagFilterRow = ({tags=[], selectedTags=[], onTagToggle, onClearAll}) => {
 
   return (
     <Flex direction="row" align="center" mb={20}>
-      {
-        selectedTags.length > 0 &&
-        <UnstyledButton onClick={onClearAll} pr={12}>
-          <Text tt="uppercase" c="elv-blue.3" fw={700} fz="0.875rem" textWrap="nowrap">Clear All</Text>
-        </UnstyledButton>
-      }
+      <UnstyledButton onClick={onClearAll} mr={14} disabled={selectedTags.length === 0}>
+        <Text tt="uppercase" c={selectedTags.length === 0 ? "elv-gray.6" : "elv-blue.3"} fw={700} fz="0.875rem" textWrap="nowrap">Clear All</Text>
+      </UnstyledButton>
       <Scroller
         startControlIcon={<IconChevronLeft size={24} color="var(--mantine-color-elv-gray-6)" />}
         endControlIcon={<IconChevronRight size={24} color="var(--mantine-color-elv-gray-6)" />}
