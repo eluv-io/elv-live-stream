@@ -97,9 +97,14 @@ class StreamStore {
     return Array.from(tags).sort();
   }
 
+  get activeTagFilter(): string[] {
+    const available = new Set(this.allTags);
+    return this.tableTagFilter.filter(t => available.has(t));
+  }
+
   get filteredStreams(): StreamInfo[] {
     const filter = this.tableFilter.toLowerCase();
-    const tagFilter = this.tableTagFilter;
+    const tagFilter = this.activeTagFilter;
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||
         s.title?.toLowerCase().includes(filter) ||

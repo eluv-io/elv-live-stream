@@ -101,12 +101,12 @@ const Streams = observer(() => {
         searchValue={streamStore.tableFilter}
         onSearchChange={(event) => streamStore.SetTableFilter(event.target.value)}
         tagOptions={streamStore.allTags}
-        tagFilter={streamStore.tableTagFilter}
+        tagFilter={streamStore.activeTagFilter}
         onTagFilterChange={(tags) => streamStore.SetTableTagFilter(tags)}
       />
       <TagFilterRow
         tags={streamStore.allTags}
-        selectedTags={streamStore.tableTagFilter}
+        selectedTags={streamStore.activeTagFilter}
         onTagToggle={(tag) => {
           const current = streamStore.tableTagFilter;
           streamStore.SetTableTagFilter(
