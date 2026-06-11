@@ -250,7 +250,7 @@ const RecordingPanel = observer(({
                 >
                   <Group mt={20} gap={18}>
                     <Radio
-                      value="raw_ts"
+                      value="raw"
                       label="Raw"
                       description=""
                     />
