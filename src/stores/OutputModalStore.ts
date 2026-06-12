@@ -15,7 +15,7 @@ interface ModalConfig {
 
 type ModalAction = "map" | "remap" | "unmap" | "enable" | "disable" | "delete" | "reset" | "tags" | "create";
 
-type ModalConfigProps = Record<Exclude<ModalAction, "map">, ModalConfig>
+type ModalConfigProps = Record<Exclude<ModalAction, "map" | "tags" | "create">, ModalConfig>
 
 const MODAL_CONFIG: ModalConfigProps = {
   remap: {

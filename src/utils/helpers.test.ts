@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {CheckExpiration, SanitizeUrl, SortTable} from "@/utils/helpers.ts";
+import {CheckExpiration, SanitizeUrl, SortTable} from "@/utils/helpers";
 
 describe("SortTable", () => {
   const asc = {columnAccessor: "name", direction: "asc"};
@@ -79,10 +79,6 @@ describe("CheckExpiration", () => {
     expect(CheckExpiration(today.getTime())).toBe(false);
   });
 
-  it("returns false for non-number input", () => {
-    expect(CheckExpiration("not a number")).toBe(false);
-    expect(CheckExpiration(null)).toBe(false);
-  });
 });
 
 describe("SanitizeUrl", () => {

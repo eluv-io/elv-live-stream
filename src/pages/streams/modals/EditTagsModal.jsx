@@ -28,17 +28,20 @@ const EditTagsModal = observer(({opened, onClose, records=[]}) => {
     try {
       setIsSaving(true);
       const removedTags = initialSavedTags.filter(t => !savedTags.includes(t));
+
       for(const record of records) {
         const recordTags = Array.from(new Set([
           ...(record.tags || []).filter(t => !removedTags.includes(t)),
           ...newTags
         ]));
+
         await streamEditStore.UpdateStreamTags({
           objectId: record.objectId,
           slug: record.slug,
           tags: recordTags
         });
       }
+
       notifications.show({
         title: "Tags updated",
         message: <NotificationMessage>Tags saved successfully</NotificationMessage>

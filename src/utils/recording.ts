@@ -8,7 +8,7 @@ export const MeetsDurationMin = ({startTime, endTime}: {startTime: number, endTi
   return (endTime - startTime) >= 61000;
 };
 
-export const IsWithinRetentionPeriod = ({startTime, persistent, retention}: {startTime: number, persistent?: boolean, retention: string}): boolean => {
+export const IsWithinRetentionPeriod = ({startTime, persistent, retention}: {startTime: number | string, persistent?: boolean, retention: string}): boolean => {
   const currentTimeMs = new Date().getTime();
   const startTimeMs = new Date(startTime).getTime();
 

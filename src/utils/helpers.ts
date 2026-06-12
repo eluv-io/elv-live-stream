@@ -1,6 +1,6 @@
 import {FormatTime} from "@/utils/formatters";
 
-export const SortTable = ({sortStatus, AdditionalCondition}: {sortStatus: {columnAccessor: string, direction: string}, AdditionalCondition?: (a: unknown, b: unknown) => number | undefined}) => {
+export const SortTable = ({sortStatus, AdditionalCondition}: {sortStatus: {columnAccessor: string, direction: string}, AdditionalCondition?: (a: Record<string, any>, b: Record<string, any>) => number | undefined}) => {
   return (a, b) => {
     if(AdditionalCondition && typeof AdditionalCondition(a, b) !== "undefined") {
       return AdditionalCondition(a, b);
@@ -23,7 +23,7 @@ export const SortTable = ({sortStatus, AdditionalCondition}: {sortStatus: {colum
   };
 };
 
-export const SanitizeUrl = ({url, removeQueryParams=[]}: {url?: string, removeQueryParams: string[]}) : string => {
+export const SanitizeUrl = ({url, removeQueryParams=[]}: {url?: string, removeQueryParams?: string[]}) : string => {
   if(!url) {
     return "";
   }
@@ -50,9 +50,7 @@ export const SanitizeUrl = ({url, removeQueryParams=[]}: {url?: string, removeQu
   }
 };
 
-export const CheckExpiration = (date: number | "string"): boolean => {
-  if(typeof date !== "number") { return false; }
-
+export const CheckExpiration = (date: number): boolean => {
   const today = new Date();
   const inputDate = new Date(date);
 

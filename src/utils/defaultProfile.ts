@@ -1,7 +1,9 @@
-export const defaultConfigProfile = {
+import {LiveRecordingConfigProfile} from "@/utils/stream";
+
+export const defaultConfigProfile: LiveRecordingConfigProfile = {
   "name": "Built In",
   "playout_config": {
-    "dvr_enabled": true,
+    "dvr": true,
     "dvr_max_duration": 14400,
     "ladder_specs": {
       "audio": [

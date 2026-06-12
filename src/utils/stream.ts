@@ -117,6 +117,8 @@ interface LadderVideoSpec {
   bit_rate?: number;
   codecs?: string;
   height?: number;
+  level?: number;
+  profile?: string;
   width?: number;
 }
 
@@ -140,6 +142,8 @@ export interface LadderSpec {
 // Raw fabric metadata shape — written to/read from the content object
 interface PlayoutConfig {
   dvr?: boolean;
+  dvr_max_duration?: number;
+  dvr_start_time?: string;
   forensic_watermark?: ForensicWatermark;
   image_watermark?: ImageWatermark;
   ladder_specs?: { audio?: LadderAudioSpec[]; video?: LadderVideoSpec[] };
@@ -171,7 +175,9 @@ interface XcParams {
   format?: string;
   listen?: boolean;
   n_audio?: number;
+  level?: number;
   preset?: string;
+  profile?: string;
   sample_rate?: number;
   seg_duration?: string;
   skip_decoding?: boolean;
@@ -202,31 +208,31 @@ export interface LiveRecordingConfigProfile {
 }
 
 interface AudioTrackFormEntry {
-  bitrate: number;
-  codec: string;
-  record: boolean;
-  recording_bitrate: number;
-  recording_channels: number;
-  playout: boolean;
-  playout_label: string;
+  bitrate?: number;
+  codec?: string;
+  record?: boolean;
+  recording_bitrate?: number;
+  recording_channels?: number;
+  playout?: boolean;
+  playout_label?: string;
   lang?: string;
-  default: boolean;
+  default?: boolean;
 }
 
 interface ParseLiveConfigDataProps {
   audioFormData?: Record<string, AudioTrackFormEntry>;
   configProfile?: LiveRecordingConfigProfile;
   connectionTimeout?: number | string;
-  copyMode?: "raw_ts" | "raw_only";
+  copyMode?: "raw" | "raw_only";
   copyMpegTs?: boolean;
   dvrEnabled?: boolean;
   dvrMaxDuration?: number | string;
   dvrStartTime?: string;
-  encryption: PlayoutFormat[];
+  encryption?: PlayoutFormat[];
   forensicWatermark?: ForensicWatermark;
   imageWatermark?: ImageWatermark;
   inputPackaging?: "raw_ts" | "rtp_ts";
-  persistent: boolean;
+  persistent?: boolean;
   reconnectionTimeout?: number;
   retention?: number | string;
   simpleWatermark?: SimpleWatermark;
@@ -393,12 +399,12 @@ export const StreamIsActive = (state: StreamStatus) : boolean => {
   return active;
 };
 
-export const StatusColor = (status: StreamStatus): "elv-orange.6" | "elv-green.5" | "elv-red.4" | "elv-yellow.6" | "" => {
+export const StatusColor = (status: StreamStatus | ""): "elv-orange.6" | "elv-green.5" | "elv-red.4" | "elv-yellow.6" | "" => {
   if(status === STATUS_MAP.STOPPED) {
     return "elv-orange.6";
   } else if(status === STATUS_MAP.RUNNING) {
     return "elv-green.5";
-  } else if(([STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED, STATUS_MAP.STALLED] as StreamStatus[]).includes(status)) {
+  } else if(([STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED, STATUS_MAP.STALLED] as StreamStatus[]).includes(status as StreamStatus)) {
     return "elv-red.4";
   } else if(status === STATUS_MAP.DEGRADED) {
     return "elv-yellow.6";
@@ -410,7 +416,7 @@ export const StatusColor = (status: StreamStatus): "elv-orange.6" | "elv-green.5
 export type StreamSource = "srt" | "ts" | "rtp" | "rtmp";
 export type StreamPackaging = "rtp" | "ts" | "fmp4";
 
-export const DeriveSourceAndPackaging = ({url, inputCfg}: {url: string, inputCfg: RecordingInputCfg}): {source: StreamSource[] | undefined, packaging: StreamPackaging[]} => {
+export const DeriveSourceAndPackaging = ({url, inputCfg}: {url: string, inputCfg?: RecordingInputCfg}): {source: StreamSource[] | undefined, packaging: StreamPackaging[]} => {
   const protocol = url?.match(/^(\w+):\/\//)?.[1];
   const copyMode = inputCfg?.copy_mode;
   const copyPackaging = inputCfg?.copy_packaging;

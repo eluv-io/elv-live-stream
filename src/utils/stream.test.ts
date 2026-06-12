@@ -1,9 +1,9 @@
 import {describe, expect, it} from "vitest";
-import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor} from "@/utils/stream.ts";
-import {STATUS_MAP} from "@/utils/constants.ts";
+import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor, LiveRecordingConfigProfile} from "@/utils/stream";
+import {STATUS_MAP} from "@/utils/constants";
 
 describe("ParseLiveConfigData", () => {
-  const mockProfile = {
+  const mockProfile: LiveRecordingConfigProfile = {
     name: "Test Profile",
     recording_config: {part_ttl: 3600},
     playout_config: {playout_formats: ["hls-clear"]},

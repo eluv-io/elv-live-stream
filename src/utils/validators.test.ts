@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest";
-import {ValidateTextField} from "@/utils/validators.ts";
+import {ValidateTextField} from "@/utils/validators";
 
 describe("ValidateTextField", () => {
   it("returns false if the field is empty", () => {

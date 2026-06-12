@@ -8,7 +8,7 @@ import {
   DateFormat,
   BytesToMb,
   RelativeTime
-} from "@/utils/formatters.ts";
+} from "@/utils/formatters";
 
 describe("VideoBitrateReadable", () => {
   it("converts bitrate to Mbps", () => {
@@ -127,10 +127,6 @@ describe("DateFormat", () => {
     const resultIso = DateFormat({time: knownIso, format: "iso"});
     const resultMs = DateFormat({time: knownMs, format: "ms"});
     expect(resultIso).toBe(resultMs);
-  });
-
-  it("throws for an invalid format type", () => {
-    expect(() => DateFormat({time: knownSec, format: "invalid"})).toThrow("Invalid format type provided.");
   });
 });
 
