@@ -78,15 +78,17 @@ class OutputStore {
       }));
 
     const filtered = list.filter(output => {
-      const matchesText = !filter ||
-        output.slug?.toLowerCase().includes(filter) ||
-        output.name?.toLowerCase().includes(filter) ||
-        output.description?.toLowerCase().includes(filter) ||
-        output.input?.stream?.toLowerCase().includes(filter) ||
-        output.input?.name?.toLowerCase().includes(filter);
+      const searchableFields = [
+        output.slug,
+        output.name,
+        output.description,
+        output.input?.stream,
+        output.input?.name
+      ];
 
-      const matchesTags = tagFilter.length === 0 ||
-        tagFilter.some(tag => output.tags?.includes(tag));
+      const matchesText = !filter || searchableFields.some(field => field?.toLowerCase().includes(filter));
+
+      const matchesTags = tagFilter.length === 0 || tagFilter.some(tag => output.tags?.includes(tag));
 
       return matchesText && matchesTags;
     });

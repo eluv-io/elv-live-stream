@@ -190,6 +190,11 @@ const Outputs = observer(() => {
                 }
               },
               {
+                accessor: "packaging",
+                title: "Packaging",
+                render: () => {}
+              },
+              {
                 accessor: "srt_url",
                 title: "URL",
                 width: "30%",
@@ -214,6 +219,11 @@ const Outputs = observer(() => {
                     </ActionIcon>
                   </Group>
                 )
+              },
+              {
+                accessor: "type",
+                title: "Type",
+                render: () => {}
               },
               {
                 accessor: "clients",
