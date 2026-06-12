@@ -26,18 +26,52 @@ interface OutputSrtPull {
   strip_rtp?: boolean;
 }
 
+interface OutputRtp {
+  node_id?: string;
+  url?: string;
+}
+
 interface Output {
   enabled?: boolean;
   input?: OutputInput;
   name?: string;
   description?: string;
   reset?: boolean;
+  rtp?: OutputRtp;
   srt_pull?: OutputSrtPull;
   state?: any;
   tags?: string[];
 }
 
 type Outputs = Record<string, Output>;
+
+export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "TS";
+
+const DeriveOutputType = (output: Output): OutputType[] | undefined => {
+  const inputProtocol = output.input?.url?.match(/^(\w+):\/\//)?.[1];
+  const packaging: OutputType = inputProtocol === "rtp" ? "RTP" : "TS";
+
+  if(output.rtp) return ["RTP"];
+  if(output.srt_pull) return ["SRT PULL", packaging];
+  return undefined;
+};
+
+interface FlatOutput {
+  slug: string;
+  name?: string;
+  description?: string;
+  tags?: string[];
+  enabled?: boolean;
+  reset?: boolean;
+  streamId?: string;
+  streamName?: string;
+  streamStatus?: string;
+  url?: string;
+  type?: OutputType[];
+  packaging?: StreamPackaging[];
+  source?: StreamSource[];
+  connectedClients: number;
+}
 
 class OutputStore {
   state: "loaded" | "error" | "pending" = "pending";
@@ -66,15 +100,26 @@ class OutputStore {
     return Array.from(tags).sort();
   }
 
-  get outputList(): (Output & { slug: string; streamName: string | undefined })[] {
+  get outputList(): FlatOutput[] {
     const filter = this.tableFilter.toLowerCase();
     const tagFilter = this.tableTagFilter;
 
     const list = Object.entries(this.outputs)
-      .map(([slug, output]) => ({
+      .map(([slug, output]): FlatOutput => ({
         slug,
-        streamName: output?.input?.name,
-        ...output
+        name: output.name,
+        description: output.description,
+        tags: output.tags,
+        enabled: output.enabled,
+        reset: output.reset,
+        streamId: output.input?.stream,
+        streamName: output.input?.name,
+        streamStatus: output.input?.status,
+        url: output.srt_pull?.urls?.[0] ?? output.rtp?.url,
+        type: DeriveOutputType(output),
+        packaging: output.input?.packaging,
+        source: output.input?.source,
+        connectedClients: output.state?.connected_clients ?? 0,
       }));
 
     const filtered = list.filter(output => {
@@ -82,8 +127,8 @@ class OutputStore {
         output.slug,
         output.name,
         output.description,
-        output.input?.stream,
-        output.input?.name
+        output.streamId,
+        output.streamName
       ];
 
       const matchesText = !filter || searchableFields.some(field => field?.toLowerCase().includes(filter));

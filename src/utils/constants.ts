@@ -144,6 +144,13 @@ export const QUALITY_COLOR_MAP = {
   "degraded": "elv-orange.6"
 };
 
+export const OUTPUT_TYPE_COLOR_MAP: Record<string, string> = {
+  "RTP": "elv-violet.0",
+  "TS": "elv-green.0",
+  "SRT PUSH": "elv-pink.1",
+  "SRT PULL": "elv-blue-gray.1"
+};
+
 export const SOURCE_PACKAGING_COLOR_MAP = {
   srt: "elv-blue-gray.1",
   rtp: "elv-violet.0",

@@ -149,6 +149,18 @@ const theme = createTheme({
       "#30ad7a",
       "#249a6b",
       "#0b865a"
+    ],
+    "elv-pink": [
+      "#feeff5",
+      "#f3e4ea", // eluvio color
+      "#debbc9",
+      "#cc96ab",
+      "#bd7692",
+      "#b46282",
+      "#b0577a",
+      "#9b4769",
+      "#8b3e5d",
+      "#7c3250"
     ]
   },
   // Default styles for components that need styles across components
