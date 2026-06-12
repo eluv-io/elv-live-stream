@@ -30,7 +30,7 @@ import {useDebouncedCallback} from "@mantine/hooks";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
-import {OUTPUT_TYPE_COLOR_MAP} from "@/utils/constants.ts";
+import {OUTPUT_TYPE_COLOR_MAP, SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {useNavigate} from "react-router-dom";
 import Actions from "@/components/table/actions/Actions.jsx";
@@ -193,7 +193,15 @@ const Outputs = observer(() => {
               {
                 accessor: "packaging",
                 title: "Packaging",
-                render: () => {}
+                render: record => (
+                  <Group gap={4} wrap="nowrap">
+                    {record.packaging?.map(el => (
+                      <Badge key={`packaging-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
+                        {el}
+                      </Badge>
+                    ))}
+                  </Group>
+                )
               },
               {
                 accessor: "srt_url",

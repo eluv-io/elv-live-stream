@@ -47,9 +47,10 @@ type Outputs = Record<string, Output>;
 
 export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "TS";
 
-const DeriveOutputType = (output: Output): OutputType[] | undefined => {
-  const inputProtocol = output.input?.url?.match(/^(\w+):\/\//)?.[1];
-  const packaging: OutputType = inputProtocol === "rtp" ? "RTP" : "TS";
+const DeriveOutputType = (output: Output, originUrl?: string): OutputType[] | undefined => {
+  const url = originUrl ?? output.input?.url;
+  const protocol = url?.match(/^(\w+):\/\//)?.[1];
+  const packaging: OutputType = protocol === "rtp" ? "RTP" : "TS";
 
   if(output.rtp) return ["RTP"];
   if(output.srt_pull) return ["SRT PULL", packaging];
@@ -68,8 +69,8 @@ interface FlatOutput {
   streamStatus?: string;
   url?: string;
   type?: OutputType[];
-  packaging?: StreamPackaging[];
-  source?: StreamSource[];
+  packaging?: string[];
+  source?: string[];
   connectedClients: number;
 }
 
@@ -103,24 +104,30 @@ class OutputStore {
   get outputList(): FlatOutput[] {
     const filter = this.tableFilter.toLowerCase();
     const tagFilter = this.tableTagFilter;
+    const {streamsByObjectId, streams} = this.rootStore.streamStore;
 
     const list = Object.entries(this.outputs)
-      .map(([slug, output]): FlatOutput => ({
-        slug,
-        name: output.name,
-        description: output.description,
-        tags: output.tags,
-        enabled: output.enabled,
-        reset: output.reset,
-        streamId: output.input?.stream,
-        streamName: output.input?.name,
-        streamStatus: output.input?.status,
-        url: output.srt_pull?.urls?.[0] ?? output.rtp?.url,
-        type: DeriveOutputType(output),
-        packaging: output.input?.packaging,
-        source: output.input?.source,
-        connectedClients: output.state?.connected_clients ?? 0,
-      }));
+      .map(([slug, output]): FlatOutput => {
+        const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
+        const url = output.srt_pull?.urls?.[0] ?? output.rtp?.url;
+
+        return {
+          slug,
+          name: output.name,
+          description: output.description,
+          tags: output.tags,
+          enabled: output.enabled,
+          reset: output.reset,
+          streamId: output.input?.stream,
+          streamName: output.input?.name,
+          streamStatus: output.input?.status,
+          url,
+          type: DeriveOutputType(output, url),
+          packaging: streams[streamSlug]?.packaging ?? output.input?.packaging,
+          source: streams[streamSlug]?.source ?? output.input?.source,
+          connectedClients: output.state?.connected_clients ?? 0,
+        };
+      });
 
     const filtered = list.filter(output => {
       const searchableFields = [
