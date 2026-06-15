@@ -1,12 +1,13 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {DataTable} from "mantine-datatable";
-import {ActionIcon, Box, Group, Stack, Text, Title} from "@mantine/core";
+import {ActionIcon, Box, Button, Flex, Group, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
 import {DateFormat} from "@/utils/formatters.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import {streamStore, streamEditStore} from "@/stores/index.ts";
-import {IconExternalLink, IconTrash} from "@tabler/icons-react";
+import {IconExternalLink, IconPencil, IconTrash} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
+import {useForm} from "@mantine/form";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import {useParams} from "react-router-dom";
 import {notifications} from "@mantine/notifications";
@@ -15,13 +16,72 @@ import sharedStyles from "@/assets/shared.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
-const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loading}) => {
+const EditModal = observer(({show, record, CloseCallback, ConfirmCallback}) => {
+  const [saving, setSaving] = useState(false);
+
+  const form = useForm({
+    mode: "uncontrolled",
+    initialValues: {
+      title: record?.title || ""
+    },
+    validate: {
+      title: value => value.trim().length === 0 ? "Name is required" : null
+    }
+  });
+
+  useEffect(() => {
+    if(show) {
+      form.setValues({title: record?.title || ""});
+      form.resetDirty({title: record?.title || ""});
+    }
+  }, [show, record?._id]);
+
+  const HandleSubmit = async ({title}) => {
+    try {
+      setSaving(true);
+      await ConfirmCallback({title: title.trim()});
+      CloseCallback();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      opened={show}
+      onClose={CloseCallback}
+      title="Edit Recording Name"
+      padding="24px"
+      radius="6px"
+      size="lg"
+      centered
+      closeOnClickOutside={false}
+    >
+      <form onSubmit={form.onSubmit(HandleSubmit)}>
+        <TextInput
+          label="Title"
+          placeholder="Enter recording copy title"
+          key={form.key("title")}
+          {...form.getInputProps("title")}
+        />
+        <Flex direction="row" align="center" mt="1.5rem" justify="flex-end" gap="sm">
+          <Button variant="outline" onClick={CloseCallback} disabled={saving}>Cancel</Button>
+          <Button type="submit" loading={saving} disabled={saving || !form.isDirty()}>Save</Button>
+        </Flex>
+      </form>
+    </Modal>
+  );
+});
+
+const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, EditCallback, loading}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);
+  const [showEditModal, {open: openEdit, close: closeEdit}] = useDisclosure(false);
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "title",
     direction: "asc"
   });
   const [deleteId, setDeleteId] = useState("");
+  const [editRecord, setEditRecord] = useState(null);
   const params = useParams();
 
   const records = Object.values(liveRecordingCopies || {})
@@ -94,6 +154,17 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
               render: record => (
                 <Group>
                   <ActionIcon
+                    title="Edit Name"
+                    variant="subtle"
+                    color="elv-gray.6"
+                    onClick={() => {
+                      setEditRecord(record);
+                      openEdit();
+                    }}
+                  >
+                    <IconPencil />
+                  </ActionIcon>
+                  <ActionIcon
                     title="Open in Fabric Browser"
                     variant="subtle"
                     color="elv-gray.6"
@@ -149,6 +220,30 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, loa
           close();
         }}
         CloseCallback={close}
+      />
+      <EditModal
+        show={showEditModal}
+        record={editRecord}
+        CloseCallback={() => {
+          closeEdit();
+          setEditRecord(null);
+        }}
+        ConfirmCallback={async ({title}) => {
+          await streamEditStore.EditLiveRecordingCopy({
+            streamId: params.id,
+            recordingCopyId: editRecord._id,
+            title
+          });
+
+          notifications.show({
+            title: "Live recording copy updated",
+            message: <NotificationMessage>Successfully updated {editRecord._id}</NotificationMessage>
+          });
+
+          if(EditCallback) {
+            EditCallback();
+          }
+        }}
       />
     </Box>
   );
