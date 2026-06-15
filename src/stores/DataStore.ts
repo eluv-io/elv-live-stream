@@ -169,7 +169,7 @@ class DataStore {
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
-    makeAutoObservable(this, {streamMetadata: observable.ref, _loadingStreams: false, _accessGroupsPromise: false});
+    makeAutoObservable(this, {streamMetadata: observable.ref, _loadingStreams: false, _accessGroupsPromise: false}, {autoBind: true});
   }
 
   get client() {

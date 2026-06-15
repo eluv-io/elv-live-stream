@@ -212,7 +212,7 @@ class StreamEditStore {
 
   constructor(rootStore: RootStore | Record<string, unknown>) {
     this.rootStore = rootStore as RootStore;
-    makeAutoObservable(this);
+    makeAutoObservable(this, {}, {autoBind: true});
   }
 
   get client() {

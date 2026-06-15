@@ -85,7 +85,7 @@ class OutputModalStore {
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
-    makeAutoObservable(this);
+    makeAutoObservable(this, {}, {autoBind: true});
   }
 
   get outputStore(): OutputStore {

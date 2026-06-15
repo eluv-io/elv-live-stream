@@ -207,7 +207,7 @@ class ModalStore {
     this.rootStore = rootStore;
     makeAutoObservable(this, {
       OP_MAP: false
-    });
+    }, {autoBind: true});
   }
 
 *HandleStreamAction({records, op, Callback, notifications}: HandleStreamActionParams) {

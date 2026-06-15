@@ -10,7 +10,7 @@ class SiteStore {
     makeObservable(this, {
       rootStore: observable,
       UpdateStreamLink: flow
-    });
+    }, {autoBind: true});
   }
 
   get client() {
