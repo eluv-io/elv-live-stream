@@ -13,7 +13,7 @@ import {
   Select,
   Stack,
   Text,
-  TextInput, Title, PasswordInput
+  TextInput, Title, PasswordInput, Collapse
 } from "@mantine/core";
 import styles from "./modals.module.css";
 import {useState} from "react";
@@ -28,7 +28,9 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       geo: "",
       encryption: false,
       stripRtp: false,
-      passphrase: ""
+      passphrase: "",
+      url: "",
+      type: "rtp"
     },
     validate: {
       geo: isNotEmpty("Geo is required"),
@@ -45,13 +47,15 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
   const HandleSubmit = async() => {
     try {
       setIsSaving(true);
-      const {name, geo, encryption, stripRtp, passphrase} = form.getValues();
+      const {name, geo, encryption, stripRtp, passphrase, url, type} = form.getValues();
       await outputStore.CreateOutput({
         name,
         geos: [geo],
         passphrase,
         encryption,
-        stripRtp
+        stripRtp,
+        type,
+        url: type === "srt_pull" ? undefined : url
       });
 
       const geoLabel = FABRIC_NODE_REGIONS.find(data => data.value === geo)?.label || "";
@@ -104,6 +108,27 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             key={form.key("name")}
             {...form.getInputProps("name")}
           />
+          <Select
+            label="Type"
+            description="Defines the output type"
+            placeholder="Output Type"
+            data={[
+              {label: "SRT PULL", value: "srt_pull"},
+              {label: "SRT PUSH", value: "srt_push"},
+              {label: "RTP", value: "rtp"},
+              {label: "UDP", value: "udp"}
+            ]}
+            key={form.key("type")}
+            {...form.getInputProps("type")}
+          />
+          <Collapse expanded={form.getValues().type === "srt_push"}>
+            <TextInput
+              label="URL"
+              description=""
+              key={form.key("url")}
+              {...form.getInputProps("url")}
+            />
+          </Collapse>
           <Select
             label="Fabric Geo"
             withAsterisk

@@ -74,6 +74,17 @@ interface FlatOutput {
   connectedClients: number;
 }
 
+interface CreateOutputParams {
+  name?: string;
+  externalId?: string;
+  geos: string[];
+  passphrase?: string;
+  encryption?: string;
+  stripRtp?: boolean;
+  url?: string;
+  type: "srt_pull" | "srt_push" | "rtp" | "udp"
+}
+
 class OutputStore {
   state: "loaded" | "error" | "pending" = "pending";
   outputs: Outputs = {};
@@ -276,8 +287,10 @@ class OutputStore {
     geos,
     passphrase,
     encryption,
-    stripRtp
-  }: {name?: string, externalId?: string, geos: string[], passphrase?: string, encryption?: string, stripRtp?: boolean}): Generator<any, void> {
+    stripRtp,
+    type,
+    url
+  }: CreateOutputParams): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
         throw "No output settings object found. Please create one before adding outputs.";
