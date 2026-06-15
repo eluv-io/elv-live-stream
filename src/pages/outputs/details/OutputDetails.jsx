@@ -15,7 +15,6 @@ import {
   Select,
   SimpleGrid,
   Tabs,
-  TagsInput,
   TextInput,
   Tooltip
 } from "@mantine/core";
@@ -151,7 +150,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
       stripRtp: output?.srt_pull?.strip_rtp,
       passphrase: output?.srt_pull?.passphrase,
       name: output?.name,
-      tags: output?.tags || []
+      // tags: output?.tags || []
     },
     validate: {
       passphrase: (value, values) => {
@@ -168,7 +167,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
     try {
       setApplyingChanges(true);
 
-      const {encryption, stripRtp, passphrase, name, tags} = values;
+      const {encryption, stripRtp, passphrase, name} = values;
 
       await outputStore.ModifyOutput({
         outputId: id,
@@ -176,7 +175,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
         stripRtp,
         passphrase: encryption ? passphrase : undefined,
         name,
-        tags
+        // tags
       });
 
       form.setFieldValue("passphrase", outputStore.outputs[id]?.srt_pull?.passphrase ?? "");
@@ -210,17 +209,17 @@ const GeneralConfigPanel = observer(({output, id}) => {
             {...form.getInputProps("name")}
           />
         </SimpleGrid>
-        <SimpleGrid cols={2} spacing={150}>
-          <TagsInput
-            label="Tags"
-            description="Add tags to organize and quickly find outputs."
-            placeholder="Type and press Enter to add a tag"
-            data={outputStore.allOutputTags.filter(t => !(form.getValues().tags || []).includes(t))}
-            key={form.key("tags")}
-            {...form.getInputProps("tags")}
-            clearable
-          />
-        </SimpleGrid>
+        {/*<SimpleGrid cols={2} spacing={150}>*/}
+        {/*  <TagsInput*/}
+        {/*    label="Tags"*/}
+        {/*    description="Add tags to organize and quickly find outputs."*/}
+        {/*    placeholder="Type and press Enter to add a tag"*/}
+        {/*    data={outputStore.allOutputTags.filter(t => !(form.getValues().tags || []).includes(t))}*/}
+        {/*    key={form.key("tags")}*/}
+        {/*    {...form.getInputProps("tags")}*/}
+        {/*    clearable*/}
+        {/*  />*/}
+        {/*</SimpleGrid>*/}
 
         <Divider mb={20} mt={30} />
 

@@ -22,7 +22,6 @@ import {
   IconExternalLink, IconRotateClockwise,
   IconRoute,
   IconRouteOff,
-  IconTag,
   IconTrash
 } from "@tabler/icons-react";
 import {useEffect, useState} from "react";
@@ -74,7 +73,7 @@ const Outputs = observer(() => {
     {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => outputModalStore.OpenModal("enable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.enabled))},
     {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => outputModalStore.OpenModal("disable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => r.enabled))},
     {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => outputModalStore.OpenModal("reset", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.reset))},
-    {icon: IconTag, label: "Edit Tags", id: "edit-tags-batch-action", onClick: () => outputModalStore.OpenModal("tags", slugs()), disabled: noSelectedRecords},
+    // {icon: IconTag, label: "Edit Tags", id: "edit-tags-batch-action", onClick: () => outputModalStore.OpenModal("tags", slugs()), disabled: noSelectedRecords},
     {icon: IconTrash, label: "Delete", id: "batch-delete", onClick: () => outputModalStore.OpenModal("delete", slugs()), disabled: (noSelectedRecords)}
   ];
 

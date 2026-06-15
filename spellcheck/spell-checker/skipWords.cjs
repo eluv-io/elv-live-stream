@@ -24,6 +24,7 @@ module.exports = [
   "cenc",
   "cfg",
   "checkbox",
+  "clearable",
   "cloneable",
   "cls",
   "codec",
