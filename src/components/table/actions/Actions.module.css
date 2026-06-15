@@ -1,3 +1,28 @@
 .searchBar {
   border-radius: 5px !important;
 }
+
+.comboboxDropdown {
+  border-radius: 6px;
+  border: 1px solid var(--mantine-color-elv-blue-gray-2);
+}
+
+.comboboxOption {
+  padding-left: 10px;
+}
+
+.comboboxOption[data-combobox-active] {
+  color: var(--mantine-color-elv-gray-7) !important;
+}
+
+.comboboxOption[data-combobox-active],
+.comboboxOption:hover {
+  background-color: var(--mantine-color-elv-blue-0) !important;
+}
+
+.comboboxCheck {
+  width: 16px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--mantine-color-elv-gray-5);
+}

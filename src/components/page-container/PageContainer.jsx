@@ -114,7 +114,7 @@ const PageContainer = ({
 }) => {
   return (
     <Box
-      p={p} w="calc(100vw - var(--app-shell-navbar-width))"
+      p={p} w="100%"
       className={className}
       {...rest}
     >

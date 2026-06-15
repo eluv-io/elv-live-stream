@@ -1,14 +1,14 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {rootStore, streamStore} from "@/stores/index.js";
+import {rootStore, streamStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
 import styles from "@/pages/streams/details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
-import {QUALITY_MAP} from "@/utils/constants.js";
+import {QUALITY_MAP} from "@/utils/constants.ts";
 import {IconExternalLink} from "@tabler/icons-react";
 import SummaryPanel from "@/pages/streams/details/summary/SummaryPanel.jsx";
 import GeneralPanel from "@/pages/streams/details/general/GeneralPanel.jsx";
@@ -28,31 +28,21 @@ const DETAILS_TABS = [
 const StreamDetailsPage = observer(() => {
   const navigate = useNavigate();
   const params = useParams();
-  let streamSlug, stream;
-  const [pageVersion, setPageVersion] = useState(0);
   const [activeTab, setActiveTab] = useState(DETAILS_TABS[0].value);
   const [recordingInfo, setRecordingInfo] = useState(null);
   const [checkVersion, setCheckVersion] = useState(0);
 
-  if(!streamSlug) {
-    streamSlug = Object.keys(streamStore.streams || {}).find(slug => (
-      streamStore.streams[slug].objectId === params.id
-    ));
-  }
+  const streamSlug = streamStore.streamsByObjectId[params.id];
+  const stream = streamSlug ? streamStore.streams[streamSlug] : undefined;
 
-  if(streamSlug) {
-    stream = undefined;
-    stream = streamStore.streams[streamSlug];
-  }
-
-  const GetStatus = async () => {
+  const GetStatus = useCallback(async () => {
     await streamStore.CheckStatus({
       objectId: params.id,
       update: true
     });
-  };
+  }, [params.id]);
 
-  const LoadEdgeWriteTokenMeta = async() => {
+  const LoadEdgeWriteTokenMeta = useCallback(async() => {
     const metadata = await streamStore.LoadEdgeWriteTokenMeta({
       objectId: params.id
     });
@@ -65,20 +55,20 @@ const StreamDetailsPage = observer(() => {
 
       setRecordingInfo(metadata);
     }
-  };
+  }, [params.id]);
 
   useEffect(() => {
     if(params.id) {
       GetStatus();
       LoadEdgeWriteTokenMeta();
     }
-  }, [params.id]);
+  }, [GetStatus, LoadEdgeWriteTokenMeta]);
 
-  const Refresh = () => {
-    setPageVersion(prev => prev + 1);
+  const Refresh = useCallback(() => {
+    setCheckVersion(prev => prev + 1);
     GetStatus();
     LoadEdgeWriteTokenMeta();
-  };
+  }, [GetStatus, LoadEdgeWriteTokenMeta]);
 
   const DebouncedRefresh = useDebouncedCallback(Refresh, 500);
 
@@ -98,6 +88,7 @@ const StreamDetailsPage = observer(() => {
       a.buttonVariant = "filled";
       return a;
     });
+
   const secondaryActions = streamActions.filter(a => !a.primary && !a.hidden);
 
   const actions = [
@@ -119,7 +110,6 @@ const StreamDetailsPage = observer(() => {
 
   return (
     <PageContainer
-      key={`stream-details-${pageVersion}`}
       title={`${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
       subtitle={stream.objectId}
       subtitleRightSection={
@@ -166,29 +156,13 @@ const StreamDetailsPage = observer(() => {
               {
                 stream.status ?
                 <tab.Component
+                  key={`${tab.value}-${checkVersion}`}
                   checkVersion={checkVersion}
                   active={activeTab === tab.value}
                   status={stream.status}
                   slug={stream.slug}
-                  currentDrm={stream.drm}
-                  simpleWatermark={stream.simpleWatermark}
-                  imageWatermark={stream.imageWatermark}
-                  forensicWatermark={stream.forensicWatermark}
-                  title={stream.title}
-                  embedUrl={stream.embedUrl}
-                  url={stream.originUrl}
                   recordingInfo={recordingInfo}
-                  currentRetention={stream.partTtl}
-                  currentPersistent={stream.persistent}
-                  currentConnectionTimeout={stream.connectionTimeout}
-                  currentReconnectionTimeout={stream.reconnectionTimeout}
-                  currentDvrEnabled={stream.dvrEnabled}
-                  currentDvrMaxDuration={stream.dvrMaxDuration}
-                  currentDvrStartTime={stream.dvrStartTime}
-                  currentConfigProfile={stream.configProfile}
-                  libraryId={stream.libraryId}
-                  currentWatermarkType={stream.watermarkType}
-                  PageVersionCallback={setPageVersion}
+                  PageVersionCallback={setCheckVersion}
                   Refresh={Refresh}
                 /> : <Loader />
               }

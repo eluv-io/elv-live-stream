@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {BrowserRouter} from "react-router-dom";
-import {rootStore} from "@/stores";
+import {rootStore} from "@/stores/index.ts";
 
 import "@mantine/core/styles.css";
 import "mantine-datatable/styles.css";
@@ -21,7 +21,7 @@ import OutputModals from "@/pages/outputs/OutputModals.jsx";
 
 const App = observer(() => {
   return (
-    <MantineProvider withCSSVariables theme={MantineTheme}>
+    <MantineProvider theme={MantineTheme}>
       <BrowserRouter>
         <AppShell
           padding="0"

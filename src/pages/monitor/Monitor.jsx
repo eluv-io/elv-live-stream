@@ -1,11 +1,14 @@
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, SimpleGrid, Text, TextInput, Title} from "@mantine/core";
+import {ActionIcon, Box, Button, Flex, Group, Loader, Menu, Text, Title} from "@mantine/core";
 import {useClipboard, useDebouncedValue} from "@mantine/hooks";
+import Actions from "@/components/table/actions/Actions.jsx";
+import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
+import {useWindowVirtualizer} from "@tanstack/react-virtual";
 
-import {dataStore, modalStore, rootStore, streamStore} from "@/stores";
-import {StreamIsActive} from "@/utils/stream";
-import {SortTable} from "@/utils/helpers";
+import {dataStore, modalStore, rootStore, streamStore} from "@/stores/index.ts";
+import {StreamIsActive} from "@/utils/stream.ts";
+import {SortTable} from "@/utils/helpers.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {ExternalLinkIcon, TrashIcon} from "@/assets/icons/index.js";
@@ -17,12 +20,14 @@ import {
   IconDotsVertical,
   IconListCheck,
   IconPlayerPlay,
-  IconPlayerStop, IconSearch
+  IconPlayerStop
 } from "@tabler/icons-react";
-import {QUALITY_MAP, STATUS_MAP} from "@/utils/constants.js";
+import {QUALITY_MAP, STATUS_MAP} from "@/utils/constants.ts";
 import {notifications} from "@mantine/notifications";
 import {useNavigate} from "react-router-dom";
 import styles from "./Monitor.module.css";
+
+const COLS = 4;
 
 const OverflowMenu = observer(({stream}) => {
   const clipboard = useClipboard({timeout: 400});
@@ -153,7 +158,7 @@ const OverflowMenu = observer(({stream}) => {
 
 const GridItem = observer(({stream, index}) => {
   return (
-    <Flex direction="column" w="100%">
+    <Flex direction="column" w="100%" style={{minWidth: 0}}>
       <VideoContainer
         index={index}
         slug={stream.slug}
@@ -185,7 +190,7 @@ const GridItem = observer(({stream, index}) => {
                 }}
               >
                 <Group gap={5}>
-                  <Text fz={12} fw={600}>
+                  <Text fz={12} fw={600} truncate>
                     Start Stream
                   </Text>
                 </Group>
@@ -217,6 +222,7 @@ const GridItem = observer(({stream, index}) => {
 
 const Monitor = observer(() => {
   const [filter, setFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState([]);
   const [debouncedFilter] = useDebouncedValue(filter, 200);
 
   useEffect(() => {
@@ -225,58 +231,96 @@ const Monitor = observer(() => {
     }
   }, []);
 
-  const streams = !streamStore.streams ? undefined :
-    Object.values(streamStore.streams || {})
+  const streams = useMemo(() => {
+    if(!streamStore.streams) { return undefined; }
+    const textFilter = debouncedFilter.toLowerCase();
+    return Object.values(streamStore.streams)
       .filter(record => {
-        return (
-          !debouncedFilter ||
-          record.title.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
-          record.objectId.toLowerCase().includes(debouncedFilter.toLowerCase())
-        );
+        const matchesText = !textFilter ||
+          record.title?.toLowerCase().includes(textFilter) ||
+          record.objectId?.toLowerCase().includes(textFilter);
+        const matchesTags = tagFilter.length === 0 ||
+          tagFilter.some(tag => record.tags?.includes(tag));
+        return matchesText && matchesTags;
       })
       .sort(SortTable({sortStatus: {columnAccessor: "title", direction: "asc"}}));
+  }, [streamStore.streams, debouncedFilter, tagFilter]);
+
+  const rows = useMemo(() => {
+    if(!streams) return [];
+    const result = [];
+    for(let i = 0; i < streams.length; i += COLS) {
+      result.push(streams.slice(i, i + COLS));
+    }
+
+    return result;
+  }, [streams]);
+
+  const rowVirtualizer = useWindowVirtualizer({
+    count: rows.length,
+    estimateSize: () => 375,
+    overscan: 2
+  });
 
   return (
     <PageContainer
       title="Monitor"
     >
-      <Flex w="100%" align="center" mb={16}>
-        <TextInput
-          flex={2}
-          maw={400}
-          classNames={{input: styles.searchBar}}
-          placeholder="Search by object name or ID"
-          leftSection={<IconSearch width="18px" height="18px" />}
-          value={filter}
-          onChange={event => setFilter(event.target.value)}
-        />
-        <Button
-          onClick={() => streamStore.ToggleMonitorPreviews()}
-          variant="outline"
-          ml="auto"
-        >
-          { streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews" }
-        </Button>
-      </Flex>
+      <Actions
+        mb={16}
+        actions={[{
+          label: streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews",
+          id: "toggle-previews",
+          variant: "outline",
+          onClick: () => streamStore.ToggleMonitorPreviews()
+        }]}
+        searchValue={filter}
+        onSearchChange={event => setFilter(event.target.value)}
+        tagOptions={streamStore.allTags}
+        tagFilter={tagFilter}
+        onTagFilterChange={setTagFilter}
+      />
+      <TagFilterRow
+        tags={streamStore.allTags}
+        selectedTags={tagFilter}
+        onTagToggle={(tag) => setTagFilter(current =>
+          current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag]
+        )}
+        onClearAll={() => setTagFilter([])}
+      />
       {
         !streams ?
           <Box maw={200}>
             <Loader />
           </Box> :
           streams.length === 0 ? (debouncedFilter ? "No Matching Streams" : "No Streams Found") :
-            <SimpleGrid cols={4} spacing="lg">
-              {
-                streams.map((stream, index) => {
-                  return (
-                    <GridItem
-                      key={stream.slug}
-                      stream={stream}
-                      index={index}
-                    />
-                  );
-                })
-              }
-            </SimpleGrid>
+            <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
+              {rowVirtualizer.getVirtualItems().map((virtualRow, rowPos) => {
+                const rowStreams = rows[virtualRow.index];
+                return (
+                  <div
+                    key={virtualRow.key}
+                    data-index={virtualRow.index}
+                    ref={rowVirtualizer.measureElement}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualRow.start}px)`,
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))`,
+                      gap: "var(--mantine-spacing-lg)",
+                      paddingBottom: "var(--mantine-spacing-lg)",
+                    }}
+                  >
+                    {rowStreams.map((stream, colIndex) => (
+                      <GridItem key={stream.slug} stream={stream} index={rowPos * COLS + colIndex} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
       }
     </PageContainer>
   );

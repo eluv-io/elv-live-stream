@@ -7,8 +7,8 @@ from the core app, which owns user account information and keys
 
 import URI from "urijs";
 import {observer} from "mobx-react-lite";
-import React, {useEffect, useRef} from "react";
-import {rootStore} from "@/stores/index.js";
+import {useEffect, useRef} from "react";
+import {rootStore} from "@/stores/index.ts";
 
 // Ensure error objects can be properly serialized in messages
 if(!("toJSON" in Error.prototype)) {
@@ -68,7 +68,7 @@ const IsCloneable = (value) => {
 
 const IFrameBase = ({
   listener,
-  appRef,
+  ref,
   appUrl,
   className
 }) => {
@@ -95,7 +95,7 @@ const IFrameBase = ({
 
   return (
     <iframe
-      ref={appRef}
+      ref={ref}
       src={appUrl}
       allow="encrypted-media *"
       allowFullScreen
@@ -105,17 +105,6 @@ const IFrameBase = ({
   );
 };
 
-const IFrame = React.forwardRef(
-  ({appUrl, className, listener}, appRef) => (
-    <IFrameBase
-      appRef={appRef}
-      appUrl={appUrl}
-      className={className}
-      listener={listener}
-    />
-  )
-);
-
 const AppFrame = observer(({
   appUrl,
   className,
@@ -124,7 +113,7 @@ const AppFrame = observer(({
   onCancel,
   Reload
 }) => {
-  const appRef = useRef();
+  const appRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -202,7 +191,7 @@ const AppFrame = observer(({
   };
 
   return (
-    <IFrame
+    <IFrameBase
       ref={appRef}
       appUrl={AppUrl()}
       listener={ApiRequestListener}

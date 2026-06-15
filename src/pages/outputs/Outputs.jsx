@@ -11,9 +11,9 @@ import {
   Title,
   UnstyledButton
 } from "@mantine/core";
-import {outputModalStore, outputStore, rootStore} from "@/stores/index.js";
+import {outputModalStore, outputStore, rootStore} from "@/stores/index.ts";
 import {DataTable} from "mantine-datatable";
-import {SanitizeUrl} from "@/utils/helpers.js";
+import {SanitizeUrl} from "@/utils/helpers.ts";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {
   IconCancel,
@@ -32,6 +32,7 @@ import sharedStyles from "@/assets/shared.module.css";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {useNavigate} from "react-router-dom";
 import Actions from "@/components/table/actions/Actions.jsx";
+import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 
 
 const Outputs = observer(() => {
@@ -72,6 +73,7 @@ const Outputs = observer(() => {
     {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => outputModalStore.OpenModal("enable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.enabled))},
     {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => outputModalStore.OpenModal("disable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => r.enabled))},
     {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => outputModalStore.OpenModal("reset", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.reset))},
+    // {icon: IconTag, label: "Edit Tags", id: "edit-tags-batch-action", onClick: () => outputModalStore.OpenModal("tags", slugs()), disabled: noSelectedRecords},
     {icon: IconTrash, label: "Delete", id: "batch-delete", onClick: () => outputModalStore.OpenModal("delete", slugs()), disabled: (noSelectedRecords)}
   ];
 
@@ -88,6 +90,19 @@ const Outputs = observer(() => {
             ]}
             searchValue={outputStore.tableFilter}
             onSearchChange={event => outputStore.SetTableFilter(event.target.value)}
+            tagOptions={outputStore.allOutputTags}
+            tagFilter={outputStore.tableTagFilter}
+            onTagFilterChange={(tags) => outputStore.SetTableTagFilter(tags)}
+          />
+          <TagFilterRow
+            tags={outputStore.allOutputTags}
+            selectedTags={outputStore.tableTagFilter}
+            onTagToggle={(tag) => outputStore.SetTableTagFilter(
+              outputStore.tableTagFilter.includes(tag)
+                ? outputStore.tableTagFilter.filter(t => t !== tag)
+                : [...outputStore.tableTagFilter, tag]
+            )}
+            onClearAll={() => outputStore.SetTableTagFilter([])}
           />
           <BatchActions
             actions={actions}

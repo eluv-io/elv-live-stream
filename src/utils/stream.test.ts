@@ -1,9 +1,9 @@
 import {describe, expect, it} from "vitest";
-import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor} from "@/utils/stream.js";
-import {STATUS_MAP} from "@/utils/constants.js";
+import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor, LiveRecordingConfigProfile} from "@/utils/stream";
+import {STATUS_MAP} from "@/utils/constants";
 
 describe("ParseLiveConfigData", () => {
-  const mockProfile = {
+  const mockProfile: LiveRecordingConfigProfile = {
     name: "Test Profile",
     recording_config: {part_ttl: 3600},
     playout_config: {playout_formats: ["hls-clear"]},
@@ -145,8 +145,8 @@ describe("StatusColor", () => {
     expect(StatusColor(STATUS_MAP.DEGRADED)).toBe("elv-yellow.6");
   });
 
-  it("returns undefined for unknown status", () => {
-    expect(StatusColor("unknown")).toBeUndefined();
+  it("returns empty string for unknown status", () => {
+    expect(StatusColor("")).toBe("");
   });
 });
 

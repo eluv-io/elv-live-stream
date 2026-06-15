@@ -1,4 +1,6 @@
-export const SortTable = ({sortStatus, AdditionalCondition}) => {
+import {FormatTime} from "@/utils/formatters";
+
+export const SortTable = ({sortStatus, AdditionalCondition}: {sortStatus: {columnAccessor: string, direction: string}, AdditionalCondition?: (a: Record<string, any>, b: Record<string, any>) => number | undefined}) => {
   return (a, b) => {
     if(AdditionalCondition && typeof AdditionalCondition(a, b) !== "undefined") {
       return AdditionalCondition(a, b);
@@ -21,7 +23,7 @@ export const SortTable = ({sortStatus, AdditionalCondition}) => {
   };
 };
 
-export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
+export const SanitizeUrl = ({url, removeQueryParams=[]}: {url?: string, removeQueryParams?: string[]}) : string => {
   if(!url) {
     return "";
   }
@@ -34,10 +36,10 @@ export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
     });
 
     return urlObject.toString();
-  } catch(_e) {
+  } catch {
     // Only apply the regex fallback for strings that look like a URL (have a scheme).
     // Plain invalid strings (e.g. "not a valid url") should return false.
-    if(!url.includes("://")) { return false; }
+    if(!url.includes("://")) { return ""; }
     // Fallback for URLs with out-of-range ports (e.g. rtp://) that new URL() rejects
     const paramsToRemove = ["passphrase", ...removeQueryParams];
     return paramsToRemove.reduce((acc, param) => {
@@ -48,9 +50,7 @@ export const SanitizeUrl = ({url, removeQueryParams=[]}) => {
   }
 };
 
-export const CheckExpiration = (date) => {
-  if(typeof date !== "number") { return false; }
-
+export const CheckExpiration = (date: number): boolean => {
   const today = new Date();
   const inputDate = new Date(date);
 
@@ -58,4 +58,39 @@ export const CheckExpiration = (date) => {
   today.setHours(0, 0, 0, 0);
 
   return inputDate < today;
+};
+
+interface RuntimeParams {
+  startTime: number;
+  endTime?: number;
+  currentTimeMs: number;
+  format: string;
+  active: boolean;
+}
+
+export const Runtime = ({
+  startTime,
+  endTime,
+  currentTimeMs,
+  format="hh,mm,ss",
+  active
+}: RuntimeParams): string => {
+  let time: string;
+
+  if(!endTime && !active) {
+    return "--";
+  } else if(!endTime) {
+    endTime = currentTimeMs;
+  }
+
+  if(!startTime) {
+    time = "--";
+  } else {
+    time = FormatTime({
+      milliseconds: endTime - startTime,
+      format
+    });
+  }
+
+  return time;
 };

@@ -2,7 +2,7 @@ import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {InitializeEluvioPlayer, EluvioPlayerParameters} from "@eluvio/elv-player-js/lib/index.js";
 
-import {rootStore} from "@/stores/index.js";
+import {rootStore} from "@/stores/index.ts";
 import {Box} from "@mantine/core";
 
 const Video = observer(({

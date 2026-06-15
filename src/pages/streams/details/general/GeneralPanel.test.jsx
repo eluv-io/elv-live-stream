@@ -5,7 +5,7 @@ import {MemoryRouter, Route, Routes} from "react-router-dom";
 import {MantineProvider} from "@mantine/core";
 // Import the mocked store so individual tests can mutate per-test stream data.
 // vi.mock is hoisted, so this import resolves to the mock factory's return value.
-import {streamStore} from "@/stores";
+import {streamStore} from "@/stores/index.ts";
 
 const {mockUpdateGeneralConfig, mockNotificationShow} = vi.hoisted(() => ({
   mockUpdateGeneralConfig: vi.fn(),
@@ -65,10 +65,6 @@ vi.mock("@/stores", () => ({
 
 vi.mock("@mantine/notifications", () => ({
   notifications: {show: mockNotificationShow}
-}));
-
-vi.mock("@/assets/icons/index.js", () => ({
-  CircleInfoIcon: () => null,
 }));
 
 vi.mock("@/components/section-title/SectionTitle.jsx", () => ({

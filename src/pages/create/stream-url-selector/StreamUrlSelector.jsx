@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {useEffect, useState} from "react";
-import {dataStore} from "@/stores/index.js";
+import {dataStore} from "@/stores/index.ts";
 import {Box, Select, Tabs, TextInput} from "@mantine/core";
 
 const StreamUrlPanelContent = observer(({

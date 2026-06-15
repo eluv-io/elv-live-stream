@@ -1,55 +1,154 @@
 // Manages runtime stream state: the streams map, status polling, live control (start, stop, deactivate), and frame preview.
-import {flow, makeAutoObservable} from "mobx";
+import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
-import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants.js";
-import {DeriveSourceAndPackaging} from "@/utils/stream.js";
+import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
+import {
+  DeriveSourceAndPackaging,
+  StreamMetadata, ProbeStream, RecordingInputCfg
+} from "@/utils/stream";
+import type RootStore from "@/stores/RootStore";
+import {StreamInfo, PermissionLevel} from "@/stores/DataStore";
+import {StreamOp} from "@/stores/ModalStore";
+
+type SummaryData = Pick<StreamMetadata,
+  "videoStreamProbe" | "publishingVideo" | "publishingAudio" | "partTtl" | "persistent"
+> & ProbeData;
+
+// Processed shape for the UI — camelCase, populated by LoadPlayoutConfigData
+type PlayoutConfigData = Pick<StreamMetadata,
+  "drm" | "dvrEnabled" | "dvrMaxDuration" | "dvrStartTime" |
+  "forensicWatermark" | "imageWatermark" | "simpleWatermark" | "watermarkType"
+>;
+
+type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persistent" | "reconnectionTimeout"> & ProbeData & {
+  copyMpegTs: boolean;
+  inputCfg: RecordingInputCfg;
+  multiPath: {
+    enabled: boolean;
+    stream_names: string[]
+  };
+  retention: string;
+};
+
+export interface AudioDataEntry {
+  bitrate: number;
+  codec: string;
+  record: boolean;
+  recording_bitrate: number;
+  recording_channels: number;
+  playout: boolean;
+  playout_label: string;
+  lang: string | undefined;
+  default?: boolean;
+}
+
+export type AudioDataMap = Record<string, AudioDataEntry>;
+
+export interface ProbeData {
+  audioStreams: ProbeStream[];
+  audioData: AudioDataMap;
+}
+
+type StreamListData = Pick<StreamMetadata, "title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags">;
+
+type GeneralConfigData = Pick<StreamMetadata,
+  "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
+> & {
+  permission: PermissionLevel;
+  accessGroup: any;
+};
+
+interface StreamFrameUrl {
+  timestamp: number;
+  promise: Generator<any, string | undefined> | Promise<unknown>;
+  url?: string;
+}
+
+type StreamMap = Record<string, StreamInfo>;
 
 class StreamStore {
-  streams;
-  streamFrameUrls = {};
+  streams: StreamMap;
+  streamFrameUrls: Record<string, StreamFrameUrl> = {};
   showMonitorPreviews = false;
   loadingStatus = false;
   tableFilter = "";
+  tableTagFilter: string[] = [];
+  rootStore: RootStore;
 
-  constructor(rootStore) {
-    makeAutoObservable(this);
-
+  constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
+    makeAutoObservable(this, {}, {autoBind: true});
   }
 
   get client() {
     return this.rootStore.client;
   }
 
+  get streamsByObjectId(): {[k:string]: string} {
+    return Object.fromEntries(
+      Object.entries(this.streams || {}).map(([slug, s]) => [s.objectId, slug])
+    );
+  }
+
+  get allTags(): string[] {
+    const tags = new Set<string>();
+    Object.values(this.streams || {}).forEach(s => s.tags?.forEach(t => tags.add(t)));
+    return Array.from(tags).sort();
+  }
+
+  get activeTagFilter(): string[] {
+    const available = new Set(this.allTags);
+    return this.tableTagFilter.filter(t => available.has(t));
+  }
+
+  get filteredStreams(): StreamInfo[] {
+    const filter = this.tableFilter.toLowerCase();
+    const tagFilter = this.activeTagFilter;
+    return Object.values(this.streams || {}).filter(s => {
+      const matchesText = !filter ||
+        s.title?.toLowerCase().includes(filter) ||
+        s.objectId?.toLowerCase().includes(filter);
+      const matchesTags = tagFilter.length === 0 ||
+        tagFilter.some(tag => s.tags?.includes(tag));
+      return matchesText && matchesTags;
+    });
+  }
+
   ToggleMonitorPreviews() {
     this.showMonitorPreviews = !this.showMonitorPreviews;
   }
 
-  UpdateStream = ({key, value={}}) => {
+  UpdateStream = ({key, value={}}: {key: string, value?: Partial<StreamInfo>}) => {
     if(!key) { return; }
 
     this.streams[key] = {
       ...(this.streams[key] || {}),
       ...value,
       slug: key
-    };
+    } as StreamInfo;
   };
 
-  UpdateStreams = ({streams}) => {
+  UpdateStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
+    const remaining = this.allTags;
+    this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
   };
 
-  SetTableFilter = (filter) => {
+  SetTableFilter = (filter: string) => {
     this.tableFilter = filter;
   };
 
-  CheckStatus = flow(function * ({
+  SetTableTagFilter = (tags: string[]) => {
+    this.tableTagFilter = tags;
+  };
+
+  *CheckStatus({
     objectId,
     slug,
     showParams=false,
     update=false
-  }) {
+  }: {objectId: string, slug?: string, showParams?: boolean, update?: boolean}): Generator<any, void | {}> {
     let response;
     try {
       response = yield this.client.StreamStatus({
@@ -81,9 +180,9 @@ class StreamStore {
     }
 
     return response;
-  });
+  }
 
-  AllStreamsStatus = flow(function * (reload=false) {
+  *AllStreamsStatus(reload=false): Generator<any, void> {
     if(this.loadingStatus && !reload) { return; }
 
     try {
@@ -112,14 +211,14 @@ class StreamStore {
     } finally {
       this.loadingStatus = false;
     }
-  });
+  }
 
   // Live Stream Controls
 
-  StartStream = flow(function * ({
+  *StartStream({
     slug,
     start=false
-  }) {
+  }: {slug: string, start?: boolean}): Generator<any, void> {
     const objectId = this.streams[slug].objectId;
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
@@ -157,13 +256,13 @@ class StreamStore {
       slug,
       operation: "START"
     });
-  });
+  }
 
-  OperateLRO = flow(function * ({
+  *OperateLRO({
     objectId,
     slug,
     operation
-  }) {
+  }: {objectId: string, slug: string, operation: StreamOp}): Generator<any, void> {
     const OP_MAP = {
       START: "start",
       RESET: "reset",
@@ -186,9 +285,9 @@ class StreamStore {
       console.error(`Unable to ${OP_MAP[operation]} LRO.`, error);
       throw error;
     }
-  });
+  }
 
-  DeactivateStream = flow(function * ({objectId, slug}) {
+  *DeactivateStream({objectId, slug}: {objectId: string, slug: string}): Generator<any, void> {
     try {
       const response = yield this.client.StreamStopRecording({name: objectId});
 
@@ -199,9 +298,9 @@ class StreamStore {
       // eslint-disable-next-line no-console
       console.error("Unable to deactivate stream", error);
     }
-  });
+  }
 
-  async FetchVideoPath(stream, playlistPath) {
+  async FetchVideoPath(stream: StreamInfo, playlistPath: string): Promise<Response> {
     const [path, params] = playlistPath.split("?");
     const searchParams = new URLSearchParams(params);
     searchParams.delete("authorization");
@@ -248,7 +347,7 @@ class StreamStore {
     );
   }
 
-  FetchStreamFrameURL = flow(function * (slug) {
+  *FetchStreamFrameURL(slug: string): Generator<any, string> {
     try {
       const stream = this.streams[slug];
 
@@ -321,9 +420,9 @@ class StreamStore {
     } finally {
       console.timeEnd(`Load Frame: ${slug}`);
     }
-  });
+  }
 
-  StreamFrameURL = flow(function * (slug) {
+  *StreamFrameURL(slug: string): Generator<any, string | undefined> {
     const existingUrl = this.streamFrameUrls[slug];
 
     if(existingUrl && Date.now() - existingUrl.timestamp < 60000) {
@@ -344,31 +443,31 @@ class StreamStore {
     }
 
     return url;
-  });
+  }
 
-  LoadSummaryData = flow(function * ({objectId, libraryId, slug}) {
+  *LoadSummaryData({objectId, libraryId, slug}: {objectId: string, libraryId: string, slug: string}): Generator<any, SummaryData | Record<string, never>> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const [{audioStreams, audioData}, liveRecordingMeta] = yield Promise.all([
+      const [{audioStreams, audioData}, liveRecordingMeta, videoStream] = yield Promise.all([
         this.LoadStreamProbeData({objectId, libraryId}),
         this.client.ContentObjectMetadata({
           libraryId,
           objectId,
           metadataSubtree: "live_recording/recording_config/recording_params",
           select: ["xc_params", "persistent", "part_ttl"]
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config",
+          select: ["probe_info/streams", "input_stream_info/streams"]
         })
       ]);
 
       const xcParams = liveRecordingMeta?.xc_params;
-      const videoStream = (yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_config",
-        select: ["probe_info/streams", "input_stream_info/streams"]
-      }));
       const probeStreams = videoStream?.probe_info?.streams ?? videoStream?.input_stream_info?.streams ?? [];
       const videoStreamProbe = probeStreams.find(s => s.codec_type === "video");
 
@@ -397,9 +496,9 @@ class StreamStore {
       console.error("Unable to load summary data", error);
       return {};
     }
-  });
+  }
 
-  LoadGeneralConfigData = flow(function * ({objectId, libraryId, slug}) {
+  *LoadGeneralConfigData({objectId, libraryId, slug}: {objectId: string, libraryId: string, slug: string}): Generator<any, Partial<GeneralConfigData>> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -410,7 +509,7 @@ class StreamStore {
           libraryId,
           objectId,
           metadataSubtree: "public",
-          select: ["name", "description", "asset_metadata/display_title"]
+          select: ["name", "description", "asset_metadata/display_title", "asset_metadata/tags"]
         }),
         this.client.ContentObjectMetadata({
           libraryId,
@@ -431,6 +530,7 @@ class StreamStore {
         title: generalMeta?.name,
         description: generalMeta?.description,
         display_title: generalMeta?.asset_metadata?.display_title,
+        tags: generalMeta?.asset_metadata?.tags ?? [],
         originUrl: liveRecordingConfigMeta?.url ?? liveRecordingOriginUrl,
         referenceUrl: liveRecordingConfigMeta?.reference_url,
         configProfile: slugify(liveRecordingConfigMeta?.name),
@@ -446,39 +546,36 @@ class StreamStore {
       console.error("Unable to load general config data", error);
       return {};
     }
-  });
+  }
 
-  LoadRecordingConfigData = flow(function * ({
+  *LoadRecordingConfigData({
     libraryId,
-    objectId
-  }) {
+    objectId,
+    slug
+  }: {libraryId: string, objectId: string, slug: string}): Generator<any, Partial<RecordingConfigData>> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const streams = this.streams || {};
-      const slug = Object.keys(streams).find(slug => (
-        streams[slug].objectId === objectId
-      ));
-
-      const multipathMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/fabric_config/multipath"
-      });
-
-      const liveRecordingMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/recording_config"
-      });
-
-      const liveRecordingConfigMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_config/recording_config"
-      });
+      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, {audioStreams, audioData}] = yield Promise.all([
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording/fabric_config/multipath"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording/recording_config"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config/recording_config"
+        }),
+        this.LoadStreamProbeData({libraryId, objectId})
+      ]);
 
       const connectionTimeout = liveRecordingConfigMeta?.connection_timeout ?? liveRecordingMeta?.recording_params?.xc_params?.connection_timeout;
       const inputCfg = liveRecordingMeta?.recording_params?.xc_params?.input_cfg;
@@ -487,11 +584,6 @@ class StreamStore {
       const persistent = liveRecordingMeta?.recording_params?.persistent;
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
       const reconnectionTimeout = liveRecordingConfigMeta?.reconnect_timeout ?? liveRecordingMeta?.recording_params?.reconnect_timeout;
-
-      const {audioStreams, audioData} = yield this.LoadStreamProbeData({
-        libraryId,
-        objectId
-      });
 
       const recordingData = {
         audioStreams,
@@ -513,43 +605,37 @@ class StreamStore {
       console.error("Unable to load recording config data", error);
       return {};
     }
-  });
+  }
 
-  LoadPlayoutConfigData = flow(function * ({libraryId, objectId}) {
+  *LoadPlayoutConfigData({libraryId, objectId, slug}: {libraryId: string, objectId: string, slug: string}): Generator<any, Partial<PlayoutConfigData>> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const streams = this.streams || {};
-      const slug = Object.keys(streams).find(slug => (
-        streams[slug].objectId === objectId
-      ));
-
-      const liveRecordingMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording/playout_config"
-      });
-
-      const liveRecordingConfigMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_config/playout_config"
-      });
-
-      const liveRecordingOverridesMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "live_recording_overrides/playout_config"
-      });
-
-      // Special case to retrieve playout formats in case profile has no specification and is created with a default value
-      const playoutFormatMeta = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: "offerings/default/playout/playout_formats"
-      });
+      // Special case: playoutFormatMeta is a fallback when profile has no playout_formats specified
+      const [liveRecordingMeta, liveRecordingConfigMeta, liveRecordingOverridesMeta, playoutFormatMeta] = yield Promise.all([
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording/playout_config"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config/playout_config"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_overrides/playout_config"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "offerings/default/playout/playout_formats"
+        })
+      ]);
 
       let drm = liveRecordingOverridesMeta?.playout_formats ?? liveRecordingConfigMeta?.playout_formats ?? liveRecordingMeta?.playout_formats ?? Object.keys(playoutFormatMeta ?? {});
       // Playout formats must be an array of values from PLAYOUT_FORMAT_OPTIONS
@@ -584,11 +670,9 @@ class StreamStore {
       console.error("Unable to load playout config data", error);
       return {};
     }
-  });
+  }
 
-  LoadStreams = flow(function * ({streamMetadata}) {
-    this.UpdateStreams({});
-
+  *LoadStreams({streamMetadata}: {streamMetadata: StreamMap}) {
     yield this.client.utils.LimitedMap(
       10,
       Object.keys(streamMetadata),
@@ -632,9 +716,9 @@ class StreamStore {
     );
 
     this.UpdateStreams({streams: streamMetadata});
-  });
+  }
 
-  LoadStreamListData = flow(function * ({libraryId, objectId}) {
+  *LoadStreamListData({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, StreamListData | undefined> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -645,6 +729,7 @@ class StreamStore {
         objectId,
         select: [
           "public/name",
+          "public/asset_metadata/tags",
           "live_recording/recording_config/recording_params/xc_params/input_cfg",
           "live_recording_config/url",
           "live_recording_config/recording_config/input_cfg"
@@ -660,6 +745,7 @@ class StreamStore {
 
       return {
         title: meta?.public?.name,
+        tags: meta?.public?.asset_metadata?.tags ?? [],
         originUrl: url,
         source,
         packaging,
@@ -669,9 +755,9 @@ class StreamStore {
 
       console.error("Unable to load stream list data", error);
     }
-  });
+  }
 
-  LoadStreamMetadata = flow(function * ({objectId, libraryId}) {
+  *LoadStreamMetadata({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Partial<StreamMetadata> | undefined> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -759,7 +845,7 @@ class StreamStore {
       const sourceInputStats = {
         packets_received: status?.input_stats?.ts?.packets_received ?? 0,
         packets_dropped: status?.input_stats?.ts?.packets_dropped ?? 0,
-        packetsPercentage: status?.input_stats?.ts?.packets_received !== undefined ? (status?.input_stats?.ts?.packets_dropped / status?.input_stats?.ts?.packets_received).toFixed(2) : 0,
+        packetsPercentage: status?.input_stats?.ts?.packets_received !== undefined ? parseFloat((status?.input_stats?.ts?.packets_dropped / status?.input_stats?.ts?.packets_received).toFixed(2)) : 0,
         seq_num_skip_tot: status?.input_stats?.rtp?.seq_num_skip_tot ?? 0,
         seq_num_skip_count: status?.input_stats?.rtp?.seq_num_skip_count ?? 0
       };
@@ -804,9 +890,9 @@ class StreamStore {
 
       console.error("Unable to load stream metadata", error);
     }
-  });
+  }
 
-  LoadDetails = flow(function * ({libraryId, objectId, slug}) {
+  *LoadDetails({libraryId, objectId, slug}: {libraryId: string, objectId: string, slug: string}): Generator<any, void> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -820,7 +906,8 @@ class StreamStore {
           "name",
           "description",
           "asset_metadata/display_title",
-          "asset_metadata/title"
+          "asset_metadata/title",
+          "asset_metadata/tags"
         ]
       });
 
@@ -840,6 +927,7 @@ class StreamStore {
           title: streamMeta?.name,
           description: streamMeta.description,
           display_title: streamMeta.asset_metadata?.display_title,
+          tags: streamMeta.asset_metadata?.tags ?? [],
           originUrl: urlMeta?.live_recording?.recording_config?.recording_params?.origin_url || urlMeta?.live_recording_config?.url
         }
       });
@@ -847,12 +935,12 @@ class StreamStore {
 
       console.error("Unable to load stream metadata", error);
     }
-  });
+  }
 
-  LoadEdgeWriteTokenMeta = flow(function * ({
+  *LoadEdgeWriteTokenMeta({
     objectId,
     libraryId
-  }) {
+  }: {objectId: string, libraryId: string}): Generator<any, Record<string, any>> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -890,12 +978,12 @@ class StreamStore {
       console.error("Unable to load metadata with edge write token", error);
       return {};
     }
-  });
+  }
 
-  LoadStreamProbeData = flow(function * ({
+  *LoadStreamProbeData({
     objectId,
     libraryId
-  }){
+  }: {objectId: string, libraryId: string}): Generator<any, ProbeData | undefined> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -972,9 +1060,9 @@ class StreamStore {
 
       console.error("Unable to load live_recording metadata", error);
     }
-  });
+  }
 
-  EmbedUrl = ({objectId}) => {
+  EmbedUrl = ({objectId}: {objectId: string}): string => {
     try {
       return this.client.EmbedUrl({objectId, mediaType: "live_video"});
     } catch(error) {

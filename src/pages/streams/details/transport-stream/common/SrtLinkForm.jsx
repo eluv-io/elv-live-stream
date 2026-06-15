@@ -1,8 +1,8 @@
 import {Box, Button, Group, Loader, Select, Text, TextInput} from "@mantine/core";
 import sharedStyles from "@/assets/shared.module.css";
 import {DataTable} from "mantine-datatable";
-import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
-import {dataStore} from "@/stores/index.js";
+import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
+import {dataStore} from "@/stores/index.ts";
 import {DateTimePicker} from "@mantine/dates";
 import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
 import {useState} from "react";

@@ -45,7 +45,7 @@ const theme = createTheme({
     "elv-blue-gray": [
       "#edf5fe",
       "#e4ebf3", // eluvio color
-      "#bcccde",
+      "#c4d4da", // eluvio color
       "#97afcc",
       "#7897bc",
       "#6488b3",
@@ -62,7 +62,6 @@ const theme = createTheme({
       "#a437fe",
       "#971afe",
       "#9009ff",
-      "#7c00e4",
       "#8f5aff", // eluvio color
       "#5f00b3",
       "#380c61", // eluvio color
@@ -73,7 +72,7 @@ const theme = createTheme({
       "#d7d7d7", // eluvio color
       "#bdbdbd", // eluvio color
       "rgba(0,0,0,0.06)", // eluvio color
-      "#8b8b8b",
+      "#a8a8a8", // eluvio color
       "#868e96", // eluvio color
       "#6b6b6b", // eluvio color
       "#4b494e", // eluvio color
@@ -83,7 +82,13 @@ const theme = createTheme({
       "#22252a", // eluvio color
       "#202020", // eluvio color
       "#1e1e1e", // eluvio color
-      "#212529" // eluvio color
+      "#212529", // eluvio color
+      "#1c1c1c",
+      "#1a1a1a",
+      "#171717",
+      "#141414",
+      "#111111",
+      "#0d0d0d"
     ],
     "elv-neutral": [
       "#eeeeee", // eluvio color
@@ -161,6 +166,15 @@ const theme = createTheme({
       styles: () => ({
         root: {
           "--app-shell-border-color": "var(--mantine-color-elv-neutral-0)"
+        }
+      })
+    },
+    Pill: {
+      styles: () => ({
+        label: {
+          display: "inline-flex",
+          alignItems: "center",
+          lineHeight: 1
         }
       })
     },

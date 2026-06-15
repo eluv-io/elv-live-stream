@@ -1,0 +1,42 @@
+.pill {
+  flex-shrink: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  background-color: transparent;
+  color: var(--mantine-color-elv-gray-7);
+  border: 1px solid var(--mantine-color-elv-gray-1);
+  transition: none;
+}
+
+.pillLabel {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.pillRemove {
+  line-height: var(--pill-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pillRemove svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+
+.pillSelected {
+  flex-shrink: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  background-color: var(--mantine-color-elv-blue-0);
+  color: var(--mantine-color-elv-gray-9);
+  border: 1px solid var(--mantine-color-elv-blue-0);
+  transition: none;
+}

@@ -1,17 +1,17 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useDisclosure} from "@mantine/hooks";
-import {streamEditStore} from "@/stores/index.js";
+import {streamEditStore, streamStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
-import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constants.js";
+import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} from "@mantine/core";
-import {DateFormat, Pluralize, RelativeTime} from "@/utils/formatters.js";
-import {RecordingPeriodIsExpired} from "@/utils/recording.js";
-import {SortTable} from "@/utils/helpers.js";
-import {StreamIsActive} from "@/utils/stream.js";
+import {DateFormat, Pluralize, RelativeTime} from "@/utils/formatters.ts";
+import {RecordingPeriodIsExpired} from "@/utils/recording.ts";
+import {SortTable} from "@/utils/helpers.ts";
+import {StreamIsActive} from "@/utils/stream.ts";
 import {DataTable} from "mantine-datatable";
 import CopyToVodModal from "@/pages/streams/details/summary/components/CopyToVodModal.jsx";
-import {Runtime} from "@/pages/streams/details/summary/SummaryPanel.jsx";
+import {Runtime} from "@/utils/helpers.ts";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 import styles from "./RecordingPeriodsTable.module.css";
@@ -21,11 +21,10 @@ import NotificationMessage from "@/components/notification-message/NotificationM
 const RecordingPeriodsTable = observer(({
   records,
   objectId,
+  slug,
   title,
   CopyCallback,
   currentTimeMs,
-  retention,
-  persistent,
   loading,
   status
 }) => {
@@ -41,6 +40,9 @@ const RecordingPeriodsTable = observer(({
     columnAccessor: "start_time",
     direction: "desc"
   });
+
+  const persistent = streamStore.streams?.[slug]?.persistent;
+  const retention = streamStore.streams?.[slug]?.partTtl;
 
   const [showExpired, setShowExpired] = useState(false);
 

@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {Box, Button, Flex, Loader, Modal, Select, Text, TextInput} from "@mantine/core";
-import {dataStore} from "@/stores/index.js";
+import {dataStore} from "@/stores/index.ts";
 
 const CopyToVodModal = observer(({
   show,

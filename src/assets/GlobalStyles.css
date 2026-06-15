@@ -14,6 +14,10 @@
   border-inline-end: none;
 }
 
+.mantine-UnstyledButton-root:disabled {
+  cursor: not-allowed;
+}
+
 [data-selected] td {
   background: var(--mantine-color-elv-blue-0) !important;
 }

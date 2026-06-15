@@ -1,57 +1,207 @@
 // Handles all metadata reads — tenant info, stream metadata, recording/playout config, probe data, permissions, and ladder profiles.
-import {flow, makeAutoObservable, observable, runInAction, toJS} from "mobx";
+import {makeAutoObservable, observable, toJS} from "mobx";
+import type RootStore from "@/stores/RootStore";
+import type {NetworkName} from "@/stores/RootStore";
+import {StreamStatus} from "@/utils/constants";
+
+export type PermissionLevel = "owner" | "editable" | "viewable" | "listable" | "public";
+
+type PublicProtocol = "rtmp" | "srt" | "mpegts";
+type DedicatedProtocol = "rtmp" | "mpegts";
+type Region =
+  | "as-east"
+  | "au-east"
+  | "eu-east-north"
+  | "eu-east-south"
+  | "eu-west-north"
+  | "eu-west-south"
+  | "na-east-north"
+  | "na-east-south"
+  | "na-west-north"
+  | "na-west-south";
+
+interface SrtEntry {
+  label: string;
+  region: Region;
+  url: string;
+}
+
+interface QuickLinkEntry {
+  region: Region;
+  url: string;
+}
+
+interface SrtUrlInfo {
+  quick_link_regions: Record<string, boolean>;
+  quick_links: QuickLinkEntry[];
+  srt_urls: SrtEntry[];
+}
+
+interface SrtTokenData {
+  region: Region;
+  issueTime: string;
+  expirationTime: string;
+  useSecure: boolean;
+  label: string;
+}
+
+interface SrtPlayoutUrlParams {
+  objectId: string;
+  originUrl: string;
+  fabricNode: string;
+  tokenData?: SrtTokenData | null;
+  quickLink?: boolean;
+}
+
+interface LibraryInfo {
+  libraryId: string;
+  name: string;
+}
+
+type LibraryMap = Record<string, LibraryInfo>;
+
+interface AccessGroupInfo {
+  address: string;
+  id: string;
+  meta: {
+    commit: {
+      author: string;
+      author_address: string;
+      message: string;
+      timestamp: string;
+    },
+    name: string;
+    public: {
+      name: string;
+    }
+  }
+}
+
+type AccessGroupMap = Record<string, AccessGroupInfo>
+
+export interface StreamInfo {
+  ".": {
+    source: string;
+  };
+  display_title: string;
+  name?: string;
+  order: number;
+  slug: string;
+  sources: Record<string, {
+    ".": {container: string};
+    "/": string;
+  }>;
+  title: string;
+  title_type: string;
+  video_type: string;
+  // Fields added by LoadStreams enrichment
+  objectId?: string;
+  versionHash?: string;
+  libraryId?: string;
+  originUrl?: string;
+  source?: string[];
+  packaging?: string[];
+  connectionTimeout: number;
+  reconnectionTimeout: number;
+  // Fields added by LoadSummaryData
+  videoStreamProbe?: any;
+  audioStreams?: any;
+  audioData?: any;
+  publishingVideo?: {bit_rate: any; frame_rate: any; resolution: string; codec: string};
+  publishingAudio?: {sample_rate: any};
+  partTtl?: string | number | null;
+  persistent?: any;
+  status?: StreamStatus;
+  warnings?: any;
+  quality?: any;
+  embedUrl?: string;
+  // Fields added by LoadDetails
+  description?: string;
+  configProfile?: string;
+  // Fields added by LoadPlayoutConfigData
+  drm?: any;
+  dvrEnabled?: any;
+  dvrMaxDuration?: string | null;
+  dvrStartTime?: any;
+  forensicWatermark?: any;
+  imageWatermark?: any;
+  simpleWatermark?: any;
+  watermarkType?: string;
+  tags?: string[];
+}
+
+type StreamMap = Record<string, StreamInfo>;
+
+interface DedicatedNodeInfo {
+  description: string;
+  name: string;
+  urls: Record<DedicatedProtocol, string[]>
+}
+
+type DedicatedNodeMap = Record<string, DedicatedNodeInfo>;
+
+interface StreamUrlInfo {
+  active: boolean;
+  protocol: PublicProtocol;
+  url: string;
+}
+
+type StreamUrlMap = Record<string, StreamUrlInfo>;
 
 class DataStore {
-  rootStore;
+  rootStore: RootStore;
   loaded = false;
-  tenantId;
-  libraries;
-  accessGroups;
-  contentType;
-  titleContentType;
-  siteId;
-  siteLibraryId;
-  streamMetadata;
-  liveStreamUrls;
-  dedicatedNodes;
-  srtUrlsByStream;
+  loadedUrls = false;
+  libraries: LibraryMap;
+  accessGroups: AccessGroupMap;
+  contentType: string;
+  titleContentType: string;
+  siteId: string;
+  siteLibraryId: string;
+  streamMetadata: StreamMap;
+  liveStreamUrls: StreamUrlMap;
+  dedicatedNodes: DedicatedNodeMap;
+  srtUrlsByStream: Record<string, SrtUrlInfo>;
   loadedDedicatedNodes = false;
   streamsLoaded = false;
+  _loadingStreams = false;
+  _accessGroupsPromise: Promise<void> | null = null;
 
-  constructor(rootStore) {
-    makeAutoObservable(this, {streamMetadata: observable.ref});
-
-    runInAction(() => {
-      this.rootStore = rootStore;
-    });
+  constructor(rootStore: RootStore) {
+    this.rootStore = rootStore;
+    makeAutoObservable(this, {streamMetadata: observable.ref, _loadingStreams: false, _accessGroupsPromise: false}, {autoBind: true});
   }
 
   get client() {
     return this.rootStore.client;
   }
 
-  get dedicatedNodesList() {
+  get dedicatedNodesList(): {label: string, value: string}[] {
     return Object.entries(this.dedicatedNodes ?? {})
       .map(([key, value]) => ({label: value.name, value: key}));
   }
 
-  DedicatedNodeUrls({nodeId, protocol}) {
+  DedicatedNodeUrls({nodeId, protocol}: {nodeId: string, protocol: DedicatedProtocol}) {
     if(!this.dedicatedNodes) { return []; }
 
     return this.dedicatedNodes?.[nodeId]?.urls?.[protocol] ?? [];
   }
 
-  Initialize = flow(function * () {
+  *Initialize(): Generator<any, void> {
     this.loaded = false;
     try {
       yield this.LoadTenantData();
       this.loaded = true;
     } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to initialize", error);
       this.loaded = true;
     }
-  });
+  }
 
-  LoadSiteStreams = flow(function * (reload=false) {
+  *LoadSiteStreams(reload=false): Generator<any, void> {
+    if(this._loadingStreams && !reload) { return; }
+    this._loadingStreams = true;
     this.streamsLoaded = false;
     try {
       if(!this.streamMetadata || reload) {
@@ -64,10 +214,14 @@ class DataStore {
       yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
       this.streamsLoaded = true;
+      // eslint-disable-next-line no-console
+      console.error("Unable to load site streams", error);
+    } finally {
+      this._loadingStreams = false;
     }
-  });
+  }
 
-  LoadTenantData = flow(function * () {
+  *LoadTenantData(): Generator<any, {siteLibraryId: string, siteObjectId: string, streamMetadata: StreamMap}> {
     try {
       const {siteLibraryId, siteObjectId, streamMetadata, contentTypes} = yield this.client.StreamSiteSettings();
       const {live_stream, title} = contentTypes;
@@ -95,18 +249,18 @@ class DataStore {
       console.error(error);
       throw Error("Unable to load sites for tenant.");
     }
-  });
+  }
 
-  LoadLibraries = flow(function * () {
+  *LoadLibraries(): Generator<any, void> {
     if(this.libraries) { return; }
 
     try {
-      let loadedLibraries = {};
+      let loadedLibraries: LibraryMap = {};
 
       const libraryIds = yield this.client.ContentLibraries() || [];
       yield Promise.all(
-        libraryIds.map(async libraryId => {
-          let response;
+        libraryIds.map(async (libraryId: string) => {
+          let response: string | null;
           try {
             response = (await this.client.ContentObjectMetadata({
               libraryId,
@@ -122,44 +276,54 @@ class DataStore {
             };
           } catch(error) {
             // eslint-disable-next-line no-console
-            console.error(`Unable to load info for library: ${libraryId}`);
+            console.error(`Unable to load info for library: ${libraryId}`, error);
           }
         })
       );
 
       // eslint-disable-next-line no-unused-vars
-      const sortedArray = Object.entries(loadedLibraries).sort(([id1, obj1], [id2, obj2]) => obj1.name.localeCompare(obj2.name));
+      const sortedArray = Object.entries(loadedLibraries).sort(([_id1, obj1], [_id2, obj2]) => obj1.name.localeCompare(obj2.name));
       this.libraries = Object.fromEntries(sortedArray);
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to load libraries", error);
     }
-  });
+  }
 
-  LoadAccessGroups = flow(function * () {
+  *LoadAccessGroups(): Generator<any, void> {
     if(this.accessGroups) { return; }
 
+    if(this._accessGroupsPromise) {
+      yield this._accessGroupsPromise;
+      return;
+    }
+
+    let resolve: () => void;
+    this._accessGroupsPromise = new Promise(res => { resolve = res; });
+
     try {
-      if(!this.accessGroups) {
-        this.accessGroups = {};
-        const accessGroups = yield this.client.ListAccessGroups() || [];
-        accessGroups
-          .sort((a, b) => (a.meta.name || a.id).localeCompare(b.meta.name || b.id))
-          .map(async accessGroup => {
-            if(accessGroup.meta["name"]){
-              this.accessGroups[accessGroup.meta["name"]] = accessGroup;
-            } else {
-              this.accessGroups[accessGroup.id] = accessGroup;
-            }
-          });
-      }
+      const accessGroups = (yield this.client.ListAccessGroups()) || [];
+      const result: AccessGroupMap = {};
+      accessGroups
+        .sort((a, b) => (a.meta.name || a.id).localeCompare(b.meta.name || b.id))
+        .forEach(accessGroup => {
+          if(accessGroup.meta["name"]) {
+            result[accessGroup.meta["name"]] = accessGroup;
+          } else {
+            result[accessGroup.id] = accessGroup;
+          }
+        });
+      this.accessGroups = result;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to load access groups", error);
+    } finally {
+      resolve();
+      this._accessGroupsPromise = null;
     }
-  });
+  }
 
-  LoadPermission = flow(function * ({libraryId, objectId}) {
+  *LoadPermission({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, PermissionLevel> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -173,9 +337,9 @@ class DataStore {
       // eslint-disable-next-line no-console
       console.error(`Unable to load permission for ${objectId}`, error);
     }
-  });
+  }
 
-  LoadAccessGroupPermissions = flow(function * ({objectId}) {
+  *LoadAccessGroupPermissions({objectId}: {objectId: string}): Generator<any, string> {
     try {
       let groupAddress = "";
 
@@ -193,9 +357,9 @@ class DataStore {
       // eslint-disable-next-line no-console
       console.error(`Unable to load access group permissions for ${objectId}`, error);
     }
-  });
+  }
 
-  LoadDedicatedNodes = flow(function * (){
+  *LoadDedicatedNodes(): Generator<any, void> {
     this.loadedDedicatedNodes = false;
     try {
       if(!this.siteLibraryId) {
@@ -215,20 +379,19 @@ class DataStore {
       // eslint-disable-next-line no-console
       console.error("Unable to load dedicated stream URLs", error);
     }
-  });
+  }
 
-  LoadStreamUrls = flow(function * () {
-    this.UpdateStreamUrls({});
+  *LoadStreamUrls(): Generator<any, void> {
     this.loadedUrls = false;
     try {
       const response = yield this.client.StreamListUrls({siteId: this.siteId});
 
-      const urls = {};
+      const urls: StreamUrlMap = {};
       Object.keys(response || {}).forEach(protocol => {
-        response[protocol].forEach(protocolObject => {
+        response[protocol].forEach((protocolObject: Omit<StreamUrlInfo, "protocol">) => {
           urls[protocolObject.url] = {
             ...protocolObject,
-            protocol
+            protocol: protocol as PublicProtocol
           };
         });
       });
@@ -239,9 +402,9 @@ class DataStore {
       // eslint-disable-next-line no-console
       console.error("Unable to load stream URLs", error);
     }
-  });
+  }
 
-  LoadSrtPlayoutUrls = flow(function * () {
+  *LoadSrtPlayoutUrls(): Generator<any, void> {
     const srtUrls = yield this.client.ContentObjectMetadata({
       libraryId: yield this.client.ContentObjectLibraryId({objectId: this.siteId}),
       objectId: this.siteId,
@@ -249,13 +412,13 @@ class DataStore {
     });
 
     this.srtUrlsByStream = srtUrls || {};
-  });
+  }
 
   // TODO: Move this to client-js
-  SrtPlayoutUrl = flow(function * ({objectId, originUrl, fabricNode, tokenData=null, quickLink=false}){
+  *SrtPlayoutUrl({objectId, originUrl, fabricNode, tokenData=null, quickLink=false}: SrtPlayoutUrlParams): Generator<any, string> {
     try {
-      let token = "", url, port;
-      const networkName = this.rootStore.networkInfo?.name || "";
+      let token = "", url: URL, port: number;
+      const networkName: NetworkName | "" = this.rootStore.networkInfo?.name || "";
 
       if(networkName.includes("main")) {
         port = 11080;
@@ -345,17 +508,17 @@ class DataStore {
       console.error(error);
       return "";
     }
-  });
+  }
 
-  UpdateStreamUrls = ({urls}) => {
+  UpdateStreamUrls = ({urls}: {urls: StreamUrlMap}) => {
     this.liveStreamUrls = urls;
   };
 
-  UpdateDedicatedNodes = ({nodes}) => {
+  UpdateDedicatedNodes = ({nodes}: {nodes: DedicatedNodeMap}) => {
     this.dedicatedNodes = nodes;
   };
 
-  UpdateSrtUrls({objectId, newData={}, removeData={}}) {
+  UpdateSrtUrls({objectId, newData={}, removeData={}}: {objectId: string, newData: Partial<SrtEntry>, removeData: Partial<SrtEntry>}) {
     const urlsByStream = this.srtUrlsByStream[objectId];
     let srtUrls = urlsByStream?.srt_urls || [];
 
@@ -364,28 +527,28 @@ class DataStore {
     }
 
     const {url, region, label} = newData;
-    const newValue = {url, region, label};
 
-    if(urlsByStream) {
-      urlsByStream.srt_urls = [
-        ...srtUrls || [],
-        newValue
-      ];
-    } else {
-      this.srtUrlsByStream[objectId] = {
-        ...this.srtUrlsByStream[objectId],
-        srt_urls: [newValue]
-      };
+    if(url && region && label) {
+      const newValue: SrtEntry = {url, region, label};
+
+      if(urlsByStream) {
+        urlsByStream.srt_urls = [...srtUrls, newValue];
+      } else {
+        this.srtUrlsByStream[objectId] = {
+          ...this.srtUrlsByStream[objectId],
+          srt_urls: [newValue]
+        };
+      }
     }
   }
 
-  UpdateSrtQuickLinks({objectId, newData={}, removeData={}}) {
+  UpdateSrtQuickLinks({objectId, newData={}, removeData={}}: {objectId: string, newData: Partial<QuickLinkEntry>, removeData: Partial<QuickLinkEntry>}) {
     const {region} = newData;
     if(!this.srtUrlsByStream[objectId]) {
       this.srtUrlsByStream[objectId] = {
-        quick_link_regions: {
-          [region]: true
-        }
+        quick_link_regions: {[region]: true},
+        quick_links: [],
+        srt_urls: []
       };
     } else {
       const urlsByStream = this.srtUrlsByStream[objectId];
@@ -405,9 +568,9 @@ class DataStore {
     }
   }
 
-  DeleteSrtUrl = flow(function * ({objectId, region}) {
+  *DeleteSrtUrl({objectId, region}: {objectId: string, region: Region}) {
     const urlsByStream = this.srtUrlsByStream[objectId];
-    const newSrtUrls = [];
+    const newSrtUrls: SrtEntry[] = [];
     urlsByStream.srt_urls.forEach(urlObj => {
       if(urlObj.region !== region) {
         newSrtUrls.push(toJS(urlObj));
@@ -436,15 +599,15 @@ class DataStore {
     });
 
     this.srtUrlsByStream[objectId].srt_urls = newSrtUrls;
-  });
+  }
 
-  UpdateSiteSrtLinks = flow(function * ({
+  *UpdateSiteSrtLinks({
     objectId,
     url,
     region,
     label,
     removeData={}
-  }) {
+  }: SrtEntry & {objectId: string, removeData?: Partial<SrtEntry>}) {
     if(!this.siteId) { return; }
 
     const libraryId = yield this.client.ContentObjectLibraryId({objectId: this.siteId});
@@ -477,13 +640,13 @@ class DataStore {
       writeToken,
       commitMessage: "Update srt url"
     });
-  });
+  }
 
-  UpdateSiteQuickLinks = flow(function * ({
+  *UpdateSiteQuickLinks({
     objectId,
     region,
     removeData={}
-  }) {
+  }: {objectId: string, region: Region, removeData?: Partial<QuickLinkEntry>}) {
     try {
       if(!this.siteId) { return; }
 
@@ -520,9 +683,9 @@ class DataStore {
       console.error("Unable to update site", error);
       throw error;
     }
-  });
+  }
 
-  LoadNodes = flow(function * ({region}) {
+  *LoadNodes({region}: {region: Region}) {
     yield this.client.UseRegion({region});
     const nodes = this.client.Nodes();
 
@@ -531,7 +694,7 @@ class DataStore {
     }
 
     return nodes;
-  });
+  }
 }
 
 export default DataStore;

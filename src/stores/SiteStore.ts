@@ -1,9 +1,16 @@
 // Manages the live stream platform's core "site" object, including its properties and actions related to platform-level administration.
-import {flow} from "mobx";
+import {flow, makeObservable, observable} from "mobx";
+import type RootStore from "@/stores/RootStore";
 
 class SiteStore {
-  constructor(rootStore) {
+  rootStore: RootStore;
+
+  constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
+    makeObservable(this, {
+      rootStore: observable,
+      UpdateStreamLink: flow
+    }, {autoBind: true});
   }
 
   get client() {
@@ -15,7 +22,7 @@ class SiteStore {
     linkTarget="meta/public/asset_metadata",
     options={},
     autoUpdate=true
-  }) => {
+  }: {targetHash?: string, linkTarget?: string, options?: any, autoUpdate?: boolean}): {".": any, "/": string} => {
     return {
       ...options,
       ".": {
@@ -26,35 +33,7 @@ class SiteStore {
     };
   };
 
-  CreateSiteLinks = flow(function * ({objectId}) {
-    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    const {writeToken} = yield this.client.EditContentObject({
-      libraryId,
-      objectId
-    });
-
-    yield this.client.CreateLinks({
-      libraryId,
-      objectId,
-      writeToken,
-      links: [{
-        type: "rep",
-        path: "public/asset_metadata/sources/default",
-        target: "playout/default/options.json"
-      }]
-    });
-  });
-
-  AddStreamToSite = ({objectId}) => {
-    try {
-      return this.client.StreamLinkToSite({objectId});
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to add stream to site", error);
-    }
-  };
-
-  UpdateStreamLink = flow(function * ({objectId, slug}) {
+  *UpdateStreamLink({objectId, slug}: {objectId: string, slug: string}): Generator<any, void> {
     try {
       const originalLink = yield this.client.ContentObjectMetadata({
         libraryId: this.rootStore.dataStore.siteLibraryId,
@@ -91,7 +70,7 @@ class SiteStore {
       // eslint-disable-next-line no-console
       console.error("Unable to update stream link", error);
     }
-  });
+  }
 }
 
 export default SiteStore;

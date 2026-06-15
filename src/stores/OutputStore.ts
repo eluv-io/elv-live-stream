@@ -1,26 +1,75 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
-import {makeAutoObservable, runInAction} from "mobx";
-import {DeriveSourceAndPackaging} from "@/utils/stream.js";
-import {SortTable} from "@/utils/helpers.js";
+import {makeAutoObservable} from "mobx";
+import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/stream";
+import {SortTable} from "@/utils/helpers";
+import type RootStore from "@/stores/RootStore";
+
+interface OutputInput {
+  stream?: string;
+  name?: string;
+  status?: string;
+  url?: string;
+  embedUrl?: string;
+  source?: StreamSource[];
+  packaging?: StreamPackaging[];
+  quality?: string;
+  stats?: any;
+}
+
+interface OutputSrtPull {
+  node_ids?: string[];
+  urls?: string[];
+  connection?: {
+    enforced_encryption?: string;
+  };
+  passphrase?: string;
+  strip_rtp?: boolean;
+}
+
+interface Output {
+  enabled?: boolean;
+  input?: OutputInput;
+  name?: string;
+  description?: string;
+  reset?: boolean;
+  srt_pull?: OutputSrtPull;
+  state?: any;
+  tags?: string[];
+}
+
+type Outputs = Record<string, Output>;
 
 class OutputStore {
-  state = "pending";
-  outputs = {};
+  state: "loaded" | "error" | "pending" = "pending";
+  outputs: Outputs = {};
   outputSettingsId = "";
   tableFilter = "";
+  tableTagFilter: string[] = [];
   sortStatus = {columnAccessor: "name", direction: "asc"};
+  rootStore: RootStore;
 
-  constructor(rootStore) {
-    makeAutoObservable(this);
-
+  constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
+
+    makeAutoObservable(this);
   }
 
   get client() {
     return this.rootStore.client;
   }
 
-  get outputList() {
+  get allOutputTags(): string[] {
+    const tags = new Set<string>();
+    Object.values(this.outputs).forEach(output => {
+      output.tags?.forEach(t => tags.add(t));
+    });
+    return Array.from(tags).sort();
+  }
+
+  get outputList(): (Output & { slug: string; streamName: string | undefined })[] {
+    const filter = this.tableFilter.toLowerCase();
+    const tagFilter = this.tableTagFilter;
+
     const list = Object.entries(this.outputs)
       .map(([slug, output]) => ({
         slug,
@@ -28,42 +77,49 @@ class OutputStore {
         ...output
       }));
 
-    if(!this.tableFilter) { return list.sort(SortTable({sortStatus: this.sortStatus})); }
+    const filtered = list.filter(output => {
+      const matchesText = !filter ||
+        output.slug?.toLowerCase().includes(filter) ||
+        output.name?.toLowerCase().includes(filter) ||
+        output.description?.toLowerCase().includes(filter) ||
+        output.input?.stream?.toLowerCase().includes(filter) ||
+        output.input?.name?.toLowerCase().includes(filter);
 
-    const filter = this.tableFilter.toLowerCase();
-    const filtered = list.filter(output =>
-      output.slug?.toLowerCase().includes(filter) ||
-      output.name?.toLowerCase().includes(filter) ||
-      output.description?.toLowerCase().includes(filter) ||
-      output.input?.stream?.toLowerCase().includes(filter) ||
-      output.input?.name?.toLowerCase().includes(filter)
-    );
+      const matchesTags = tagFilter.length === 0 ||
+        tagFilter.some(tag => output.tags?.includes(tag));
+
+      return matchesText && matchesTags;
+    });
 
     return filtered.sort(SortTable({sortStatus: this.sortStatus}));
   }
 
-  SetTableFilter = (filter) => {
+  SetTableFilter = (filter: string): void => {
     this.tableFilter = filter;
   };
 
-  SetSortStatus = (sortStatus) => {
+  SetTableTagFilter = (tags: string[]): void => {
+    this.tableTagFilter = tags;
+  };
+
+  SetSortStatus = (sortStatus: {columnAccessor: string, direction: string}): void => {
     this.sortStatus = sortStatus;
   };
 
-  UpdateOutput = ({slug, updates}) => {
+  UpdateOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
     this.outputs[slug] = {...this.outputs[slug], ...updates};
   };
 
-  async LoadOutputSettingsId() {
+  *LoadOutputSettingsId(): Generator<any, void> {
     try {
       let siteLibraryId = this.rootStore.dataStore.siteLibraryId;
       let siteObjectId = this.rootStore.dataStore.siteId;
 
       if(!siteLibraryId) {
-        ({siteLibraryId, siteObjectId} = await this.client.StreamSiteSettings({resolveLinks: false}));
+        ({siteLibraryId, siteObjectId} = yield this.client.StreamSiteSettings({resolveLinks: false}));
       }
 
-      const outputs = await this.client.ContentObjectMetadata({
+      const outputs = yield this.client.ContentObjectMetadata({
         libraryId: siteLibraryId,
         objectId: siteObjectId,
         metadataSubtree: "live_outputs"
@@ -76,54 +132,47 @@ class OutputStore {
     }
   }
 
-  async LoadOutputs() {
+  *LoadOutputs(): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
-        await this.LoadOutputSettingsId();
+        yield this.LoadOutputSettingsId();
       }
 
-      const outputs = await this.client.OutputsList({
+      this.outputs = yield this.client.OutputsList({
         objectId: this.outputSettingsId
       });
 
-      runInAction(() => {
-        this.outputs = outputs;
-        this.state = "loaded";
-      });
+      this.state = "loaded";
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to load outputs.", error);
-      runInAction(() => {
-        this.state = "error";
-      });
+      this.state = "error";
     }
   }
 
-  async LoadOutputItem({outputId, includeState=true}) {
+  *LoadOutputItem({outputId, includeState=true}: {outputId: string, includeState: boolean}): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
-        await this.LoadOutputSettingsId();
+        yield this.LoadOutputSettingsId();
       }
 
-      const output = await this.client.OutputsListItem({
+      const output = yield this.client.OutputsListItem({
         objectId: this.outputSettingsId,
         outputId,
         includeState
       });
 
-      runInAction(() => {
-        this.UpdateOutput({slug: outputId, updates: output});
-      });
+      this.UpdateOutput({slug: outputId, updates: output});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(`Failed to load output ${outputId}.`, error);
     }
   }
 
-  async LoadOutputStreamInfo({slug, streamObjectId}) {
+  *LoadOutputStreamInfo({slug, streamObjectId}: {slug: string, streamObjectId: string}): Generator<any, {url: string, embedUrl: string, source: StreamSource[] | undefined, packaging: StreamPackaging[], quality: string, stats: any}, any> {
     try {
-      const metadata = await this.client.ContentObjectMetadata({
-        libraryId: await this.client.ContentObjectLibraryId({objectId: streamObjectId}),
+      const metadata = yield this.client.ContentObjectMetadata({
+        libraryId: yield this.client.ContentObjectLibraryId({objectId: streamObjectId}),
         objectId: streamObjectId,
         metadataSubtree: "live_recording_config",
         select: [
@@ -132,12 +181,12 @@ class OutputStore {
         ]
       });
 
-      const streamStatus = await this.client.StreamStatus({name: streamObjectId});
+      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
 
       const url = metadata?.url;
       const {source, packaging} = DeriveSourceAndPackaging({url, inputCfg: metadata?.recording_config?.input_cfg});
 
-      const embedUrl = await this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
+      const embedUrl = yield this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
 
       const streamInfo = {
         url,
@@ -153,7 +202,7 @@ class OutputStore {
           slug,
           updates: {
             input: {
-              ...this.outputs[slug].input,
+              ...this.outputs[slug]?.input,
               ...streamInfo
             }
           }
@@ -167,14 +216,14 @@ class OutputStore {
     }
   }
 
-  async CreateOutput({
+  *CreateOutput({
     name,
     externalId,
     geos,
     passphrase,
     encryption,
     stripRtp
-  }) {
+  }: {name?: string, externalId?: string, geos: string[], passphrase?: string, encryption?: string, stripRtp?: boolean}): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
         throw "No output settings object found. Please create one before adding outputs.";
@@ -183,7 +232,7 @@ class OutputStore {
       if(!name) {
         name = `Output ${this.outputList?.length + 1}`;
       }
-      const outputs = await this.client.OutputsCreate({
+      const outputs = yield this.client.OutputsCreate({
         objectId: this.outputSettingsId,
         name,
         description: geos[0],
@@ -198,11 +247,9 @@ class OutputStore {
       const outputId = Object.keys(outputs || {})[0];
       let outputData = Object.values(outputs || {})[0];
 
-      outputData = await this.client.OutputsResolveSrtPullUrls({value: outputData});
+      outputData = yield this.client.OutputsResolveSrtPullUrls({value: outputData});
 
-      runInAction(() => {
-        this.outputs[outputId] = outputData;
-      });
+      this.outputs[outputId] = outputData;
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to create output.", error);
@@ -210,12 +257,12 @@ class OutputStore {
     }
   }
 
-  async MapStream({outputId, streamObjectId}) {
+  *MapStream({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
-      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
-      const existing = await this.client.ContentObjectMetadata({
+      const existing = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
         metadataSubtree: `live_outputs/${outputId}`
@@ -230,29 +277,27 @@ class OutputStore {
         }
       };
 
-      await this.client.OutputsModify({
+      yield this.client.OutputsModify({
         libraryId,
         objectId,
         outputId,
         output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
-      const stream = Object.values(this.rootStore.streamStore.streams || {})
+      const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
         .find(s => s.objectId === streamObjectId);
 
-      runInAction(() => {
-        this.UpdateOutput({
-          slug: outputId,
-          updates: {
-            enabled: !existing.input?.stream ? true : existing.enabled,
-            input: {
-              ...(this.outputs[outputId]?.input || {}),
-              stream: streamObjectId,
-              name: stream?.title,
-              status: stream?.status
-            }
+      this.UpdateOutput({
+        slug: outputId,
+        updates: {
+          enabled: !existing.input?.stream ? true : existing.enabled,
+          input: {
+            ...(this.outputs[outputId]?.input || {}),
+            stream: streamObjectId,
+            name: stream?.title,
+            status: stream?.status
           }
-        });
+        }
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -261,12 +306,12 @@ class OutputStore {
     }
   }
 
-  async MapStreamBatch({outputs, streamObjectId}) {
+  *MapStreamBatch({outputs, streamObjectId}: {outputs: string[], streamObjectId: string}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
-      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
-      const updatedOutputs = await Promise.all(
+      const updatedOutputs = yield Promise.all(
         outputs.map(async outputId => {
           const existing = await this.client.ContentObjectMetadata({
             libraryId,
@@ -288,33 +333,31 @@ class OutputStore {
         })
       );
 
-      const outputsMap = Object.fromEntries(
+      const outputsMap: Record<string, any> = Object.fromEntries(
         updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
       );
 
-      await this.client.OutputsModifyBatch({
+      yield this.client.OutputsModifyBatch({
         libraryId,
         objectId,
         outputs: outputsMap
       });
 
-      const stream = Object.values(this.rootStore.streamStore.streams || {})
+      const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
         .find(s => s.objectId === streamObjectId);
 
-      runInAction(() => {
-        Object.entries(outputsMap).forEach(([outputId, output]) => {
-          this.UpdateOutput({
-            slug: outputId,
-            updates: {
-              enabled: output.enabled,
-              input: {
-                ...(this.outputs[outputId]?.input || {}),
-                stream: streamObjectId,
-                name: stream?.title,
-                status: stream?.status
-              }
+      Object.entries(outputsMap).forEach(([outputId, output]) => {
+        this.UpdateOutput({
+          slug: outputId,
+          updates: {
+            enabled: output.enabled,
+            input: {
+              ...(this.outputs[outputId]?.input || {}),
+              stream: streamObjectId,
+              name: stream?.title,
+              status: stream?.status
             }
-          });
+          }
         });
       });
     } catch(error) {
@@ -324,12 +367,12 @@ class OutputStore {
     }
   }
 
-  async UnmapStreamBatch({outputs}) {
+  *UnmapStreamBatch({outputs}: {outputs: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
-      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
-      const updatedOutputs = await Promise.all(
+      const updatedOutputs = yield Promise.all(
         outputs.map(async outputId => {
           const existing = await this.client.ContentObjectMetadata({
             libraryId,
@@ -352,21 +395,19 @@ class OutputStore {
         updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
       );
 
-      await this.client.OutputsModifyBatch({
+      yield this.client.OutputsModifyBatch({
         libraryId,
         objectId,
         outputs: outputsMap
       });
 
-      runInAction(() => {
-        updatedOutputs.forEach(({outputId}) => {
-          this.UpdateOutput({
-            slug: outputId,
-            updates: {
-              enabled: false,
-              input: {}
-            }
-          });
+      updatedOutputs.forEach(({outputId}) => {
+        this.UpdateOutput({
+          slug: outputId,
+          updates: {
+            enabled: false,
+            input: {}
+          }
         });
       });
     } catch(error) {
@@ -376,24 +417,26 @@ class OutputStore {
     }
   }
 
-  async ModifyOutput({
+  *ModifyOutput({
     outputId,
     name,
     passphrase,
     encryption,
-    stripRtp
-  }) {
+    stripRtp,
+    tags
+  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
-      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
-      const existing = await this.client.OutputsListItem({objectId, outputId, includeState: false});
-      // eslint-disable-next-line no-unused-vars
+      const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
 
       const output = {
         ...existing,
         ...(name !== undefined && {name: name.trim()}),
+        ...(tags !== undefined && {tags}),
         input: cleanInput,
         srt_pull: {
           ...existing.srt_pull,
@@ -406,20 +449,18 @@ class OutputStore {
         }
       };
 
-      await this.client.OutputsModify({
+      yield this.client.OutputsModify({
         libraryId,
         objectId,
         outputId,
         output
       });
 
-      const updatedOutput = await this.client.OutputsListItem({objectId, outputId});
+      const updatedOutput = yield this.client.OutputsListItem({objectId, outputId});
 
-      runInAction(() => {
-        this.UpdateOutput({
-          slug: outputId,
-          updates: updatedOutput
-        });
+      this.UpdateOutput({
+        slug: outputId,
+        updates: updatedOutput
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -428,13 +469,13 @@ class OutputStore {
     }
   }
 
-  async EnableOutput({outputId}) {
+  *EnableOutput({outputId}: {outputId: string}): Generator<any, void> {
+    try {
       const objectId = this.outputSettingsId;
-      const libraryId = await this.client.ContentObjectLibraryId({objectId});
-
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
       const enabled = true;
 
-      const existing = await this.client.ContentObjectMetadata({
+      const existing = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
         metadataSubtree: `live_outputs/${outputId}`
@@ -449,19 +490,16 @@ class OutputStore {
         enabled
       };
 
-    try {
-      await this.client.OutputsModify({
+      yield this.client.OutputsModify({
         libraryId,
         objectId,
         outputId,
         output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
-      runInAction(() => {
-        this.UpdateOutput({
-          slug: outputId,
-          updates: { enabled }
-        });
+      this.UpdateOutput({
+        slug: outputId,
+        updates: { enabled }
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -470,12 +508,12 @@ class OutputStore {
     }
   }
 
-  async EnableOutputBatch({outputs}){
+  *EnableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void>{
     try {
       const objectId = this.outputSettingsId;
-      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
-      const updatedOutputs = await Promise.all(
+      const updatedOutputs = yield Promise.all(
         outputs.map(async outputId => {
           const existing = await this.client.ContentObjectMetadata({
             libraryId,
@@ -497,20 +535,18 @@ class OutputStore {
         updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
       );
 
-      await this.client.OutputsModifyBatch({
+      yield this.client.OutputsModifyBatch({
         libraryId,
         objectId,
         outputs: outputsMap
       });
 
-      runInAction(() => {
-        updatedOutputs.forEach(({outputId}) => {
-          this.UpdateOutput({
-            slug: outputId,
-            updates: {
-              enabled: true
-            }
-          });
+      updatedOutputs.forEach(({outputId}) => {
+        this.UpdateOutput({
+          slug: outputId,
+          updates: {
+            enabled: true
+          }
         });
       });
     }  catch(error) {
@@ -520,36 +556,33 @@ class OutputStore {
     }
   }
 
-  async DisableOutput({outputId}) {
-    const objectId = this.outputSettingsId;
-    const libraryId = await this.client.ContentObjectLibraryId({objectId});
-
-    const enabled = false;
-
-    const existing = await this.client.ContentObjectMetadata({
-      libraryId,
-      objectId,
-      metadataSubtree: `live_outputs/${outputId}`
-    }) || {};
-
-    const updatedOutput = {
-      ...existing,
-      enabled
-    };
-
+  *DisableOutput({outputId}: {outputId: string}): Generator<any, void> {
     try {
-      await this.client.OutputsModify({
+      const objectId = this.outputSettingsId;
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      const enabled = false;
+
+      const existing = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: `live_outputs/${outputId}`
+      }) || {};
+
+      const updatedOutput = {
+        ...existing,
+        enabled
+      };
+
+      yield this.client.OutputsModify({
         libraryId,
         objectId,
         outputId,
         output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
-      runInAction(() => {
-        this.UpdateOutput({
-          slug: outputId,
-          updates: { enabled }
-        });
+      this.UpdateOutput({
+        slug: outputId,
+        updates: { enabled }
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -558,12 +591,12 @@ class OutputStore {
     }
   }
 
-  async DisableOutputBatch({outputs}){
+  *DisableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void>{
     try {
       const objectId = this.outputSettingsId;
-      const libraryId = await this.client.ContentObjectLibraryId({objectId});
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
-      const updatedOutputs = await Promise.all(
+      const updatedOutputs = yield Promise.all(
         outputs.map(async outputId => {
           const existing = await this.client.ContentObjectMetadata({
             libraryId,
@@ -585,20 +618,18 @@ class OutputStore {
         updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
       );
 
-      await this.client.OutputsModifyBatch({
+      yield this.client.OutputsModifyBatch({
         libraryId,
         objectId,
         outputs: outputsMap
       });
 
-      runInAction(() => {
-        updatedOutputs.forEach(({outputId}) => {
-          this.UpdateOutput({
-            slug: outputId,
-            updates: {
-              enabled: false
-            }
-          });
+      updatedOutputs.forEach(({outputId}) => {
+        this.UpdateOutput({
+          slug: outputId,
+          updates: {
+            enabled: false
+          }
         });
       });
     }  catch(error) {
@@ -608,20 +639,18 @@ class OutputStore {
     }
   }
 
-  async DeleteOutput({outputId}) {
+  *DeleteOutput({outputId}: {outputId: string}): Generator<any, void> {
     const objectId = this.outputSettingsId;
-    const libraryId = await this.client.ContentObjectLibraryId({objectId});
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
     try {
-      await this.client.OutputsDelete({
+      yield this.client.OutputsDelete({
         libraryId,
         objectId,
         outputId
       });
 
-      runInAction(() => {
-        delete this.outputs[outputId];
-      });
+      delete this.outputs[outputId];
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to delete output.", error);
@@ -629,37 +658,65 @@ class OutputStore {
     }
   }
 
-  async DeleteOutputBatch({outputs}) {
-    await Promise.all(
+  *DeleteOutputBatch({outputs}: {outputs: string[]}): Generator<any, void> {
+    yield Promise.all(
       outputs.map(outputId => this.DeleteOutput({outputId})
       )
     );
   }
 
-  async ResetOutput({outputId}) {
+  *UpdateOutputTags({outputId, tags}: {outputId: string, tags: string[]}): Generator<any, void> {
+    try {
+      const objectId = this.outputSettingsId;
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
+      const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {name: _n, status: _s, ...cleanInput} = existing.input || {};
+
+      const output = {
+        ...existing,
+        input: cleanInput,
+        tags
+      };
+
+      yield this.client.OutputsModify({
+        libraryId,
+        objectId,
+        outputId,
+        output: JSON.parse(JSON.stringify(output))
+      });
+
+      this.UpdateOutput({slug: outputId, updates: {tags}});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to update output tags.", error);
+      throw error;
+    }
+  }
+
+  *ResetOutput({outputId}: {outputId: string}): Generator<any, void> {
     const objectId = this.outputSettingsId;
-    const libraryId = await this.client.ContentObjectLibraryId({objectId});
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
     try {
-      await this.client.OutputsStop({
+      yield this.client.OutputsStop({
         libraryId,
         objectId,
         outputId
       });
 
-      const newState = await this.client.OutputsState({
+      const newState = yield this.client.OutputsState({
         libraryId,
         objectId,
         outputId
       });
 
-      runInAction(() => {
-        this.UpdateOutput({
-          slug: outputId,
-          updates: {
-            state: newState
-          }
-        });
+      this.UpdateOutput({
+        slug: outputId,
+        updates: {
+          state: newState
+        }
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -668,6 +725,5 @@ class OutputStore {
     }
   }
 }
-
 
 export default OutputStore;

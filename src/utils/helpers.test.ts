@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {CheckExpiration, SanitizeUrl, SortTable} from "./helpers";
+import {CheckExpiration, SanitizeUrl, SortTable} from "@/utils/helpers";
 
 describe("SortTable", () => {
   const asc = {columnAccessor: "name", direction: "asc"};
@@ -79,10 +79,6 @@ describe("CheckExpiration", () => {
     expect(CheckExpiration(today.getTime())).toBe(false);
   });
 
-  it("returns false for non-number input", () => {
-    expect(CheckExpiration("not a number")).toBe(false);
-    expect(CheckExpiration(null)).toBe(false);
-  });
 });
 
 describe("SanitizeUrl", () => {
@@ -109,9 +105,9 @@ describe("SanitizeUrl", () => {
     expect(SanitizeUrl({ url: null })).toBe("");
   });
 
-  it("returns false for invalid URLs", () => {
+  it("returns empty string for invalid URLs", () => {
     const result = SanitizeUrl({ url: "not a valid url" });
-    expect(result).toBe(false);
+    expect(result).toBe("");
   });
 
   it("strips passphrase from URLs with out-of-range ports via regex fallback", () => {

@@ -1,30 +1,43 @@
-import {configure, flow, makeAutoObservable} from "mobx";
+import {configure, makeAutoObservable} from "mobx";
 import {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
 import DataStore from "@/stores/DataStore";
-import StreamStore from "@/stores/StreamStore.js";
-import StreamEditStore from "@/stores/StreamEditStore.js";
-import ModalStore from "@/stores/ModalStore.js";
-import SiteStore from "@/stores/SiteStore.js";
-import ProfileStore from "@/stores/ProfileStore.js";
-import OutputStore from "@/stores/OutputStore.js";
-import OutputModalStore from "@/stores/OutputModalStore.js";
+import StreamStore from "@/stores/StreamStore";
+import StreamEditStore from "@/stores/StreamEditStore";
+import ModalStore from "@/stores/ModalStore";
+import SiteStore from "@/stores/SiteStore";
+import ProfileStore from "@/stores/ProfileStore";
+import OutputStore from "@/stores/OutputStore";
+import OutputModalStore from "@/stores/OutputModalStore";
 
 // Force strict mode so mutations are only allowed within actions.
 configure({
   enforceActions: "always"
 });
 
+export type NetworkName = "demo" | "main" | "test";
+
 // The central hub, instantiating and coordinating all other MobX stores.
 class RootStore {
-  client;
+  client: InstanceType<typeof FrameClient>;
   loaded = false;
-  networkInfo;
-  contentSpaceId;
-  errorMessage;
+  networkInfo?: {
+    name: NetworkName,
+    id: string,
+    configUrl: string
+  };
+  contentSpaceId?: string;
+  errorMessage?: string;
+
+  dataStore: DataStore;
+  streamStore: StreamStore;
+  streamEditStore: StreamEditStore;
+  modalStore: ModalStore;
+  siteStore: SiteStore;
+  profileStore: ProfileStore;
+  outputStore: OutputStore;
+  outputModalStore: OutputModalStore;
 
   constructor() {
-    makeAutoObservable(this);
-
     this.dataStore = new DataStore(this);
     this.streamStore = new StreamStore(this);
     this.streamEditStore = new StreamEditStore(this);
@@ -33,9 +46,11 @@ class RootStore {
     this.profileStore = new ProfileStore(this);
     this.outputStore = new OutputStore(this);
     this.outputModalStore = new OutputModalStore(this);
+
+    makeAutoObservable(this);
   }
 
-  Initialize = flow(function * () {
+  *Initialize(): Generator<any, void> {
     try {
       this.client = new FrameClient({
         target: window.parent,
@@ -54,22 +69,22 @@ class RootStore {
     } finally {
       this.loaded = true;
     }
-  });
+  }
 
-  ExecuteFrameRequest = flow(function * ({request, Respond}) {
+  *ExecuteFrameRequest ({request, Respond}: any) : Generator<any, void> {
     Respond(yield this.client.PassRequest({request, Respond}));
-  });
+  }
 
-  SetErrorMessage(message) {
+  SetErrorMessage(message: string): void {
     this.errorMessage = message;
   }
 
-  async OpenInFabricBrowser({libraryId, objectId}) {
+  async OpenInFabricBrowser({libraryId, objectId}: {libraryId: string, objectId: string}): Promise<void> {
     if(!libraryId) {
       libraryId = await this.client.ContentObjectLibraryId({objectId});
     }
 
-    this.streamStore.client.SendMessage({
+    await this.streamStore.client.SendMessage({
       options: {
         operation: "OpenLink",
         libraryId,

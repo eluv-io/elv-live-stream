@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import AudioTracksTable from "@/pages/streams/details/recording/audio-tracks-table/AudioTracksTable.jsx";
-import {outputStore, streamEditStore, streamStore} from "@/stores/index.js";
+import {outputStore, streamEditStore, streamStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
 import {
   Box,
@@ -20,17 +20,15 @@ import {
   CONNECTION_TIMEOUT_OPTIONS,
   RECONNECTION_TIMEOUT_OPTIONS,
   RETENTION_OPTIONS, STATUS_MAP
-} from "@/utils/constants.js";
+} from "@/utils/constants.ts";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const RecordingPanel = observer(({
-  title,
   slug,
   status,
   PageVersionCallback,
-  url,
   checkVersion
 }) => {
   const params = useParams();
@@ -48,6 +46,8 @@ const RecordingPanel = observer(({
   const [applyingChanges, setApplyingChanges] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const title = streamStore.streams?.[slug].title;
+
   const LoadConfigData = async () => {
     try {
       setLoading(true);
@@ -62,7 +62,7 @@ const RecordingPanel = observer(({
         copyMpegTs: copyMpegTsMeta,
         inputCfg,
         multiPath: multiPathMeta
-      } = await streamStore.LoadRecordingConfigData({objectId: params.id});
+      } = await streamStore.LoadRecordingConfigData({objectId: params.id, slug});
 
       retentionMeta = persistentMeta ? "indefinite" : retentionMeta ? retentionMeta.toString() : null;
       connectionTimeoutMeta = connectionTimeoutMeta ? connectionTimeoutMeta.toString() : null;
@@ -204,7 +204,7 @@ const RecordingPanel = observer(({
         </DisabledTooltipWrapper>
 
         {
-          !(url || "").includes("rtmp") &&
+          !(streamStore.streams?.[slug].originUrl || "").includes("rtmp") &&
           <DisabledTooltipWrapper
             disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
             tooltipLabel="Transport Stream configuration is disabled when the stream is running"
@@ -218,7 +218,7 @@ const RecordingPanel = observer(({
               />
             </SimpleGrid>
 
-            <Collapse in={copyMpegTs}>
+            <Collapse expanded={copyMpegTs}>
               <SimpleGrid cols={2} spacing={150} mb={29} ml={34}>
                 <Radio.Group
                   name="input-packaging"

@@ -1,4 +1,4 @@
-import {describe, it, expect, vi, beforeEach} from "vitest";
+import {describe, it, expect, vi, beforeEach, afterEach} from "vitest";
 
 vi.mock("mobx", async () => ({
   ...(await vi.importActual("mobx")),
@@ -12,7 +12,22 @@ vi.mock("@/utils/constants", () => ({
   DETAILS_TABS: []
 }));
 
-import StreamEditStore from "./StreamEditStore";
+import StreamEditStore, {UpdatePlayoutConfigParams} from "@/stores/StreamEditStore";
+
+// autoBind defines bound flows as non-writable, non-configurable OWN properties on
+// each instance, so they can't be reassigned or spied after construction. The only
+// seam is the prototype generator, which makeAutoObservable reads in the constructor
+// to build the bound copy — so stub it BEFORE `new StreamEditStore(...)`.
+const prototypeSpies: ReturnType<typeof vi.spyOn>[] = [];
+const stubFlow = (name: string, resolved: unknown = undefined) => {
+  const spy = vi.spyOn(StreamEditStore.prototype as any, name).mockResolvedValue(resolved);
+  prototypeSpies.push(spy);
+  return spy;
+};
+// Restore prototype spies after every test so other suites get the real flows.
+afterEach(() => {
+  prototypeSpies.splice(0).forEach(spy => spy.mockRestore());
+});
 
 const mockProfile = {
   name: "My Profile",
@@ -43,20 +58,17 @@ const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => 
     }
   };
 
-  const store = new StreamEditStore(mockRootStore);
-
-  // Stub internal methods that aren't under test.
-  // Note: MobX marks flow class fields as configurable:false, so Object.defineProperty
-  // cannot be used. Direct assignment works for the call-interception side; we avoid
-  // asserting on store.<method> directly and use the captured spy ref instead.
-  store.UpdateDetailMetadata = vi.fn().mockResolvedValue(undefined);
-  store.SetPermission = vi.fn().mockResolvedValue(undefined);
-  store.UpdateAccessGroupPermission = vi.fn().mockResolvedValue(undefined);
+  // Stub internal methods that aren't under test (see stubFlow note above).
+  stubFlow("UpdateDetailMetadata");
+  stubFlow("SetPermission");
+  stubFlow("UpdateAccessGroupPermission");
   // UpdateStreamAudioSettings runs when probeCleared is falsy. With ContentObjectMetadata
   // returning null everywhere, the fallback path in UpdateStreamAudioSettings handles
   // null ladder_specs gracefully — no additional stub needed.
 
-  return {store, mockClient};
+  const store = new StreamEditStore(mockRootStore) as any;
+
+  return {store, mockClient, streamStore: mockRootStore.streamStore};
 };
 
 // Existing live_recording before profile is applied (stream was configured with input_stream_info only)
@@ -136,18 +148,12 @@ const makeApplyProfileStore = () => {
     }
   };
 
-  const store = new StreamEditStore(mockRootStore);
-  store.UpdateDetailMetadata = vi.fn().mockResolvedValue(undefined);
-  store.SetPermission = vi.fn().mockResolvedValue(undefined);
-  store.UpdateAccessGroupPermission = vi.fn().mockResolvedValue(undefined);
+  stubFlow("UpdateDetailMetadata");
+  stubFlow("SetPermission");
+  stubFlow("UpdateAccessGroupPermission");
+  const updateAudioSpy = stubFlow("UpdateStreamAudioSettings");
 
-  // Direct assignment installs the spy for call-interception purposes.
-  // MobX's configurable:false prevents Object.defineProperty, but writable:true
-  // allows plain assignment. Reading store.UpdateStreamAudioSettings goes through
-  // MobX's observable proxy and returns the original — so always use this captured
-  // reference for spy assertions, never `store.UpdateStreamAudioSettings`.
-  const updateAudioSpy = vi.fn().mockResolvedValue(undefined);
-  store.UpdateStreamAudioSettings = updateAudioSpy;
+  const store = new StreamEditStore(mockRootStore) as any;
 
   return {store, mockClient, mockRootStore, updateAudioSpy};
 };
@@ -157,9 +163,8 @@ const makeSyncStore = (metadataResponse = {}) => {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("mock-lib-id"),
     ContentObjectMetadata: vi.fn().mockResolvedValue(metadataResponse)
   };
-  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}});
-  const updateAudioSpy = vi.fn().mockResolvedValue(undefined);
-  store.UpdateStreamAudioSettings = updateAudioSpy;
+  const updateAudioSpy = stubFlow("UpdateStreamAudioSettings");
+  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}}) as any;
   return {store, mockClient, updateAudioSpy};
 };
 
@@ -183,9 +188,8 @@ const makeUpdateAudioStore = ({ladderSpecs = null, xcParams = null} = {}) => {
     ReplaceMetadata: vi.fn().mockResolvedValue(undefined),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined)
   };
-  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}});
-  const updateLadderSpy = vi.fn().mockResolvedValue(defaultLadderResult);
-  store.UpdateAudioLadderSpecs = updateLadderSpy;
+  const updateLadderSpy = stubFlow("UpdateAudioLadderSpecs", defaultLadderResult);
+  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}}) as any;
   return {store, mockClient, updateLadderSpy};
 };
 
@@ -315,7 +319,7 @@ const makeLadderStore = ({metadataAudioData = null} = {}) => {
   const mockClient = {
     ContentObjectMetadata: vi.fn().mockResolvedValue(metadataAudioData),
   };
-  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}});
+  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}}) as any;
   return {store, mockClient};
 };
 
@@ -776,7 +780,7 @@ describe("UpdateGeneralConfig", () => {
   });
 
   it("updates the stream store with the new configProfile slug", async () => {
-    const {store} = makeStore();
+    const {store, streamStore} = makeStore();
 
     await store.UpdateGeneralConfig({
       objectId: "iq__123",
@@ -785,7 +789,7 @@ describe("UpdateGeneralConfig", () => {
       configProfile: "my-profile"
     });
 
-    expect(store.rootStore.streamStore.UpdateStream).toHaveBeenCalledWith(
+    expect(streamStore.UpdateStream).toHaveBeenCalledWith(
       expect.objectContaining({
         key: "test-stream",
         value: expect.objectContaining({configProfile: "my-profile"})
@@ -796,8 +800,8 @@ describe("UpdateGeneralConfig", () => {
 
 const makeCopyToVodStore = ({
   titleContentType = null,
-  streams = {"my-stream": {objectId: "iq__src", title: "My Stream"}},
-  copyVodResponse = {jobId: "job-123"},
+  streams = {"my-stream": {objectId: "iq__src", title: "My Stream"}} as Record<string, {objectId: string; title: string}>,
+  copyVodResponse = {jobId: "job-123"} as Record<string, unknown>,
   copiesMetadata = null,
 } = {}) => {
   const mockClient = {
@@ -818,9 +822,8 @@ const makeCopyToVodStore = ({
     streamStore: {streams}
   };
 
-  const store = new StreamEditStore(mockRootStore);
-  const addAccessGroupSpy = vi.fn().mockResolvedValue(undefined);
-  store.AddAccessGroupPermission = addAccessGroupSpy;
+  const addAccessGroupSpy = stubFlow("AddAccessGroupPermission");
+  const store = new StreamEditStore(mockRootStore) as any;
 
   return {store, mockClient, addAccessGroupSpy};
 };
@@ -1031,9 +1034,9 @@ describe("CopyToVod", () => {
 });
 
 const makeConfigureStreamStore = ({
-  liveRecordingConfig = {url: "srt://host:1234", input_stream_info: {streams: []}, probe_info: {streams: []}},
-  checkStatusResponse = {state: "running", warnings: [], quality: 1},
-  streamDetails = {title: "My Stream"},
+  liveRecordingConfig = {url: "srt://host:1234", input_stream_info: {streams: []}, probe_info: {streams: []}} as Record<string, unknown>,
+  checkStatusResponse = {state: "running", warnings: [], quality: 1} as Record<string, unknown>,
+  streamDetails = {title: "My Stream"} as Record<string, unknown>,
 } = {}) => {
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("lib-cfg"),
@@ -1053,16 +1056,14 @@ const makeConfigureStreamStore = ({
     UpdateStreamLink: vi.fn().mockResolvedValue(undefined),
   };
 
+  const syncAudioSpy = stubFlow("SyncAudioToProbe");
   const store = new StreamEditStore({
     client: mockClient,
     dataStore: {},
     profileStore: {profiles: {}},
     streamStore: mockStreamStore,
     siteStore: mockSiteStore,
-  });
-
-  const syncAudioSpy = vi.fn().mockResolvedValue(undefined);
-  store.SyncAudioToProbe = syncAudioSpy;
+  }) as any;
 
   return {store, mockClient, mockStreamStore, mockSiteStore, syncAudioSpy};
 };
@@ -1197,17 +1198,14 @@ const makeWatermarkStore = ({checkStatusState = "running"} = {}) => {
     UpdateStream: vi.fn(),
   };
 
+  const addWatermarkSpy = stubFlow("AddWatermark");
+  const removeWatermarkSpy = stubFlow("RemoveWatermark");
   const store = new StreamEditStore({
     client: mockClient,
     dataStore: {},
     profileStore: {profiles: {}},
     streamStore: mockStreamStore,
-  });
-
-  const addWatermarkSpy = vi.fn().mockResolvedValue(undefined);
-  const removeWatermarkSpy = vi.fn().mockResolvedValue(undefined);
-  store.AddWatermark = addWatermarkSpy;
-  store.RemoveWatermark = removeWatermarkSpy;
+  }) as any;
 
   return {store, mockClient, mockStreamStore, addWatermarkSpy, removeWatermarkSpy};
 };
@@ -1418,7 +1416,7 @@ const makeDrmStore = ({checkStatusState = "running"} = {}) => {
     dataStore: {},
     profileStore: {profiles: {}},
     streamStore: mockStreamStore,
-  });
+  }) as any;
 
   return {store, mockClient, mockStreamStore};
 };
@@ -1587,7 +1585,7 @@ describe("FetchLiveRecordingCopies", () => {
       dataStore: {},
       profileStore: {profiles: {}},
       streamStore: {}
-    });
+    }) as any;
     return {store, mockClient};
   };
 
@@ -1641,7 +1639,7 @@ describe("FetchLiveRecordingCopies", () => {
   });
 });
 
-const makeDeleteCopyStore = (initialCopies = {"copy-1": {title: "Copy 1"}, "copy-2": {title: "Copy 2"}}) => {
+const makeDeleteCopyStore = (initialCopies: Record<string, {title: string}> = {"copy-1": {title: "Copy 1"}, "copy-2": {title: "Copy 2"}}) => {
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("lib-1"),
     EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-del"}),
@@ -1649,16 +1647,14 @@ const makeDeleteCopyStore = (initialCopies = {"copy-1": {title: "Copy 1"}, "copy
     FinalizeContentObject: vi.fn().mockResolvedValue({hash: "hq__finalized"}),
   };
 
+  // Stub FetchLiveRecordingCopies to avoid its internal client calls
+  const fetchCopiesSpy = stubFlow("FetchLiveRecordingCopies", {...initialCopies});
   const store = new StreamEditStore({
     client: mockClient,
     dataStore: {},
     profileStore: {profiles: {}},
     streamStore: {}
-  });
-
-  // Stub FetchLiveRecordingCopies to avoid its internal client calls
-  const fetchCopiesSpy = vi.fn().mockResolvedValue({...initialCopies});
-  store.FetchLiveRecordingCopies = fetchCopiesSpy;
+  }) as any;
 
   return {store, mockClient, fetchCopiesSpy};
 };
@@ -1761,7 +1757,7 @@ const makeDeleteStreamStore = (streams = {}) => {
     dataStore: {siteId: "iq__site", siteLibraryId: "ilib-site"},
     profileStore: {profiles: {}},
     streamStore: mockStreamStore,
-  });
+  }) as any;
   return {store, mockClient, mockStreamStore};
 };
 
@@ -1880,7 +1876,7 @@ const makeConfigMetaStore = ({existingConfig = {}} = {}) => {
     dataStore: {},
     profileStore: {profiles: {}},
     streamStore: mockStreamStore,
-  });
+  }) as any;
   return {store, mockClient, mockStreamStore};
 };
 
@@ -1899,7 +1895,7 @@ describe("UpdateConfigMetadata", () => {
   it("writes dvr_start_time to both paths when dvrEnabled and dvrStartTime are set", async () => {
     const {store, mockClient} = makeConfigMetaStore();
     const startTime = new Date("2026-01-01T10:00:00Z");
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, dvrStartTime: startTime, finalize: false});
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, dvrStartTime: startTime.getTime(), finalize: false});
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording/playout_config/dvr_start_time"})
     );
@@ -1987,7 +1983,7 @@ const makeAddWatermarkStore = () => {
     dataStore: {},
     profileStore: {profiles: {}},
     streamStore: mockStreamStore,
-  });
+  }) as any;
   return {store, mockClient, mockStreamStore};
 };
 
@@ -2054,7 +2050,7 @@ const makeRemoveWatermarkStore = () => {
     dataStore: {},
     profileStore: {profiles: {}},
     streamStore: mockStreamStore,
-  });
+  }) as any;
   return {store, mockClient, mockStreamStore};
 };
 
@@ -2110,23 +2106,20 @@ const makePlayoutConfigStore = ({status = "inactive"} = {}) => {
     CheckStatus: vi.fn().mockResolvedValue({state: status}),
     UpdateStream: vi.fn(),
   };
+  const watermarkSpy = stubFlow("WatermarkConfiguration");
+  const drmSpy = stubFlow("DrmConfiguration");
+  const configMetaSpy = stubFlow("UpdateConfigMetadata");
   const store = new StreamEditStore({
     client: mockClient,
     dataStore: {},
     profileStore: {profiles: {}},
     streamStore: mockStreamStore,
-  });
-  const watermarkSpy = vi.fn().mockResolvedValue(undefined);
-  const drmSpy = vi.fn().mockResolvedValue(undefined);
-  const configMetaSpy = vi.fn().mockResolvedValue(undefined);
-  store.WatermarkConfiguration = watermarkSpy;
-  store.DrmConfiguration = drmSpy;
-  store.UpdateConfigMetadata = configMetaSpy;
+  }) as any;
   return {store, mockClient, mockStreamStore, watermarkSpy, drmSpy, configMetaSpy};
 };
 
 describe("UpdatePlayoutConfig", () => {
-  const baseParams = {
+  const baseParams: UpdatePlayoutConfigParams = {
     objectId: "iq__obj", slug: "my-stream", status: "inactive",
     watermarkParams: {watermarkType: "TEXT", textWatermark: "{}", imageWatermark: null, forensicWatermark: null, existingTextWatermark: null, existingImageWatermark: null, existingForensicWatermark: null},
     drmParams: {existingPlayoutFormats: ["hls-clear"], playoutFormats: ["hls-clear"]},

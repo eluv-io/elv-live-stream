@@ -3,7 +3,7 @@ import {Button, Flex, Grid, Modal, Text} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import styles from "./modals.module.css";
-import {outputModalStore} from "@/stores/index.js";
+import {outputModalStore} from "@/stores/index.ts";
 
 const OutputConfirmModal = ({
   show,

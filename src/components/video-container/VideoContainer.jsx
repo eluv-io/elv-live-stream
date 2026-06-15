@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {streamStore} from "@/stores/index.js";
+import {streamStore} from "@/stores/index.ts";
 import {ActionIcon, AspectRatio, Box, Loader} from "@mantine/core";
 import {PlayCircleIcon as PlayIcon} from "@/assets/icons/index.js";
 import Video from "@/components/video/Video.jsx";
@@ -145,8 +145,8 @@ export const VideoContainer = observer(({
   }, [playable]);
 
   return (
-    <Box className={styles.videoWrapper} style={{borderRadius}}>
-      <AspectRatio ratio={16 / 9} mx="auto" pos="relative" h="100%" className={styles.aspectRatio}>
+    <Box className={styles.videoWrapper} w="100%" style={{borderRadius}}>
+      <AspectRatio ratio={16 / 9} pos="relative" className={styles.aspectRatio}>
         {
           play ?
             <VideoContent

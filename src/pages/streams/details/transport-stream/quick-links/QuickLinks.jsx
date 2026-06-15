@@ -1,13 +1,13 @@
 import {observer} from "mobx-react-lite";
 import {useClipboard} from "@mantine/hooks";
-import {SortTable} from "@/utils/helpers.js";
+import {SortTable} from "@/utils/helpers.ts";
 import {ActionIcon, Box, Button, Group, Select, SimpleGrid, Title, Tooltip} from "@mantine/core";
 import sharedStyles from "@/assets/shared.module.css";
 import {DataTable} from "mantine-datatable";
 import {useEffect, useState} from "react";
 import {useForm} from "@mantine/form";
-import {FABRIC_NODE_REGIONS} from "@/utils/constants.js";
-import {dataStore} from "@/stores/index.js";
+import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
+import {dataStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";

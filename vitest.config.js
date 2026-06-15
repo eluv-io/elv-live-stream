@@ -24,7 +24,7 @@ export default defineConfig({
     exclude: [
       "**/*.module.css",
       "src/assets/**/*",
-      "**/constants.js",
+      "**/constants.ts",
       "src/test/setup.js",
       "**/*.test.{js,jsx,ts,tsx}"
     ]

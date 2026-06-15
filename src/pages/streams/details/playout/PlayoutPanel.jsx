@@ -20,8 +20,8 @@ import {
   DVR_DURATION_OPTIONS,
   PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
-} from "@/utils/constants.js";
-import {streamEditStore, streamStore} from "@/stores/index.js";
+} from "@/utils/constants.ts";
+import {streamEditStore, streamStore} from "@/stores/index.ts";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
@@ -30,11 +30,6 @@ import NotificationMessage from "@/components/notification-message/NotificationM
 const PlayoutPanel = observer(({
   status,
   slug,
-  currentDrm,
-  simpleWatermark,
-  imageWatermark,
-  forensicWatermark,
-  title,
   checkVersion
 }) => {
   const [drm, setDrm] = useState([]);
@@ -47,6 +42,12 @@ const PlayoutPanel = observer(({
   const [loading, setLoading] = useState(false);
   const [applyingChanges, setApplyingChanges] = useState(false);
   const params = useParams();
+
+  const currentDrm = streamStore.streams?.[slug].drm;
+  const simpleWatermark = streamStore.streams?.[slug].simpleWatermark;
+  const imageWatermark = streamStore.streams?.[slug].imageWatermark;
+  const forensicWatermark = streamStore.streams?.[slug].forensicWatermark;
+  const title = streamStore.streams?.[slug].title;
 
   const LoadConfigData = async () => {
     try {
@@ -61,7 +62,7 @@ const PlayoutPanel = observer(({
         imageWatermark: imageWatermarkMeta,
         simpleWatermark: simpleWatermarkMeta,
         watermarkType: watermarkTypeMeta
-      } = await streamStore.LoadPlayoutConfigData({objectId: params.id});
+      } = await streamStore.LoadPlayoutConfigData({objectId: params.id, slug});
 
       setDrm(drmMeta ?? []);
       setDvrEnabled(dvrEnabledMeta ?? false);

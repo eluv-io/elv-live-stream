@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {outputStore} from "@/stores/index.js";
+import {outputStore} from "@/stores/index.ts";
 import {
   ActionIcon,
   Box,
@@ -25,10 +25,10 @@ import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
-import {FABRIC_NODE_REGIONS, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.js";
+import {FABRIC_NODE_REGIONS, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import styles from "@/components/detail-card/DetailCard.module.css";
-import {outputModalStore} from "@/stores/index.js";
-import {DateFormat, BytesToMb} from "@/utils/formatters.js";
+import {outputModalStore} from "@/stores/index.ts";
+import {DateFormat, BytesToMb} from "@/utils/formatters.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
@@ -149,7 +149,8 @@ const GeneralConfigPanel = observer(({output, id}) => {
       encryption: output?.srt_pull?.connection?.enforced_encryption,
       stripRtp: output?.srt_pull?.strip_rtp,
       passphrase: output?.srt_pull?.passphrase,
-      name: output?.name
+      name: output?.name,
+      // tags: output?.tags || []
     },
     validate: {
       passphrase: (value, values) => {
@@ -173,7 +174,8 @@ const GeneralConfigPanel = observer(({output, id}) => {
         encryption,
         stripRtp,
         passphrase: encryption ? passphrase : undefined,
-        name
+        name,
+        // tags
       });
 
       form.setFieldValue("passphrase", outputStore.outputs[id]?.srt_pull?.passphrase ?? "");
@@ -199,13 +201,25 @@ const GeneralConfigPanel = observer(({output, id}) => {
   return (
     <Box pt={16}>
       <form onSubmit={form.onSubmit(HandleSubmit)}>
-        <SectionTitle mb={12}>Name</SectionTitle>
-        <SimpleGrid cols={2} spacing={150}>
+        <SectionTitle mb={12}>General</SectionTitle>
+        <SimpleGrid cols={2} spacing={150} mb={20}>
           <TextInput
+            label="Name"
             key={form.key("name")}
             {...form.getInputProps("name")}
           />
         </SimpleGrid>
+        {/*<SimpleGrid cols={2} spacing={150}>*/}
+        {/*  <TagsInput*/}
+        {/*    label="Tags"*/}
+        {/*    description="Add tags to organize and quickly find outputs."*/}
+        {/*    placeholder="Type and press Enter to add a tag"*/}
+        {/*    data={outputStore.allOutputTags.filter(t => !(form.getValues().tags || []).includes(t))}*/}
+        {/*    key={form.key("tags")}*/}
+        {/*    {...form.getInputProps("tags")}*/}
+        {/*    clearable*/}
+        {/*  />*/}
+        {/*</SimpleGrid>*/}
 
         <Divider mb={20} mt={30} />
 
