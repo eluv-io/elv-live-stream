@@ -2,6 +2,7 @@ import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {
   ActionIcon,
+  Badge,
   Box,
   Divider,
   Group,
@@ -13,7 +14,6 @@ import {
 } from "@mantine/core";
 import {outputModalStore, outputStore, rootStore} from "@/stores/index.ts";
 import {DataTable} from "mantine-datatable";
-import {SanitizeUrl} from "@/utils/helpers.ts";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {
   IconCancel,
@@ -29,6 +29,7 @@ import {useDebouncedCallback} from "@mantine/hooks";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import styles from "./Outputs.module.css";
 import sharedStyles from "@/assets/shared.module.css";
+import {OUTPUT_TYPE_COLOR_MAP, SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {useNavigate} from "react-router-dom";
 import Actions from "@/components/table/actions/Actions.jsx";
@@ -147,7 +148,7 @@ const Outputs = observer(() => {
                 title: "Stream",
                 sortable: true,
                 render: record => {
-                  if(!record.input?.stream) {
+                  if(!record.streamId) {
                     return (
                       <UnstyledButton onClick={() => outputModalStore.OpenModal("map", [record.slug])}>
                         <Text fw={600} td="underline" c="elv-blue.5" fz={14}>Map to a Stream</Text>
@@ -157,15 +158,15 @@ const Outputs = observer(() => {
                   return (
                     <Stack gap={0}>
                       <Group gap={8}>
-                        <BasicTableRowText title={SanitizeUrl({url: record.originUrl})} lineClamp={1}>
-                          { record.input?.name }
+                        <BasicTableRowText title={record.streamName} lineClamp={1}>
+                          { record.streamName }
                         </BasicTableRowText>
                         <ActionIcon
                           variant="transparent"
                           c="elv-gray.6"
                           size={18}
                           onClick={() => rootStore.OpenInFabricBrowser({
-                            objectId: record.input.stream
+                            objectId: record.streamId
                           })}
                         >
                           <IconExternalLink />
@@ -173,7 +174,7 @@ const Outputs = observer(() => {
                       </Group>
                       <Group wrap="nowrap" gap={6}>
                         <StatusIndicator
-                          status={record.input.status}
+                          status={record.streamStatus}
                           size="xs"
                           fw={400}
                           c="elv-gray.6"
@@ -182,11 +183,24 @@ const Outputs = observer(() => {
                         <Box h={10}>
                           <Divider orientation="vertical" c="elv-gray.6" size="sm" h="100%" />
                         </Box>
-                        <Text fz="0.75rem" fw={400} c="elv-gray.6">{ record.input?.stream }</Text>
+                        <Text fz="0.75rem" fw={400} c="elv-gray.6">{ record.streamId }</Text>
                       </Group>
                     </Stack>
                   );
                 }
+              },
+              {
+                accessor: "packaging",
+                title: "Packaging",
+                render: record => (
+                  <Group gap={4} wrap="nowrap">
+                    {record.packaging?.map(el => (
+                      <Badge key={`packaging-${el}`} radius={2} color={SOURCE_PACKAGING_COLOR_MAP[el]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
+                        {el}
+                      </Badge>
+                    ))}
+                  </Group>
+                )
               },
               {
                 accessor: "srt_url",
@@ -194,13 +208,13 @@ const Outputs = observer(() => {
                 width: "30%",
                 render: record => (
                   <Group gap={0} wrap="nowrap">
-                    <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>{ record.srt_pull?.urls?.[0] }</Text>
+                    <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>{ record.url }</Text>
                     <ActionIcon
                       variant="transparent"
                       c="elv-gray.6"
                       size={18}
                       onClick={() => {
-                        navigator.clipboard.writeText(record.srt_pull?.urls?.[0]);
+                        navigator.clipboard.writeText(record.url);
                         setCopiedSlug(record.slug);
                         setTimeout(() => setCopiedSlug(null), 2000);
                       }}
@@ -215,13 +229,26 @@ const Outputs = observer(() => {
                 )
               },
               {
+                accessor: "type",
+                title: "Type",
+                render: record => (
+                  <Group gap={4} wrap="nowrap">
+                    {record.type?.map(t => (
+                      <Badge key={t} radius={2} color={OUTPUT_TYPE_COLOR_MAP[t]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
+                        {t}
+                      </Badge>
+                    ))}
+                  </Group>
+                )
+              },
+              {
                 accessor: "clients",
                 title: "Clients",
                 width: 70,
                 textAlign: "center",
                 render: record => (
                   <BasicTableRowText textWrap="nowrap">
-                    {record.state?.connected_clients ?? 0}
+                    {record.connectedClients}
                   </BasicTableRowText>
                 )
               },

@@ -1772,11 +1772,23 @@ class StreamEditStore {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
     }
 
-    return this.client.ContentObjectMetadata({
+    const copiesMeta = yield this.client.ContentObjectMetadata({
       objectId,
       libraryId,
       metadataSubtree: "live_recording_copies"
     });
+
+    yield Promise.all(
+      Object.keys(copiesMeta || {}).map(async(copyId) => {
+        copiesMeta[copyId].title = await this.client.ContentObjectMetadata({
+          libraryId: await this.client.ContentObjectLibraryId({objectId: copyId}),
+          objectId: copyId,
+          metadataSubtree: "public/name"
+        });
+      })
+    );
+
+    return copiesMeta;
   }
 
   *DeleteLiveRecordingCopy({streamId, recordingCopyId}: {streamId: string, recordingCopyId: string}) : Generator<any, FinalizeContentObjectResponse> {
@@ -1804,6 +1816,66 @@ class StreamEditStore {
       writeToken,
       commitMessage: "Remove live recording copy"
     });
+  }
+
+  *EditLiveRecordingCopy({streamId, recordingCopyId, title}: {streamId: string, recordingCopyId: string, title: string}) : Generator<any, FinalizeContentObjectResponse> {
+    try {
+      const liveRecordingCopies = yield this.FetchLiveRecordingCopies({objectId: streamId});
+
+      if(!liveRecordingCopies?.[recordingCopyId]) {
+        throw Error(`Live recording copy ${recordingCopyId} not found`);
+      }
+
+      liveRecordingCopies[recordingCopyId].title = title;
+
+      // Update the recording copy content object's own name
+      const recordingLibraryId = yield this.client.ContentObjectLibraryId({objectId: recordingCopyId});
+      const {writeToken: recordingWriteToken} = yield this.client.EditContentObject({
+        objectId: recordingCopyId,
+        libraryId: recordingLibraryId
+      });
+
+      yield this.client.ReplaceMetadata({
+        objectId: recordingCopyId,
+        libraryId: recordingLibraryId,
+        writeToken: recordingWriteToken,
+        metadataSubtree: "public/name",
+        metadata: title
+      });
+
+      yield this.client.FinalizeContentObject({
+        objectId: recordingCopyId,
+        libraryId: recordingLibraryId,
+        writeToken: recordingWriteToken,
+        commitMessage: "Update name"
+      });
+
+      // Update stream object copies meta
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId: streamId});
+      const {writeToken} = yield this.client.EditContentObject({
+        objectId: streamId,
+        libraryId
+      });
+
+      yield this.client.ReplaceMetadata({
+        objectId: streamId,
+        libraryId,
+        writeToken,
+        metadataSubtree: "live_recording_copies",
+        metadata: liveRecordingCopies
+      });
+
+      return this.client.FinalizeContentObject({
+        objectId: streamId,
+        libraryId,
+        writeToken,
+        commitMessage: "Update live recording copy"
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to update live recording copy.", error);
+      throw error;
+    }
   }
 
   *CopyToVod({

@@ -47,6 +47,7 @@ const SummaryPanel = observer(({recordingInfo, slug}) => {
       <RecordingCopiesTable
         liveRecordingCopies={liveRecordingCopies}
         DeleteCallback={LoadLiveRecordingCopies}
+        EditCallback={LoadLiveRecordingCopies}
         loading={loading}
       />
 

@@ -26,18 +26,64 @@ interface OutputSrtPull {
   strip_rtp?: boolean;
 }
 
+interface OutputRtp {
+  node_id?: string;
+  url?: string;
+}
+
 interface Output {
   enabled?: boolean;
   input?: OutputInput;
   name?: string;
   description?: string;
   reset?: boolean;
+  rtp?: OutputRtp;
   srt_pull?: OutputSrtPull;
   state?: any;
   tags?: string[];
 }
 
 type Outputs = Record<string, Output>;
+
+export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "TS";
+
+const DeriveOutputType = (output: Output, originUrl?: string): OutputType[] | undefined => {
+  const url = originUrl ?? output.input?.url;
+  const protocol = url?.match(/^(\w+):\/\//)?.[1];
+  const packaging: OutputType = protocol === "rtp" ? "RTP" : "TS";
+
+  if(output.rtp) return ["RTP"];
+  if(output.srt_pull) return ["SRT PULL", packaging];
+  return undefined;
+};
+
+interface FlatOutput {
+  slug: string;
+  name?: string;
+  description?: string;
+  tags?: string[];
+  enabled?: boolean;
+  reset?: boolean;
+  streamId?: string;
+  streamName?: string;
+  streamStatus?: string;
+  url?: string;
+  type?: OutputType[];
+  packaging?: string[];
+  source?: string[];
+  connectedClients: number;
+}
+
+interface CreateOutputParams {
+  name?: string;
+  externalId?: string;
+  geos: string[];
+  passphrase?: string;
+  encryption?: string;
+  stripRtp?: boolean;
+  url?: string;
+  type: "srt_pull" | "srt_push" | "rtp" | "udp"
+}
 
 class OutputStore {
   state: "loaded" | "error" | "pending" = "pending";
@@ -66,27 +112,57 @@ class OutputStore {
     return Array.from(tags).sort();
   }
 
-  get outputList(): (Output & { slug: string; streamName: string | undefined })[] {
+  // Flatten a raw output into the derived shape used by tables and detail views.
+  FlattenOutput = (slug: string, output: Output): FlatOutput => {
+    const {streamsByObjectId, streams} = this.rootStore.streamStore;
+    const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
+    const url = output.srt_pull?.urls?.[0] ?? output.rtp?.url;
+
+    return {
+      slug,
+      name: output.name,
+      description: output.description,
+      tags: output.tags,
+      enabled: output.enabled,
+      reset: output.reset,
+      streamId: output.input?.stream,
+      streamName: output.input?.name,
+      streamStatus: output.input?.status,
+      url,
+      type: DeriveOutputType(output, url),
+      packaging: streams[streamSlug]?.packaging ?? output.input?.packaging,
+      source: streams[streamSlug]?.source ?? output.input?.source,
+      connectedClients: output.state?.connected_clients ?? 0,
+    };
+  };
+
+  // Individualized version of outputList for a single output by slug.
+  OutputItem = (slug: string): FlatOutput | undefined => {
+    const output = this.outputs[slug];
+    if(!output) { return undefined; }
+
+    return this.FlattenOutput(slug, output);
+  };
+
+  get outputList(): FlatOutput[] {
     const filter = this.tableFilter.toLowerCase();
     const tagFilter = this.tableTagFilter;
 
     const list = Object.entries(this.outputs)
-      .map(([slug, output]) => ({
-        slug,
-        streamName: output?.input?.name,
-        ...output
-      }));
+      .map(([slug, output]): FlatOutput => this.FlattenOutput(slug, output));
 
     const filtered = list.filter(output => {
-      const matchesText = !filter ||
-        output.slug?.toLowerCase().includes(filter) ||
-        output.name?.toLowerCase().includes(filter) ||
-        output.description?.toLowerCase().includes(filter) ||
-        output.input?.stream?.toLowerCase().includes(filter) ||
-        output.input?.name?.toLowerCase().includes(filter);
+      const searchableFields = [
+        output.slug,
+        output.name,
+        output.description,
+        output.streamId,
+        output.streamName
+      ];
 
-      const matchesTags = tagFilter.length === 0 ||
-        tagFilter.some(tag => output.tags?.includes(tag));
+      const matchesText = !filter || searchableFields.some(field => field?.toLowerCase().includes(filter));
+
+      const matchesTags = tagFilter.length === 0 || tagFilter.some(tag => output.tags?.includes(tag));
 
       return matchesText && matchesTags;
     });
@@ -222,8 +298,10 @@ class OutputStore {
     geos,
     passphrase,
     encryption,
-    stripRtp
-  }: {name?: string, externalId?: string, geos: string[], passphrase?: string, encryption?: string, stripRtp?: boolean}): Generator<any, void> {
+    stripRtp,
+    // type,
+    // url
+  }: CreateOutputParams): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
         throw "No output settings object found. Please create one before adding outputs.";

@@ -34,7 +34,7 @@ import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
-const SummaryPanel = observer(({output, id}) => {
+const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
   const videoGap = "20px";
@@ -96,13 +96,13 @@ const SummaryPanel = observer(({output, id}) => {
               variant="transparent"
               c="elv-gray.6"
               size={16}
-              onClick={() => clipboard.copy(output.srt_pull?.urls?.[0])}
+              onClick={() => clipboard.copy(url)}
             >
               <IconCopy size={16} />
             </ActionIcon>
           </Tooltip>
         </Group>
-      <TextInput value={output.srt_pull?.urls?.[0]} readOnly />
+      <TextInput value={url ?? ""} readOnly />
 
       <Divider mb={20} mt={30} />
 
@@ -270,11 +270,11 @@ const OutputDetails = observer(() => {
   const [loading, setLoading] = useState(false);
 
   const output = outputStore.outputs[id];
+  const url = outputStore.OutputItem(id)?.url;
   const DebouncedRefresh = useDebouncedCallback(async() => {
     try {
       setLoading(true);
       await outputStore.LoadOutputItem({outputId: id});
-      // await outputStore.LoadOutputs();
       if(output?.input?.stream) {
         await outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output.input.stream});
       }
@@ -369,7 +369,7 @@ const OutputDetails = observer(() => {
             <Box p={15}><Loader /></Box> :
             <>
               <Tabs.Panel value="summary">
-                <SummaryPanel output={output} id={id} />
+                <SummaryPanel output={output} url={url} id={id} />
               </Tabs.Panel>
               <Tabs.Panel value="generalConfig">
                 <GeneralConfigPanel output={output} id={id} />
