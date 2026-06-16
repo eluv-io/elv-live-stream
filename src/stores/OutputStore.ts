@@ -112,33 +112,44 @@ class OutputStore {
     return Array.from(tags).sort();
   }
 
+  // Flatten a raw output into the derived shape used by tables and detail views.
+  FlattenOutput = (slug: string, output: Output): FlatOutput => {
+    const {streamsByObjectId, streams} = this.rootStore.streamStore;
+    const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
+    const url = output.srt_pull?.urls?.[0] ?? output.rtp?.url;
+
+    return {
+      slug,
+      name: output.name,
+      description: output.description,
+      tags: output.tags,
+      enabled: output.enabled,
+      reset: output.reset,
+      streamId: output.input?.stream,
+      streamName: output.input?.name,
+      streamStatus: output.input?.status,
+      url,
+      type: DeriveOutputType(output, url),
+      packaging: streams[streamSlug]?.packaging ?? output.input?.packaging,
+      source: streams[streamSlug]?.source ?? output.input?.source,
+      connectedClients: output.state?.connected_clients ?? 0,
+    };
+  };
+
+  // Individualized version of outputList for a single output by slug.
+  OutputItem = (slug: string): FlatOutput | undefined => {
+    const output = this.outputs[slug];
+    if(!output) { return undefined; }
+
+    return this.FlattenOutput(slug, output);
+  };
+
   get outputList(): FlatOutput[] {
     const filter = this.tableFilter.toLowerCase();
     const tagFilter = this.tableTagFilter;
-    const {streamsByObjectId, streams} = this.rootStore.streamStore;
 
     const list = Object.entries(this.outputs)
-      .map(([slug, output]): FlatOutput => {
-        const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
-        const url = output.srt_pull?.urls?.[0] ?? output.rtp?.url;
-
-        return {
-          slug,
-          name: output.name,
-          description: output.description,
-          tags: output.tags,
-          enabled: output.enabled,
-          reset: output.reset,
-          streamId: output.input?.stream,
-          streamName: output.input?.name,
-          streamStatus: output.input?.status,
-          url,
-          type: DeriveOutputType(output, url),
-          packaging: streams[streamSlug]?.packaging ?? output.input?.packaging,
-          source: streams[streamSlug]?.source ?? output.input?.source,
-          connectedClients: output.state?.connected_clients ?? 0,
-        };
-      });
+      .map(([slug, output]): FlatOutput => this.FlattenOutput(slug, output));
 
     const filtered = list.filter(output => {
       const searchableFields = [
