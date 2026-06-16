@@ -37,6 +37,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       nodeType: "public" // public | dedicated
     },
     validate: {
+      node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
       geo: (value, values) =>
         values.nodeType === "public" ? (value ? null : "Geo is required") : null,
       passphrase: (value, values) => {
@@ -45,7 +46,8 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
            return "Passphrase must be between 10 and 79 characters long";
         }
         return null;
-      }
+      },
+      url: (value, values) => values.type === "srt_pull" ? null : (value ? null : "URL is required")
     }
   });
 
@@ -166,6 +168,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
                   placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
                   data={dataStore.dedicatedNodesList}
                   allowDeselect={false}
+                  withAsterisk
                   key={form.key("node")}
                   {...form.getInputProps("node")}
                 />
@@ -207,34 +210,34 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             </Tabs.Panel>
           </Tabs>
 
-          <Stack gap={12}>
-            <Input.Label>Encryption</Input.Label>
-            <Collapse expanded={form.getValues().type?.includes("srt")}>
-              <Checkbox
-                label="Enable Encryption"
-                description="If encryption is enabled, a passphrase is required to decrypt the stream. If not provided, one will be auto-generated."
-                key={form.key("encryption")}
-                {...form.getInputProps("encryption")}
-              />
-            </Collapse>
-            <Collapse expanded={form.getValues().encryption}>
-              <PasswordInput
-                label="Passphrase"
-                placeholder="e.g. my-secure-passphrase"
-                key={form.key("passphrase")}
-                {...form.getInputProps("passphrase")}
-              />
-            </Collapse>
-          </Stack>
           <Collapse expanded={form.getValues().type?.includes("srt")}>
-            <Stack gap={12}>
-              <Input.Label>Strip RTP</Input.Label>
-              <Checkbox
-                label="Enable Strip RTP"
-                description="Remove RTP encapsulation from the incoming stream"
-                key={form.key("stripRtp")}
-                {...form.getInputProps("stripRtp")}
-              />
+            <Stack gap={20}>
+              <Stack gap={12}>
+                <Input.Label>Encryption</Input.Label>
+                <Checkbox
+                  label="Enable Encryption"
+                  description="If encryption is enabled, a passphrase is required to decrypt the stream. If not provided, one will be auto-generated."
+                  key={form.key("encryption")}
+                  {...form.getInputProps("encryption")}
+                />
+                <Collapse expanded={form.getValues().encryption}>
+                  <PasswordInput
+                    label="Passphrase"
+                    placeholder="e.g. my-secure-passphrase"
+                    key={form.key("passphrase")}
+                    {...form.getInputProps("passphrase")}
+                  />
+                </Collapse>
+              </Stack>
+              <Stack gap={12}>
+                <Input.Label>Strip RTP</Input.Label>
+                <Checkbox
+                  label="Enable Strip RTP"
+                  description="Remove RTP encapsulation from the incoming stream"
+                  key={form.key("stripRtp")}
+                  {...form.getInputProps("stripRtp")}
+                />
+              </Stack>
             </Stack>
           </Collapse>
         </Stack>
