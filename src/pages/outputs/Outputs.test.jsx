@@ -450,11 +450,9 @@ describe("Outputs — interactions", () => {
     outputStore.state = "loaded";
     const streamObjectId = uniqueSlug("iq");
     const record = makeOutput({
-      input: {
-        stream: streamObjectId,
-        name: "Mapped Stream",
-        status: "running"
-      },
+      streamId: streamObjectId,
+      streamName: "Mapped Stream",
+      streamStatus: "running",
       originUrl: "https://example.test/origin"
     });
     outputStore.outputList = [record];
