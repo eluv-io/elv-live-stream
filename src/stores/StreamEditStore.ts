@@ -1780,11 +1780,16 @@ class StreamEditStore {
 
     yield Promise.all(
       Object.keys(copiesMeta || {}).map(async(copyId) => {
-        copiesMeta[copyId].title = await this.client.ContentObjectMetadata({
-          libraryId: await this.client.ContentObjectLibraryId({objectId: copyId}),
-          objectId: copyId,
-          metadataSubtree: "public/name"
-        });
+        try {
+          copiesMeta[copyId].title = await this.client.ContentObjectMetadata({
+            libraryId: await this.client.ContentObjectLibraryId({objectId: copyId}),
+            objectId: copyId,
+            metadataSubtree: "public/name"
+          });
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to load name. Has object ${copyId} been deleted?`, error);
+        }
       })
     );
 
