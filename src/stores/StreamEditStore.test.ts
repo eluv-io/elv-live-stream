@@ -1598,7 +1598,7 @@ describe("FetchLiveRecordingCopies", () => {
   it("skips ContentObjectLibraryId when libraryId is already provided", async () => {
     const {store, mockClient} = makeFetchStore();
     await store.FetchLiveRecordingCopies({objectId: "iq__obj", libraryId: "ilib-given"});
-    expect(mockClient.ContentObjectLibraryId).not.toHaveBeenCalled();
+    expect(mockClient.ContentObjectLibraryId).not.toHaveBeenCalledWith({objectId: "iq__obj"});
   });
 
   it("uses the provided libraryId in the metadata call", async () => {

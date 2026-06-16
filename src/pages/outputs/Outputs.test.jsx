@@ -124,7 +124,8 @@ const makeOutput = (overrides = {}) => {
     enabled: false,
     reset: true,
     state: {connected_clients: 0},
-    srt_pull: {urls: [`srt://stream.example.test/${slug}`]},
+    url: `srt://stream.example.test/${slug}`,
+    srt_pull: {url: `srt://stream.example.test/${slug}`},
     input: undefined,
     streamName: undefined,
     originUrl: undefined,
@@ -305,7 +306,7 @@ describe("Outputs — success state", () => {
 
     // Assert — the URL text node is the unique slug-bearing element in the URL cell
     expect(
-      screen.getByText(byTextContent(record.srt_pull.urls[0]))
+      screen.getByText(byTextContent(record.url))
     ).toBeInTheDocument();
   });
 });
@@ -428,7 +429,7 @@ describe("Outputs — interactions", () => {
     outputStore.state = "loaded";
     const record = makeOutput();
     outputStore.outputList = [record];
-    const url = record.srt_pull.urls[0];
+    const url = record.url;
     // eslint-disable-next-line no-unused-vars
     const user = userEvent.setup();
     renderOutputs();

@@ -17,8 +17,21 @@ interface OutputInput {
 }
 
 interface OutputSrtPull {
-  node_ids?: string[];
-  urls?: string[];
+  node_id?: string;
+  url?: string;
+  elvgeo?: string;
+  connection?: {
+    enforced_encryption?: string;
+  };
+  passphrase?: string;
+  strip_rtp?: boolean;
+}
+
+interface OutputSrtPush {
+  node_id?: string;
+  url?: string;
+  elvgeo?: string;
+  location?: "global" | "elvgeo" | "datacenter" | "nid";
   connection?: {
     enforced_encryption?: string;
   };
@@ -29,6 +42,7 @@ interface OutputSrtPull {
 interface OutputRtp {
   node_id?: string;
   url?: string;
+  elvgeo?: string;
 }
 
 interface Output {
@@ -38,14 +52,16 @@ interface Output {
   description?: string;
   reset?: boolean;
   rtp?: OutputRtp;
+  udp?: OutputRtp;
   srt_pull?: OutputSrtPull;
+  srt_push?: OutputSrtPush;
   state?: any;
   tags?: string[];
 }
 
 type Outputs = Record<string, Output>;
 
-export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "TS";
+export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
 
 const DeriveOutputType = (output: Output, originUrl?: string): OutputType[] | undefined => {
   const url = originUrl ?? output.input?.url;
@@ -53,6 +69,8 @@ const DeriveOutputType = (output: Output, originUrl?: string): OutputType[] | un
   const packaging: OutputType = protocol === "rtp" ? "RTP" : "TS";
 
   if(output.rtp) return ["RTP"];
+  if(output.udp) return ["UDP"];
+  if(output.srt_push) return ["SRT PUSH", packaging];
   if(output.srt_pull) return ["SRT PULL", packaging];
   return undefined;
 };
@@ -77,7 +95,10 @@ interface FlatOutput {
 interface CreateOutputParams {
   name?: string;
   externalId?: string;
-  geos: string[];
+  offering?: string;
+  // Public outputs target a fabric region; dedicated outputs target a specific node.
+  region?: string;
+  node?: string;
   passphrase?: string;
   encryption?: string;
   stripRtp?: boolean;
@@ -116,7 +137,7 @@ class OutputStore {
   FlattenOutput = (slug: string, output: Output): FlatOutput => {
     const {streamsByObjectId, streams} = this.rootStore.streamStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
-    const url = output.srt_pull?.urls?.[0] ?? output.rtp?.url;
+    const url = output.srt_pull?.url ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
 
     return {
       slug,
@@ -295,12 +316,14 @@ class OutputStore {
   *CreateOutput({
     name,
     externalId,
-    geos,
+    offering,
+    region,
+    node,
     passphrase,
     encryption,
     stripRtp,
-    // type,
-    // url
+    url,
+    type
   }: CreateOutputParams): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
@@ -310,16 +333,31 @@ class OutputStore {
       if(!name) {
         name = `Output ${this.outputList?.length + 1}`;
       }
+
+      const isSrt = type === "srt_pull" || type === "srt_push";
+
+      // Backend field names (snake_case) — these map directly onto the stored output block.
+      const settings: Record<string, any> = {};
+      if(node) { settings.node_id = node; }            // dedicated node
+      if(region) { settings.elvgeo = region; }         // public fabric region
+      if(url) { settings.url = url; }                  // required for srt_push/rtp/udp
+      if(isSrt) {
+        settings.passphrase = passphrase || undefined;
+        settings.strip_rtp = stripRtp;
+        settings.connection = encryption ? {enforced_encryption: encryption} : undefined;
+      }
+
       const outputs = yield this.client.OutputsCreate({
         objectId: this.outputSettingsId,
+        offering,
         name,
-        description: geos[0],
+        description: node || region,
         externalId,
         enabled: false,
-        geos,
-        passphrase: passphrase || undefined,
-        stripRtp,
-        srtConfig: encryption ? {enforced_encryption: encryption} : undefined
+        delivery: {
+          type,
+          settings
+        }
       });
 
       const outputId = Object.keys(outputs || {})[0];
