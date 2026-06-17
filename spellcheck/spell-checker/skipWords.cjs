@@ -44,6 +44,7 @@ module.exports = [
   "eluvio",
   "elv",
   "elvgeo",
+  "elvgeos",
   "embeddable",
   "eu",
   "evenodd",
