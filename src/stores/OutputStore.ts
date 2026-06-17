@@ -17,9 +17,9 @@ interface OutputInput {
 }
 
 interface OutputSrtPull {
-  node_id?: string;
-  url?: string;
-  elvgeo?: string;
+  node_ids?: string[];
+  urls?: string[];
+  elvgeos?: string[];
   connection?: {
     enforced_encryption?: string;
   };
@@ -137,7 +137,8 @@ class OutputStore {
   FlattenOutput = (slug: string, output: Output): FlatOutput => {
     const {streamsByObjectId, streams} = this.rootStore.streamStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
-    const url = output.srt_pull?.url ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
+    // srt_pull.urls is an array of strings; other output types store a single url string.
+    const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
 
     return {
       slug,
@@ -151,8 +152,8 @@ class OutputStore {
       streamStatus: output.input?.status,
       url,
       type: DeriveOutputType(output, url),
-      packaging: streams[streamSlug]?.packaging ?? output.input?.packaging,
-      source: streams[streamSlug]?.source ?? output.input?.source,
+      packaging: streams?.[streamSlug]?.packaging ?? output.input?.packaging,
+      source: streams?.[streamSlug]?.source ?? output.input?.source,
       connectedClients: output.state?.connected_clients ?? 0,
     };
   };
@@ -335,12 +336,21 @@ class OutputStore {
       }
 
       const isSrt = type === "srt_pull" || type === "srt_push";
+      // srt_pull accepts arrays of nodes/geos; srt_push/rtp/udp use a single node/geo.
+      const isPull = type === "srt_pull";
 
-      // Backend field names (snake_case) — these map directly onto the stored output block.
       const settings: Record<string, any> = {};
-      if(node) { settings.node_id = node; }            // dedicated node
-      if(region) { settings.elvgeo = region; }         // public fabric region
-      if(url) { settings.url = url; }                  // required for srt_push/rtp/udp
+
+      if(node) {
+        settings[isPull ? "node_ids" : "node_id"] = isPull ? [node] : node;
+      }
+
+      if(region) {
+        settings[isPull ? "elvgeos" : "elvgeo"] = isPull ? [region] : region;
+      }
+
+      if(url) { settings.url = url; }
+
       if(isSrt) {
         settings.passphrase = passphrase || undefined;
         settings.strip_rtp = stripRtp;

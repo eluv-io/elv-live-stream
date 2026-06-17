@@ -125,7 +125,7 @@ const makeOutput = (overrides = {}) => {
     reset: true,
     state: {connected_clients: 0},
     url: `srt://stream.example.test/${slug}`,
-    srt_pull: {url: `srt://stream.example.test/${slug}`},
+    srt_pull: {urls: [`srt://stream.example.test/${slug}`]},
     input: undefined,
     streamName: undefined,
     originUrl: undefined,
