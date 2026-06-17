@@ -12,7 +12,7 @@ import {
   Title,
   UnstyledButton
 } from "@mantine/core";
-import {outputModalStore, outputStore, rootStore} from "@/stores/index.ts";
+import {dataStore, outputModalStore, outputStore, rootStore} from "@/stores/index.ts";
 import {DataTable} from "mantine-datatable";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {
@@ -47,7 +47,13 @@ const Outputs = observer(() => {
     if(outputStore.state !== "loaded" || reload) {
       try {
         setLoading(true);
-        await outputStore.LoadOutputs();
+        // Outputs derive source/packaging from their mapped stream, so the
+        // stream map must be loaded too. LoadSiteStreams guards against
+        // concurrent loads; skip it when streams are already loaded.
+        await Promise.all([
+          outputStore.LoadOutputs(),
+          (reload || !dataStore.streamsLoaded) ? dataStore.LoadSiteStreams(reload) : null
+        ]);
       } finally {
         setLoading(false);
       }
@@ -233,9 +239,9 @@ const Outputs = observer(() => {
                 title: "Type",
                 render: record => (
                   <Group gap={4} wrap="nowrap">
-                    {record.type?.map(t => (
-                      <Badge key={t} radius={2} color={OUTPUT_TYPE_COLOR_MAP[t]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
-                        {t}
+                    {record.type?.map(type => (
+                      <Badge key={type} radius={2} color={OUTPUT_TYPE_COLOR_MAP[type]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
+                        {type}
                       </Badge>
                     ))}
                   </Group>

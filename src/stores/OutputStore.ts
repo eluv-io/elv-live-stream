@@ -63,10 +63,9 @@ type Outputs = Record<string, Output>;
 
 export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
 
-const DeriveOutputType = (output: Output, originUrl?: string): OutputType[] | undefined => {
-  const url = originUrl ?? output.input?.url;
-  const protocol = url?.match(/^(\w+):\/\//)?.[1];
-  const packaging: OutputType = protocol === "rtp" ? "RTP" : "TS";
+const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
+  const stripRtp = output.srt_pull?.strip_rtp;
+  const packaging: OutputType = streamSource?.includes("rtp") && !stripRtp ? "RTP" : "TS";
 
   if(output.rtp) return ["RTP"];
   if(output.udp) return ["UDP"];
@@ -151,7 +150,7 @@ class OutputStore {
       streamName: output.input?.name,
       streamStatus: output.input?.status,
       url,
-      type: DeriveOutputType(output, url),
+      type: DeriveOutputType(output, streams?.[streamSlug]?.source ?? output.input?.source),
       packaging: streams?.[streamSlug]?.packaging ?? output.input?.packaging,
       source: streams?.[streamSlug]?.source ?? output.input?.source,
       connectedClients: output.state?.connected_clients ?? 0,
