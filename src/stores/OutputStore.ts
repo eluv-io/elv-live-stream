@@ -785,10 +785,24 @@ class OutputStore {
   }
 
   *DeleteOutputBatch({outputs}: {outputs: string[]}): Generator<any, void> {
-    yield Promise.all(
-      outputs.map(outputId => this.DeleteOutput({outputId})
-      )
-    );
+    try {
+      const objectId = this.outputSettingsId;
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
+      yield this.client.OutputsDeleteBatch({
+        libraryId,
+        objectId,
+        outputs
+      });
+
+      outputs.forEach(outputId => {
+        delete this.outputs[outputId];
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to delete outputs (batch).", error);
+      throw error;
+    }
   }
 
   *UpdateOutputTags({outputId, tags}: {outputId: string, tags: string[]}): Generator<any, void> {
