@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {outputStore} from "@/stores/index.ts";
+import {dataStore, outputStore} from "@/stores/index.ts";
 import {
   ActionIcon,
   Box,
@@ -38,6 +38,7 @@ const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
   const videoGap = "20px";
+  const hasDedicatedNode = output.description?.startsWith("inod");
 
   return (
     <Box pt={16}>
@@ -107,11 +108,15 @@ const SummaryPanel = observer(({output, url, id}) => {
       <Divider mb={20} mt={30} />
 
       <Box style={{opacity: 0.5, pointerEvents: "none"}}>
-        <SectionTitle mb={12}>Fabric Geo</SectionTitle>
+        <SectionTitle mb={12}>
+          {hasDedicatedNode ? "Dedicated Node" : "Fabric Geo"}
+        </SectionTitle>
         <Select
-          description="Defines the region."
+          description={hasDedicatedNode ? "The dedicated fabric node serving this output." : "The geographic region this output is served from."}
           onChange={() => {}}
-          data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
+          data={
+            (hasDedicatedNode ? dataStore.dedicatedNodesList : FABRIC_NODE_REGIONS).slice().sort((a, b) => a.label.localeCompare(b.label))
+          }
           value={output.description ?? ""}
           readOnly
         />
