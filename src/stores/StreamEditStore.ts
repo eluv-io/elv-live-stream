@@ -2060,6 +2060,18 @@ class StreamEditStore {
       throw error;
     }
   }
+
+  *UpdateStreamTagsBatch({streams}: {streams: {objectId: string, slug: string, tags: string[]}[]}): Generator<any, void> {
+    try {
+      yield Promise.all(
+        streams.map(stream => this.UpdateStreamTags(stream))
+      );
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to update stream tags (batch).", error);
+      throw error;
+    }
+  }
 }
 
 export default StreamEditStore;
