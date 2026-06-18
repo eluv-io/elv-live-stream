@@ -132,10 +132,10 @@ const SummaryPanel = observer(({output, url, id}) => {
               data={[
                 {label: "Client IP", value: client.client_ip},
                 {label: "Connected at", value: client.connected_at ? DateFormat({time: client.connected_at, format: "iso"}) : null},
-                {label: "Packets Sent / Drop (%)", value: `${client?.packets_sent?.toLocaleString()} / ${client?.packets_dropped?.toLocaleString()} (${(client.packets_dropped / client?.packets_sent).toFixed(2)}%)`},
-                {label: "Bytes Sent / Drop (%)", value: `${BytesToMb(client.bytes_sent)} / ${BytesToMb(client.bytes_dropped)} (${(client.bytes_dropped / client.bytes_sent).toFixed(2)}%)`},
-                {label: "Packets Sent / Retrans / Loss", value: `${client?.srt?.connection?.accumulated?.pkt_sent?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_retrans?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_send_loss?.toLocaleString()}`},
-                {label: "SRT Connection Latency Recv / Send", value: `${client?.srt?.connection?.instantaneous?.ms_recv_tsb_pd_delay} / ${client?.srt?.connection?.instantaneous?.ms_send_tsb_pd_delay}`}
+                {label: "Packets Sent / Drop (%)", value: `${client?.packets_sent?.toLocaleString()} / ${client?.packets_dropped?.toLocaleString()} (${client.packets_dropped ? (client.packets_dropped / client?.packets_sent).toFixed(2) : 0}%)`},
+                {label: "Bytes Sent / Drop (%)", value: `${BytesToMb(client.bytes_sent)} / ${BytesToMb(client.bytes_dropped)} (${client.bytes_dropped ? (client.bytes_dropped / client.bytes_sent).toFixed(2) : 0}%)`},
+                {label: "Packets Sent / Retrans / Loss", value: client?.srt?.connection ? `${client?.srt?.connection?.accumulated?.pkt_sent?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_retrans?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_send_loss?.toLocaleString()}` : ""},
+                {label: "SRT Connection Latency Recv / Send", value: client?.srt?.connection ? `${client?.srt?.connection?.instantaneous?.ms_recv_tsb_pd_delay} / ${client?.srt?.connection?.instantaneous?.ms_send_tsb_pd_delay}` : ""}
               ]}
             />
           </Fragment>
