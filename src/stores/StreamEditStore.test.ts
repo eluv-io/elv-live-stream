@@ -1,4 +1,4 @@
-import {describe, it, expect, vi, beforeEach, afterEach} from "vitest";
+import {describe, it, expect, vi, beforeEach, afterEach, type Mock} from "vitest";
 
 vi.mock("mobx", async () => ({
   ...(await vi.importActual("mobx")),
@@ -22,7 +22,9 @@ const prototypeSpies: ReturnType<typeof vi.spyOn>[] = [];
 const stubFlow = (name: string, resolved: unknown = undefined) => {
   const spy = vi.spyOn(StreamEditStore.prototype as any, name).mockResolvedValue(resolved);
   prototypeSpies.push(spy);
-  return spy;
+  // Spying on `prototype as any` types the mock's call args as `unknown`, so tests
+  // can't read `.mock.calls[i][j].field`. Cast to a loosely-typed Mock to restore that.
+  return spy as unknown as Mock;
 };
 // Restore prototype spies after every test so other suites get the real flows.
 afterEach(() => {

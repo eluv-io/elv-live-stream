@@ -89,6 +89,7 @@ interface FlatOutput {
   packaging?: string[];
   source?: string[];
   connectedClients: number;
+  input?: OutputInput;
 }
 
 interface CreateOutputParams {
