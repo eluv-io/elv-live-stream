@@ -154,6 +154,7 @@ class OutputStore {
       packaging: streams?.[streamSlug]?.packaging ?? output.input?.packaging,
       source: streams?.[streamSlug]?.source ?? output.input?.source,
       connectedClients: output.state?.connected_clients ?? 0,
+      input: output.input
     };
   };
 
@@ -259,7 +260,19 @@ class OutputStore {
         includeState
       });
 
-      this.UpdateOutput({slug: outputId, updates: output});
+      // OutputsListItem returns a sparse `input` (stream/name/status). Merge it
+      // onto the existing input so the live fields added by LoadOutputStreamInfo
+      // (source, packaging, quality, stats, url, embedUrl) aren't clobbered when
+      // the item is (re)loaded. A null/undefined input (unmapped) passes through.
+      this.UpdateOutput({
+        slug: outputId,
+        updates: {
+          ...output,
+          input: output?.input
+            ? {...this.outputs[outputId]?.input, ...output.input}
+            : output?.input
+        }
+      });
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(`Failed to load output ${outputId}.`, error);

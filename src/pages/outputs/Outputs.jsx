@@ -68,7 +68,11 @@ const Outputs = observer(() => {
     await LoadData(true);
   }, 500);
 
-  const records = outputStore.outputList;
+  // Outputs derive source/packaging/type from their mapped stream. Until streams
+  // are loaded those derivations fall back to output.input.*, which paints stale
+  // values that then change once streams arrive. Hold the records until streams
+  // are in so the derived columns render once, correctly.
+  const records = dataStore.streamsLoaded ? outputStore.outputList : [];
   const selectedRecords = records.filter(r => selectedSlugs.includes(r.slug));
 
   const noSelectedRecords = selectedRecords.length === 0;
@@ -124,7 +128,7 @@ const Outputs = observer(() => {
             minHeight={(!records || records.length === 0) ? 130 : 75}
             highlightOnHover
             sortStatus={outputStore.sortStatus}
-            fetching={loading}
+            fetching={loading || !dataStore.streamsLoaded}
             onSortStatusChange={outputStore.SetSortStatus}
             records={records || []}
             selectedRecords={selectedRecords}
