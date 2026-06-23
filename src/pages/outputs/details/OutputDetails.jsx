@@ -148,12 +148,14 @@ const SummaryPanel = observer(({output, url, id}) => {
 const GeneralConfigPanel = observer(({output, id}) => {
   const [applyingChanges, setApplyingChanges] = useState(false);
 
+  const outputType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
+
   const form = useForm({
     mode: "uncontrolled",
     initialValues: {
-      encryption: output?.srt_pull?.connection?.enforced_encryption,
-      stripRtp: output?.srt_pull?.strip_rtp,
-      passphrase: output?.srt_pull?.passphrase,
+      encryption: output?.[outputType]?.connection?.enforced_encryption,
+      stripRtp: output?.[outputType]?.strip_rtp,
+      passphrase: output?.[outputType]?.passphrase,
       name: output?.name,
       // tags: output?.tags || []
     },
@@ -183,7 +185,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
         // tags
       });
 
-      form.setFieldValue("passphrase", outputStore.outputs[id]?.srt_pull?.passphrase ?? "");
+      form.setFieldValue("passphrase", outputStore.outputs[id]?.[outputType]?.passphrase ?? "");
 
       notifications.show({
         title: <NotificationMessage>Updated output</NotificationMessage>,
