@@ -237,9 +237,13 @@ class OutputStore {
         yield this.LoadOutputSettingsId();
       }
 
-      this.outputs = yield this.client.OutputsList({
+      const outputs = yield this.client.OutputsList({
         objectId: this.outputSettingsId
       });
+
+      // this.outputs = {};
+
+      this.outputs = outputs
 
       this.state = "loaded";
     } catch(error) {
@@ -574,7 +578,7 @@ class OutputStore {
       // reset/state are transient runtime fields surfaced by OutputsListItem; a config
       // edit must not persist them back
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-      const {reset: _r, state: _st, ...cleanExisting} = existing;
+      const {state: _st, ...cleanExisting} = existing;
 
       // Encryption/passphrase/strip_rtp live on the SRT block, which is keyed by
       // srt_pull or srt_push depending on the output type. RTP/UDP outputs have no
