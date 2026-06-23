@@ -50,10 +50,17 @@ const Outputs = observer(() => {
         // Outputs derive source/packaging from their mapped stream, so the
         // stream map must be loaded too. LoadSiteStreams guards against
         // concurrent loads; skip it when streams are already loaded.
-        await Promise.all([
-          outputStore.LoadOutputs(),
-          (reload || !dataStore.streamsLoaded) ? dataStore.LoadSiteStreams(reload) : null
-        ]);
+        //
+        // These must run sequentially, not in parallel: OutputsList (inside
+        // LoadOutputs) temporarily reroutes the shared client to a live-egress
+        // node via RouteToLiveEgress. Any site-object read in flight during that
+        // window (LoadSiteStreams -> LoadTenantData) gets routed to the egress
+        // node and 403s ("token/auth not authorized"). Load streams first so the
+        // site read completes against normal fabric nodes.
+        if(reload || !dataStore.streamsLoaded) {
+          await dataStore.LoadSiteStreams(reload);
+        }
+        await outputStore.LoadOutputs();
       } finally {
         setLoading(false);
       }
