@@ -45,12 +45,12 @@ interface OutputRtp {
   elvgeo?: string;
 }
 
+// Raw output as stored in stream metadata: nested, keyed by transport (rtp/udp/srt_*).
 interface Output {
   enabled?: boolean;
   input?: OutputInput;
   name?: string;
   description?: string;
-  reset?: boolean;
   rtp?: OutputRtp;
   udp?: OutputRtp;
   srt_pull?: OutputSrtPull;
@@ -74,13 +74,14 @@ const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[]
   return undefined;
 };
 
+// Output flattened for the UI: url/type/source pulled up out of the transport nesting,
+// plus the owning stream's id/name/status added on, for table rows.
 interface FlatOutput {
   slug: string;
   name?: string;
   description?: string;
   tags?: string[];
   enabled?: boolean;
-  reset?: boolean;
   streamId?: string;
   streamName?: string;
   streamStatus?: string;
@@ -146,7 +147,6 @@ class OutputStore {
       description: output.description,
       tags: output.tags,
       enabled: output.enabled,
-      reset: output.reset,
       streamId: output.input?.stream,
       streamName: output.input?.name,
       streamStatus: output.input?.status,

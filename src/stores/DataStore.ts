@@ -208,8 +208,11 @@ class DataStore {
         yield this.LoadTenantData();
       }
 
-      yield this.rootStore.streamStore.LoadStreams({streamMetadata: this.streamMetadata});
-      yield this.rootStore.outputStore.LoadOutputSettingsId();
+      yield Promise.all([
+        this.rootStore.streamStore.LoadStreams({streamMetadata: this.streamMetadata}),
+        this.rootStore.outputStore.LoadOutputSettingsId()
+      ]);
+
       this.streamsLoaded = true;
       yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
