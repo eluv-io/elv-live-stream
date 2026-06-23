@@ -243,7 +243,7 @@ class OutputStore {
 
       // this.outputs = {};
 
-      this.outputs = outputs
+      this.outputs = outputs;
 
       this.state = "loaded";
     } catch(error) {
