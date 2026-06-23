@@ -562,7 +562,7 @@ class OutputStore {
     passphrase,
     encryption,
     stripRtp,
-    tags
+    // tags
   }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
@@ -571,11 +571,15 @@ class OutputStore {
       const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
+      // reset/state are transient runtime fields surfaced by OutputsListItem; a config
+      // edit must not persist them back (e.g. re-writing reset would re-trigger a reset).
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {reset: _r, state: _st, ...cleanExisting} = existing;
 
       const output = {
-        ...existing,
+        ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
-        ...(tags !== undefined && {tags}),
+        // ...(tags !== undefined && {tags}),
         input: cleanInput,
         srt_pull: {
           ...existing.srt_pull,
@@ -826,9 +830,12 @@ class OutputStore {
       const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
+      // reset/state are transient runtime fields surfaced by OutputsListItem; never persist them.
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {reset: _r, state: _st, ...cleanExisting} = existing;
 
       const output = {
-        ...existing,
+        ...cleanExisting,
         input: cleanInput,
         tags
       };
