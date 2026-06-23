@@ -572,24 +572,32 @@ class OutputStore {
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
       // reset/state are transient runtime fields surfaced by OutputsListItem; a config
-      // edit must not persist them back (e.g. re-writing reset would re-trigger a reset).
+      // edit must not persist them back
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {reset: _r, state: _st, ...cleanExisting} = existing;
+
+      // Encryption/passphrase/strip_rtp live on the SRT block, which is keyed by
+      // srt_pull or srt_push depending on the output type. RTP/UDP outputs have no
+      // SRT block, so building one would pollute the payload.
+      const srtKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : undefined;
+      const existingSrt = srtKey ? existing[srtKey] : undefined;
 
       const output = {
         ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
         // ...(tags !== undefined && {tags}),
         input: cleanInput,
-        srt_pull: {
-          ...existing.srt_pull,
-          connection: {
-            ...existing.srt_pull.connection,
-            enforced_encryption: encryption ?? existing?.srt_pull?.connection?.enforced_encryption
-          },
-          passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existing.srt_pull.passphrase) : undefined,
-          strip_rtp: stripRtp ?? existing.srt_pull.strip_rtp
-        }
+        ...(srtKey && {
+          [srtKey]: {
+            ...existingSrt,
+            connection: {
+              ...existingSrt?.connection,
+              enforced_encryption: encryption ?? existingSrt?.connection?.enforced_encryption
+            },
+            passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
+            strip_rtp: stripRtp ?? existingSrt?.strip_rtp
+          }
+        })
       };
 
       yield this.client.OutputsModify({
