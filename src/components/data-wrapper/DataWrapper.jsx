@@ -8,13 +8,19 @@ const DataWrapper = observer(({children}) => {
     let canceled = false;
     let timeoutId;
 
-    // Stream status and the outputs list are polled together, and MUST run
-    // sequentially — never concurrently. OutputsList (inside LoadOutputs)
-    // temporarily reroutes the shared client to a live-egress node via
-    // RouteToLiveEgress / SetNodes; any read in flight during that window gets
-    // routed to the wrong node (stream-status reads 403; the per-output state
-    // fetch fails and resets state to {}, so connected_clients drops to 0).
-    // Awaiting status before outputs keeps the two off the wire at once.
+    // Stream status and output state are polled together, and MUST run
+    // sequentially — never concurrently. Both reroute the shared client to a
+    // live-egress node (AllOutputsState -> OutputsState via RouteToLiveEgress /
+    // SetNodes); any read in flight during that window gets routed to the wrong
+    // node (stream-status reads 403; the per-output state fetch fails). Awaiting
+    // status before output state keeps the two off the wire at once.
+    //
+    // AllOutputsState (not LoadOutputs) is used here on purpose: it refreshes
+    // each output's live state independently and merges it, mirroring
+    // AllStreamsStatus. LoadOutputs is a single all-or-nothing OutputsList call —
+    // one thrown step leaves every output's connected_clients stale, which is why
+    // the timer-driven refresh stopped updating while the initial load was fine.
+    // The full list/config reload still happens on page mount and manual refresh.
     const Poll = async () => {
       try {
         await streamStore.AllStreamsStatus();
@@ -24,10 +30,10 @@ const DataWrapper = observer(({children}) => {
       }
 
       try {
-        await outputStore.LoadOutputs();
+        await outputStore.AllOutputsState();
       } catch(error) {
         // eslint-disable-next-line no-console
-        console.error("Unable to get outputs.", error);
+        console.error("Unable to get output state.", error);
       }
     };
 

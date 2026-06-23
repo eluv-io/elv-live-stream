@@ -253,6 +253,60 @@ class OutputStore {
     }
   }
 
+  // Fetch a single output's live egress state. Mirrors StreamStore.CheckStatus:
+  // pass update=true to merge the fresh state onto the stored output so derived
+  // table columns (connected_clients, etc.) react without a full OutputsList
+  // reload. Only `state` is merged so the enriched input fields added by
+  // LoadOutputStreamInfo and the persisted config aren't clobbered.
+  *CheckOutputState({outputId, update=false}: {outputId: string, update?: boolean}): Generator<any, any> {
+    let response;
+    try {
+      response = yield this.client.OutputsState({
+        objectId: this.outputSettingsId,
+        outputId
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to load state for output ${outputId}.`, error);
+      return {};
+    }
+    if(update) {
+      this.UpdateOutput({
+        slug: outputId,
+        updates: {
+          state: response?.state
+        }
+      });
+    }
+
+    return response;
+  }
+
+  // Resilient per-output state refresh for polling. Unlike LoadOutputs (a single
+  // OutputsList call that replaces the whole map and is all-or-nothing — one
+  // thrown enrichment/route step leaves every output stale), this updates each
+  // output independently so one failure can't block the rest.
+  //
+  // MUST run sequentially: OutputsState reroutes the shared client to each
+  // output's egress node (RouteToLiveEgress / RouteToOutputNode) and restores
+  // afterward. Concurrent calls corrupt each other's routing and fail their
+  // state reads.
+  *AllOutputsState(): Generator<any, void> {
+    try {
+      for(const outputId of Object.keys(this.outputs || {})) {
+        try {
+          yield this.CheckOutputState({outputId, update: true});
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error(`Skipping state for output ${outputId}.`, error);
+        }
+      }
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to refresh output states.", error);
+    }
+  }
+
   *LoadOutputItem({outputId, includeState=true}: {outputId: string, includeState: boolean}): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
