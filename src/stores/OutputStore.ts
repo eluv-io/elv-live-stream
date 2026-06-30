@@ -237,13 +237,9 @@ class OutputStore {
         yield this.LoadOutputSettingsId();
       }
 
-      const outputs = yield this.client.OutputsList({
+      this.outputs = yield this.client.OutputsList({
         objectId: this.outputSettingsId
       });
-
-      // this.outputs = {};
-
-      this.outputs = outputs;
 
       this.state = "loaded";
     } catch(error) {
