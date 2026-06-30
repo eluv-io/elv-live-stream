@@ -18,6 +18,16 @@ import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/StreamStore";
 import {PermissionLevel} from "@/stores/DataStore";
 
+// Thrown when a live recording copy's content object can no longer be reached
+// (most likely deleted from the Fabric) while attempting to edit it. The UI
+// uses this to offer a "remove from list" remediation instead of a raw error.
+export class RecordingCopyMissingError extends Error {
+  constructor(recordingCopyId: string) {
+    super(`Live recording copy ${recordingCopyId} no longer exists`);
+    this.name = "RecordingCopyMissingError";
+  }
+}
+
 interface InitLiveStreamObjectParams {
   objectId: string;
   accessGroup: string;
@@ -1767,7 +1777,7 @@ class StreamEditStore {
 
   // VOD
 
-  *FetchLiveRecordingCopies({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Record<string, {create_time: number, endTime: number, startTime: number, title: string}>> {
+  *FetchLiveRecordingCopies({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Record<string, {create_time: number, endTime: number, startTime: number, title: string, unavailable?: boolean}>> {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
     }
@@ -1780,11 +1790,20 @@ class StreamEditStore {
 
     yield Promise.all(
       Object.keys(copiesMeta || {}).map(async(copyId) => {
-        copiesMeta[copyId].title = await this.client.ContentObjectMetadata({
-          libraryId: await this.client.ContentObjectLibraryId({objectId: copyId}),
-          objectId: copyId,
-          metadataSubtree: "public/name"
-        });
+        try {
+          copiesMeta[copyId].title = await this.client.ContentObjectMetadata({
+            libraryId: await this.client.ContentObjectLibraryId({objectId: copyId}),
+            objectId: copyId,
+            metadataSubtree: "public/name"
+          });
+        } catch(error) {
+          // The metadata entry exists but its content object could not be
+          // reached - most likely it was deleted from the Fabric. Flag it so
+          // the UI can mark the row as unavailable and disable edit actions.
+          copiesMeta[copyId].unavailable = true;
+          // eslint-disable-next-line no-console
+          console.error(`Failed to load name. Has object ${copyId} been deleted?`, error);
+        }
       })
     );
 
@@ -1824,6 +1843,13 @@ class StreamEditStore {
 
       if(!liveRecordingCopies?.[recordingCopyId]) {
         throw Error(`Live recording copy ${recordingCopyId} not found`);
+      }
+
+      // The metadata entry is present but its content object is unreachable -
+      // it was deleted between table load and this edit. Signal the UI so it
+      // can offer to remove the stale entry rather than surfacing a raw error.
+      if(liveRecordingCopies[recordingCopyId].unavailable) {
+        throw new RecordingCopyMissingError(recordingCopyId);
       }
 
       liveRecordingCopies[recordingCopyId].title = title;
@@ -2052,6 +2078,18 @@ class StreamEditStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to update stream tags.", error);
+      throw error;
+    }
+  }
+
+  *UpdateStreamTagsBatch({streams}: {streams: {objectId: string, slug: string, tags: string[]}[]}): Generator<any, void> {
+    try {
+      yield Promise.all(
+        streams.map(stream => this.UpdateStreamTags(stream))
+      );
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to update stream tags (batch).", error);
       throw error;
     }
   }

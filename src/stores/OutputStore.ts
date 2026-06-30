@@ -19,6 +19,7 @@ interface OutputInput {
 interface OutputSrtPull {
   node_ids?: string[];
   urls?: string[];
+  elvgeos?: string[];
   connection?: {
     enforced_encryption?: string;
   };
@@ -26,44 +27,62 @@ interface OutputSrtPull {
   strip_rtp?: boolean;
 }
 
-interface OutputRtp {
+interface OutputSrtPush {
   node_id?: string;
   url?: string;
+  elvgeo?: string;
+  location?: "global" | "elvgeo" | "datacenter" | "nid";
+  connection?: {
+    enforced_encryption?: string;
+  };
+  passphrase?: string;
+  strip_rtp?: boolean;
 }
 
+// Shared shape for the rtp and udp outputs.
+interface OutputRtpUdp {
+  node_id?: string;
+  url?: string;
+  elvgeo?: string;
+}
+
+// Raw output as stored in stream metadata: nested, keyed by transport (rtp/udp/srt_*).
 interface Output {
   enabled?: boolean;
   input?: OutputInput;
   name?: string;
   description?: string;
-  reset?: boolean;
-  rtp?: OutputRtp;
+  rtp?: OutputRtpUdp;
+  udp?: OutputRtpUdp;
   srt_pull?: OutputSrtPull;
+  srt_push?: OutputSrtPush;
   state?: any;
   tags?: string[];
 }
 
 type Outputs = Record<string, Output>;
 
-export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "TS";
+export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
 
-const DeriveOutputType = (output: Output, originUrl?: string): OutputType[] | undefined => {
-  const url = originUrl ?? output.input?.url;
-  const protocol = url?.match(/^(\w+):\/\//)?.[1];
-  const packaging: OutputType = protocol === "rtp" ? "RTP" : "TS";
+const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
+  const stripRtp = output.srt_pull?.strip_rtp ?? output.srt_push?.strip_rtp;
+  const packaging: OutputType = streamSource?.includes("rtp") && !stripRtp ? "RTP" : "TS";
 
   if(output.rtp) return ["RTP"];
+  if(output.udp) return ["UDP"];
+  if(output.srt_push) return ["SRT PUSH", packaging];
   if(output.srt_pull) return ["SRT PULL", packaging];
   return undefined;
 };
 
+// Output flattened for the UI: url/type/source pulled up out of the transport nesting,
+// plus the owning stream's id/name/status added on, for table rows.
 interface FlatOutput {
   slug: string;
   name?: string;
   description?: string;
   tags?: string[];
   enabled?: boolean;
-  reset?: boolean;
   streamId?: string;
   streamName?: string;
   streamStatus?: string;
@@ -72,12 +91,16 @@ interface FlatOutput {
   packaging?: string[];
   source?: string[];
   connectedClients: number;
+  input?: OutputInput;
 }
 
 interface CreateOutputParams {
   name?: string;
   externalId?: string;
-  geos: string[];
+  offering?: string;
+  // Public outputs target a fabric region; dedicated outputs target a specific node.
+  region?: string;
+  node?: string;
   passphrase?: string;
   encryption?: string;
   stripRtp?: boolean;
@@ -116,7 +139,8 @@ class OutputStore {
   FlattenOutput = (slug: string, output: Output): FlatOutput => {
     const {streamsByObjectId, streams} = this.rootStore.streamStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
-    const url = output.srt_pull?.urls?.[0] ?? output.rtp?.url;
+    // srt_pull.urls is an array of strings; other output types store a single url string.
+    const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
 
     return {
       slug,
@@ -124,15 +148,15 @@ class OutputStore {
       description: output.description,
       tags: output.tags,
       enabled: output.enabled,
-      reset: output.reset,
       streamId: output.input?.stream,
       streamName: output.input?.name,
       streamStatus: output.input?.status,
       url,
-      type: DeriveOutputType(output, url),
-      packaging: streams[streamSlug]?.packaging ?? output.input?.packaging,
-      source: streams[streamSlug]?.source ?? output.input?.source,
+      type: DeriveOutputType(output, streams?.[streamSlug]?.source ?? output.input?.source),
+      packaging: streams?.[streamSlug]?.packaging ?? output.input?.packaging,
+      source: streams?.[streamSlug]?.source ?? output.input?.source,
       connectedClients: output.state?.connected_clients ?? 0,
+      input: output.input
     };
   };
 
@@ -226,6 +250,60 @@ class OutputStore {
     }
   }
 
+  // Fetch a single output's live egress state. Mirrors StreamStore.CheckStatus:
+  // pass update=true to merge the fresh state onto the stored output so derived
+  // table columns (connected_clients, etc.) react without a full OutputsList
+  // reload. Only `state` is merged so the enriched input fields added by
+  // LoadOutputStreamInfo and the persisted config aren't clobbered.
+  *CheckOutputState({outputId, update=false}: {outputId: string, update?: boolean}): Generator<any, any> {
+    let response;
+    try {
+      response = yield this.client.OutputsState({
+        objectId: this.outputSettingsId,
+        outputId
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(`Failed to load state for output ${outputId}.`, error);
+      return {};
+    }
+    if(update) {
+      this.UpdateOutput({
+        slug: outputId,
+        updates: {
+          state: response?.state
+        }
+      });
+    }
+
+    return response;
+  }
+
+  // Resilient per-output state refresh for polling. Unlike LoadOutputs (a single
+  // OutputsList call that replaces the whole map and is all-or-nothing — one
+  // thrown enrichment/route step leaves every output stale), this updates each
+  // output independently so one failure can't block the rest.
+  //
+  // MUST run sequentially: OutputsState reroutes the shared client to each
+  // output's egress node (RouteToLiveEgress / RouteToOutputNode) and restores
+  // afterward. Concurrent calls corrupt each other's routing and fail their
+  // state reads.
+  *AllOutputsState(): Generator<any, void> {
+    try {
+      for(const outputId of Object.keys(this.outputs || {})) {
+        try {
+          yield this.CheckOutputState({outputId, update: true});
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error(`Skipping state for output ${outputId}.`, error);
+        }
+      }
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to refresh output states.", error);
+    }
+  }
+
   *LoadOutputItem({outputId, includeState=true}: {outputId: string, includeState: boolean}): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
@@ -238,7 +316,19 @@ class OutputStore {
         includeState
       });
 
-      this.UpdateOutput({slug: outputId, updates: output});
+      // OutputsListItem returns a sparse `input` (stream/name/status). Merge it
+      // onto the existing input so the live fields added by LoadOutputStreamInfo
+      // (source, packaging, quality, stats, url, embedUrl) aren't clobbered when
+      // the item is (re)loaded. A null/undefined input (unmapped) passes through.
+      this.UpdateOutput({
+        slug: outputId,
+        updates: {
+          ...output,
+          input: output?.input
+            ? {...this.outputs[outputId]?.input, ...output.input}
+            : output?.input
+        }
+      });
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(`Failed to load output ${outputId}.`, error);
@@ -295,12 +385,14 @@ class OutputStore {
   *CreateOutput({
     name,
     externalId,
-    geos,
+    offering,
+    region,
+    node,
     passphrase,
     encryption,
     stripRtp,
-    // type,
-    // url
+    url,
+    type
   }: CreateOutputParams): Generator<any, void> {
     try {
       if(!this.outputSettingsId) {
@@ -310,16 +402,40 @@ class OutputStore {
       if(!name) {
         name = `Output ${this.outputList?.length + 1}`;
       }
+
+      const isSrt = type === "srt_pull" || type === "srt_push";
+      // srt_pull accepts arrays of nodes/geos; srt_push/rtp/udp use a single node/geo.
+      const isPull = type === "srt_pull";
+
+      const settings: Record<string, any> = {};
+
+      if(node) {
+        settings[isPull ? "node_ids" : "node_id"] = isPull ? [node] : node;
+      }
+
+      if(region) {
+        settings[isPull ? "elvgeos" : "elvgeo"] = isPull ? [region] : region;
+      }
+
+      if(url) { settings.url = url; }
+
+      if(isSrt) {
+        settings.passphrase = passphrase || undefined;
+        settings.strip_rtp = stripRtp;
+        settings.connection = encryption ? {enforced_encryption: encryption} : undefined;
+      }
+
       const outputs = yield this.client.OutputsCreate({
         objectId: this.outputSettingsId,
+        offering,
         name,
-        description: geos[0],
+        description: node || region,
         externalId,
         enabled: false,
-        geos,
-        passphrase: passphrase || undefined,
-        stripRtp,
-        srtConfig: encryption ? {enforced_encryption: encryption} : undefined
+        delivery: {
+          type,
+          settings
+        }
       });
 
       const outputId = Object.keys(outputs || {})[0];
@@ -501,7 +617,7 @@ class OutputStore {
     passphrase,
     encryption,
     stripRtp,
-    tags
+    // tags
   }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
@@ -510,21 +626,33 @@ class OutputStore {
       const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
+      // reset/state are transient runtime fields surfaced by OutputsListItem; a config
+      // edit must not persist them back
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {state: _st, ...cleanExisting} = existing;
+
+      // Encryption/passphrase/strip_rtp live on the SRT block, which is keyed by
+      // srt_pull or srt_push depending on the output type. RTP/UDP outputs have no
+      // SRT block, so building one would pollute the payload.
+      const srtKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : undefined;
+      const existingSrt = srtKey ? existing[srtKey] : undefined;
 
       const output = {
-        ...existing,
+        ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
-        ...(tags !== undefined && {tags}),
+        // ...(tags !== undefined && {tags}),
         input: cleanInput,
-        srt_pull: {
-          ...existing.srt_pull,
-          connection: {
-            ...existing.srt_pull.connection,
-            enforced_encryption: encryption ?? existing?.srt_pull?.connection?.enforced_encryption
-          },
-          passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existing.srt_pull.passphrase) : undefined,
-          strip_rtp: stripRtp ?? existing.srt_pull.strip_rtp
-        }
+        ...(srtKey && {
+          [srtKey]: {
+            ...existingSrt,
+            connection: {
+              ...existingSrt?.connection,
+              enforced_encryption: encryption ?? existingSrt?.connection?.enforced_encryption
+            },
+            passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
+            strip_rtp: stripRtp ?? existingSrt?.strip_rtp
+          }
+        })
       };
 
       yield this.client.OutputsModify({
@@ -737,10 +865,24 @@ class OutputStore {
   }
 
   *DeleteOutputBatch({outputs}: {outputs: string[]}): Generator<any, void> {
-    yield Promise.all(
-      outputs.map(outputId => this.DeleteOutput({outputId})
-      )
-    );
+    try {
+      const objectId = this.outputSettingsId;
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
+      yield this.client.OutputsDeleteBatch({
+        libraryId,
+        objectId,
+        outputs
+      });
+
+      outputs.forEach(outputId => {
+        delete this.outputs[outputId];
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to delete outputs (batch).", error);
+      throw error;
+    }
   }
 
   *UpdateOutputTags({outputId, tags}: {outputId: string, tags: string[]}): Generator<any, void> {
@@ -751,9 +893,12 @@ class OutputStore {
       const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
+      // reset/state are transient runtime fields surfaced by OutputsListItem; never persist them.
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {reset: _r, state: _st, ...cleanExisting} = existing;
 
       const output = {
-        ...existing,
+        ...cleanExisting,
         input: cleanInput,
         tags
       };

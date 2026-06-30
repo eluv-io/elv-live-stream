@@ -9,9 +9,10 @@ import {
   IconExternalLink,
   IconListCheck,
   IconPlayerPlay,
-  IconPlayerStop, IconTrash, IconX
+  IconPlayerStop, IconTrash
 } from "@tabler/icons-react";
 import {Link} from "react-router-dom";
+import {EndIcon} from "@/assets/icons/index.js";
 
 export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, view}) => {
   return [
@@ -78,7 +79,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
     {
       label: "Deactivate",
       title: "Deactivate Stream",
-      icon: <IconX />,
+      icon: <EndIcon />,
       iconVariant: "subtle",
       buttonVariant: "outline",
       iconColor: "gray.6",

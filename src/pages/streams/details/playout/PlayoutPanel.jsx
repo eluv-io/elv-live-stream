@@ -70,11 +70,12 @@ const PlayoutPanel = observer(({
       setDvrStartTime(dvrStartTimeMeta);
       setWatermarkType(watermarkTypeMeta);
       if(forensicWatermarkMeta || imageWatermarkMeta || simpleWatermarkMeta) {
-        setFormWatermarks({
+        const newData = {
           image: imageWatermarkMeta ? JSON.stringify(imageWatermarkMeta, null, 2) : undefined,
           forensic: forensicWatermarkMeta ? JSON.stringify(forensicWatermarkMeta, null, 2) : undefined,
-          simple: simpleWatermarkMeta ? JSON.stringify(simpleWatermarkMeta, null, 2) : undefined,
-        });
+          text: simpleWatermarkMeta ? JSON.stringify(simpleWatermarkMeta, null, 2) : undefined,
+        };
+        setFormWatermarks(newData);
       }
 
     } finally {
@@ -260,8 +261,8 @@ const PlayoutPanel = observer(({
               mb={16}
               mt={12}
               value={
-              watermarkType === "TEXT" ? formWatermarks.text : watermarkType === "FORENSIC" ? formWatermarks.forensic : watermarkType === "IMAGE" ? formWatermarks.image : ""
-            }
+                watermarkType === "TEXT" ? formWatermarks.text : watermarkType === "FORENSIC" ? formWatermarks.forensic : watermarkType === "IMAGE" ? formWatermarks.image : ""
+              }
               size="md"
               rows={10}
               onChange={(event) => {

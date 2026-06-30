@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {useNavigate, useParams} from "react-router-dom";
-import {outputStore} from "@/stores/index.ts";
+import {dataStore, outputStore} from "@/stores/index.ts";
 import {
   ActionIcon,
   Box,
@@ -38,6 +38,7 @@ const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
   const videoGap = "20px";
+  const hasDedicatedNode = output.description?.startsWith("inod");
 
   return (
     <Box pt={16}>
@@ -107,11 +108,15 @@ const SummaryPanel = observer(({output, url, id}) => {
       <Divider mb={20} mt={30} />
 
       <Box style={{opacity: 0.5, pointerEvents: "none"}}>
-        <SectionTitle mb={12}>Fabric Geo</SectionTitle>
+        <SectionTitle mb={12}>
+          {hasDedicatedNode ? "Dedicated Node" : "Fabric Geo"}
+        </SectionTitle>
         <Select
-          description="Defines the region."
+          description={hasDedicatedNode ? "The dedicated fabric node serving this output." : "The geographic region this output is served from."}
           onChange={() => {}}
-          data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
+          data={
+            (hasDedicatedNode ? dataStore.dedicatedNodesList : FABRIC_NODE_REGIONS).slice().sort((a, b) => a.label.localeCompare(b.label))
+          }
           value={output.description ?? ""}
           readOnly
         />
@@ -127,10 +132,10 @@ const SummaryPanel = observer(({output, url, id}) => {
               data={[
                 {label: "Client IP", value: client.client_ip},
                 {label: "Connected at", value: client.connected_at ? DateFormat({time: client.connected_at, format: "iso"}) : null},
-                {label: "Packets Sent / Drop (%)", value: `${client?.packets_sent?.toLocaleString()} / ${client?.packets_dropped?.toLocaleString()} (${(client.packets_dropped / client?.packets_sent).toFixed(2)}%)`},
-                {label: "Bytes Sent / Drop (%)", value: `${BytesToMb(client.bytes_sent)} / ${BytesToMb(client.bytes_dropped)} (${(client.bytes_dropped / client.bytes_sent).toFixed(2)}%)`},
-                {label: "Packets Sent / Retrans / Loss", value: `${client?.srt?.connection?.accumulated?.pkt_sent?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_retrans?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_send_loss?.toLocaleString()}`},
-                {label: "SRT Connection Latency Recv / Send", value: `${client?.srt?.connection?.instantaneous?.ms_recv_tsb_pd_delay} / ${client?.srt?.connection?.instantaneous?.ms_send_tsb_pd_delay}`}
+                {label: "Packets Sent / Drop (%)", value: `${client?.packets_sent?.toLocaleString()} / ${client?.packets_dropped?.toLocaleString()} (${client.packets_dropped ? (client.packets_dropped / client?.packets_sent).toFixed(2) : 0}%)`},
+                {label: "Bytes Sent / Drop (%)", value: `${BytesToMb(client.bytes_sent)} / ${BytesToMb(client.bytes_dropped)} (${client.bytes_dropped ? (client.bytes_dropped / client.bytes_sent).toFixed(2) : 0}%)`},
+                {label: "Packets Sent / Retrans / Loss", value: client?.srt?.connection ? `${client?.srt?.connection?.accumulated?.pkt_sent?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_retrans?.toLocaleString()} / ${client?.srt?.connection?.accumulated?.pkt_send_loss?.toLocaleString()}` : ""},
+                {label: "SRT Connection Latency Recv / Send", value: client?.srt?.connection ? `${client?.srt?.connection?.instantaneous?.ms_recv_tsb_pd_delay} / ${client?.srt?.connection?.instantaneous?.ms_send_tsb_pd_delay}` : ""}
               ]}
             />
           </Fragment>
@@ -143,12 +148,14 @@ const SummaryPanel = observer(({output, url, id}) => {
 const GeneralConfigPanel = observer(({output, id}) => {
   const [applyingChanges, setApplyingChanges] = useState(false);
 
+  const outputType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
+
   const form = useForm({
     mode: "uncontrolled",
     initialValues: {
-      encryption: output?.srt_pull?.connection?.enforced_encryption,
-      stripRtp: output?.srt_pull?.strip_rtp,
-      passphrase: output?.srt_pull?.passphrase,
+      encryption: output?.[outputType]?.connection?.enforced_encryption,
+      stripRtp: output?.[outputType]?.strip_rtp,
+      passphrase: output?.[outputType]?.passphrase,
       name: output?.name,
       // tags: output?.tags || []
     },
@@ -178,7 +185,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
         // tags
       });
 
-      form.setFieldValue("passphrase", outputStore.outputs[id]?.srt_pull?.passphrase ?? "");
+      form.setFieldValue("passphrase", outputStore.outputs[id]?.[outputType]?.passphrase ?? "");
 
       notifications.show({
         title: <NotificationMessage>Updated output</NotificationMessage>,

@@ -1,4 +1,4 @@
-import {makeAutoObservable} from "mobx";
+import {makeAutoObservable, observable} from "mobx";
 import {STATUS_MAP, StreamStatus} from "@/utils/constants";
 import type RootStore from "@/stores/RootStore";
 import {StreamRecord} from "@/utils/stream";
@@ -206,7 +206,13 @@ class ModalStore {
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
     makeAutoObservable(this, {
-      OP_MAP: false
+      OP_MAP: false,
+      // modalData holds JSX React elements (customMessage, loadingText). MobX
+      // deep-observes plain objects, and a React element is a plain object — in
+      // dev it carries a `_debugTask` whose `run` method gets wrapped by MobX's
+      // action machinery, throwing "'run' called with illegal receiver". Keeping
+      // modalData as a ref stops MobX from converting the elements inside it.
+      modalData: observable.ref
     }, {autoBind: true});
   }
 
@@ -324,8 +330,9 @@ class ModalStore {
   };
 
   ResetModal = () => {
-    // Hide modal, then reset data
-    this.modalData.show = false;
+    // Hide modal, then reset data. modalData is a ref observable, so reassign
+    // the whole object rather than mutating a property to trigger reactions.
+    this.modalData = {...this.modalData, show: false};
 
     setTimeout(() => {
       this.modalData = {

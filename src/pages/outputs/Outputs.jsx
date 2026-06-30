@@ -12,7 +12,7 @@ import {
   Title,
   UnstyledButton
 } from "@mantine/core";
-import {outputModalStore, outputStore, rootStore} from "@/stores/index.ts";
+import {dataStore, outputModalStore, outputStore, rootStore} from "@/stores/index.ts";
 import {DataTable} from "mantine-datatable";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {
@@ -47,6 +47,19 @@ const Outputs = observer(() => {
     if(outputStore.state !== "loaded" || reload) {
       try {
         setLoading(true);
+        // Outputs derive source/packaging from their mapped stream, so the
+        // stream map must be loaded too. LoadSiteStreams guards against
+        // concurrent loads; skip it when streams are already loaded.
+        //
+        // These must run sequentially, not in parallel: OutputsList (inside
+        // LoadOutputs) temporarily reroutes the shared client to a live-egress
+        // node via RouteToLiveEgress. Any site-object read in flight during that
+        // window (LoadSiteStreams -> LoadTenantData) gets routed to the egress
+        // node and 403s ("token/auth not authorized"). Load streams first so the
+        // site read completes against normal fabric nodes.
+        if(reload || !dataStore.streamsLoaded) {
+          await dataStore.LoadSiteStreams(reload);
+        }
         await outputStore.LoadOutputs();
       } finally {
         setLoading(false);
@@ -62,7 +75,11 @@ const Outputs = observer(() => {
     await LoadData(true);
   }, 500);
 
-  const records = outputStore.outputList;
+  // Outputs derive source/packaging/type from their mapped stream. Until streams
+  // are loaded those derivations fall back to output.input.*, which paints stale
+  // values that then change once streams arrive. Hold the records until streams
+  // are in so the derived columns render once, correctly.
+  const records = dataStore.streamsLoaded ? outputStore.outputList : [];
   const selectedRecords = records.filter(r => selectedSlugs.includes(r.slug));
 
   const noSelectedRecords = selectedRecords.length === 0;
@@ -73,7 +90,7 @@ const Outputs = observer(() => {
     {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => outputModalStore.OpenModal("unmap", slugs()), disabled: noSelectedRecords},
     {icon: IconCheck, label: "Enable", id: "batch-enable", onClick: () => outputModalStore.OpenModal("enable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.enabled))},
     {icon: IconCancel, label: "Disable", id: "batch-disable", onClick: () => outputModalStore.OpenModal("disable", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => r.enabled))},
-    {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => outputModalStore.OpenModal("reset", slugs()), disabled: (noSelectedRecords || !selectedRecords.some(r => !r.reset))},
+    {icon: IconRotateClockwise, label: "Reset", id: "batch-reset", onClick: () => outputModalStore.OpenModal("reset", slugs()), disabled: noSelectedRecords},
     // {icon: IconTag, label: "Edit Tags", id: "edit-tags-batch-action", onClick: () => outputModalStore.OpenModal("tags", slugs()), disabled: noSelectedRecords},
     {icon: IconTrash, label: "Delete", id: "batch-delete", onClick: () => outputModalStore.OpenModal("delete", slugs()), disabled: (noSelectedRecords)}
   ];
@@ -118,7 +135,7 @@ const Outputs = observer(() => {
             minHeight={(!records || records.length === 0) ? 130 : 75}
             highlightOnHover
             sortStatus={outputStore.sortStatus}
-            fetching={loading}
+            fetching={loading || !dataStore.streamsLoaded}
             onSortStatusChange={outputStore.SetSortStatus}
             records={records || []}
             selectedRecords={selectedRecords}
@@ -233,9 +250,9 @@ const Outputs = observer(() => {
                 title: "Type",
                 render: record => (
                   <Group gap={4} wrap="nowrap">
-                    {record.type?.map(t => (
-                      <Badge key={t} radius={2} color={OUTPUT_TYPE_COLOR_MAP[t]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
-                        {t}
+                    {record.type?.map(type => (
+                      <Badge key={type} radius={2} color={OUTPUT_TYPE_COLOR_MAP[type]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
+                        {type}
                       </Badge>
                     ))}
                   </Group>

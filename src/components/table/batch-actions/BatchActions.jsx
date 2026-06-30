@@ -12,22 +12,22 @@ const BatchActions = ({
     <>
       <Box bg="elv-blue.0" p="3px 12px" mb={mb} className={styles.boxRounded}>
         <Flex direction="row">
-            <Group gap={0}>
-              {
-                selectedRecords.length === 0 ?
+          <Group gap={0}>
+            {
+              selectedRecords.length === 0 ?
+                <UnstyledButton onClick={SelectAll}>
+                  <Text td="underline" fw={400} c="elv-gray.9" fz="0.875rem">Select All</Text>
+                </UnstyledButton> :
+                <Group gap={4}>
+                  <Text fw={400} c="elv-gray.9" fz="0.875rem" miw={70}>{selectedRecords.length} selected</Text>
                   <UnstyledButton onClick={SelectAll}>
-                    <Text td="underline" fw={400} c="elv-gray.9" fz="0.875rem">Select All</Text>
-                  </UnstyledButton> :
-                  <Group gap={4}>
-                    <Text fw={400} c="elv-gray.9" fz="0.875rem" miw={70}>{selectedRecords.length} selected</Text>
-                    <UnstyledButton onClick={SelectAll}>
-                      <Group gap={0}>
-                        <Text fw={400} c="elv-gray.9" fz="0.875rem">&nbsp;(</Text>
-                        <Text td="underline" fw={400} c="elv-gray.9" fz="0.875rem">Select All</Text>
-                        <Text fw={400} c="elv-gray.9" fz="0.875rem">)</Text>
-                      </Group>
-                    </UnstyledButton>
-                  </Group>
+                    <Group gap={0}>
+                      <Text fw={400} c="elv-gray.9" fz="0.875rem">&nbsp;(</Text>
+                      <Text td="underline" fw={400} c="elv-gray.9" fz="0.875rem">Select All</Text>
+                      <Text fw={400} c="elv-gray.9" fz="0.875rem">)</Text>
+                    </Group>
+                  </UnstyledButton>
+                </Group>
               }
           </Group>
           <Divider orientation="vertical" color="elv-gray.2" ml={16} mr={16} />

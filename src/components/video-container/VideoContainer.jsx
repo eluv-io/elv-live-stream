@@ -1,11 +1,15 @@
-import {useEffect, useState} from "react";
+import {lazy, Suspense, useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {streamStore} from "@/stores/index.ts";
 import {ActionIcon, AspectRatio, Box, Loader} from "@mantine/core";
 import {PlayCircleIcon as PlayIcon} from "@/assets/icons/index.js";
-import Video from "@/components/video/Video.jsx";
 import {IconX} from "@tabler/icons-react";
 import styles from "./VideoContainer.module.css";
+
+// Lazy-loaded so the player bundle (elv-player-js + hls.js + dash.js, the
+// heaviest deps in dist) is split into its own chunk and only fetched when a
+// stream is actually played, instead of bloating the initial app bundle.
+const Video = lazy(() => import("@/components/video/Video.jsx"));
 
 const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLevelToPlayerSize=true}) => {
   return (
@@ -25,13 +29,15 @@ const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLeve
           </ActionIcon>
         }
       </Box>
-      <Video
-        objectId={streamStore.streams[slug].objectId}
-        playerOptions={{
-          capLevelToPlayerSize,
-          autoplay: true
-        }}
-      />
+      <Suspense fallback={<Loader />}>
+        <Video
+          objectId={streamStore.streams[slug].objectId}
+          playerOptions={{
+            capLevelToPlayerSize,
+            autoplay: true
+          }}
+        />
+      </Suspense>
     </>
   );
 });
