@@ -64,7 +64,7 @@ type Outputs = Record<string, Output>;
 export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
 
 const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
-  const stripRtp = output.srt_pull?.strip_rtp;
+  const stripRtp = output.srt_pull?.strip_rtp ?? output.srt_push?.strip_rtp;
   const packaging: OutputType = streamSource?.includes("rtp") && !stripRtp ? "RTP" : "TS";
 
   if(output.rtp) return ["RTP"];
