@@ -143,6 +143,7 @@ module.exports = [
   "unconfigured",
   "undef",
   "unmapping",
+  "unmount",
   "unmounting",
   "unsecure",
   "unstyled",
