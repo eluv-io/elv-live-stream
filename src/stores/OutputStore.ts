@@ -39,7 +39,7 @@ interface OutputSrtPush {
   strip_rtp?: boolean;
 }
 
-// Shared shape for the datagram-based outputs (rtp and udp).
+// Shared shape for the rtp and udp outputs.
 interface OutputRtpUdp {
   node_id?: string;
   url?: string;
