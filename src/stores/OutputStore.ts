@@ -39,7 +39,8 @@ interface OutputSrtPush {
   strip_rtp?: boolean;
 }
 
-interface OutputRtp {
+// Shared shape for the datagram-based outputs (rtp and udp).
+interface OutputRtpUdp {
   node_id?: string;
   url?: string;
   elvgeo?: string;
@@ -51,8 +52,8 @@ interface Output {
   input?: OutputInput;
   name?: string;
   description?: string;
-  rtp?: OutputRtp;
-  udp?: OutputRtp;
+  rtp?: OutputRtpUdp;
+  udp?: OutputRtpUdp;
   srt_pull?: OutputSrtPull;
   srt_push?: OutputSrtPush;
   state?: any;
