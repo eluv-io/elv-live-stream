@@ -152,9 +152,25 @@ describe("StatusColor", () => {
 
 describe("DeriveSourceAndPackaging", () => {
   describe("source by protocol", () => {
-    it("sets source to [srt, ts] for srt:// URLs", () => {
+    it("sets source to [srt] for srt:// URLs with no inputCfg", () => {
       const {source} = DeriveSourceAndPackaging({url: "srt://host:1234"});
+      expect(source).toEqual(["srt"]);
+    });
+
+    it("appends ts for srt:// URLs when copy_packaging is set", () => {
+      const {source} = DeriveSourceAndPackaging({
+        url: "srt://host:1234",
+        inputCfg: {copy_packaging: "rtp_ts"}
+      });
       expect(source).toEqual(["srt", "ts"]);
+    });
+
+    it("appends rtp for srt:// URLs when input_packaging includes rtp", () => {
+      const {source} = DeriveSourceAndPackaging({
+        url: "srt://host:1234",
+        inputCfg: {input_packaging: ["rtp"]}
+      });
+      expect(source).toEqual(["srt", "rtp"]);
     });
 
     it("sets source to [ts] for udp:// URLs", () => {
