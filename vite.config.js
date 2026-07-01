@@ -24,7 +24,7 @@ export default defineConfig({
       ]
     }),
     react(),
-    visualizer({open: true, gzipSize: true, brotliSize: true})
+    // visualizer({open: true, gzipSize: true, brotliSize: true})
   ],
   optimizeDeps: {
     // elv-player-js is lazy-imported (VideoContainer) so Vite won't see it at
