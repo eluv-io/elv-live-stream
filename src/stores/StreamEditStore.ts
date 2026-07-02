@@ -1,6 +1,8 @@
 // Handles stream configuration writes: create, delete, metadata, recording config, playout (watermarks, DRM, audio), profiles, permissions, and VOD copy.
 import {makeAutoObservable, toJS} from "mobx";
 import {
+  DeriveCopyMode,
+  DeriveCopyPackaging,
   FinalizeContentObjectResponse,
   ForensicWatermark,
   ImageWatermark,
@@ -81,8 +83,10 @@ interface UpdateConfigMetadataParams {
   dvrStartTime?: number;
   dvrMaxDuration?: string;
   copyMpegTs?: boolean;
+  fabricPackagingFMP4?: boolean;
+  fabricPackagingMpegTs?: boolean;
   inputPackaging?: RecordingInputCfg;
-  copyMode?: string;
+  copyPackaging?: "raw_ts" | "rtp_ts";
   customReadLoop?: boolean;
   audioData?: AudioDataMap;
   multiPathEnabled?: boolean;
@@ -176,7 +180,7 @@ interface UpdateRecordingConfigParams {
     "retention" | "persistent" | "connectionTimeout" | "reconnectionTimeout"
   >;
   tsFormData: Pick<UpdateConfigMetadataParams,
-    "copyMpegTs" | "inputPackaging" | "copyMode" | "customReadLoop"
+    "copyMpegTs" | "inputPackaging" | "copyPackaging" | "customReadLoop" | "fabricPackagingFMP4" | "fabricPackagingMpegTs"
   >;
   multiPathEnabled?: boolean;
 }
@@ -647,8 +651,10 @@ class StreamEditStore {
     dvrStartTime,
     dvrMaxDuration,
     copyMpegTs,
+    fabricPackagingFMP4,
+    fabricPackagingMpegTs,
     inputPackaging,
-    copyMode,
+    copyPackaging,
     audioData,
     multiPathEnabled
   }: UpdateConfigMetadataParams) : Generator<any, {writeToken: string}> {
@@ -678,8 +684,8 @@ class StreamEditStore {
       recordingConfig.copy_mpegts = copyMpegTs;
       recordingConfig.input_cfg = copyMpegTs ? {
         bypass_libav_reader: true,
-        copy_mode: copyMode,
-        copy_packaging: inputPackaging,
+        copy_mode: DeriveCopyMode({fabricPackagingFMP4, fabricPackagingMpegTs}),
+        copy_packaging: DeriveCopyPackaging({fabricPackagingMpegTs, copyPackaging}),
         input_packaging: inputPackaging,
         custom_read_loop_enabled: true
       } : {};
@@ -753,8 +759,8 @@ class StreamEditStore {
         metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg",
         metadata: copyMpegTs ? {
           bypass_libav_reader: true,
-          copy_mode: copyMode,
-          copy_packaging: inputPackaging,
+          copy_mode: DeriveCopyMode({fabricPackagingFMP4, fabricPackagingMpegTs}),
+          copy_packaging: DeriveCopyPackaging({fabricPackagingMpegTs, copyPackaging}),
           custom_read_loop_enabled: true,
           input_packaging: inputPackaging
         } : {}
@@ -873,7 +879,7 @@ class StreamEditStore {
     }
 
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
-    const {copyMpegTs, inputPackaging, copyMode} = tsFormData;
+    const {copyMpegTs, inputPackaging, copyPackaging, fabricPackagingFMP4, fabricPackagingMpegTs} = tsFormData;
 
     yield this.UpdateStreamAudioSettings({
       objectId,
@@ -891,8 +897,10 @@ class StreamEditStore {
       connectionTimeout,
       reconnectionTimeout,
       copyMpegTs,
+      fabricPackagingFMP4,
+      fabricPackagingMpegTs,
       inputPackaging,
-      copyMode,
+      copyPackaging,
       audioData: audioFormData,
       multiPathEnabled,
       writeToken,

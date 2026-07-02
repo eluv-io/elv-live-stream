@@ -13,7 +13,10 @@ import {
   Radio,
   Select,
   SimpleGrid,
-  Collapse
+  Collapse,
+  Input,
+  Stack,
+  Text
 } from "@mantine/core";
 import {notifications} from "@mantine/notifications";
 import {
@@ -39,8 +42,10 @@ const RecordingPanel = observer(({
   const [reconnectionTimeout, setReconnectionTimeout] = useState("");
 
   const [copyMpegTs, setCopyMpegTs] = useState(false);
-  const [inputPackaging, setInputPackaging] = useState("rtp_ts");
-  const [copyMode, setCopyMode] = useState("raw_only");
+  const [inputPackaging, setInputPackaging] = useState("raw_ts");
+  const [fabricPackagingFMP4, setFabricPackagingFMP4] = useState(true);
+  const [fabricPackagingMpegTs, setFabricPackagingMpegTs] = useState(false);
+  const [copyPackaging, setCopyPackaging] = useState("raw_ts");
   const [multiPathEnabled, setMultiPathEnabled] = useState(false);
 
   const [applyingChanges, setApplyingChanges] = useState(false);
@@ -79,8 +84,12 @@ const RecordingPanel = observer(({
       );
       setMultiPathEnabled(multiPathMeta?.enabled ?? false);
       setCopyMpegTs(copyMpegTsMeta === undefined ? false : copyMpegTsMeta);
-      setCopyMode(inputCfg?.copy_mode ?? "raw");
-      setInputPackaging(inputCfg?.input_packaging ?? "rtp_ts");
+      setCopyPackaging(inputCfg?.copy_packaging ?? "raw_ts");
+      setInputPackaging(inputCfg?.input_packaging ?? "raw_ts");
+      if(inputCfg?.copy_mode) {
+        setFabricPackagingFMP4(inputCfg?.copy_mode === "raw");
+        setFabricPackagingMpegTs(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -121,7 +130,9 @@ const RecordingPanel = observer(({
         tsFormData: {
           copyMpegTs,
           inputPackaging,
-          copyMode
+          fabricPackagingFMP4,
+          fabricPackagingMpegTs,
+          copyPackaging
         },
         edit: true,
         multiPathEnabled
@@ -209,8 +220,8 @@ const RecordingPanel = observer(({
             disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
             tooltipLabel="Transport Stream configuration is disabled when the stream is running"
           >
-            <SectionTitle mb={8}>Transport Stream</SectionTitle>
-            <SimpleGrid cols={2} spacing={150} mb={29}>
+            <SectionTitle mb={16}>Transport Stream</SectionTitle>
+            <SimpleGrid cols={2} spacing={150} mb={14}>
               <Checkbox
                 label="Enable Transport Stream"
                 checked={copyMpegTs}
@@ -230,43 +241,77 @@ const RecordingPanel = observer(({
                   <Group mt={20} gap={18}>
                     <Radio
                       value="raw_ts"
-                      label="TS"
+                      label="MPEG-TS (Raw MPEG-TS over UDP)"
                       description=""
                     />
                     <Radio
                       value="rtp_ts"
-                      label="RTP TS"
+                      label="RTP wrapped MPEG-TS (ST 2022-2, ST 2022-7)"
                       description=""
                       disabled={streamStore.streams[params.id]?.protocol !== "rtp"}
                     />
                   </Group>
                 </Radio.Group>
-                <Radio.Group
-                  name="copy-mode"
-                  label="Copy Mode"
-                  description="Select Raw for high throughput with minimal overhead, or Raw Only for bit-for-bit passthrough without metadata modification."
-                  value={copyMode}
-                  onChange={setCopyMode}
-                >
-                  <Group mt={20} gap={18}>
-                    <Radio
-                      value="raw"
-                      label="Raw"
-                      description=""
-                    />
-                    <Radio
-                      value="raw_only"
-                      label="Raw Only"
-                      description=""
-                    />
-                  </Group>
-                </Radio.Group>
+                <Stack gap={18}>
+                  <div>
+                    <Input.Label>Fabric Packaging</Input.Label>
+                    <Input.Description>Choose the desired formats available in the Content Fabric.</Input.Description>
+                  </div>
+                  <Checkbox
+                    checked={fabricPackagingFMP4}
+                    label="FMP4 (For DASH/HLS, VOD, clipping, downloads)"
+                    onChange={(event) => setFabricPackagingFMP4(event.target.checked)}
+                  />
+                  <Checkbox
+                    checked={fabricPackagingMpegTs}
+                    label="MPEG-TS (For MPEG-TS routing and RTP/TS/SRT outputs)"
+                    onChange={(event) => setFabricPackagingMpegTs(event.target.checked)}
+                  />
+                  <Collapse expanded={fabricPackagingMpegTs}>
+                    <Radio.Group
+                      ml={34}
+                      name="copy-packaging"
+                      value={copyPackaging}
+                      onChange={setCopyPackaging}
+                    >
+                      <Stack gap={18}>
+                        <Radio
+                          label="MPEG-TS (Raw MPEG-TS over UDP)"
+                          value="raw_ts"
+                        />
+                        <Radio
+                          value="rtp_ts"
+                          label="RTP wrapped MPEG-TS (ST 2022-2, ST 2022-7)"
+                          disabled={inputPackaging !== "rtp_ts"}
+                        />
+                      </Stack>
+                    </Radio.Group>
+                  </Collapse>
+                </Stack>
               </SimpleGrid>
 
             </Collapse>
             <Divider mb={29} />
           </DisabledTooltipWrapper>
         }
+
+        <DisabledTooltipWrapper
+          disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+          tooltipLabel="Audio Track configuration is disabled when the stream is running"
+        >
+          <SectionTitle mb={16}>Audio</SectionTitle>
+          <Collapse expanded={fabricPackagingFMP4}>
+            <AudioTracksTable
+              records={audioTracks}
+              audioFormData={audioFormData}
+              setAudioFormData={setAudioFormData}
+            />
+          </Collapse>
+          <Collapse expanded={!fabricPackagingFMP4}>
+            <Text fs="italic" fz={14}>Audio configuration is unavailable when FMP4 Fabric Packaging is disabled.</Text>
+          </Collapse>
+          <Divider mb={29} mt={29} />
+        </DisabledTooltipWrapper>
 
         <DisabledTooltipWrapper
           disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
@@ -281,19 +326,6 @@ const RecordingPanel = observer(({
               onChange={(event) => setMultiPathEnabled(event.target.checked)}
             />
           </SimpleGrid>
-          <Divider mb={29} />
-        </DisabledTooltipWrapper>
-
-        <DisabledTooltipWrapper
-          disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
-          tooltipLabel="Audio Track configuration is disabled when the stream is running"
-        >
-          <SectionTitle mb={16}>Audio</SectionTitle>
-          <AudioTracksTable
-            records={audioTracks}
-            audioFormData={audioFormData}
-            setAudioFormData={setAudioFormData}
-          />
         </DisabledTooltipWrapper>
 
         <Box mt={25}>
