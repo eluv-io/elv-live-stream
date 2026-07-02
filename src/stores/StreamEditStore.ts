@@ -881,13 +881,15 @@ class StreamEditStore {
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
     const {copyMpegTs, inputPackaging, copyPackaging, fabricPackagingFMP4, fabricPackagingMpegTs} = tsFormData;
 
-    yield this.UpdateStreamAudioSettings({
-      objectId,
-      writeToken,
-      audioData: audioFormData,
-      finalize: false,
-      edit: true
-    });
+    if(fabricPackagingFMP4 === true || !copyMpegTs) {
+      yield this.UpdateStreamAudioSettings({
+        objectId,
+        writeToken,
+        audioData: audioFormData,
+        finalize: false,
+        edit: true
+      });
+    }
 
     yield this.UpdateConfigMetadata({
       objectId,
