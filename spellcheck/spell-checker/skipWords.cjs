@@ -50,6 +50,7 @@ module.exports = [
   "evenodd",
   "fairplay",
   "falsey",
+  "fc",
   "flexbox",
   "fmp4",
   "fmt",
