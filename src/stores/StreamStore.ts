@@ -141,6 +141,11 @@ class StreamStore {
 
   SetTableTagFilter = (tags: string[]) => {
     this.tableTagFilter = tags;
+    this.rootStore.userSettingsStore.Persist("tableFilters", {streams: tags});
+  };
+
+  RestoreTableTagFilter = (tags: string[]) => {
+    this.tableTagFilter = tags;
   };
 
   *CheckStatus({

@@ -200,6 +200,11 @@ class OutputStore {
 
   SetTableTagFilter = (tags: string[]): void => {
     this.tableTagFilter = tags;
+    this.rootStore.userSettingsStore.Persist("tableFilters", {outputs: tags});
+  };
+
+  RestoreTableTagFilter = (tags: string[]): void => {
+    this.tableTagFilter = tags;
   };
 
   SetSortStatus = (sortStatus: {columnAccessor: string, direction: string}): void => {

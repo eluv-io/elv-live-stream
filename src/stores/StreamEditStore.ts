@@ -1151,7 +1151,9 @@ class StreamEditStore {
         writeToken,
         finalize: false,
         liveRecordingConfig,
-        probeMetadata
+        probeMetadata,
+        // Probing the input can take longer than the default FrameClient timeout
+        fcTimeout: 180
       });
 
       if(syncAudioToProbe) {
@@ -1190,8 +1192,11 @@ class StreamEditStore {
         }
       });
     } catch(error) {
+      const isTimeout = typeof error === "string" && error.includes("timed out");
+
       // eslint-disable-next-line no-console
-      console.error("Unable to configure stream", error);
+      console.error(isTimeout ? "Stream configuration request timed out" : "Unable to configure stream", error);
+
       throw error;
     }
   }

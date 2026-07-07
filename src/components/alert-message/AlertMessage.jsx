@@ -18,7 +18,7 @@ const AlertMessage = ({error, onClose, ...props}) => {
     <Box ref={errorRef} mb={16} {...props}>
       <Alert
         variant="light"
-        color="elv-red.4"
+        color="red"
         title={title}
         withCloseButton
         onClose={onClose}
