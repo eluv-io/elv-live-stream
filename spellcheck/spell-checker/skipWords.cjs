@@ -146,6 +146,8 @@ module.exports = [
   "unmapping",
   "unmount",
   "unmounting",
+  "unregister",
+  "unattempted",
   "unsecure",
   "unstyled",
   "urls",

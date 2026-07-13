@@ -1,9 +1,9 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router-dom";
 import {observer} from "mobx-react-lite";
+import {useForm} from "@mantine/form";
 import {
   Box,
-  Button,
   Checkbox,
   Divider, Loader,
   MultiSelect,
@@ -11,7 +11,6 @@ import {
   SimpleGrid,
   Textarea,
 } from "@mantine/core";
-import {notifications} from "@mantine/notifications";
 import {DateTimePicker} from "@mantine/dates";
 import {
   DEFAULT_WATERMARK_FORENSIC,
@@ -21,33 +20,38 @@ import {
   PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants.ts";
-import {streamEditStore, streamStore} from "@/stores/index.ts";
+import {streamEditStore, streamStore, streamSaveStore} from "@/stores/index.ts";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
-import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const PlayoutPanel = observer(({
   status,
   slug,
   checkVersion
 }) => {
-  const [drm, setDrm] = useState([]);
-  const [formWatermarks, setFormWatermarks] = useState({});
-  const [watermarkType, setWatermarkType] = useState("");
-  const [dvrEnabled, setDvrEnabled] = useState(false);
-  const [dvrStartTime, setDvrStartTime] = useState(null);
-  const [dvrMaxDuration, setDvrMaxDuration] = useState("");
-
   const [loading, setLoading] = useState(false);
-  const [applyingChanges, setApplyingChanges] = useState(false);
   const params = useParams();
 
   const currentDrm = streamStore.streams?.[slug].drm;
   const simpleWatermark = streamStore.streams?.[slug].simpleWatermark;
   const imageWatermark = streamStore.streams?.[slug].imageWatermark;
   const forensicWatermark = streamStore.streams?.[slug].forensicWatermark;
-  const title = streamStore.streams?.[slug].title;
+
+  const form = useForm({
+    mode: "uncontrolled",
+    initialValues: {
+      drm: [],
+      formWatermarks: {},
+      watermarkType: "",
+      dvrEnabled: false,
+      dvrStartTime: null,
+      dvrMaxDuration: ""
+    },
+    onValuesChange: () => streamSaveStore.SetDirty({id: "playout", isDirty: form.isDirty()})
+  });
+
+  const {formWatermarks, watermarkType, dvrEnabled} = form.getValues();
 
   const LoadConfigData = async () => {
     try {
@@ -64,20 +68,27 @@ const PlayoutPanel = observer(({
         watermarkType: watermarkTypeMeta
       } = await streamStore.LoadPlayoutConfigData({objectId: params.id, slug});
 
-      setDrm(drmMeta ?? []);
-      setDvrEnabled(dvrEnabledMeta ?? false);
-      setDvrMaxDuration(dvrMaxDurationMeta !== undefined ? dvrMaxDurationMeta : "0");
-      setDvrStartTime(dvrStartTimeMeta);
-      setWatermarkType(watermarkTypeMeta);
+      const values = {
+        drm: drmMeta ?? [],
+        dvrEnabled: dvrEnabledMeta ?? false,
+        dvrMaxDuration: dvrMaxDurationMeta !== undefined ? dvrMaxDurationMeta : "0",
+        dvrStartTime: dvrStartTimeMeta,
+        watermarkType: watermarkTypeMeta,
+        formWatermarks: {}
+      };
+
       if(forensicWatermarkMeta || imageWatermarkMeta || simpleWatermarkMeta) {
-        const newData = {
+        values.formWatermarks = {
           image: imageWatermarkMeta ? JSON.stringify(imageWatermarkMeta, null, 2) : undefined,
           forensic: forensicWatermarkMeta ? JSON.stringify(forensicWatermarkMeta, null, 2) : undefined,
           text: simpleWatermarkMeta ? JSON.stringify(simpleWatermarkMeta, null, 2) : undefined,
         };
-        setFormWatermarks(newData);
       }
 
+      // resetDirty before setValues - see comment in GeneralPanel.jsx's
+      // equivalent load effect for why the order matters here.
+      form.resetDirty(values);
+      form.setValues(values);
     } finally {
       setLoading(false);
     }
@@ -87,56 +98,53 @@ const PlayoutPanel = observer(({
     if(params.id) {
       LoadConfigData();
     }
+     
   }, [params.id, checkVersion]);
 
-  const HandleSubmit = async () => {
+  const Save = async () => {
     const objectId = params.id;
+    const values = form.getValues();
 
-    try {
-      setApplyingChanges(true);
+    await streamEditStore.UpdatePlayoutConfig({
+      objectId,
+      slug,
+      status,
+      watermarkParams: {
+        watermarkType: values.watermarkType,
+        textWatermark: values.watermarkType ? values.formWatermarks.text : null,
+        imageWatermark: values.watermarkType ? values.formWatermarks.image : null,
+        forensicWatermark: values.watermarkType ? values.formWatermarks.forensic : null,
+        existingTextWatermark: simpleWatermark,
+        existingImageWatermark: imageWatermark,
+        existingForensicWatermark: forensicWatermark
+      },
+      drmParams: {
+        existingPlayoutFormats: currentDrm,
+        playoutFormats: values.drm
+      },
+      configMetaParams: {
+        dvrEnabled: values.dvrEnabled,
+        dvrMaxDuration: values.dvrMaxDuration,
+        dvrStartTime: values.dvrStartTime,
+        skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
+      }
+    });
 
-      await streamEditStore.UpdatePlayoutConfig({
-        objectId,
-        slug,
-        status,
-        watermarkParams: {
-          watermarkType,
-          textWatermark: watermarkType ? formWatermarks.text : null,
-          imageWatermark: watermarkType ? formWatermarks.image : null,
-          forensicWatermark: watermarkType ? formWatermarks.forensic : null,
-          existingTextWatermark: simpleWatermark,
-          existingImageWatermark: imageWatermark,
-          existingForensicWatermark: forensicWatermark
-        },
-        drmParams: {
-          existingPlayoutFormats: currentDrm,
-          playoutFormats: drm
-        },
-        configMetaParams: {
-          dvrEnabled,
-          dvrMaxDuration,
-          dvrStartTime,
-          skipDvrSection: ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)
-        }
-      });
-
-      notifications.show({
-        title: <NotificationMessage>Updated {title || params.id}</NotificationMessage>,
-        message: "Settings have been saved successfully"
-      });
-    } catch(error) {
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: "Unable to save settings"
-      });
-
-      // eslint-disable-next-line no-console
-      console.error("Unable to save settings", error);
-    } finally {
-      setApplyingChanges(false);
-    }
+    form.resetDirty(values);
   };
+
+  const SaveRef = useRef();
+  SaveRef.current = Save;
+
+  useEffect(() => {
+    streamSaveStore.Register({
+      id: "playout",
+      Save: () => SaveRef.current(),
+      Discard: () => form.reset()
+    });
+
+    return () => streamSaveStore.Unregister("playout");
+  }, []);
 
   if(loading) { return <Loader />; }
 
@@ -150,12 +158,11 @@ const PlayoutPanel = observer(({
         >
           <MultiSelect
             label="Playback Formats"
-            name="playbackEncryption"
             description="Select a playback encryption option. Enable Clear or Digital Rights Management (DRM) copy protection during playback."
             data={PLAYOUT_FORMAT_OPTIONS}
             placeholder="Select DRM"
-            value={drm}
-            onChange={(value) => setDrm(value)}
+            key={form.key("drm")}
+            {...form.getInputProps("drm")}
             allowDeselect={false}
           />
         </DisabledTooltipWrapper>
@@ -168,9 +175,9 @@ const PlayoutPanel = observer(({
 
         <Checkbox
           label="Enable DVR"
-          checked={dvrEnabled}
           description="Users can seek back in the live stream."
-          onChange={(event) => setDvrEnabled(event.target.checked)}
+          key={form.key("dvrEnabled")}
+          {...form.getInputProps("dvrEnabled", {type: "checkbox"})}
           mb={12}
         />
         {
@@ -181,8 +188,8 @@ const PlayoutPanel = observer(({
                 label="Start Time"
                 placeholder="Pick Date and Time"
                 description="Users can only seek back to this point in time. Useful for event streams. If not set, users can seek to the beginning of the stream."
-                value={dvrStartTime}
-                onChange={setDvrStartTime}
+                key={form.key("dvrStartTime")}
+                {...form.getInputProps("dvrStartTime")}
                 disabled={!dvrEnabled}
                 valueFormat={"MM/DD/YYYY, HH:mm:ss"}
                 minDate={new Date()}
@@ -194,17 +201,16 @@ const PlayoutPanel = observer(({
                   format: "24h",
                 }}
                 leftSection={<IconCalendarEvent />}
-                rightSection={dvrStartTime ? null : <IconSelector height={16}/>}
+                rightSection={form.getValues().dvrStartTime ? null : <IconSelector height={16}/>}
                 clearable
               />
               <Select
                 label="Max Duration"
                 description="Users are only able to seek back this many minutes. Useful for 24/7 streams and long events."
-                name="maxDuration"
                 data={DVR_DURATION_OPTIONS}
                 placeholder="Select Max Duration"
-                value={dvrMaxDuration}
-                onChange={(value) => setDvrMaxDuration(value)}
+                key={form.key("dvrMaxDuration")}
+                {...form.getInputProps("dvrMaxDuration")}
                 disabled={!dvrEnabled}
               />
             </SimpleGrid>
@@ -221,7 +227,6 @@ const PlayoutPanel = observer(({
           <SimpleGrid cols={2} spacing={150}>
             <Select
               label="Watermark Type"
-              name="watermarkType"
               data={[
                 {label: "None", value: ""},
                 {label: "Image", value: "IMAGE"},
@@ -230,7 +235,7 @@ const PlayoutPanel = observer(({
               ]}
               value={watermarkType}
               onChange={(value) => {
-                setWatermarkType(value);
+                form.setFieldValue("watermarkType", value);
 
                 const watermarkDefault = (
                   value === "TEXT"
@@ -247,7 +252,7 @@ const PlayoutPanel = observer(({
                 };
 
                 if(value) {
-                  setFormWatermarks({
+                  form.setFieldValue("formWatermarks", {
                     [keyMap[value]]: JSON.stringify(watermarkDefault, null, 2)
                   });
                 }
@@ -278,20 +283,12 @@ const PlayoutPanel = observer(({
                   value["image"] = event.target.value;
                 }
 
-                setFormWatermarks(value);
+                form.setFieldValue("formWatermarks", value);
               }}
             />
           }
         </DisabledTooltipWrapper>
       </Box>
-      <Button
-        disabled={applyingChanges}
-        variant="filled"
-        onClick={HandleSubmit}
-        loading={applyingChanges}
-      >
-        Save
-      </Button>
     </Box>
   );
 });

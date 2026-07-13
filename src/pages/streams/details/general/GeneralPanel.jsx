@@ -13,31 +13,18 @@ import {
   TextInput,
   Tooltip
 } from "@mantine/core";
-import {useEffect, useMemo, useState} from "react";
-import {dataStore, streamEditStore, streamStore, profileStore} from "@/stores/index.ts";
+import {useEffect, useMemo, useRef, useState} from "react";
+import {toJS} from "mobx";
+import {useForm} from "@mantine/form";
+import {dataStore, streamEditStore, streamStore, profileStore, streamSaveStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
-import {notifications} from "@mantine/notifications";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {STATUS_MAP} from "@/utils/constants.ts";
 import {IconInfoCircle} from "@tabler/icons-react";
 
 const GeneralPanel = observer(({slug, status, Refresh}) => {
   const currentConfigProfile = streamStore.streams?.[slug].configProfile;
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    displayTitle: "",
-    accessGroup: "",
-    permission: "",
-    url: "",
-    tags: [],
-  });
-  const [configProfile, setConfigProfile] = useState(currentConfigProfile || "");
-  const [applyConfigProfile, setApplyConfigProfile] = useState(false);
-
-  const [applyingChanges, setApplyingChanges] = useState(false);
   const [applyingProfileChanges, setApplyingProfileChanges] = useState(false);
   const [currentSettings, setCurrentSettings] = useState({
     accessGroup: "",
@@ -46,6 +33,31 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
 
   const [loading, setLoading] = useState(true);
   const params = useParams();
+
+  const form = useForm({
+    mode: "uncontrolled",
+    initialValues: {
+      name: "",
+      description: "",
+      displayTitle: "",
+      accessGroup: "",
+      permission: "",
+      url: "",
+      tags: [],
+      configProfile: currentConfigProfile || "",
+      applyConfigProfile: false
+    },
+    validate: {
+      name: (value) => (!value ? "Name is required" : null),
+      url: (value) => (!value ? "URL is required" : null),
+      configProfile: (value, values) => (
+        !!value && value !== currentConfigProfile && !values.applyConfigProfile
+          ? "Check \"Apply profile settings…\" to apply this profile"
+          : null
+      )
+    },
+    onValuesChange: () => streamSaveStore.SetDirty({id: "general", isDirty: form.isDirty()})
+  });
 
   useEffect(() => {
     const LoadData = async() => {
@@ -59,17 +71,26 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
         ]);
         const stream = streamStore.streams[slug];
 
-        setFormData({
+        const values = {
           name: stream.title || "",
           description: stream.description || "",
           displayTitle: stream.display_title || "",
           permission: stream.permission || "",
           accessGroup: stream.accessGroup || "",
           url: stream.originUrl || "",
-          tags: stream.tags || []
-        });
+          tags: toJS(stream.tags) || [],
+          configProfile: stream.configProfile || "",
+          applyConfigProfile: false
+        };
 
-        setConfigProfile(stream.configProfile || "");
+        // resetDirty before setValues: setValues fires onValuesChange
+        // synchronously, and onValuesChange reads form.isDirty() against
+        // whatever baseline resetDirty last set - doing it in this order
+        // means that baseline already matches, so isDirty() reads false
+        // instead of transiently true (which would mark this tab dirty
+        // for no reason right after a fresh load or a post-save reload).
+        form.resetDirty(values);
+        form.setValues(values);
 
         setCurrentSettings({
           permission: stream.permission || "",
@@ -85,54 +106,40 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
     }
   }, [params.id]);
 
-  const HandleFormChange = (event) => {
-    const {name, value} = event.target;
+  const Save = async() => {
+    const {hasErrors} = form.validate();
+    if(hasErrors) { throw new Error("Please resolve validation errors before saving"); }
 
-    setFormData(prevState => ({
-      ...prevState,
-      [name]: value
-    }));
+    const values = form.getValues();
+
+    const result = await streamEditStore.UpdateGeneralConfig({
+      objectId: params.id,
+      slug,
+      formData: values,
+      configProfile: values.configProfile,
+      updatePermission: currentSettings.permission !== values.permission,
+      updateAccessGroup: currentSettings.accessGroup !== values.accessGroup,
+      removeAccessGroup: currentSettings.accessGroup
+    });
+
+    setCurrentSettings({permission: values.permission, accessGroup: values.accessGroup});
+    form.resetDirty(values);
+
+    return result;
   };
 
-  const HandleSubmit = async(event) => {
-    event.preventDefault();
+  const SaveRef = useRef();
+  SaveRef.current = Save;
 
-    try {
-      setApplyingChanges(true);
+  useEffect(() => {
+    streamSaveStore.Register({
+      id: "general",
+      Save: () => SaveRef.current(),
+      Discard: () => form.reset()
+    });
 
-      await streamEditStore.UpdateGeneralConfig({
-        objectId: params.id,
-        slug,
-        formData,
-        configProfile,
-        updatePermission: currentSettings.permission !== formData.permission,
-        updateAccessGroup: currentSettings.accessGroup !== formData.accessGroup,
-        removeAccessGroup: currentSettings.accessGroup
-      });
-
-      notifications.show({
-        title: <NotificationMessage>Updated {formData.name || params.id}</NotificationMessage>,
-        message: "Changes have been applied successfully"
-      });
-
-      if(configProfile) {
-        Refresh?.();
-      } else {
-        await streamStore.LoadDetails({objectId: params.id, slug});
-      }
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to update metadata", error);
-
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: "Unable to save changes"
-      });
-    } finally {
-      setApplyingChanges(false);
-    }
-  };
+    return () => streamSaveStore.Unregister("general");
+  }, []);
 
   const profileOptions = useMemo(() => [
     {label: "Built-in Configuration", value: ""},
@@ -171,161 +178,136 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
     <>
       <Flex direction="column" style={{flexGrow: "1"}}>
         <SectionTitle mb={12}>General</SectionTitle>
-        <form onSubmit={HandleSubmit}>
-          <Box mb="24px" maw="80%">
-            <SimpleGrid cols={1} spacing={150} mb={18}>
-              <TextInput
-                label="URL"
-                name="url"
-                placeholder="Enter a URL"
-                required={true}
-                value={formData.url}
-                onChange={HandleFormChange}
-              />
-            </SimpleGrid>
-            <SimpleGrid cols={2} spacing={150} mb={18}>
-              <TextInput
-                label="Name"
-                name="name"
-                placeholder="Enter stream name"
-                required={true}
-                value={formData.name}
-                onChange={HandleFormChange}
-              />
-              <TextInput
-                label="Display Title"
-                name="displayTitle"
-                placeholder="Enter a title"
-                value={formData.displayTitle}
-                onChange={HandleFormChange}
-              />
-            </SimpleGrid>
+        <Box mb="24px" maw="80%">
+          <SimpleGrid cols={1} spacing={150} mb={18}>
             <TextInput
-              label="Description"
-              name="description"
-              placeholder="Enter a description"
-              description="Enter a description to provide more details and context."
-              value={formData.description}
-              onChange={HandleFormChange}
-              mb={29}
+              label="URL"
+              placeholder="Enter a URL"
+              required={true}
+              key={form.key("url")}
+              {...form.getInputProps("url")}
             />
-
-            <DisabledTooltipWrapper
-              disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.UNCONFIGURED].includes(status)}
-              tooltipLabel="Profile configuration is disabled while the stream is active"
-            >
-              <Box mb={29}>
-                <SimpleGrid cols={2} spacing={150}>
-                  <Select
-                    label="Config Profile"
-                    name="configProfile"
-                    data={profileOptions}
-                    mb={12}
-                    placeholder="Select Config Profile"
-                    description={Object.keys(profileStore.sortedProfiles).length > 0 ? "Apply a predefined set of configuration settings to this stream." : "No profiles are configured. Create a profile in Settings."}
-                    value={configProfile}
-                    onChange={(value) => setConfigProfile(value)}
-                    allowDeselect={false}
-                  />
-                </SimpleGrid>
-                <Checkbox
-                  label="Apply profile settings and overwrite current stream configuration"
-                  size="xs"
-                  checked={applyConfigProfile}
-                  onChange={(event) => setApplyConfigProfile(event.target.checked)}
-                />
-                {
-                  (profileStore.profiles[currentConfigProfile]?.last_updated > streamStore.streams[slug]?.profileLastUpdated) ?
-                    <Box>
-                      <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
-                      <Button
-                        variant="outline"
-                        disabled={applyingProfileChanges}
-                        onClick={async() => {
-                          try {
-                            setApplyingProfileChanges(true);
-                            await streamEditStore.ApplyStreamProfile({
-                              objectId: params.id,
-                              profileSlug: currentConfigProfile
-                            });
-                            Refresh?.();
-                        } finally {
-                          setApplyingProfileChanges(false);
-                        }
-                      }}
-                      >Re-apply
-                      </Button>
-                    </Box> : null
-                }
-              </Box>
-            </DisabledTooltipWrapper>
-
-            <TagsInput
-              label="Tags"
-              description="Add tags to organize and quickly find streams."
-              placeholder="Type and press Enter to add a tag"
-              data={streamStore.allTags}
-              value={formData.tags}
-              onChange={(value) => setFormData(prev => ({...prev, tags: value}))}
-              mb={29}
-              clearable
+          </SimpleGrid>
+          <SimpleGrid cols={2} spacing={150} mb={18}>
+            <TextInput
+              label="Name"
+              placeholder="Enter stream name"
+              required={true}
+              key={form.key("name")}
+              {...form.getInputProps("name")}
             />
+            <TextInput
+              label="Display Title"
+              placeholder="Enter a title"
+              key={form.key("displayTitle")}
+              {...form.getInputProps("displayTitle")}
+            />
+          </SimpleGrid>
+          <TextInput
+            label="Description"
+            placeholder="Enter a description"
+            description="Enter a description to provide more details and context."
+            key={form.key("description")}
+            {...form.getInputProps("description")}
+            mb={29}
+          />
 
-            <Divider mb={29} />
-
-            <SectionTitle mb={12}>Access</SectionTitle>
-            <SimpleGrid cols={2} spacing={150} mb={25}>
-              <Select
-                label="Access Group"
-                description="Access Group responsible for managing your live stream object."
-                name="accessGroup"
-                data={accessGroupOptions}
-                value={formData.accessGroup}
-                placeholder="Select Access Group"
-                onChange={(value) => HandleFormChange({
-                    target: {name: "accessGroup", value}
-                  }
-                )}
-              />
-              <Select
-                label={
-                  <Flex align="center" gap={6}>
-                    Permission
-                    <Tooltip
-                      multiline
-                      w={460}
-                      label={permissionTooltipContent}
-                    >
-                      <Flex w={16}>
-                        <IconInfoCircle color="var(--mantine-color-elv-gray-8)" />
-                      </Flex>
-                    </Tooltip>
-                  </Flex>
-                }
-                description="Stream permission level."
-                name="permission"
-                placeholder="Select Permission"
-                value={formData.permission}
-                onChange={(value) => HandleFormChange({
-                  target: {name: "permission", value}}
-                )}
-                data={permissionOptions}
-                allowDeselect={false}
-              />
-            </SimpleGrid>
-          </Box>
-          <Button
-            type="submit"
-            disabled={
-            !formData.name ||
-              !formData.url ||
-              applyingChanges ||
-              (!!configProfile && configProfile !== currentConfigProfile && !applyConfigProfile)}
-            loading={applyingChanges}
+          <DisabledTooltipWrapper
+            disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.UNCONFIGURED].includes(status)}
+            tooltipLabel="Profile configuration is disabled while the stream is active"
           >
-            Save
-          </Button>
-        </form>
+            <Box mb={29}>
+              <SimpleGrid cols={2} spacing={150}>
+                <Select
+                  label="Config Profile"
+                  data={profileOptions}
+                  mb={12}
+                  placeholder="Select Config Profile"
+                  description={Object.keys(profileStore.sortedProfiles).length > 0 ? "Apply a predefined set of configuration settings to this stream." : "No profiles are configured. Create a profile in Settings."}
+                  key={form.key("configProfile")}
+                  {...form.getInputProps("configProfile")}
+                  allowDeselect={false}
+                />
+              </SimpleGrid>
+              <Checkbox
+                label="Apply profile settings and overwrite current stream configuration"
+                size="xs"
+                key={form.key("applyConfigProfile")}
+                {...form.getInputProps("applyConfigProfile", {type: "checkbox"})}
+              />
+              {
+                (profileStore.profiles[currentConfigProfile]?.last_updated > streamStore.streams[slug]?.profileLastUpdated) ?
+                  <Box>
+                    <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
+                    <Button
+                      variant="outline"
+                      disabled={applyingProfileChanges}
+                      onClick={async() => {
+                        try {
+                          setApplyingProfileChanges(true);
+                          await streamEditStore.ApplyStreamProfile({
+                            objectId: params.id,
+                            profileSlug: currentConfigProfile
+                          });
+                          Refresh?.();
+                      } finally {
+                        setApplyingProfileChanges(false);
+                      }
+                    }}
+                    >Re-apply
+                    </Button>
+                  </Box> : null
+              }
+            </Box>
+          </DisabledTooltipWrapper>
+
+          <TagsInput
+            label="Tags"
+            description="Add tags to organize and quickly find streams."
+            placeholder="Type and press Enter to add a tag"
+            data={streamStore.allTags}
+            key={form.key("tags")}
+            {...form.getInputProps("tags")}
+            mb={29}
+            clearable
+          />
+
+          <Divider mb={29} />
+
+          <SectionTitle mb={12}>Access</SectionTitle>
+          <SimpleGrid cols={2} spacing={150} mb={25}>
+            <Select
+              label="Access Group"
+              description="Access Group responsible for managing your live stream object."
+              data={accessGroupOptions}
+              placeholder="Select Access Group"
+              key={form.key("accessGroup")}
+              {...form.getInputProps("accessGroup")}
+            />
+            <Select
+              label={
+                <Flex align="center" gap={6}>
+                  Permission
+                  <Tooltip
+                    multiline
+                    w={460}
+                    label={permissionTooltipContent}
+                  >
+                    <Flex w={16}>
+                      <IconInfoCircle color="var(--mantine-color-elv-gray-8)" />
+                    </Flex>
+                  </Tooltip>
+                </Flex>
+              }
+              description="Stream permission level."
+              placeholder="Select Permission"
+              key={form.key("permission")}
+              {...form.getInputProps("permission")}
+              data={permissionOptions}
+              allowDeselect={false}
+            />
+          </SimpleGrid>
+        </Box>
       </Flex>
     </>
   );
