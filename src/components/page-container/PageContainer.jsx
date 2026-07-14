@@ -2,6 +2,7 @@ import {ActionIcon, Box, Button, Flex, Group, TextInput, Title} from "@mantine/c
 import {useState} from "react";
 import searchBarStyles from "./SearchBar.module.css";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
+import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {IconSearch} from "@tabler/icons-react";
 
 const SearchBar = () => {
@@ -36,18 +37,18 @@ const TopActions = ({showSearchBar, actions=[]}) => {
           (
             <Flex direction="row" gap="sm">
               {
-                actions.map(({label, buttonVariant="filled", iconVariant, onClick, disabled, leftSection, iconOnly, color, component, to}, i) => (
-                  iconOnly ?
+                actions.map(({label, buttonVariant="filled", iconVariant, onClick, disabled, disabledTooltip, leftSection, iconOnly, color, component, to}, i) => {
+                  const button = iconOnly ?
                     (
-                      <ActionIcon key={`top-action-${i}`} variant={iconVariant} size="36">
+                      <ActionIcon key={disabledTooltip ? undefined : `top-action-${i}`} variant={iconVariant} size="36" disabled={disabled}>
                         { leftSection }
                       </ActionIcon>
                     ) :
                     (
                       <Button
                         onClick={onClick}
-                        key={`top-action-${label}`}
-                        disabled={disabled}
+                        key={disabledTooltip ? undefined : `top-action-${label}`}
+                        disabled={disabled && !disabledTooltip}
                         leftSection={leftSection}
                         variant={buttonVariant}
                         color={color}
@@ -56,8 +57,16 @@ const TopActions = ({showSearchBar, actions=[]}) => {
                       >
                         { label ? label : null }
                       </Button>
-                    )
-                ))
+                    );
+
+                  return disabled && disabledTooltip ?
+                    (
+                      <DisabledTooltipWrapper key={`top-action-${label || i}`} disabled tooltipLabel={disabledTooltip}>
+                        { button }
+                      </DisabledTooltipWrapper>
+                    ) :
+                    button;
+                })
               }
             </Flex>
           ) : null

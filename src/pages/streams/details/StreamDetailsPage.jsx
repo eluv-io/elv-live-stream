@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
-import {useNavigate, useParams} from "react-router-dom";
+import {useBlocker, useNavigate, useParams} from "react-router-dom";
 import {rootStore, streamStore, streamSaveStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Button, Flex, Indicator, Loader, Tabs, Title} from "@mantine/core";
@@ -35,6 +35,19 @@ const StreamDetailsPage = observer(() => {
   const [recordingInfo, setRecordingInfo] = useState(null);
   const [checkVersion, setCheckVersion] = useState(0);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [pendingBack, setPendingBack] = useState(false);
+
+  // Blocks in-app navigation (sidebar links, browser back/forward, navigate())
+  // away from this page while a config tab has unsaved changes. Only guards
+  // actual route changes - switching within-page tabs doesn't change the
+  // pathname, so it's left alone.
+  const blocker = useBlocker(
+    useCallback(
+      ({currentLocation, nextLocation}) =>
+        streamSaveStore.anyDirty && currentLocation.pathname !== nextLocation.pathname,
+      []
+    )
+  );
 
   const streamSlug = streamStore.streamsByObjectId[params.id];
   const stream = streamSlug ? streamStore.streams[streamSlug] : undefined;
@@ -105,6 +118,19 @@ const StreamDetailsPage = observer(() => {
     streamSaveStore.DiscardAll();
   };
 
+  // Checks dirty state before ever calling navigate(-1). React Router can only
+  // block a POP navigation (browser back/forward, navigate(-1)) after letting
+  // it happen and reverting it - a round trip through history that's visibly
+  // slow. Pre-checking here means a dirty Back click never becomes a blocked
+  // POP in the first place, so it can't hit that delay.
+  const HandleBack = () => {
+    if(streamSaveStore.anyDirty) {
+      setPendingBack(true);
+    } else {
+      navigate(-1);
+    }
+  };
+
   if(!stream) {
     return <Loader />;
   }
@@ -114,7 +140,11 @@ const StreamDetailsPage = observer(() => {
     onCheckComplete: () => setCheckVersion(prev => prev + 1),
     onDeleteComplete: () => navigate("/streams"),
     view: "stream-details"
-  });
+  }).map(action => (
+    action.mutatesStream && streamSaveStore.anyDirty ?
+      {...action, disabled: true, disabledTooltip: "Save or discard your changes to use stream controls"} :
+      action
+  ));
 
   const primaryActions = streamActions.filter(a => a.primary && !a.hidden)
     .map(a => {
@@ -129,7 +159,7 @@ const StreamDetailsPage = observer(() => {
       label: "Back",
       buttonVariant: "filled",
       color: "elv-gray.6",
-      onClick: () => navigate(-1)
+      onClick: HandleBack
     },
     {
       label: "Refresh",
@@ -204,7 +234,7 @@ const StreamDetailsPage = observer(() => {
               disabled={!streamSaveStore.anyDirty || streamSaveStore.saving}
               onClick={() => setShowDiscardModal(true)}
             >
-              Discard
+              Discard Changes
             </Button>
             <Button
               disabled={!streamSaveStore.anyDirty}
@@ -244,6 +274,31 @@ const StreamDetailsPage = observer(() => {
         cancelText="Cancel"
         ConfirmCallback={async () => HandleDiscardAll()}
         CloseCallback={() => setShowDiscardModal(false)}
+      />
+
+      <ConfirmModal
+        show={blocker.state === "blocked" || pendingBack}
+        title="Unsaved Changes"
+        message="Are you sure you want to leave this page? Your unsaved changes will be lost."
+        confirmText="Leave Without Saving"
+        cancelText="Cancel"
+        ConfirmCallback={async () => {
+          streamSaveStore.DiscardAll();
+
+          if(pendingBack) {
+            setPendingBack(false);
+            navigate(-1);
+          } else {
+            blocker.proceed();
+          }
+        }}
+        CloseCallback={() => {
+          setPendingBack(false);
+
+          if(blocker.state === "blocked") {
+            blocker.reset();
+          }
+        }}
       />
     </PageContainer>
   );

@@ -24,6 +24,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       iconVariant: "subtle",
       buttonVariant: "outline",
       iconColor: "gray.6",
+      mutatesStream: true,
       hidden: ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status),
       onClick: async() => {
         const url = await streamStore.client.ContentObjectMetadata({
@@ -63,6 +64,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       iconVariant: "subtle",
       buttonVariant: "filled",
       iconColor: "gray.6",
+      mutatesStream: true,
       hidden: !record.status || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status),
       onClick: () => {
         modalStore.SetModal({
@@ -83,6 +85,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       iconVariant: "subtle",
       buttonVariant: "outline",
       iconColor: "gray.6",
+      mutatesStream: true,
       hidden: !record.status || record.status !== STATUS_MAP.STOPPED,
       onClick: () => {
         modalStore.SetModal({
@@ -121,6 +124,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       iconVariant: "subtle",
       buttonVariant: "filled",
       iconColor: "gray.6",
+      mutatesStream: true,
       hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
       onClick: () => {
         modalStore.SetModal({
@@ -154,6 +158,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       iconVariant: "subtle",
       iconColor: "gray.6",
       buttonVariant: "outline",
+      mutatesStream: true,
       disabled: StreamIsActive(record.status),
       onClick: () => {
         modalStore.SetModal({

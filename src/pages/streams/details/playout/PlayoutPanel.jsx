@@ -98,7 +98,7 @@ const PlayoutPanel = observer(({
     if(params.id) {
       LoadConfigData();
     }
-     
+
   }, [params.id, checkVersion]);
 
   const Save = async () => {
@@ -163,7 +163,6 @@ const PlayoutPanel = observer(({
             placeholder="Select DRM"
             key={form.key("drm")}
             {...form.getInputProps("drm")}
-            allowDeselect={false}
           />
         </DisabledTooltipWrapper>
       </SimpleGrid>
