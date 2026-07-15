@@ -1928,11 +1928,12 @@ class StreamEditStore {
   }: CopyToVodParams): Generator<any, StreamStatus> {
     let recordingPeriod: number, startTime: string, endTime: string;
     const timeSeconds: Partial<{startTime: number, endTime: number}> = {};
-    const firstPeriod = selectedPeriods[0];
+    const sortedPeriods = [...selectedPeriods].sort((a, b) => a?.start_time_epoch_sec - b?.start_time_epoch_sec);
+    const firstPeriod = sortedPeriods[0];
     const currentDateTime = new Date();
 
-    if(selectedPeriods.length > 1) {
-      const lastPeriod = selectedPeriods[selectedPeriods.length - 1];
+    if(sortedPeriods.length > 1) {
+      const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
       recordingPeriod = null;
       startTime = new Date(firstPeriod?.start_time_epoch_sec * 1000).toISOString();
       endTime = new Date(lastPeriod?.end_time_epoch_sec * 1000).toISOString();
@@ -2020,7 +2021,7 @@ class StreamEditStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to copy to VoD.", error);
-      throw error(error);
+      throw error;
     }
 
     if(!response) {
