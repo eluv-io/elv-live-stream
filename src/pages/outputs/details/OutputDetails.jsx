@@ -38,6 +38,8 @@ const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
   const videoGap = "20px";
+  // "inod" is the Eluvio fabric's node-ID prefix (see elv-client-js's
+  // Utils.AddressToNodeId) - a dedicated node ID is stashed in description.
   const hasDedicatedNode = output.description?.startsWith("inod");
 
   return (
