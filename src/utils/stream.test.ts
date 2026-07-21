@@ -157,10 +157,20 @@ describe("DeriveSourceAndPackaging", () => {
       expect(source).toEqual(["srt"]);
     });
 
-    it("appends ts for srt:// URLs when copy_packaging is set", () => {
+    it("appends ts for srt:// URLs when copy_packaging is rtp_ts", () => {
       const {source} = DeriveSourceAndPackaging({
         url: "srt://host:1234",
         inputCfg: {copy_packaging: "rtp_ts"}
+      });
+      expect(source).toEqual(["srt", "ts"]);
+    });
+
+    it("appends ts for srt:// URLs when copy_packaging is raw_ts", () => {
+      // Regression: the "ts" push is a truthy check on copy_packaging, not a
+      // "rtp_ts" equality check - any copy_packaging value implies a ts copy.
+      const {source} = DeriveSourceAndPackaging({
+        url: "srt://host:1234",
+        inputCfg: {copy_packaging: "raw_ts"}
       });
       expect(source).toEqual(["srt", "ts"]);
     });
