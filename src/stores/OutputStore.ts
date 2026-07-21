@@ -294,18 +294,13 @@ class OutputStore {
   // afterward. Concurrent calls corrupt each other's routing and fail their
   // state reads.
   *AllOutputsState(): Generator<any, void> {
-    try {
-      for(const outputId of Object.keys(this.outputs || {})) {
-        try {
-          yield this.CheckOutputState({outputId, update: true});
-        } catch(error) {
-          // eslint-disable-next-line no-console
-          console.error(`Skipping state for output ${outputId}.`, error);
-        }
+    for(const outputId of Object.keys(this.outputs || {})) {
+      try {
+        yield this.CheckOutputState({outputId, update: true});
+      } catch(error) {
+        // eslint-disable-next-line no-console
+        console.error(`Skipping state for output ${outputId}.`, error);
       }
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to refresh output states.", error);
     }
   }
 
