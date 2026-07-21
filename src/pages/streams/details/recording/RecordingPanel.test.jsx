@@ -1,4 +1,4 @@
-import {render, screen, act} from "@testing-library/react";
+import {render, screen, act, fireEvent, waitFor} from "@testing-library/react";
 import {vi, describe, it, expect, beforeEach} from "vitest";
 import {MemoryRouter, Route, Routes} from "react-router-dom";
 import {MantineProvider} from "@mantine/core";
@@ -188,5 +188,27 @@ describe("RecordingPanel", () => {
     expect(mockLoadOutputStreamInfo).toHaveBeenCalledWith(
       expect.objectContaining({slug: "test-slug"})
     );
+  });
+
+  it("reverts unsaved field edits to the last-loaded config, not blank defaults, when Discard is invoked", async () => {
+    renderRecordingPanel();
+    await screen.findByText("Retention");
+
+    const checkbox = screen.getByLabelText("Enable Transport Stream");
+    expect(checkbox.checked).toBe(false);
+
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+
+    const {Discard} = mockRegister.mock.calls[0][0];
+    await act(async () => {
+      Discard();
+    });
+
+    // Regression: form.reset() must restore the values loaded via
+    // LoadRecordingConfigData (via setInitialValues), not the blank
+    // useForm() defaults. Mantine's uncontrolled-mode reset() remounts the
+    // input (key bump), so re-query rather than reuse the stale reference.
+    await waitFor(() => expect(screen.getByLabelText("Enable Transport Stream").checked).toBe(false));
   });
 });

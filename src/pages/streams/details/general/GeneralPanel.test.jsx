@@ -200,4 +200,27 @@ describe("GeneralPanel", () => {
       expect(select).toBeTruthy();
     });
   });
+
+  describe("Discard", () => {
+    it("reverts unsaved field edits to the last-loaded stream values, not blank defaults", async () => {
+      renderGeneralPanel();
+
+      const nameInput = await screen.findByPlaceholderText("Enter stream name");
+      await waitFor(() => expect(nameInput.value).toBe("Test Stream"));
+
+      fireEvent.change(nameInput, {target: {value: "Unsaved Edit"}});
+      expect(nameInput.value).toBe("Unsaved Edit");
+
+      const {Discard} = mockRegister.mock.calls[0][0];
+      await act(async () => {
+        Discard();
+      });
+
+      // Regression: form.reset() must restore the values loaded from the
+      // stream (via setInitialValues), not the blank useForm() defaults.
+      // Mantine's uncontrolled-mode reset() remounts the input (key bump),
+      // so re-query rather than reuse the pre-Discard element reference.
+      await waitFor(() => expect(screen.getByPlaceholderText("Enter stream name").value).toBe("Test Stream"));
+    });
+  });
 });
