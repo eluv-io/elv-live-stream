@@ -1153,7 +1153,7 @@ class StreamEditStore {
         liveRecordingConfig,
         probeMetadata,
         // Probing the input can take longer than the default FrameClient timeout
-        fcTimeout: 180
+        fcTimeout: 900
       });
 
       if(syncAudioToProbe) {
