@@ -10,11 +10,7 @@ import ErrorBanner from "@/components/error/ErrorBanner";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import OutputModals from "@/pages/outputs/OutputModals.jsx";
 
-// Layout route for the data router (see Routes.jsx / App.jsx). Renders the
-// persistent app chrome once and an <Outlet /> for the matched page - this is
-// what lets StreamDetailsPage use useBlocker to intercept in-app navigation
-// (sidebar links, browser back/forward, programmatic navigate()), which only
-// works under the data router API, not the plain <BrowserRouter> this replaced.
+// Required by useBlocker (StreamDetailsPage) for in-app nav guarding.
 const AppLayout = observer(() => {
   return (
     <AppShell

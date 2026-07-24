@@ -8,7 +8,7 @@ import NotificationMessage from "@/components/notification-message/NotificationM
 import StreamUrlSelector from "@/pages/create/stream-url-selector/StreamUrlSelector.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import styles from "@/pages/outputs/modals/modals.module.css";
-import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
+import {slugify} from "@/utils/helpers";
 
 const DuplicateStreamModal = observer(({opened, onClose, records=[]}) => {
   const [isSaving, setIsSaving] = useState(false);

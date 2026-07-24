@@ -15,7 +15,7 @@ import {
   StreamRecord
 } from "@/utils/stream";
 import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
-import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
+import {slugify} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/StreamStore";
 import {PermissionLevel} from "@/stores/DataStore";

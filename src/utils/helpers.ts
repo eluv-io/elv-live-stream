@@ -94,3 +94,14 @@ export const Runtime = ({
 
   return time;
 };
+
+// Copy of elv-client-js's `slugify`. Importing it from
+// `@eluvio/elv-client-js/utilities/lib/helpers.js` pulls that whole module in,
+// about 24KB gzip in the entry chunk for a one-line regex.
+//
+// Keep this in sync if the upstream implementation ever changes. Profile slugs
+// are persisted in the site object under `stream_profiles`, so drift would
+// orphan existing stream/profile associations. See helpers.test.ts for the
+// cases verified against upstream.
+export const slugify = (str?: string): string =>
+  (str || "").toLowerCase().trim().replace(/ /g, "-").replace(/[^a-z0-9-]/g, "");
