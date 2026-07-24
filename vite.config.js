@@ -2,7 +2,7 @@ import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react-swc";
 import {viteStaticCopy} from "vite-plugin-static-copy";
 import {fileURLToPath, URL} from "url";
-import {visualizer} from "rollup-plugin-visualizer";
+// import {visualizer} from "rollup-plugin-visualizer";
 
 export default defineConfig({
   css: {
@@ -42,16 +42,15 @@ export default defineConfig({
       output: {
         manualChunks: {
           // Large stable vendor libraries - good for long-term caching
-          'vendor-eluvio': ['@eluvio/elv-client-js'],
-          'vendor-mantine': [
-            '@mantine/core',
-            '@mantine/hooks',
-            '@mantine/form',
-            '@mantine/notifications',
-            '@mantine/dates',
-            'mantine-datatable'
+          "vendor-eluvio": ["@eluvio/elv-client-js"],
+          "vendor-mantine": [
+            "@mantine/core",
+            "@mantine/hooks",
+            "@mantine/form",
+            "@mantine/notifications",
+            "@mantine/dates",
+            "mantine-datatable"
           ]
-          // Other small deps (react, mobx, icons) bundled with app code
         }
       }
     }
