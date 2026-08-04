@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useBlocker, useNavigate, useParams} from "react-router-dom";
 import {rootStore, streamStore, streamSaveStore} from "@/stores/index.ts";
@@ -74,9 +74,20 @@ const StreamDetailsPage = observer(() => {
     }
   }, [params.id]);
 
+  // Reset during render, not in the effect below: on mount, child effects
+  // (GeneralPanel/RecordingPanel/PlayoutPanel registering themselves with
+  // streamSaveStore) run before this component's own effects, so resetting
+  // streamSaveStore.panels from an effect here would wipe out registrations
+  // that already happened. Render runs parent-before-child, so this always
+  // precedes them.
+  const resetStreamIdRef = useRef(null);
+  if(params.id && resetStreamIdRef.current !== params.id) {
+    resetStreamIdRef.current = params.id;
+    streamSaveStore.Reset();
+  }
+
   useEffect(() => {
     if(params.id) {
-      streamSaveStore.Reset();
       GetStatus();
       LoadEdgeWriteTokenMeta();
     }
