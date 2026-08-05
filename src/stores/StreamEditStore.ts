@@ -2016,7 +2016,8 @@ class StreamEditStore {
         targetObjectId,
         recordingPeriod,
         startTime,
-        endTime
+        endTime,
+        fcTimeout: 900
       });
     } catch(error) {
       // eslint-disable-next-line no-console
