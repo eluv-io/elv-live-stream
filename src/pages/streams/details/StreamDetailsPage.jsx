@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useBlocker, useNavigate, useParams} from "react-router-dom";
-import {rootStore, streamStore, streamSaveStore} from "@/stores/index.ts";
+import {rootStore, streamStore, streamSaveStore, dataStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Button, Flex, Indicator, Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
@@ -97,6 +97,7 @@ const StreamDetailsPage = observer(() => {
     setCheckVersion(prev => prev + 1);
     GetStatus();
     LoadEdgeWriteTokenMeta();
+    dataStore.LoadAccessGroups({force: true});
   }, [GetStatus, LoadEdgeWriteTokenMeta]);
 
   const DebouncedRefresh = useDebouncedCallback(Refresh, 500);

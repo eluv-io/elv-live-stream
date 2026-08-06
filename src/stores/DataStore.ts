@@ -293,8 +293,8 @@ class DataStore {
     }
   }
 
-  *LoadAccessGroups(): Generator<any, void> {
-    if(this.accessGroups) { return; }
+  *LoadAccessGroups({force=false}: {force?: boolean}={}): Generator<any, void> {
+    if(this.accessGroups && !force) { return; }
 
     if(this._accessGroupsPromise) {
       yield this._accessGroupsPromise;
@@ -334,7 +334,8 @@ class DataStore {
 
       return this.client.Permission({
         libraryId,
-        objectId
+        objectId,
+        clearCache: true
       });
     } catch(error) {
       // eslint-disable-next-line no-console
