@@ -1,6 +1,8 @@
 // Handles stream configuration writes: create, delete, metadata, recording config, playout (watermarks, DRM, audio), profiles, permissions, and VOD copy.
 import {makeAutoObservable, toJS} from "mobx";
 import {
+  DeriveCopyMode,
+  DeriveCopyPackaging,
   FinalizeContentObjectResponse,
   ForensicWatermark,
   ImageWatermark,
@@ -13,10 +15,20 @@ import {
   StreamRecord
 } from "@/utils/stream";
 import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
-import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
+import {slugify} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/StreamStore";
 import {PermissionLevel} from "@/stores/DataStore";
+
+// Thrown when a live recording copy's content object can no longer be reached
+// (most likely deleted from the Fabric) while attempting to edit it. The UI
+// uses this to offer a "remove from list" remediation instead of a raw error.
+export class RecordingCopyMissingError extends Error {
+  constructor(recordingCopyId: string) {
+    super(`Live recording copy ${recordingCopyId} no longer exists`);
+    this.name = "RecordingCopyMissingError";
+  }
+}
 
 interface InitLiveStreamObjectParams {
   objectId: string;
@@ -71,8 +83,10 @@ interface UpdateConfigMetadataParams {
   dvrStartTime?: number;
   dvrMaxDuration?: string;
   copyMpegTs?: boolean;
+  fabricPackagingFMP4?: boolean;
+  fabricPackagingMpegTs?: boolean;
   inputPackaging?: RecordingInputCfg;
-  copyMode?: string;
+  copyPackaging?: "raw_ts" | "rtp_ts";
   customReadLoop?: boolean;
   audioData?: AudioDataMap;
   multiPathEnabled?: boolean;
@@ -166,7 +180,7 @@ interface UpdateRecordingConfigParams {
     "retention" | "persistent" | "connectionTimeout" | "reconnectionTimeout"
   >;
   tsFormData: Pick<UpdateConfigMetadataParams,
-    "copyMpegTs" | "inputPackaging" | "copyMode" | "customReadLoop"
+    "copyMpegTs" | "inputPackaging" | "copyPackaging" | "customReadLoop" | "fabricPackagingFMP4" | "fabricPackagingMpegTs"
   >;
   multiPathEnabled?: boolean;
 }
@@ -637,8 +651,10 @@ class StreamEditStore {
     dvrStartTime,
     dvrMaxDuration,
     copyMpegTs,
+    fabricPackagingFMP4,
+    fabricPackagingMpegTs,
     inputPackaging,
-    copyMode,
+    copyPackaging,
     audioData,
     multiPathEnabled
   }: UpdateConfigMetadataParams) : Generator<any, {writeToken: string}> {
@@ -668,8 +684,8 @@ class StreamEditStore {
       recordingConfig.copy_mpegts = copyMpegTs;
       recordingConfig.input_cfg = copyMpegTs ? {
         bypass_libav_reader: true,
-        copy_mode: copyMode,
-        copy_packaging: inputPackaging,
+        copy_mode: DeriveCopyMode({fabricPackagingFMP4, fabricPackagingMpegTs}),
+        copy_packaging: DeriveCopyPackaging({fabricPackagingMpegTs, copyPackaging}),
         input_packaging: inputPackaging,
         custom_read_loop_enabled: true
       } : {};
@@ -743,8 +759,8 @@ class StreamEditStore {
         metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg",
         metadata: copyMpegTs ? {
           bypass_libav_reader: true,
-          copy_mode: copyMode,
-          copy_packaging: inputPackaging,
+          copy_mode: DeriveCopyMode({fabricPackagingFMP4, fabricPackagingMpegTs}),
+          copy_packaging: DeriveCopyPackaging({fabricPackagingMpegTs, copyPackaging}),
           custom_read_loop_enabled: true,
           input_packaging: inputPackaging
         } : {}
@@ -863,15 +879,17 @@ class StreamEditStore {
     }
 
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
-    const {copyMpegTs, inputPackaging, copyMode} = tsFormData;
+    const {copyMpegTs, inputPackaging, copyPackaging, fabricPackagingFMP4, fabricPackagingMpegTs} = tsFormData;
 
-    yield this.UpdateStreamAudioSettings({
-      objectId,
-      writeToken,
-      audioData: audioFormData,
-      finalize: false,
-      edit: true
-    });
+    if(fabricPackagingFMP4 === true || !copyMpegTs) {
+      yield this.UpdateStreamAudioSettings({
+        objectId,
+        writeToken,
+        audioData: audioFormData,
+        finalize: false,
+        edit: true
+      });
+    }
 
     yield this.UpdateConfigMetadata({
       objectId,
@@ -881,8 +899,10 @@ class StreamEditStore {
       connectionTimeout,
       reconnectionTimeout,
       copyMpegTs,
+      fabricPackagingFMP4,
+      fabricPackagingMpegTs,
       inputPackaging,
-      copyMode,
+      copyPackaging,
       audioData: audioFormData,
       multiPathEnabled,
       writeToken,
@@ -1131,7 +1151,9 @@ class StreamEditStore {
         writeToken,
         finalize: false,
         liveRecordingConfig,
-        probeMetadata
+        probeMetadata,
+        // Probing the input can take longer than the default FrameClient timeout
+        fcTimeout: 900
       });
 
       if(syncAudioToProbe) {
@@ -1170,8 +1192,11 @@ class StreamEditStore {
         }
       });
     } catch(error) {
+      const isTimeout = typeof error === "string" && error.includes("timed out");
+
       // eslint-disable-next-line no-console
-      console.error("Unable to configure stream", error);
+      console.error(isTimeout ? "Stream configuration request timed out" : "Unable to configure stream", error);
+
       throw error;
     }
   }
@@ -1767,7 +1792,7 @@ class StreamEditStore {
 
   // VOD
 
-  *FetchLiveRecordingCopies({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Record<string, {create_time: number, endTime: number, startTime: number, title: string}>> {
+  *FetchLiveRecordingCopies({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Record<string, {create_time: number, endTime: number, startTime: number, title: string, unavailable?: boolean}>> {
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
     }
@@ -1780,11 +1805,20 @@ class StreamEditStore {
 
     yield Promise.all(
       Object.keys(copiesMeta || {}).map(async(copyId) => {
-        copiesMeta[copyId].title = await this.client.ContentObjectMetadata({
-          libraryId: await this.client.ContentObjectLibraryId({objectId: copyId}),
-          objectId: copyId,
-          metadataSubtree: "public/name"
-        });
+        try {
+          copiesMeta[copyId].title = await this.client.ContentObjectMetadata({
+            libraryId: await this.client.ContentObjectLibraryId({objectId: copyId}),
+            objectId: copyId,
+            metadataSubtree: "public/name"
+          });
+        } catch(error) {
+          // The metadata entry exists but its content object could not be
+          // reached - most likely it was deleted from the Fabric. Flag it so
+          // the UI can mark the row as unavailable and disable edit actions.
+          copiesMeta[copyId].unavailable = true;
+          // eslint-disable-next-line no-console
+          console.error(`Failed to load name. Has object ${copyId} been deleted?`, error);
+        }
       })
     );
 
@@ -1824,6 +1858,13 @@ class StreamEditStore {
 
       if(!liveRecordingCopies?.[recordingCopyId]) {
         throw Error(`Live recording copy ${recordingCopyId} not found`);
+      }
+
+      // The metadata entry is present but its content object is unreachable -
+      // it was deleted between table load and this edit. Signal the UI so it
+      // can offer to remove the stale entry rather than surfacing a raw error.
+      if(liveRecordingCopies[recordingCopyId].unavailable) {
+        throw new RecordingCopyMissingError(recordingCopyId);
       }
 
       liveRecordingCopies[recordingCopyId].title = title;
@@ -1887,11 +1928,12 @@ class StreamEditStore {
   }: CopyToVodParams): Generator<any, StreamStatus> {
     let recordingPeriod: number, startTime: string, endTime: string;
     const timeSeconds: Partial<{startTime: number, endTime: number}> = {};
-    const firstPeriod = selectedPeriods[0];
+    const sortedPeriods = [...selectedPeriods].sort((a, b) => a?.start_time_epoch_sec - b?.start_time_epoch_sec);
+    const firstPeriod = sortedPeriods[0];
     const currentDateTime = new Date();
 
-    if(selectedPeriods.length > 1) {
-      const lastPeriod = selectedPeriods[selectedPeriods.length - 1];
+    if(sortedPeriods.length > 1) {
+      const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
       recordingPeriod = null;
       startTime = new Date(firstPeriod?.start_time_epoch_sec * 1000).toISOString();
       endTime = new Date(lastPeriod?.end_time_epoch_sec * 1000).toISOString();
@@ -1974,12 +2016,13 @@ class StreamEditStore {
         targetObjectId,
         recordingPeriod,
         startTime,
-        endTime
+        endTime,
+        fcTimeout: 900
       });
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to copy to VoD.", error);
-      throw error(error);
+      throw error;
     }
 
     if(!response) {
@@ -2052,6 +2095,18 @@ class StreamEditStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to update stream tags.", error);
+      throw error;
+    }
+  }
+
+  *UpdateStreamTagsBatch({streams}: {streams: {objectId: string, slug: string, tags: string[]}[]}): Generator<any, void> {
+    try {
+      yield Promise.all(
+        streams.map(stream => this.UpdateStreamTags(stream))
+      );
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to update stream tags (batch).", error);
       throw error;
     }
   }

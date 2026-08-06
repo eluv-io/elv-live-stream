@@ -1,5 +1,5 @@
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Badge, Box, Group, Stack, Text, Title, UnstyledButton} from "@mantine/core";
+import {ActionIcon, Badge, Box, Group, Stack, Text, Title, Tooltip, UnstyledButton} from "@mantine/core";
 import {DataTable} from "mantine-datatable";
 import {SanitizeUrl} from "@/utils/helpers.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
@@ -100,18 +100,20 @@ const StreamsTable = observer(({
           {GetStreamActions({record})
             .filter(item => !item.hidden)
             .map(item => (
-              <ActionIcon
-                key={`action-${item.title}`}
-                variant={item.iconVariant}
-                component={item.component}
-                to={item.to}
-                title={item.title}
-                color={item.iconColor}
-                onClick={item.onClick}
-                disabled={item.disabled}
-              >
-                {item.icon}
-              </ActionIcon>
+              <Tooltip key={`action-${item.title}`} label={item.title}>
+                <ActionIcon
+                  key={`action-${item.title}`}
+                  variant={item.iconVariant}
+                  component={item.component}
+                  to={item.to}
+                  title={item.title}
+                  color={item.iconColor}
+                  onClick={item.onClick}
+                  disabled={item.disabled}
+                >
+                  {item.icon}
+                </ActionIcon>
+              </Tooltip>
             ))
           }
         </Group>

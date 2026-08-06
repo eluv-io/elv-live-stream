@@ -1,7 +1,7 @@
 // Manages runtime stream state: the streams map, status polling, live control (start, stop, deactivate), and frame preview.
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
-import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
+import {slugify} from "@/utils/helpers";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 import {
   DeriveSourceAndPackaging,
@@ -140,6 +140,11 @@ class StreamStore {
   };
 
   SetTableTagFilter = (tags: string[]) => {
+    this.tableTagFilter = tags;
+    this.rootStore.userSettingsStore.Persist("tableFilters", {streams: tags});
+  };
+
+  RestoreTableTagFilter = (tags: string[]) => {
     this.tableTagFilter = tags;
   };
 

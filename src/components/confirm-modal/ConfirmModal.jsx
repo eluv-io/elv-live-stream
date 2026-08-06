@@ -34,6 +34,7 @@ const ConfirmModal = observer(({
       size="lg"
       centered
       closeOnClickOutside={false}
+      transitionProps={{duration: 100}}
     >
       <Box>
         {

@@ -8,6 +8,8 @@ import SiteStore from "@/stores/SiteStore";
 import ProfileStore from "@/stores/ProfileStore";
 import OutputStore from "@/stores/OutputStore";
 import OutputModalStore from "@/stores/OutputModalStore";
+import UserSettingsStore from "@/stores/UserSettingsStore";
+import StreamSaveStore from "@/stores/StreamSaveStore";
 
 // Force strict mode so mutations are only allowed within actions.
 configure({
@@ -31,21 +33,25 @@ class RootStore {
   dataStore: DataStore;
   streamStore: StreamStore;
   streamEditStore: StreamEditStore;
+  streamSaveStore: StreamSaveStore;
   modalStore: ModalStore;
   siteStore: SiteStore;
   profileStore: ProfileStore;
   outputStore: OutputStore;
   outputModalStore: OutputModalStore;
+  userSettingsStore: UserSettingsStore;
 
   constructor() {
     this.dataStore = new DataStore(this);
     this.streamStore = new StreamStore(this);
     this.streamEditStore = new StreamEditStore(this);
+    this.streamSaveStore = new StreamSaveStore(this);
     this.modalStore = new ModalStore(this);
     this.siteStore = new SiteStore(this);
     this.profileStore = new ProfileStore(this);
     this.outputStore = new OutputStore(this);
     this.outputModalStore = new OutputModalStore(this);
+    this.userSettingsStore = new UserSettingsStore(this);
 
     makeAutoObservable(this);
   }
@@ -54,13 +60,19 @@ class RootStore {
     try {
       this.client = new FrameClient({
         target: window.parent,
-        timeout: 900
+        timeout: 180
       });
 
       this.networkInfo = yield this.client.NetworkInfo();
       this.contentSpaceId = yield this.client.ContentSpaceId();
 
-      yield this.dataStore.Initialize();
+      yield Promise.all([
+        this.dataStore.Initialize(),
+        this.userSettingsStore.Load()
+      ]);
+
+      this.streamStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.streams);
+      this.outputStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.outputs);
     } catch(error) {
       /* eslint-disable no-console */
       console.error("Failed to initialize application");

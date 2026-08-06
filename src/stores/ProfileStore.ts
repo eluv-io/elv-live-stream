@@ -1,6 +1,6 @@
 // Manages live recording config profiles — loading, creating, and applying reusable stream configuration templates.
 import {makeAutoObservable, runInAction, toJS} from "mobx";
-import {slugify} from "@eluvio/elv-client-js/utilities/lib/helpers.js";
+import {slugify} from "@/utils/helpers";
 import {defaultConfigProfile} from "@/utils/defaultProfile.js";
 import type RootStore from "@/stores/RootStore";
 import {LiveRecordingConfigProfile} from "@/utils/stream";

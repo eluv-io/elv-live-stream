@@ -86,6 +86,12 @@ vi.mock("mantine-datatable", () => ({
 // Replace the real MobX stores with plain in-memory mocks the tests can mutate.
 // The Outputs component reads outputStore / outputModalStore / rootStore from here.
 vi.mock("@/stores/index.ts", () => ({
+  // The Outputs page gates its records on dataStore.streamsLoaded and calls
+  // dataStore.LoadSiteStreams in LoadData, so the mock must provide both.
+  dataStore: {
+    streamsLoaded: true,
+    LoadSiteStreams: vi.fn().mockResolvedValue(undefined)
+  },
   outputStore: {
     state: "pending",
     outputList: [],
@@ -124,6 +130,7 @@ const makeOutput = (overrides = {}) => {
     enabled: false,
     reset: true,
     state: {connected_clients: 0},
+    url: `srt://stream.example.test/${slug}`,
     srt_pull: {urls: [`srt://stream.example.test/${slug}`]},
     input: undefined,
     streamName: undefined,
@@ -305,7 +312,7 @@ describe("Outputs — success state", () => {
 
     // Assert — the URL text node is the unique slug-bearing element in the URL cell
     expect(
-      screen.getByText(byTextContent(record.srt_pull.urls[0]))
+      screen.getByText(byTextContent(record.url))
     ).toBeInTheDocument();
   });
 });
@@ -428,7 +435,7 @@ describe("Outputs — interactions", () => {
     outputStore.state = "loaded";
     const record = makeOutput();
     outputStore.outputList = [record];
-    const url = record.srt_pull.urls[0];
+    const url = record.url;
     // eslint-disable-next-line no-unused-vars
     const user = userEvent.setup();
     renderOutputs();
@@ -449,11 +456,9 @@ describe("Outputs — interactions", () => {
     outputStore.state = "loaded";
     const streamObjectId = uniqueSlug("iq");
     const record = makeOutput({
-      input: {
-        stream: streamObjectId,
-        name: "Mapped Stream",
-        status: "running"
-      },
+      streamId: streamObjectId,
+      streamName: "Mapped Stream",
+      streamStatus: "running",
       originUrl: "https://example.test/origin"
     });
     outputStore.outputList = [record];

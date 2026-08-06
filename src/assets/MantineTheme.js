@@ -140,7 +140,7 @@ const theme = createTheme({
     ],
     "elv-green": [
       "#ddf3ee", // eluvio color
-      "#d6f6e8",
+      "#defce9", // eluvio color
       "#b0e8d1",
       "#88dab8",
       "#66cfa3",

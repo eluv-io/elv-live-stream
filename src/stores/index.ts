@@ -14,6 +14,7 @@ window["client"] = rootStore.client;
 export const dataStore = rootStore.dataStore;
 export const streamStore = rootStore.streamStore;
 export const streamEditStore = rootStore.streamEditStore;
+export const streamSaveStore = rootStore.streamSaveStore;
 export const modalStore = rootStore.modalStore;
 export const siteStore = rootStore.siteStore;
 export const profileStore = rootStore.profileStore;

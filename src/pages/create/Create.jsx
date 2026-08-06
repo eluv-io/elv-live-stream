@@ -58,6 +58,7 @@ const PermissionSelector = observer(({form}) => {
       description="Stream permission level."
       name="permission"
       placeholder="Select Permission"
+      allowDeselect={false}
       data={
         Object.keys(permissionLevels || {}).map(permissionName => (
           {

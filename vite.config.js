@@ -2,6 +2,7 @@ import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react-swc";
 import {viteStaticCopy} from "vite-plugin-static-copy";
 import {fileURLToPath, URL} from "url";
+// import {visualizer} from "rollup-plugin-visualizer";
 
 export default defineConfig({
   css: {
@@ -22,16 +23,36 @@ export default defineConfig({
         }
       ]
     }),
-    react()
+    react(),
+    // visualizer({open: true, gzipSize: true, brotliSize: true})
   ],
   optimizeDeps: {
-    include: ["hash.js", "@eluvio/elv-client-js", "mux-embed", "node-interval-tree"],
+    // elv-player-js is lazy-imported (VideoContainer) so Vite won't see it at
+    // startup; pre-bundle it explicitly so the first play click doesn't trigger
+    // an on-the-fly dep optimization + page reload that interrupts playback.
+    include: ["hash.js", "@eluvio/elv-client-js", "@eluvio/elv-player-js/lib/index.js", "mux-embed", "node-interval-tree"],
   },
   build: {
     outDir: "dist",
     manifest: true,
     commonjsOptions: {
       include: [/node_modules/]
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Large stable vendor libraries - good for long-term caching
+          "vendor-eluvio": ["@eluvio/elv-client-js"],
+          "vendor-mantine": [
+            "@mantine/core",
+            "@mantine/hooks",
+            "@mantine/form",
+            "@mantine/notifications",
+            "@mantine/dates",
+            "mantine-datatable"
+          ]
+        }
+      }
     }
   },
   server: {

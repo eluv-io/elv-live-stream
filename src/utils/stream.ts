@@ -50,7 +50,7 @@ export interface RecordingInputCfg {
   copy_mode?: string;
   copy_packaging?: "raw_ts" | "rtp_ts";
   custom_read_loop_enabled?: boolean;
-  input_packaging?: string;
+  input_packaging?: "rtp_ts" | "raw_ts";
 }
 
 interface RecordingConfig {
@@ -431,7 +431,9 @@ export const DeriveSourceAndPackaging = ({url, inputCfg}: {url: string, inputCfg
 
   switch(protocol) {
     case "srt":
-      source = copyPackaging ? ["srt", "rtp", "ts"] : ["srt", "ts"];
+      source = ["srt"];
+      if(inputCfg?.input_packaging?.includes("rtp")) { source.push("rtp"); }
+      if(copyPackaging) { source.push("ts"); }
       break;
     case "udp": source = ["ts"]; break;
     case "rtp": source = ["rtp", "ts"]; break;
@@ -439,5 +441,15 @@ export const DeriveSourceAndPackaging = ({url, inputCfg}: {url: string, inputCfg
   }
 
   return {source, packaging};
+};
+
+export const DeriveCopyMode = ({fabricPackagingFMP4, fabricPackagingMpegTs}: {fabricPackagingFMP4?: boolean, fabricPackagingMpegTs?: boolean}): string => {
+  if(!fabricPackagingMpegTs) { return ""; }
+  return fabricPackagingFMP4 ? "raw" : "raw_only";
+};
+
+export const DeriveCopyPackaging = ({fabricPackagingMpegTs, copyPackaging}: {fabricPackagingMpegTs?: boolean, copyPackaging?: "raw_ts" | "rtp_ts"}): "raw_ts" | "rtp_ts" => {
+  if(!fabricPackagingMpegTs) { return "raw_ts"; }
+  return copyPackaging ?? "raw_ts";
 };
 

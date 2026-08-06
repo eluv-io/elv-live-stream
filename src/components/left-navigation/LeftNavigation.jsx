@@ -34,7 +34,10 @@ const LeftNavigation = () => {
             href="#"
             label={label}
             leftSection={icon}
-            onClick={() => navigate(path)}
+            onClick={(event) => {
+              event.preventDefault();
+              navigate(path);
+            }}
             title={label}
             active={location.pathname.includes(path)}
           />

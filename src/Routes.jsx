@@ -1,7 +1,6 @@
-import {lazy, Suspense} from "react";
-import {Navigate, Route, Routes} from "react-router-dom";
-import {observer} from "mobx-react-lite";
-import {Flex, Loader} from "@mantine/core";
+import {lazy} from "react";
+import {Navigate} from "react-router-dom";
+import AppLayout from "./AppLayout.jsx";
 
 const Create = lazy(() => import("@/pages/create/Create.jsx"));
 const Streams = lazy(() => import("@/pages/streams/Streams.jsx"));
@@ -12,25 +11,25 @@ const Settings = lazy(() => import("@/pages/settings/Settings.jsx"));
 const Outputs = lazy(() => import("@/pages/outputs/Outputs.jsx"));
 const OutputDetails = lazy(() => import("@/pages/outputs/details/OutputDetails.jsx"));
 
-const AppRoutes = observer(() => {
-  return (
-    <Suspense fallback={<Flex justify="center" align="center" h="100%"><Loader /></Flex>}>
-    <Routes>
-      <Route path="/" element={<Navigate replace to="/streams" />} />
-      <Route path="/monitor" element={<Monitor />} />
+const routes = [
+  {
+    path: "/",
+    element: <AppLayout />,
+    children: [
+      {index: true, element: <Navigate replace to="/streams" />},
+      {path: "monitor", element: <Monitor />},
 
-      <Route path="/streams/create" element={<Create />} />
-      <Route path="/streams/:id" element={<StreamDetailsPage />} />
-      <Route path="/streams" element={<Streams />} />
-      <Route path="/streams/:id/preview" element={<StreamPreview />} />
+      {path: "streams/create", element: <Create />},
+      {path: "streams/:id", element: <StreamDetailsPage />},
+      {path: "streams", element: <Streams />},
+      {path: "streams/:id/preview", element: <StreamPreview />},
 
-      <Route path="/outputs" element={<Outputs />} />
-      <Route path="/outputs/:id" element={<OutputDetails />} />
+      {path: "outputs", element: <Outputs />},
+      {path: "outputs/:id", element: <OutputDetails />},
 
-      <Route path="/settings" element={<Settings />} />
-    </Routes>
-    </Suspense>
-  );
-});
+      {path: "settings", element: <Settings />}
+    ]
+  }
+];
 
-export default AppRoutes;
+export default routes;

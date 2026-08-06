@@ -30,6 +30,18 @@ const RecordingPeriodsTable = observer(({
 }) => {
   const [selectedRecords, setSelectedRecords] = useState([]);
 
+  // Copy to VoD only supports a single recording period - keep whichever record was
+  // most recently clicked instead of allowing multiple to accumulate
+  const HandleSelectionChange = (newSelectedRecords) => {
+    if(newSelectedRecords.length <= 1) {
+      setSelectedRecords(newSelectedRecords);
+      return;
+    }
+
+    const newlySelected = newSelectedRecords.find(record => !selectedRecords.includes(record));
+    setSelectedRecords(newlySelected ? [newlySelected] : [newSelectedRecords[newSelectedRecords.length - 1]]);
+  };
+
   const [copyingToVod, setCopyingToVod] = useState(false);
   const [showCopyModal, {open, close}] = useDisclosure(false);
   const [vodTitle, setVodTitle] = useState(`${title} VoD`);
@@ -273,7 +285,8 @@ const RecordingPeriodsTable = observer(({
           records={filteredRecords}
           selectionColumnClassName={sharedStyles.selectionColumn}
           selectedRecords={selectedRecords}
-          onSelectedRecordsChange={setSelectedRecords}
+          onSelectedRecordsChange={HandleSelectionChange}
+          allRecordsSelectionCheckboxProps={{style: {display: "none"}}}
           isRecordSelectable={(record) => (
             RecordingStatus({
               item: record,

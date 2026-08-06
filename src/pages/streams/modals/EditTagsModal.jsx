@@ -29,18 +29,20 @@ const EditTagsModal = observer(({opened, onClose, records=[]}) => {
       setIsSaving(true);
       const removedTags = initialSavedTags.filter(t => !savedTags.includes(t));
 
-      for(const record of records) {
-        const recordTags = Array.from(new Set([
-          ...(record.tags || []).filter(t => !removedTags.includes(t)),
-          ...newTags
-        ]));
+      const streams = records.map(record => {
+        const filteredTags = (record.tags || []).filter(t => !removedTags.includes(t));
 
-        await streamEditStore.UpdateStreamTags({
+        return {
           objectId: record.objectId,
           slug: record.slug,
-          tags: recordTags
-        });
-      }
+          tags: Array.from(new Set([
+            ...filteredTags,
+            ...newTags
+          ]))
+        };
+      });
+
+      await streamEditStore.UpdateStreamTagsBatch({streams});
 
       notifications.show({
         title: "Tags updated",

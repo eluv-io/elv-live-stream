@@ -208,8 +208,11 @@ class DataStore {
         yield this.LoadTenantData();
       }
 
-      yield this.rootStore.streamStore.LoadStreams({streamMetadata: this.streamMetadata});
-      yield this.rootStore.outputStore.LoadOutputSettingsId();
+      yield Promise.all([
+        this.rootStore.streamStore.LoadStreams({streamMetadata: this.streamMetadata}),
+        this.rootStore.outputStore.LoadOutputSettingsId()
+      ]);
+
       this.streamsLoaded = true;
       yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
@@ -290,8 +293,8 @@ class DataStore {
     }
   }
 
-  *LoadAccessGroups(): Generator<any, void> {
-    if(this.accessGroups) { return; }
+  *LoadAccessGroups({force=false}: {force?: boolean}={}): Generator<any, void> {
+    if(this.accessGroups && !force) { return; }
 
     if(this._accessGroupsPromise) {
       yield this._accessGroupsPromise;
@@ -331,7 +334,8 @@ class DataStore {
 
       return this.client.Permission({
         libraryId,
-        objectId
+        objectId,
+        clearCache: true
       });
     } catch(error) {
       // eslint-disable-next-line no-console

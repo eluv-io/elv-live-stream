@@ -1,4 +1,4 @@
-import {render, screen, fireEvent, waitFor} from "@testing-library/react";
+import {render, screen, fireEvent, waitFor, act} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {vi, describe, it, expect, beforeEach} from "vitest";
 import {MemoryRouter, Route, Routes} from "react-router-dom";
@@ -7,9 +7,18 @@ import {MantineProvider} from "@mantine/core";
 // vi.mock is hoisted, so this import resolves to the mock factory's return value.
 import {streamStore} from "@/stores/index.ts";
 
-const {mockUpdateGeneralConfig, mockNotificationShow} = vi.hoisted(() => ({
+const {
+  mockUpdateGeneralConfig,
+  mockNotificationShow,
+  mockRegister,
+  mockUnregister,
+  mockSetDirty
+} = vi.hoisted(() => ({
   mockUpdateGeneralConfig: vi.fn(),
   mockNotificationShow: vi.fn(),
+  mockRegister: vi.fn(),
+  mockUnregister: vi.fn(),
+  mockSetDirty: vi.fn(),
 }));
 
 vi.mock("@/stores", () => ({
@@ -39,6 +48,15 @@ vi.mock("@/stores", () => ({
     },
   },
   streamEditStore: {UpdateGeneralConfig: mockUpdateGeneralConfig},
+  // GeneralPanel registers its Save/Discard callbacks with streamSaveStore on
+  // mount and reports dirty state on every form change — the panel no longer
+  // renders its own Save button, so tests trigger a save by invoking the
+  // captured Save callback directly (mirroring StreamDetailsPage's toolbar).
+  streamSaveStore: {
+    Register: mockRegister,
+    Unregister: mockUnregister,
+    SetDirty: mockSetDirty
+  },
   streamStore: {
     LoadDetails: vi.fn().mockResolvedValue({}),
     LoadGeneralConfigData: vi.fn().mockResolvedValue(undefined),
@@ -109,6 +127,20 @@ describe("GeneralPanel", () => {
   });
 
   describe("Config Profile", () => {
+    it("should register a Save callback with streamSaveStore on mount", async () => {
+      renderGeneralPanel();
+
+      await screen.findByPlaceholderText("Select Config Profile");
+
+      expect(mockRegister).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "general",
+          Save: expect.any(Function),
+          Discard: expect.any(Function)
+        })
+      );
+    });
+
     it("calls UpdateGeneralConfig with selected profile slug when a profile is chosen", async () => {
       mockUpdateGeneralConfig.mockResolvedValue(undefined);
       const {user} = renderGeneralPanel();
@@ -117,7 +149,14 @@ describe("GeneralPanel", () => {
       await user.click(await screen.findByText("My Profile"));
 
       fireEvent.click(screen.getByRole("checkbox"));
-      fireEvent.click(screen.getByRole("button", {name: "Save"}));
+
+      // Save moved out of the panel to the shared page-level toolbar — drive
+      // it the same way StreamDetailsPage does, by invoking the Save callback
+      // the panel registered with streamSaveStore.
+      const {Save} = mockRegister.mock.calls[0][0];
+      await act(async () => {
+        await Save();
+      });
 
       await waitFor(() => {
         expect(mockUpdateGeneralConfig).toHaveBeenCalledWith(
@@ -132,7 +171,14 @@ describe("GeneralPanel", () => {
       mockUpdateGeneralConfig.mockResolvedValue(undefined);
       renderGeneralPanel();
 
-      fireEvent.click(await screen.findByRole("button", {name: "Save"}));
+      // Wait for the async LoadData effect to populate name/url from the
+      // stream before saving, otherwise form.validate() rejects the save.
+      await screen.findByPlaceholderText("Select Config Profile");
+
+      const {Save} = mockRegister.mock.calls[0][0];
+      await act(async () => {
+        await Save();
+      });
 
       await waitFor(() => {
         expect(mockUpdateGeneralConfig).toHaveBeenCalledWith(
@@ -152,6 +198,29 @@ describe("GeneralPanel", () => {
 
       const select = await screen.findByDisplayValue("My Profile");
       expect(select).toBeTruthy();
+    });
+  });
+
+  describe("Discard", () => {
+    it("reverts unsaved field edits to the last-loaded stream values, not blank defaults", async () => {
+      renderGeneralPanel();
+
+      const nameInput = await screen.findByPlaceholderText("Enter stream name");
+      await waitFor(() => expect(nameInput.value).toBe("Test Stream"));
+
+      fireEvent.change(nameInput, {target: {value: "Unsaved Edit"}});
+      expect(nameInput.value).toBe("Unsaved Edit");
+
+      const {Discard} = mockRegister.mock.calls[0][0];
+      await act(async () => {
+        Discard();
+      });
+
+      // Regression: form.reset() must restore the values loaded from the
+      // stream (via setInitialValues), not the blank useForm() defaults.
+      // Mantine's uncontrolled-mode reset() remounts the input (key bump),
+      // so re-query rather than reuse the pre-Discard element reference.
+      await waitFor(() => expect(screen.getByPlaceholderText("Enter stream name").value).toBe("Test Stream"));
     });
   });
 });

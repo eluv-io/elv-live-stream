@@ -1,10 +1,11 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {DataTable} from "mantine-datatable";
-import {ActionIcon, Box, Button, Flex, Group, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
+import {ActionIcon, Badge, Box, Button, Flex, Group, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
 import {DateFormat} from "@/utils/formatters.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import {streamStore, streamEditStore} from "@/stores/index.ts";
+import {RecordingCopyMissingError} from "@/stores/StreamEditStore.ts";
 import {IconExternalLink, IconPencil, IconTrash} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import {useForm} from "@mantine/form";
@@ -76,11 +77,13 @@ const EditModal = observer(({show, record, CloseCallback, ConfirmCallback}) => {
 const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, EditCallback, loading}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);
   const [showEditModal, {open: openEdit, close: closeEdit}] = useDisclosure(false);
+  const [showMissingModal, {open: openMissing, close: closeMissing}] = useDisclosure(false);
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "title",
     direction: "asc"
   });
   const [deleteId, setDeleteId] = useState("");
+  const [missingCopyId, setMissingCopyId] = useState("");
   const [editRecord, setEditRecord] = useState(null);
   const params = useParams();
 
@@ -106,8 +109,14 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
               sortable: true,
               render: record => (
                 <Stack gap={0}>
-                  <Title order={3} c="elv-gray.9">{record.title}</Title>
+                  <Group gap="xs" align="center">
+                    <Title order={3} c="elv-gray.9">{record.title}</Title>
+                  </Group>
                   <Text c="dimmed" fz={12}>{record._id}</Text>
+                  {
+                    record.unavailable &&
+                    <Badge color="elv-red.1" variant="light" size="sm" mt={4}>Unavailable</Badge>
+                  }
                 </Stack>
               )
             },
@@ -157,6 +166,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
                     title="Edit Name"
                     variant="subtle"
                     color="elv-gray.6"
+                    disabled={record.unavailable}
                     onClick={() => {
                       setEditRecord(record);
                       openEdit();
@@ -168,6 +178,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
                     title="Open in Fabric Browser"
                     variant="subtle"
                     color="elv-gray.6"
+                    disabled={record.unavailable}
                     onClick={() => streamStore.client.SendMessage({
                       options: {
                         operation: "OpenLink",
@@ -179,7 +190,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
                     <IconExternalLink />
                   </ActionIcon>
                   <ActionIcon
-                    title="Delete Live Recording Copy"
+                    title={record.unavailable ? "Remove From List" : "Delete Live Recording Copy"}
                     variant="subtle"
                     color="elv-gray.6"
                     onClick={() => {
@@ -229,11 +240,24 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
           setEditRecord(null);
         }}
         ConfirmCallback={async ({title}) => {
-          await streamEditStore.EditLiveRecordingCopy({
-            streamId: params.id,
-            recordingCopyId: editRecord._id,
-            title
-          });
+          try {
+            await streamEditStore.EditLiveRecordingCopy({
+              streamId: params.id,
+              recordingCopyId: editRecord._id,
+              title
+            });
+          } catch(error) {
+            // The copy was deleted between table load and this edit. Let the
+            // edit modal close cleanly and offer to remove the stale entry
+            // instead of surfacing a raw error.
+            if(error instanceof RecordingCopyMissingError) {
+              setMissingCopyId(editRecord._id);
+              openMissing();
+              return;
+            }
+
+            throw error;
+          }
 
           notifications.show({
             title: "Live recording copy updated",
@@ -244,6 +268,30 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
             EditCallback();
           }
         }}
+      />
+      <ConfirmModal
+        show={showMissingModal}
+        title="Recording No Longer Exists"
+        confirmText="Remove from List"
+        message="This live recording copy no longer exists on the Fabric. Remove it from the list?"
+        detailData={{
+          idKey: "Live Recording Copy ID:",
+          id: missingCopyId
+        }}
+        danger
+        ConfirmCallback={async () => {
+          await streamEditStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: missingCopyId});
+
+          notifications.show({
+            title: "Live recording copy removed",
+            message: <NotificationMessage>Successfully removed {missingCopyId}</NotificationMessage>
+          });
+
+          setMissingCopyId("");
+          DeleteCallback();
+          closeMissing();
+        }}
+        CloseCallback={closeMissing}
       />
     </Box>
   );

@@ -1,5 +1,6 @@
 .modalHeader {
   padding: 24px 19px 0 24px;
+  align-items: flex-start;
 }
 
 .modalRoot {

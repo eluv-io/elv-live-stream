@@ -10,6 +10,7 @@ node_modules/
 # Build output
 dist/*
 !*/.keep
+stats.html
 
 # Local config (not committed — copy from configuration.js.example)
 config/configuration.js
