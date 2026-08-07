@@ -212,6 +212,11 @@ class OutputStore {
   };
 
   UpdateOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
+    // Guard against creating a phantom entry keyed by a slug that isn't a real
+    // output (e.g. a stream slug passed in error) - that would surface as a
+    // bogus row in outputList with an undefined name, sorting to the top.
+    if(!this.outputs[slug]) { return; }
+
     this.outputs[slug] = {...this.outputs[slug], ...updates};
   };
 
