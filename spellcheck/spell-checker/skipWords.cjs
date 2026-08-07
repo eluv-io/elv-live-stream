@@ -163,6 +163,8 @@ module.exports = [
   "whitespace",
   "widevine",
   "wm",
+  "visibilitychange",
+  "vite",
   "xc",
   "xl"
 ];
