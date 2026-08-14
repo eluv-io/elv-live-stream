@@ -134,6 +134,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
   const [applyingChanges, setApplyingChanges] = useState(false);
 
   const outputType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
+  const [encryptionEnabled, setEncryptionEnabled] = useState(!!output?.[outputType]?.connection?.enforced_encryption);
   const hasDedicatedNode = output.description?.startsWith("inod");
   // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
   // so it has no editable Target URL.
@@ -169,6 +170,10 @@ const GeneralConfigPanel = observer(({output, id}) => {
       url: (value) => isPush ? (value ? null : "URL is required") : null
     }
   });
+
+  // "uncontrolled" form mode doesn't re-render the panel when a field changes,
+  // so the Passphrase field's visibility needs its own subscription to stay in sync.
+  form.watch("encryption", ({value}) => setEncryptionEnabled(!!value));
 
   const HandleSubmit = async(values) => {
     try {
@@ -295,7 +300,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
           {...form.getInputProps("encryption", {type: "checkbox"})}
         />
         {
-          form.getValues().encryption &&
+          encryptionEnabled &&
           <SimpleGrid cols={2} spacing={150} mt={20} pl={28}>
             <PasswordInput
               label="Passphrase"
