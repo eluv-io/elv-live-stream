@@ -4,6 +4,7 @@ import {useNavigate, useParams} from "react-router-dom";
 import {dataStore, outputStore} from "@/stores/index.ts";
 import {
   ActionIcon,
+  Badge,
   Box,
   Button,
   Checkbox,
@@ -16,6 +17,7 @@ import {
   SimpleGrid,
   Tabs,
   TextInput,
+  Title,
   Tooltip
 } from "@mantine/core";
 import {Fragment, useEffect, useState} from "react";
@@ -25,8 +27,9 @@ import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
-import {FABRIC_NODE_REGIONS, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
+import {FABRIC_NODE_REGIONS, OUTPUT_TYPE_COLOR_MAP, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import styles from "@/components/detail-card/DetailCard.module.css";
+import sharedStyles from "@/assets/shared.module.css";
 import {outputModalStore} from "@/stores/index.ts";
 import {DateFormat, BytesToMb} from "@/utils/formatters.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
@@ -329,7 +332,30 @@ const OutputDetails = observer(() => {
   const [loading, setLoading] = useState(false);
 
   const output = outputStore.outputs[id];
-  const url = outputStore.OutputItem(id)?.url;
+  const flatOutput = outputStore.OutputItem(id);
+  const url = flatOutput?.url;
+  // "inod" is the Eluvio fabric's node-ID prefix (see elv-client-js's
+  // Utils.AddressToNodeId) - a dedicated node ID is stashed in description.
+  const hasDedicatedNode = output?.description?.startsWith("inod");
+  const geoLabel = !hasDedicatedNode ?
+    FABRIC_NODE_REGIONS.find(geo => geo.value === output?.description)?.label :
+    undefined;
+  const typeBadges = flatOutput?.type?.length ?
+    <Group gap={4} wrap="nowrap">
+      {
+        flatOutput.type.map(type => (
+          <Badge key={type} radius={2} color={OUTPUT_TYPE_COLOR_MAP[type]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
+            {type}
+          </Badge>
+        ))
+      }
+    </Group> :
+    undefined;
+  const subtitleItems = [
+    typeBadges,
+    geoLabel,
+    hasDedicatedNode ? "Dedicated" : "Public"
+  ].filter(Boolean);
   const DebouncedRefresh = useDebouncedCallback(async() => {
     try {
       setLoading(true);
@@ -408,6 +434,23 @@ const OutputDetails = observer(() => {
     <PageContainer
       title={outputStore?.outputs?.[id]?.name ?? ""}
       subtitle={id}
+      subtitleRightSection={
+        subtitleItems.length > 0 &&
+        <Group gap={8}>
+          {
+            subtitleItems.map((item, i) => (
+              <Group gap={8} key={i} wrap="nowrap">
+                <Title order={6} c="elv-gray.6" mt={0}>•</Title>
+                {
+                  typeof item === "string" ?
+                    <Title order={6} c="elv-gray.6" mt={0}>{item}</Title> :
+                    item
+                }
+              </Group>
+            ))
+          }
+        </Group>
+      }
       actions={actions}
       titleRightSection={
         <LabeledIndicator
