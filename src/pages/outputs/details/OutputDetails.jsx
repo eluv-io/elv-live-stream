@@ -258,12 +258,14 @@ const GeneralConfigPanel = observer(({output, id}) => {
               {...form.getInputProps("node")}
             />
           }
-          <TextInput
-            label="Target URL"
-            disabled={!isPush}
-            key={form.key("url")}
-            {...form.getInputProps("url")}
-          />
+          {
+            isPush &&
+            <TextInput
+              label="Target URL"
+              key={form.key("url")}
+              {...form.getInputProps("url")}
+            />
+          }
         </Box>
 
         {
