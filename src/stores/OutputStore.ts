@@ -622,8 +622,11 @@ class OutputStore {
     passphrase,
     encryption,
     stripRtp,
+    node,
+    region,
+    url,
     // tags
-  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -641,21 +644,32 @@ class OutputStore {
       // SRT block, so building one would pollute the payload.
       const srtKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : undefined;
       const existingSrt = srtKey ? existing[srtKey] : undefined;
+      // node/region/url live on whichever transport block (rtp/udp/srt_pull/srt_push)
+      // the output actually uses. srt_pull stores node/region as arrays.
+      const transportKey = srtKey ?? (existing.rtp ? "rtp" : existing.udp ? "udp" : undefined);
+      const existingTransport = transportKey ? existing[transportKey] : undefined;
+      const isPull = transportKey === "srt_pull";
 
       const output = {
         ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
         // ...(tags !== undefined && {tags}),
         input: cleanInput,
-        ...(srtKey && {
-          [srtKey]: {
-            ...existingSrt,
-            connection: {
-              ...existingSrt?.connection,
-              enforced_encryption: encryption ?? existingSrt?.connection?.enforced_encryption
-            },
-            passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
-            strip_rtp: stripRtp ?? existingSrt?.strip_rtp
+        ...((node !== undefined || region !== undefined) && {description: node || region}),
+        ...(transportKey && {
+          [transportKey]: {
+            ...existingTransport,
+            ...(srtKey && {
+              connection: {
+                ...existingSrt?.connection,
+                enforced_encryption: encryption ?? existingSrt?.connection?.enforced_encryption
+              },
+              passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
+              strip_rtp: stripRtp ?? existingSrt?.strip_rtp
+            }),
+            ...(node !== undefined && {[isPull ? "node_ids" : "node_id"]: node ? (isPull ? [node] : node) : undefined}),
+            ...(region !== undefined && {[isPull ? "elvgeos" : "elvgeo"]: region ? (isPull ? [region] : region) : undefined}),
+            ...(!isPull && url !== undefined && {url: url || undefined})
           }
         })
       };

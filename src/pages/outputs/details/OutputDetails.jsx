@@ -38,9 +38,6 @@ const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
   const videoGap = "20px";
-  // "inod" is the Eluvio fabric's node-ID prefix (see elv-client-js's
-  // Utils.AddressToNodeId) - a dedicated node ID is stashed in description.
-  const hasDedicatedNode = output.description?.startsWith("inod");
 
   return (
     <Box pt={16}>
@@ -107,23 +104,6 @@ const SummaryPanel = observer(({output, url, id}) => {
         </Group>
       <TextInput value={url ?? ""} readOnly />
 
-      <Divider mb={20} mt={30} />
-
-      <Box style={{opacity: 0.5, pointerEvents: "none"}}>
-        <SectionTitle mb={12}>
-          {hasDedicatedNode ? "Dedicated Node" : "Fabric Geo"}
-        </SectionTitle>
-        <Select
-          description={hasDedicatedNode ? "The dedicated fabric node serving this output." : "The geographic region this output is served from."}
-          onChange={() => {}}
-          data={
-            (hasDedicatedNode ? dataStore.dedicatedNodesList : FABRIC_NODE_REGIONS).slice().sort((a, b) => a.label.localeCompare(b.label))
-          }
-          value={output.description ?? ""}
-          readOnly
-        />
-      </Box>
-
       {
         output?.state?.clients?.map((client, i) => (
           <Fragment key={`output-client-${i}`}>
@@ -151,6 +131,15 @@ const GeneralConfigPanel = observer(({output, id}) => {
   const [applyingChanges, setApplyingChanges] = useState(false);
 
   const outputType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
+  const hasDedicatedNode = output.description?.startsWith("inod");
+  // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
+  // so it has no editable Target URL.
+  const isPush = outputType !== "srt_pull";
+  const targetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
+
+  useEffect(() => {
+    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
+  }, []);
 
   const form = useForm({
     mode: "uncontrolled",
@@ -159,6 +148,9 @@ const GeneralConfigPanel = observer(({output, id}) => {
       stripRtp: output?.[outputType]?.strip_rtp,
       passphrase: output?.[outputType]?.passphrase,
       name: output?.name,
+      node: hasDedicatedNode ? (output.description ?? "") : "",
+      geo: !hasDedicatedNode ? (output.description ?? "") : "",
+      url: targetUrl ?? ""
       // tags: output?.tags || []
     },
     validate: {
@@ -168,7 +160,10 @@ const GeneralConfigPanel = observer(({output, id}) => {
           return "Passphrase must be between 10 and 79 characters long";
         }
         return null;
-      }
+      },
+      node: (value) => hasDedicatedNode ? (value ? null : "Node is required") : null,
+      geo: (value) => !hasDedicatedNode ? (value ? null : "Geo is required") : null,
+      url: (value) => isPush ? (value ? null : "URL is required") : null
     }
   });
 
@@ -176,7 +171,7 @@ const GeneralConfigPanel = observer(({output, id}) => {
     try {
       setApplyingChanges(true);
 
-      const {encryption, stripRtp, passphrase, name} = values;
+      const {encryption, stripRtp, passphrase, name, node, geo, url} = values;
 
       await outputStore.ModifyOutput({
         outputId: id,
@@ -184,6 +179,9 @@ const GeneralConfigPanel = observer(({output, id}) => {
         stripRtp,
         passphrase: encryption ? passphrase : undefined,
         name,
+        node: hasDedicatedNode ? node : undefined,
+        region: !hasDedicatedNode ? geo : undefined,
+        url: isPush ? url : undefined,
         // tags
       });
 
@@ -229,6 +227,58 @@ const GeneralConfigPanel = observer(({output, id}) => {
         {/*    clearable*/}
         {/*  />*/}
         {/*</SimpleGrid>*/}
+
+        <Divider mb={20} mt={30} />
+
+        <Box>
+          <SectionTitle mb={12}>Output</SectionTitle>
+          <Box style={{opacity: 0.5, pointerEvents: "none"}} mb={20}>
+            <Select
+              label="Node Type"
+              onChange={() => {}}
+              data={[
+                {label: "Dedicated", value: "dedicated"},
+                {label: "Public", value: "public"}
+              ]}
+              value={hasDedicatedNode ? "dedicated" : "public"}
+              readOnly
+            />
+          </Box>
+          {
+            hasDedicatedNode &&
+            <Select
+              label="Node"
+              placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
+              data={dataStore.dedicatedNodesList}
+              mb={20}
+              key={form.key("node")}
+              {...form.getInputProps("node")}
+            />
+          }
+          <TextInput
+            label="Target URL"
+            disabled={!isPush}
+            key={form.key("url")}
+            {...form.getInputProps("url")}
+          />
+        </Box>
+
+        {
+          !hasDedicatedNode &&
+          <>
+            <Divider mb={20} mt={30} />
+
+            <Box>
+              <SectionTitle mb={12}>Fabric Geo</SectionTitle>
+              <Select
+                description="The geographic region this output is served from."
+                data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
+                key={form.key("geo")}
+                {...form.getInputProps("geo")}
+              />
+            </Box>
+          </>
+        }
 
         <Divider mb={20} mt={30} />
 
