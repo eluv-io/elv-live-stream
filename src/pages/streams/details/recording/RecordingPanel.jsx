@@ -247,7 +247,7 @@ const RecordingPanel = observer(({
                     value="rtp_ts"
                     label="RTP wrapped MPEG-TS (ST 2022-2, ST 2022-7)"
                     description=""
-                    disabled={streamStore.streams[params.id]?.source?.includes("rtp")}
+                    disabled={!streamStore.streams[slug]?.source?.includes("rtp")}
                   />
                 </Group>
               </Radio.Group>
