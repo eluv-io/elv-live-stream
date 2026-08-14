@@ -619,6 +619,7 @@ class OutputStore {
   *ModifyOutput({
     outputId,
     name,
+    type,
     passphrase,
     encryption,
     stripRtp,
@@ -626,7 +627,7 @@ class OutputStore {
     region,
     url,
     // tags
-  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -635,19 +636,25 @@ class OutputStore {
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
       // reset/state are transient runtime fields surfaced by OutputsListItem; a config
-      // edit must not persist them back
+      // edit must not persist them back. rtp/udp/srt_pull/srt_push are stripped here too -
+      // whichever one applies is rebuilt fresh below, since switching output type means the
+      // old transport block(s) must not be carried over onto the new one.
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-      const {state: _st, ...cleanExisting} = existing;
+      const {state: _st, rtp: _rtp, udp: _udp, srt_pull: _srtPull, srt_push: _srtPush, ...cleanExisting} = existing;
 
+      const existingTransportKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : existing.rtp ? "rtp" : existing.udp ? "udp" : undefined;
+      const transportKey = type ?? existingTransportKey;
+      const typeChanged = !!type && type !== existingTransportKey;
       // Encryption/passphrase/strip_rtp live on the SRT block, which is keyed by
       // srt_pull or srt_push depending on the output type. RTP/UDP outputs have no
       // SRT block, so building one would pollute the payload.
-      const srtKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : undefined;
-      const existingSrt = srtKey ? existing[srtKey] : undefined;
+      const srtKey = transportKey === "srt_pull" || transportKey === "srt_push" ? transportKey : undefined;
+      // When the type changed, the old transport block's settings (node/region/url/SRT
+      // config) belong to a different shape and must not carry over onto the new one.
+      const existingTransport = typeChanged ? undefined : (transportKey ? existing[transportKey] : undefined);
+      const existingSrt = typeChanged ? undefined : (srtKey ? existing[srtKey] : undefined);
       // node/region/url live on whichever transport block (rtp/udp/srt_pull/srt_push)
       // the output actually uses. srt_pull stores node/region as arrays.
-      const transportKey = srtKey ?? (existing.rtp ? "rtp" : existing.udp ? "udp" : undefined);
-      const existingTransport = transportKey ? existing[transportKey] : undefined;
       const isPull = transportKey === "srt_pull";
 
       const output = {

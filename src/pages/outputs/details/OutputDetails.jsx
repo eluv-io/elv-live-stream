@@ -15,6 +15,7 @@ import {
   Loader, PasswordInput,
   Select,
   SimpleGrid,
+  Stack,
   Tabs,
   TextInput,
   Title,
@@ -133,28 +134,26 @@ const SummaryPanel = observer(({output, url, id}) => {
 const GeneralConfigPanel = observer(({output, id}) => {
   const [applyingChanges, setApplyingChanges] = useState(false);
 
-  const outputType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
-  const [encryptionEnabled, setEncryptionEnabled] = useState(!!output?.[outputType]?.connection?.enforced_encryption);
-  const hasDedicatedNode = output.description?.startsWith("inod");
-  // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
-  // so it has no editable Target URL.
-  const isPush = outputType !== "srt_pull";
-  const targetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
+  const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
+  const initialHasDedicatedNode = output.description?.startsWith("inod");
+  const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
 
   useEffect(() => {
     if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
   }, []);
 
   const form = useForm({
-    mode: "uncontrolled",
+    mode: "controlled",
     initialValues: {
-      encryption: output?.[outputType]?.connection?.enforced_encryption,
-      stripRtp: output?.[outputType]?.strip_rtp,
-      passphrase: output?.[outputType]?.passphrase,
       name: output?.name,
-      node: hasDedicatedNode ? (output.description ?? "") : "",
-      geo: !hasDedicatedNode ? (output.description ?? "") : "",
-      url: targetUrl ?? ""
+      type: initialType, // rtp | srt_pull | srt_push | udp
+      nodeType: initialHasDedicatedNode ? "dedicated" : "public", // dedicated | public
+      node: initialHasDedicatedNode ? (output.description ?? "") : "",
+      geo: !initialHasDedicatedNode ? (output.description ?? "") : "",
+      url: initialTargetUrl ?? "",
+      encryption: output?.[initialType]?.connection?.enforced_encryption,
+      stripRtp: output?.[initialType]?.strip_rtp,
+      passphrase: output?.[initialType]?.passphrase
       // tags: output?.tags || []
     },
     validate: {
@@ -165,35 +164,43 @@ const GeneralConfigPanel = observer(({output, id}) => {
         }
         return null;
       },
-      node: (value) => hasDedicatedNode ? (value ? null : "Node is required") : null,
-      geo: (value) => !hasDedicatedNode ? (value ? null : "Geo is required") : null,
-      url: (value) => isPush ? (value ? null : "URL is required") : null
+      node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
+      geo: (value, values) => values.nodeType === "public" ? (value ? null : "Geo is required") : null,
+      url: (value, values) => values.type === "srt_pull" ? null : (value ? null : "URL is required")
     }
   });
 
-  // "uncontrolled" form mode doesn't re-render the panel when a field changes,
-  // so the Passphrase field's visibility needs its own subscription to stay in sync.
-  form.watch("encryption", ({value}) => setEncryptionEnabled(!!value));
+  const {type, nodeType} = form.getValues();
+  const isDedicated = nodeType === "dedicated";
+  // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
+  // so it has no editable Target URL.
+  const isPush = type !== "srt_pull";
+  const isSrt = type?.includes("srt");
+  // Protocol-specific example shown in the Target URL field
+  const urlPlaceholder = `${type === "srt_push" ? "srt" : type}://example.com:1234`;
 
   const HandleSubmit = async(values) => {
     try {
       setApplyingChanges(true);
 
-      const {encryption, stripRtp, passphrase, name, node, geo, url} = values;
+      const {name, type, node, geo, encryption, stripRtp, passphrase, url} = values;
+      const isDedicated = values.nodeType === "dedicated";
+      const isPush = type !== "srt_pull";
 
       await outputStore.ModifyOutput({
         outputId: id,
+        name,
+        type,
         encryption,
         stripRtp,
         passphrase: encryption ? passphrase : undefined,
-        name,
-        node: hasDedicatedNode ? node : undefined,
-        region: !hasDedicatedNode ? geo : undefined,
+        node: isDedicated ? node : undefined,
+        region: !isDedicated ? geo : undefined,
         url: isPush ? url : undefined,
         // tags
       });
 
-      form.setFieldValue("passphrase", outputStore.outputs[id]?.[outputType]?.passphrase ?? "");
+      form.setFieldValue("passphrase", outputStore.outputs[id]?.[type]?.passphrase ?? "");
 
       notifications.show({
         title: <NotificationMessage>Updated output</NotificationMessage>,
@@ -240,85 +247,105 @@ const GeneralConfigPanel = observer(({output, id}) => {
 
         <Box>
           <SectionTitle mb={12}>Output</SectionTitle>
-          <Box style={{opacity: 0.5, pointerEvents: "none"}} mb={20}>
+          <SimpleGrid cols={2} spacing={150} mb={20}>
+            <Select
+              label="Type"
+              description="Defines the output type"
+              placeholder="Output Type"
+              allowDeselect={false}
+              data={[
+                {label: "SRT PULL", value: "srt_pull"},
+                {label: "SRT PUSH", value: "srt_push"},
+                {label: "RTP", value: "rtp"},
+                {label: "UDP", value: "udp"}
+              ]}
+              key={form.key("type")}
+              {...form.getInputProps("type")}
+            />
+          </SimpleGrid>
+          <Stack gap={20}>
             <Select
               label="Node Type"
-              onChange={() => {}}
               data={[
-                {label: "Dedicated", value: "dedicated"},
+                ...(dataStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
                 {label: "Public", value: "public"}
               ]}
-              value={hasDedicatedNode ? "dedicated" : "public"}
-              readOnly
+              allowDeselect={false}
+              key={form.key("nodeType")}
+              {...form.getInputProps("nodeType")}
+              onChange={(value) => {
+                form.setFieldValue("nodeType", value);
+                form.setFieldValue("url", "");
+              }}
             />
-          </Box>
-          {
-            hasDedicatedNode &&
-            <Select
-              label="Node"
-              placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
-              data={dataStore.dedicatedNodesList}
-              mb={20}
-              key={form.key("node")}
-              {...form.getInputProps("node")}
-            />
-          }
-          {
-            isPush &&
-            <TextInput
-              label="Target URL"
-              key={form.key("url")}
-              {...form.getInputProps("url")}
-            />
-          }
+            {
+              isDedicated ?
+                <Select
+                  label="Node"
+                  placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
+                  data={dataStore.dedicatedNodesList}
+                  allowDeselect={false}
+                  withAsterisk
+                  key={form.key("node")}
+                  {...form.getInputProps("node")}
+                /> :
+                <Select
+                  label="Fabric Geo"
+                  withAsterisk
+                  data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
+                  placeholder="Select Geo"
+                  clearable
+                  key={form.key("geo")}
+                  {...form.getInputProps("geo")}
+                />
+            }
+            {
+              isPush &&
+              <TextInput
+                label="Target URL"
+                placeholder={urlPlaceholder}
+                key={form.key("url")}
+                withAsterisk
+                {...form.getInputProps("url")}
+              />
+            }
+          </Stack>
         </Box>
 
         {
-          !hasDedicatedNode &&
+          isSrt &&
           <>
             <Divider mb={20} mt={30} />
 
-            <Box>
-              <SectionTitle mb={12}>Fabric Geo</SectionTitle>
-              <Select
-                description="The geographic region this output is served from."
-                data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
-                key={form.key("geo")}
-                {...form.getInputProps("geo")}
-              />
-            </Box>
+            <SectionTitle mb={12}>Encryption</SectionTitle>
+            <Checkbox
+              label="Enable Encryption"
+              description="If encryption is enabled, a passphrase is required to decrypt the stream. If not provided, one will be auto-generated."
+              key={form.key("encryption")}
+              {...form.getInputProps("encryption", {type: "checkbox"})}
+            />
+            {
+              form.getValues().encryption &&
+              <SimpleGrid cols={2} spacing={150} mt={20} pl={28}>
+                <PasswordInput
+                  label="Passphrase"
+                  key={form.key("passphrase")}
+                  {...form.getInputProps("passphrase")}
+                />
+              </SimpleGrid>
+            }
+
+            <Divider mb={20} mt={30} />
+
+            <SectionTitle mb={12}>Strip RTP</SectionTitle>
+            <Checkbox
+              label="Enable Strip RTP"
+              description="Remove RTP encapsulation from the incoming stream"
+              key={form.key("stripRtp")}
+              {...form.getInputProps("stripRtp", {type: "checkbox"})}
+            />
           </>
         }
-
-        <Divider mb={20} mt={30} />
-
-        <SectionTitle mb={12}>Encryption</SectionTitle>
-        <Checkbox
-          label="Enable Encryption"
-          description="If encryption is enabled, a passphrase is required to decrypt the stream. If not provided, one will be auto-generated."
-          key={form.key("encryption")}
-          {...form.getInputProps("encryption", {type: "checkbox"})}
-        />
-        {
-          encryptionEnabled &&
-          <SimpleGrid cols={2} spacing={150} mt={20} pl={28}>
-            <PasswordInput
-              label="Passphrase"
-              key={form.key("passphrase")}
-              {...form.getInputProps("passphrase")}
-            />
-          </SimpleGrid>
-        }
-
-        <Divider mb={20} mt={30} />
-
-        <SectionTitle mb={12}>Strip RTP</SectionTitle>
-        <Checkbox
-          label="Enable Strip RTP"
-          description="Remove RTP encapsulation from the incoming stream"
-          key={form.key("stripRtp")}
-          {...form.getInputProps("stripRtp", {type: "checkbox"})}
-        />
 
         <Button
           mt={60}
