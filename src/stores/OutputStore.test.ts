@@ -471,24 +471,42 @@ describe("ModifyOutput — transport branching", () => {
   });
 });
 
-// Regression coverage for "only one of elvgeos or node_ids can be set" -
-// switching a dedicated node to a public geo (or back) must clear the side
-// that's no longer active, not just leave it untouched from the merge.
-describe("ModifyOutput — node/region clearing", () => {
-  const makeModifyStore = (existingOutput: Record<string, unknown>) => {
+// Regression coverage for two related bugs:
+// 1. "only one of elvgeos or node_ids can be set" - switching a dedicated node
+//    to a public geo (or back) must clear the side that's no longer active.
+// 2. "json: unknown field \"elvgeo\"" - elvgeo/elvgeos are a client-side-only
+//    resolution convenience (see ResolveEgressNodeId in OutputStore.ts); the
+//    fabric's modify endpoint rejects them outright, so a region must be
+//    resolved to a concrete node ID before ever being written.
+describe("ModifyOutput — node/region clearing and geo resolution", () => {
+  const makeModifyStore = (existingOutput: Record<string, unknown>, clientOverrides: Record<string, unknown> = {}) => {
     const {store, mockClient} = makeStore({
       OutputsListItem: vi.fn()
         .mockResolvedValueOnce(existingOutput)
-        .mockResolvedValueOnce(existingOutput)
+        .mockResolvedValueOnce(existingOutput),
+      ...clientOverrides
     });
     store.outputs = {"out-1": existingOutput};
     return {store, mockClient};
   };
 
+  // ResolveEgressNodeId calls the global fetch directly (it's resolving against
+  // the fabric's public /config endpoint, not going through the proxied client).
+  const stubConfigFetch = (liveEgressUrls: string[] = ["https://egress-1.example.com:443"]) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({network: {services: {live_egress: liveEgressUrls}}})
+    }));
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("should clear elvgeos on an srt_pull output when switching to a dedicated node", async () => {
     const existing = {
       name: "Pull Out",
       srt_pull: {urls: ["srt://host:1234"], elvgeos: ["us-east"]},
+      description: "us-east",
       input: {stream: "iq__abc"}
     };
     const {store, mockClient} = makeModifyStore(existing);
@@ -500,25 +518,32 @@ describe("ModifyOutput — node/region clearing", () => {
     expect(outputArg.srt_pull.elvgeos).toBeUndefined();
   });
 
-  it("should clear node_ids on an srt_pull output when switching to a public geo", async () => {
+  it("should resolve region to a concrete node ID (never elvgeos) on an srt_pull output when switching to a public geo", async () => {
+    stubConfigFetch();
     const existing = {
       name: "Pull Out",
       srt_pull: {urls: ["srt://host:1234"], node_ids: ["inode123"]},
+      description: "inode123",
       input: {stream: "iq__abc"}
     };
-    const {store, mockClient} = makeModifyStore(existing);
+    const {store, mockClient} = makeModifyStore(existing, {
+      ConfigUrl: vi.fn().mockResolvedValue("https://main.contentfabric.io/config"),
+      SpaceNodes: vi.fn().mockResolvedValue([{id: "inode-resolved"}])
+    });
 
     await store.ModifyOutput({outputId: "out-1", type: "srt_pull", node: "", region: "us-east"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
-    expect(outputArg.srt_pull.elvgeos).toEqual(["us-east"]);
-    expect(outputArg.srt_pull.node_ids).toBeUndefined();
+    expect(outputArg.srt_pull.node_ids).toEqual(["inode-resolved"]);
+    expect(outputArg.srt_pull.elvgeos).toBeUndefined();
+    expect(mockClient.SpaceNodes).toHaveBeenCalledWith({matchEndpoint: "egress-1.example.com"});
   });
 
   it("should clear elvgeo on an rtp output when switching to a dedicated node", async () => {
     const existing = {
       name: "RTP Out",
       rtp: {url: "rtp://host:5004", elvgeo: "us-east"},
+      description: "us-east",
       input: {stream: "iq__abc"}
     };
     const {store, mockClient} = makeModifyStore(existing);
@@ -530,19 +555,24 @@ describe("ModifyOutput — node/region clearing", () => {
     expect(outputArg.rtp.elvgeo).toBeUndefined();
   });
 
-  it("should clear node_id on an rtp output when switching to a public geo", async () => {
+  it("should resolve region to a concrete node ID (never elvgeo) on an rtp output when switching to a public geo", async () => {
+    stubConfigFetch();
     const existing = {
       name: "RTP Out",
       rtp: {url: "rtp://host:5004", node_id: "inode123"},
+      description: "inode123",
       input: {stream: "iq__abc"}
     };
-    const {store, mockClient} = makeModifyStore(existing);
+    const {store, mockClient} = makeModifyStore(existing, {
+      ConfigUrl: vi.fn().mockResolvedValue("https://main.contentfabric.io/config"),
+      SpaceNodes: vi.fn().mockResolvedValue([{id: "inode-resolved"}])
+    });
 
     await store.ModifyOutput({outputId: "out-1", type: "rtp", node: "", region: "us-east"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
-    expect(outputArg.rtp.elvgeo).toBe("us-east");
-    expect(outputArg.rtp.node_id).toBeUndefined();
+    expect(outputArg.rtp.node_id).toBe("inode-resolved");
+    expect(outputArg.rtp.elvgeo).toBeUndefined();
   });
 
   it("should leave node_ids/elvgeos untouched when neither node nor region is passed", async () => {
@@ -557,6 +587,59 @@ describe("ModifyOutput — node/region clearing", () => {
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.srt_pull.elvgeos).toEqual(["us-east"]);
+  });
+
+  // Regression test for the reported bug: renaming a public (geo-targeted) output
+  // was unconditionally re-sending its current geo as a literal "elvgeo" field on
+  // every save - a field the fabric's modify endpoint doesn't recognize at all -
+  // causing every rename (or any other unrelated edit) of such an output to 400.
+  it("should not resolve or touch node_id/elvgeo when node/region are re-sent unchanged (e.g. a plain rename)", async () => {
+    const configFetch = vi.fn();
+    vi.stubGlobal("fetch", configFetch);
+    const existing = {
+      name: "RTP Out",
+      rtp: {url: "rtp://host:5004", node_id: "inode-existing"},
+      description: "us-east",
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing, {
+      ConfigUrl: vi.fn(),
+      SpaceNodes: vi.fn()
+    });
+
+    // Same nodeType/geo as already stored (public + "us-east"), only the name changes.
+    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", node: "", region: "us-east"});
+
+    expect(configFetch).not.toHaveBeenCalled();
+    expect(mockClient.ConfigUrl).not.toHaveBeenCalled();
+    expect(mockClient.SpaceNodes).not.toHaveBeenCalled();
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.name).toBe("Renamed");
+    expect(outputArg.rtp.node_id).toBe("inode-existing");
+    expect(outputArg.description).toBeUndefined();
+  });
+
+  it("should re-resolve node_id when the transport type changes even if node/region values look unchanged", async () => {
+    stubConfigFetch();
+    const existing = {
+      name: "Out",
+      udp: {url: "udp://host:6000", node_id: "inode-existing"},
+      description: "us-east",
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing, {
+      ConfigUrl: vi.fn().mockResolvedValue("https://main.contentfabric.io/config"),
+      SpaceNodes: vi.fn().mockResolvedValue([{id: "inode-resolved"}])
+    });
+
+    // Switching udp -> rtp; region "us-east" matches existing.description, but the
+    // transport block is being rebuilt from scratch so it must still be resolved.
+    await store.ModifyOutput({outputId: "out-1", type: "rtp", node: "", region: "us-east"});
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.rtp.node_id).toBe("inode-resolved");
+    expect(outputArg.udp).toBeUndefined();
   });
 });
 

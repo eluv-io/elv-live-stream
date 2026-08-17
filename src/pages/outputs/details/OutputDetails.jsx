@@ -322,7 +322,12 @@ const OutputPanels = observer(({output, id, url}) => {
       geo: (value, values) => values.nodeType === "public" ? (value ? null : "Geo is required") : null,
       url: (value, values) => values.type === "srt_pull" ? null : (value ? null : "URL is required")
     },
-    onValuesChange: () => outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()})
+    onValuesChange: () => {
+      outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()});
+      // Summary only ever edits "url" - track it separately so changes to
+      // General-Config-only fields (e.g. name) don't flag Summary as dirty.
+      outputSaveStore.SetUrlDirty(form.isDirty("url"));
+    }
   });
 
   const Save = async() => {
@@ -384,10 +389,12 @@ const OutputPanels = observer(({output, id, url}) => {
   );
 });
 
-// Both tabs share the "generalConfig" dirty flag (see OutputPanels).
+// Both tabs share the "generalConfig" save/discard action (see OutputPanels),
+// but each shows its own dirty indicator: Summary only edits "url", so it
+// uses the field-level urlDirty flag rather than the whole-form flag.
 const OUTPUT_TABS = [
-  {label: "Summary", value: "summary", savable: true, dirtyId: "generalConfig"},
-  {label: "General Config", value: "generalConfig", savable: true, dirtyId: "generalConfig"}
+  {label: "Summary", value: "summary", savable: true, IsDirty: () => outputSaveStore.urlDirty},
+  {label: "General Config", value: "generalConfig", savable: true, IsDirty: () => outputSaveStore.IsDirty("generalConfig")}
 ];
 
 const OutputDetails = observer(() => {
@@ -608,7 +615,7 @@ const OutputDetails = observer(() => {
               OUTPUT_TABS.map(tab => (
                 <Tabs.Tab value={tab.value} key={`output-details-tab-${tab.value}`}>
                   <Indicator
-                    disabled={!(tab.savable && outputSaveStore.IsDirty(tab.dirtyId))}
+                    disabled={!(tab.savable && tab.IsDirty())}
                     color="elv-blue.3"
                     size={8}
                     offset={-4}

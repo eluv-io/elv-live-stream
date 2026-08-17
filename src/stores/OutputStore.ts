@@ -94,6 +94,33 @@ interface FlatOutput {
   input?: OutputInput;
 }
 
+// elvgeo/elvgeos are a create-time-only convenience: elv-client-js's OutputsCreate
+// resolves them to a concrete node_id/node_ids and deletes them before ever hitting
+// the fabric - the fabric's output config schema doesn't have an elvgeo field at all.
+// OutputsModify has no such resolution step (it PUTs the raw output object as-is), so
+// a region picked in the edit UI must be resolved to a node ID client-side first, or
+// the fabric rejects the request with "unknown field \"elvgeo\"". This mirrors the
+// resolution elv-client-js does internally (LiveStream.js's private RetrieveOutputNodeId).
+const ResolveEgressNodeId = async ({client, geo}: {client: any, geo?: string}): Promise<string> => {
+  const configUrl = new URL(await client.ConfigUrl());
+  configUrl.pathname = "/config";
+  if(geo) { configUrl.searchParams.set("elvgeo", geo); }
+
+  const fabricInfo = await (await fetch(configUrl.toString())).json();
+  const liveEgressUrls = fabricInfo?.network?.services?.live_egress;
+  if(!liveEgressUrls?.length) {
+    throw new Error("No live_egress endpoints found in fabric config");
+  }
+
+  const hostname = new URL(liveEgressUrls[0]).hostname;
+  const nodes = await client.SpaceNodes({matchEndpoint: hostname});
+  if(!nodes?.length) {
+    throw new Error(`No node found matching live_egress endpoint: ${hostname}`);
+  }
+
+  return nodes[0].id;
+};
+
 interface CreateOutputParams {
   name?: string;
   externalId?: string;
@@ -657,12 +684,29 @@ class OutputStore {
       // the output actually uses. srt_pull stores node/region as arrays.
       const isPull = transportKey === "srt_pull";
 
+      // node/region arrive as raw picks from the edit form (one truthy, "" for the
+      // inactive one - see OutputDetails.jsx). Only actually touch node_id/node_ids
+      // when the pick differs from what's already pinned - existing.description holds
+      // the last node ID or geo string used (see CreateOutput) - or the transport type
+      // changed (which discards the old transport block, including its node_id). This
+      // avoids re-resolving, and potentially re-pinning to a different available node,
+      // on saves that don't touch node/geo at all, e.g. a plain rename.
+      const touchesNodeOrRegion = node !== undefined || region !== undefined;
+      const nodeOrRegionTarget = node || region || "";
+      const nodeOrRegionChanged = touchesNodeOrRegion && (typeChanged || nodeOrRegionTarget !== (existing.description || ""));
+
+      // elvgeo/elvgeos aren't real fabric fields (see ResolveEgressNodeId) - a chosen
+      // region must be resolved to a concrete node ID before it's written.
+      const resolvedNodeId = nodeOrRegionChanged ?
+        (node || (region ? yield ResolveEgressNodeId({client: this.client, geo: region}) : undefined)) :
+        undefined;
+
       const output = {
         ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
         // ...(tags !== undefined && {tags}),
         input: cleanInput,
-        ...((node !== undefined || region !== undefined) && {description: node || region}),
+        ...(nodeOrRegionChanged && {description: nodeOrRegionTarget}),
         ...(transportKey && {
           [transportKey]: {
             ...existingTransport,
@@ -674,8 +718,14 @@ class OutputStore {
               passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
               strip_rtp: stripRtp ?? existingSrt?.strip_rtp
             }),
-            ...(node !== undefined && {[isPull ? "node_ids" : "node_id"]: node ? (isPull ? [node] : node) : undefined}),
-            ...(region !== undefined && {[isPull ? "elvgeos" : "elvgeo"]: region ? (isPull ? [region] : region) : undefined}),
+            // elvgeo/elvgeos are cleared unconditionally here (not just written as
+            // undefined-if-absent) so a stale value from existingTransport - e.g. from
+            // data that predates this resolution step - never survives a save that
+            // touches node/region.
+            ...(nodeOrRegionChanged && {
+              [isPull ? "node_ids" : "node_id"]: resolvedNodeId ? (isPull ? [resolvedNodeId] : resolvedNodeId) : undefined,
+              [isPull ? "elvgeos" : "elvgeo"]: undefined
+            }),
             ...(!isPull && url !== undefined && {url: url || undefined})
           }
         })

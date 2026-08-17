@@ -17,6 +17,10 @@ class OutputSaveStore {
   dirty: Record<SavableOutputPanelId, boolean> = {generalConfig: false};
   saving = false;
   failedPanelId: SavableOutputPanelId | null = null;
+  // Summary and General Config share one form/save action (see OutputDetails.jsx),
+  // but Summary only ever edits "url" - this tracks that field alone so Summary's
+  // tab indicator doesn't light up for General-Config-only fields like "name".
+  urlDirty = false;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
@@ -42,15 +46,21 @@ class OutputSaveStore {
   Unregister(id: SavableOutputPanelId): void {
     delete this.panels[id];
     this.dirty[id] = false;
+    this.urlDirty = false;
   }
 
   SetDirty({id, isDirty}: {id: SavableOutputPanelId, isDirty: boolean}): void {
     this.dirty[id] = isDirty;
   }
 
+  SetUrlDirty(isDirty: boolean): void {
+    this.urlDirty = isDirty;
+  }
+
   Reset(): void {
     this.panels = {};
     this.dirty = {generalConfig: false};
+    this.urlDirty = false;
     this.saving = false;
     this.failedPanelId = null;
   }
