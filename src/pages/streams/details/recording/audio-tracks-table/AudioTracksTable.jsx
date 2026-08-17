@@ -15,12 +15,12 @@ const AudioTracksTable = observer(({
   disabled
 }) => {
   const HandleFormChange = ({index, key, value}) => {
-    const audioIndexSpecific = audioFormData[index];
-    audioIndexSpecific[key] = value;
-
     setAudioFormData({
       ...audioFormData,
-      [index]: audioIndexSpecific
+      [index]: {
+        ...audioFormData[index],
+        [key]: value
+      }
     });
   };
 
