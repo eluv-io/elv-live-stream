@@ -19,6 +19,7 @@ export const modalStore = rootStore.modalStore;
 export const siteStore = rootStore.siteStore;
 export const profileStore = rootStore.profileStore;
 export const outputStore = rootStore.outputStore;
+export const outputSaveStore = rootStore.outputSaveStore;
 export const outputModalStore = rootStore.outputModalStore;
 export const versionStore = rootStore.versionStore;
 

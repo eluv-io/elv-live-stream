@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import {useNavigate, useParams} from "react-router-dom";
-import {dataStore, outputStore} from "@/stores/index.ts";
+import {useBlocker, useNavigate, useParams} from "react-router-dom";
+import {dataStore, outputStore, outputSaveStore} from "@/stores/index.ts";
 import {
   ActionIcon,
   Badge,
@@ -11,6 +11,7 @@ import {
   Divider,
   Flex,
   Group,
+  Indicator,
   Input,
   Loader, PasswordInput,
   Select,
@@ -21,7 +22,7 @@ import {
   Title,
   Tooltip
 } from "@mantine/core";
-import {Fragment, useEffect, useState} from "react";
+import {Fragment, useCallback, useEffect, useRef, useState} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
 import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.jsx";
@@ -37,6 +38,7 @@ import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 
 const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
@@ -132,8 +134,6 @@ const SummaryPanel = observer(({output, url, id}) => {
 });
 
 const GeneralConfigPanel = observer(({output, id}) => {
-  const [applyingChanges, setApplyingChanges] = useState(false);
-
   const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
   const initialHasDedicatedNode = output.description?.startsWith("inod");
   const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
@@ -167,7 +167,8 @@ const GeneralConfigPanel = observer(({output, id}) => {
       node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
       geo: (value, values) => values.nodeType === "public" ? (value ? null : "Geo is required") : null,
       url: (value, values) => values.type === "srt_pull" ? null : (value ? null : "URL is required")
-    }
+    },
+    onValuesChange: () => outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()})
   });
 
   const {type, nodeType} = form.getValues();
@@ -179,58 +180,63 @@ const GeneralConfigPanel = observer(({output, id}) => {
   // Protocol-specific example shown in the Target URL field
   const urlPlaceholder = `${type === "srt_push" ? "srt" : type}://example.com:1234`;
 
-  const HandleSubmit = async(values) => {
-    try {
-      setApplyingChanges(true);
+  const Save = async() => {
+    const {hasErrors} = form.validate();
+    if(hasErrors) { throw new Error("Please resolve validation errors before saving"); }
 
-      const {name, type, node, geo, encryption, stripRtp, passphrase, url} = values;
-      const isDedicated = values.nodeType === "dedicated";
-      const isPush = type !== "srt_pull";
+    const values = form.getValues();
+    const {name, type, node, geo, encryption, stripRtp, passphrase, url} = values;
+    const isDedicated = values.nodeType === "dedicated";
+    const isPush = type !== "srt_pull";
 
-      await outputStore.ModifyOutput({
-        outputId: id,
-        name,
-        type,
-        encryption,
-        stripRtp,
-        passphrase: encryption ? passphrase : undefined,
-        node: isDedicated ? node : undefined,
-        region: !isDedicated ? geo : undefined,
-        url: isPush ? url : undefined,
-        // tags
-      });
+    await outputStore.ModifyOutput({
+      outputId: id,
+      name,
+      type,
+      encryption,
+      stripRtp,
+      passphrase: encryption ? passphrase : undefined,
+      // "" rather than undefined for the inactive one of node/region - ModifyOutput
+      // treats undefined as "leave existing value alone", but switching between
+      // dedicated node and public geo must clear whichever one is no longer active,
+      // or the fabric rejects the update ("only one of elvgeos or node_ids can be set").
+      node: isDedicated ? node : "",
+      region: !isDedicated ? geo : "",
+      url: isPush ? url : undefined,
+      // tags
+    });
 
-      form.setFieldValue("passphrase", outputStore.outputs[id]?.[type]?.passphrase ?? "");
-
-      notifications.show({
-        title: <NotificationMessage>Updated output</NotificationMessage>,
-        message: "Changes have been applied successfully"
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to update output", error);
-
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: "Unable to save changes"
-      });
-    } finally {
-      setApplyingChanges(false);
-    }
+    // resetDirty before setFieldValue: same reasoning as GeneralPanel - set
+    // the baseline to include the (possibly server-assigned) passphrase
+    // first, so setting the field to match it doesn't read as a new change.
+    const newPassphrase = outputStore.outputs[id]?.[type]?.passphrase ?? "";
+    form.resetDirty({...values, passphrase: newPassphrase});
+    form.setFieldValue("passphrase", newPassphrase);
   };
+
+  const SaveRef = useRef();
+  SaveRef.current = Save;
+
+  useEffect(() => {
+    outputSaveStore.Register({
+      id: "generalConfig",
+      Save: () => SaveRef.current(),
+      Discard: () => form.reset()
+    });
+
+    return () => outputSaveStore.Unregister("generalConfig");
+  }, []);
 
   return (
     <Box pt={16}>
-      <form onSubmit={form.onSubmit(HandleSubmit)}>
-        <SectionTitle mb={12}>General</SectionTitle>
-        <SimpleGrid cols={2} spacing={150} mb={20}>
-          <TextInput
-            label="Name"
-            key={form.key("name")}
-            {...form.getInputProps("name")}
-          />
-        </SimpleGrid>
+      <SectionTitle mb={12}>General</SectionTitle>
+      <Box mb={20}>
+        <TextInput
+          label="Name"
+          key={form.key("name")}
+          {...form.getInputProps("name")}
+        />
+      </Box>
         {/*<SimpleGrid cols={2} spacing={150}>*/}
         {/*  <TagsInput*/}
         {/*    label="Tags"*/}
@@ -247,22 +253,21 @@ const GeneralConfigPanel = observer(({output, id}) => {
 
         <Box>
           <SectionTitle mb={12}>Output</SectionTitle>
-          <SimpleGrid cols={2} spacing={150} mb={20}>
-            <Select
-              label="Type"
-              description="Defines the output type"
-              placeholder="Output Type"
-              allowDeselect={false}
-              data={[
-                {label: "SRT PULL", value: "srt_pull"},
-                {label: "SRT PUSH", value: "srt_push"},
-                {label: "RTP", value: "rtp"},
-                {label: "UDP", value: "udp"}
-              ]}
-              key={form.key("type")}
-              {...form.getInputProps("type")}
-            />
-          </SimpleGrid>
+          <Select
+            label="Output Type"
+            description="Defines the output type"
+            placeholder="Output Type"
+            allowDeselect={false}
+            data={[
+              {label: "SRT PULL", value: "srt_pull"},
+              {label: "SRT PUSH", value: "srt_push"},
+              {label: "RTP", value: "rtp"},
+              {label: "UDP", value: "udp"}
+            ]}
+            key={form.key("type")}
+            {...form.getInputProps("type")}
+            mb={20}
+          />
           <Stack gap={20}>
             <Select
               label="Node Type"
@@ -346,24 +351,44 @@ const GeneralConfigPanel = observer(({output, id}) => {
             />
           </>
         }
-
-        <Button
-          mt={60}
-          type="submit"
-          disabled={applyingChanges || !form.isDirty()}
-          loading={applyingChanges}
-        >
-          Save
-        </Button>
-      </form>
     </Box>
   );
 });
+
+const OUTPUT_TABS = [
+  {label: "Summary", value: "summary"},
+  {label: "General Config", value: "generalConfig", savable: true}
+];
 
 const OutputDetails = observer(() => {
   const {id} = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [pendingBack, setPendingBack] = useState(false);
+
+  // Blocks in-app navigation (sidebar links, browser back/forward, navigate())
+  // away from this page while the config tab has unsaved changes. Only
+  // guards actual route changes - switching within-page tabs doesn't change
+  // the pathname, so it's left alone. Mirrors StreamDetailsPage.
+  const blocker = useBlocker(
+    useCallback(
+      ({currentLocation, nextLocation}) =>
+        outputSaveStore.anyDirty && currentLocation.pathname !== nextLocation.pathname,
+      []
+    )
+  );
+
+  // Reset during render, not in an effect: on mount, GeneralConfigPanel's
+  // effect (registering itself with outputSaveStore) runs before this
+  // component's own effects, so resetting from an effect here would wipe out
+  // a registration that already happened. Render runs parent-before-child,
+  // so this always precedes it. Mirrors StreamDetailsPage.
+  const resetOutputIdRef = useRef(null);
+  if(id && resetOutputIdRef.current !== id) {
+    resetOutputIdRef.current = id;
+    outputSaveStore.Reset();
+  }
 
   const output = outputStore.outputs[id];
   const flatOutput = outputStore.OutputItem(id);
@@ -373,6 +398,9 @@ const OutputDetails = observer(() => {
   const hasDedicatedNode = output?.description?.startsWith("inod");
   const geoLabel = !hasDedicatedNode ?
     FABRIC_NODE_REGIONS.find(geo => geo.value === output?.description)?.label :
+    undefined;
+  const nodeLabel = hasDedicatedNode ?
+    dataStore.dedicatedNodes?.[output.description]?.name :
     undefined;
   const typeBadges = flatOutput?.type?.length ?
     <Group gap={4} wrap="nowrap">
@@ -388,7 +416,8 @@ const OutputDetails = observer(() => {
   const subtitleItems = [
     typeBadges,
     geoLabel,
-    hasDedicatedNode ? "Dedicated" : "Public"
+    hasDedicatedNode ? "Dedicated" : "Public",
+    nodeLabel
   ].filter(Boolean);
   const DebouncedRefresh = useDebouncedCallback(async() => {
     try {
@@ -425,12 +454,50 @@ const OutputDetails = observer(() => {
     LoadData();
   }, [output?.input?.stream]);
 
+  const HandleSaveAll = async () => {
+    try {
+      await outputSaveStore.SaveAll();
+
+      notifications.show({
+        title: <NotificationMessage>Updated {output?.name || id}</NotificationMessage>,
+        message: "Changes have been applied successfully"
+      });
+
+      DebouncedRefresh();
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to save changes", error);
+
+      const failedTab = OUTPUT_TABS.find(tab => tab.value === outputSaveStore.failedPanelId);
+
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: `Unable to save ${failedTab?.label ?? "changes"}. Please review that tab and try again.`
+      });
+    }
+  };
+
+  const HandleDiscardAll = () => {
+    outputSaveStore.DiscardAll();
+  };
+
+  // Checks dirty state before ever calling navigate(-1) - see StreamDetailsPage
+  // for why this is pre-checked rather than left to the router blocker alone.
+  const HandleBack = () => {
+    if(outputSaveStore.anyDirty) {
+      setPendingBack(true);
+    } else {
+      navigate(-1);
+    }
+  };
+
   const actions = [
     {
       label: "Back",
       buttonVariant: "filled",
       color: "elv-gray.6",
-      onClick: () => navigate(-1)
+      onClick: HandleBack
     },
     {
       label: "Refresh",
@@ -440,27 +507,36 @@ const OutputDetails = observer(() => {
     {
       label: "Reset",
       buttonVariant: "outline",
-      onClick: () => outputModalStore.OpenModal("reset", [id])
+      onClick: () => outputModalStore.OpenModal("reset", [id]),
+      mutatesOutput: true
     },
     {
       label: output?.enabled ? "Disable" : "Enable",
       buttonVariant: "outline",
-      onClick: () => outputModalStore.OpenModal(output?.enabled ? "disable" : "enable", [id], () => outputStore.LoadOutputItem({outputId: id}))
+      onClick: () => outputModalStore.OpenModal(output?.enabled ? "disable" : "enable", [id], () => outputStore.LoadOutputItem({outputId: id})),
+      mutatesOutput: true
     },
     {
       label: "Unmap Stream",
       buttonVariant: "filled",
       onClick: () => outputModalStore.OpenModal("unmap", [id]),
-      hidden: !output?.input?.stream
+      hidden: !output?.input?.stream,
+      mutatesOutput: true
     },
     {
       label: "Map to a Stream",
       buttonVariant: "filled",
       onClick: () => outputModalStore.OpenModal("map", [id]),
-      hidden: output?.input?.stream
+      hidden: output?.input?.stream,
+      mutatesOutput: true
     }
   ]
-    .filter(e => !e.hidden);
+    .filter(e => !e.hidden)
+    .map(action =>
+      action.mutatesOutput && outputSaveStore.anyDirty ?
+        {...action, disabled: true, disabledTooltip: "Save or discard your changes to use output controls"} :
+        action
+    );
 
   if(!output) { return <Loader />; }
 
@@ -495,11 +571,49 @@ const OutputDetails = observer(() => {
         />
       }
     >
-      <Tabs defaultValue="summary">
-        <Tabs.List>
-          <Tabs.Tab value="summary">Summary</Tabs.Tab>
-          <Tabs.Tab value="generalConfig">General Config</Tabs.Tab>
-        </Tabs.List>
+      {/* keepMountedMode="display-none": Mantine's default "activity" mode hides
+          inactive panels via React's Activity component, which runs useEffect
+          cleanup on hide and reruns it on show - that would unregister/clear
+          GeneralConfigPanel's dirty state from outputSaveStore every time its
+          tab is switched away from. Plain CSS hiding avoids that effect
+          teardown. Mirrors StreamDetailsPage. */}
+      <Tabs defaultValue="summary" keepMountedMode="display-none">
+        <Flex justify="space-between" align="center" mb={22}>
+          <Tabs.List>
+            {
+              OUTPUT_TABS.map(tab => (
+                <Tabs.Tab value={tab.value} key={`output-details-tab-${tab.value}`}>
+                  <Indicator
+                    disabled={!(tab.savable && outputSaveStore.IsDirty(tab.value))}
+                    color="elv-blue.3"
+                    size={8}
+                    offset={-4}
+                    position="top-end"
+                  >
+                    <Title order={3} c="elv-gray.9">{tab.label}</Title>
+                  </Indicator>
+                </Tabs.Tab>
+              ))
+            }
+          </Tabs.List>
+          <Flex gap={12} align="center">
+            <Button
+              variant="outline"
+              color="elv-gray.6"
+              disabled={!outputSaveStore.anyDirty || outputSaveStore.saving}
+              onClick={() => setShowDiscardModal(true)}
+            >
+              Discard Changes
+            </Button>
+            <Button
+              disabled={!outputSaveStore.anyDirty}
+              loading={outputSaveStore.saving}
+              onClick={HandleSaveAll}
+            >
+              Save
+            </Button>
+          </Flex>
+        </Flex>
         {
           (loading || outputStore.state !== "loaded") ?
             <Box p={15}><Loader /></Box> :
@@ -514,6 +628,40 @@ const OutputDetails = observer(() => {
         }
       </Tabs>
 
+      <ConfirmModal
+        show={showDiscardModal}
+        title="Discard Changes"
+        message="Are you sure you want to discard your unsaved changes? This cannot be undone."
+        confirmText="Discard Changes"
+        cancelText="Cancel"
+        ConfirmCallback={async () => HandleDiscardAll()}
+        CloseCallback={() => setShowDiscardModal(false)}
+      />
+
+      <ConfirmModal
+        show={blocker.state === "blocked" || pendingBack}
+        title="Unsaved Changes"
+        message="Are you sure you want to leave this page? Your unsaved changes will be lost."
+        confirmText="Leave Without Saving"
+        cancelText="Cancel"
+        ConfirmCallback={async () => {
+          outputSaveStore.DiscardAll();
+
+          if(pendingBack) {
+            setPendingBack(false);
+            navigate(-1);
+          } else {
+            blocker.proceed();
+          }
+        }}
+        CloseCallback={() => {
+          setPendingBack(false);
+
+          if(blocker.state === "blocked") {
+            blocker.reset();
+          }
+        }}
+      />
     </PageContainer>
   );
 });

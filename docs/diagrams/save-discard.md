@@ -83,3 +83,7 @@ The `Back` button pre-checks dirty state rather than letting the blocker interce
 - `src/pages/streams/details/StreamDetailsPage.jsx:138-147` — `mutatesStream` action disabling
 - `src/pages/streams/details/StreamDetailsPage.jsx:269-302` — Discard and "Unsaved Changes" `ConfirmModal`s
 - `src/pages/streams/details/general/GeneralPanel.jsx:59,86-92,109-142` — registration pattern (representative; same shape in Recording/Playout panels)
+
+## Output details page
+
+The output details page (`src/pages/outputs/details/OutputDetails.jsx`) mirrors this exact architecture via a separate `OutputSaveStore` (`src/stores/OutputSaveStore.ts`), currently coordinating a single savable tab (`generalConfig`). Same `Register`/`Unregister`/`SetDirty`/`SaveAll`/`DiscardAll` shape, same tab `Indicator` dot, same Save/Discard toolbar, same `useBlocker` + pre-checked `Back` button + `ConfirmModal` pair for the unsaved-changes guard, and the same `mutatesOutput`-flagged action disabling (Reset, Enable/Disable, Unmap/Map) while dirty.

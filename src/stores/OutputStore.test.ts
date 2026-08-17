@@ -471,6 +471,95 @@ describe("ModifyOutput — transport branching", () => {
   });
 });
 
+// Regression coverage for "only one of elvgeos or node_ids can be set" -
+// switching a dedicated node to a public geo (or back) must clear the side
+// that's no longer active, not just leave it untouched from the merge.
+describe("ModifyOutput — node/region clearing", () => {
+  const makeModifyStore = (existingOutput: Record<string, unknown>) => {
+    const {store, mockClient} = makeStore({
+      OutputsListItem: vi.fn()
+        .mockResolvedValueOnce(existingOutput)
+        .mockResolvedValueOnce(existingOutput)
+    });
+    store.outputs = {"out-1": existingOutput};
+    return {store, mockClient};
+  };
+
+  it("should clear elvgeos on an srt_pull output when switching to a dedicated node", async () => {
+    const existing = {
+      name: "Pull Out",
+      srt_pull: {urls: ["srt://host:1234"], elvgeos: ["us-east"]},
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", type: "srt_pull", node: "inode123", region: ""});
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.srt_pull.node_ids).toEqual(["inode123"]);
+    expect(outputArg.srt_pull.elvgeos).toBeUndefined();
+  });
+
+  it("should clear node_ids on an srt_pull output when switching to a public geo", async () => {
+    const existing = {
+      name: "Pull Out",
+      srt_pull: {urls: ["srt://host:1234"], node_ids: ["inode123"]},
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", type: "srt_pull", node: "", region: "us-east"});
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.srt_pull.elvgeos).toEqual(["us-east"]);
+    expect(outputArg.srt_pull.node_ids).toBeUndefined();
+  });
+
+  it("should clear elvgeo on an rtp output when switching to a dedicated node", async () => {
+    const existing = {
+      name: "RTP Out",
+      rtp: {url: "rtp://host:5004", elvgeo: "us-east"},
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", type: "rtp", node: "inode123", region: ""});
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.rtp.node_id).toBe("inode123");
+    expect(outputArg.rtp.elvgeo).toBeUndefined();
+  });
+
+  it("should clear node_id on an rtp output when switching to a public geo", async () => {
+    const existing = {
+      name: "RTP Out",
+      rtp: {url: "rtp://host:5004", node_id: "inode123"},
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", type: "rtp", node: "", region: "us-east"});
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.rtp.elvgeo).toBe("us-east");
+    expect(outputArg.rtp.node_id).toBeUndefined();
+  });
+
+  it("should leave node_ids/elvgeos untouched when neither node nor region is passed", async () => {
+    const existing = {
+      name: "Pull Out",
+      srt_pull: {urls: ["srt://host:1234"], elvgeos: ["us-east"]},
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", name: "Renamed"});
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.srt_pull.elvgeos).toEqual(["us-east"]);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // CreateOutput
 // ---------------------------------------------------------------------------
