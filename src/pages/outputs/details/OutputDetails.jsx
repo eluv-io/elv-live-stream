@@ -40,10 +40,14 @@ import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 
-const SummaryPanel = observer(({output, url, id}) => {
+const SummaryPanel = observer(({output, url, id, form}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
   const videoGap = "20px";
+  const {type} = form.getValues();
+  // srt_pull has no editable Target URL - matches GeneralConfigPanel.
+  const isPush = type !== "srt_pull";
+  const urlPlaceholder = `${type === "srt_push" ? "srt" : type}://example.com:1234`;
 
   return (
     <Box pt={16}>
@@ -108,7 +112,16 @@ const SummaryPanel = observer(({output, url, id}) => {
             </ActionIcon>
           </Tooltip>
         </Group>
-      <TextInput value={url ?? ""} readOnly />
+      {
+        isPush ?
+          <TextInput
+            placeholder={urlPlaceholder}
+            withAsterisk
+            key={form.key("url")}
+            {...form.getInputProps("url")}
+          /> :
+          <TextInput value={url ?? ""} readOnly />
+      }
 
       {
         output?.state?.clients?.map((client, i) => (
@@ -133,44 +146,7 @@ const SummaryPanel = observer(({output, url, id}) => {
   );
 });
 
-const GeneralConfigPanel = observer(({output, id}) => {
-  const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
-  const initialHasDedicatedNode = output.description?.startsWith("inod");
-  const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
-
-  useEffect(() => {
-    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
-  }, []);
-
-  const form = useForm({
-    mode: "controlled",
-    initialValues: {
-      name: output?.name,
-      type: initialType, // rtp | srt_pull | srt_push | udp
-      nodeType: initialHasDedicatedNode ? "dedicated" : "public", // dedicated | public
-      node: initialHasDedicatedNode ? (output.description ?? "") : "",
-      geo: !initialHasDedicatedNode ? (output.description ?? "") : "",
-      url: initialTargetUrl ?? "",
-      encryption: output?.[initialType]?.connection?.enforced_encryption,
-      stripRtp: output?.[initialType]?.strip_rtp,
-      passphrase: output?.[initialType]?.passphrase
-      // tags: output?.tags || []
-    },
-    validate: {
-      passphrase: (value, values) => {
-        if(!values.encryption) { return null; }
-        if(value && (value.length < 10 || value.length > 79)) {
-          return "Passphrase must be between 10 and 79 characters long";
-        }
-        return null;
-      },
-      node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
-      geo: (value, values) => values.nodeType === "public" ? (value ? null : "Geo is required") : null,
-      url: (value, values) => values.type === "srt_pull" ? null : (value ? null : "URL is required")
-    },
-    onValuesChange: () => outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()})
-  });
-
+const GeneralConfigPanel = observer(({form}) => {
   const {type, nodeType} = form.getValues();
   const isDedicated = nodeType === "dedicated";
   // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
@@ -179,53 +155,6 @@ const GeneralConfigPanel = observer(({output, id}) => {
   const isSrt = type?.includes("srt");
   // Protocol-specific example shown in the Target URL field
   const urlPlaceholder = `${type === "srt_push" ? "srt" : type}://example.com:1234`;
-
-  const Save = async() => {
-    const {hasErrors} = form.validate();
-    if(hasErrors) { throw new Error("Please resolve validation errors before saving"); }
-
-    const values = form.getValues();
-    const {name, type, node, geo, encryption, stripRtp, passphrase, url} = values;
-    const isDedicated = values.nodeType === "dedicated";
-    const isPush = type !== "srt_pull";
-
-    await outputStore.ModifyOutput({
-      outputId: id,
-      name,
-      type,
-      encryption,
-      stripRtp,
-      passphrase: encryption ? passphrase : undefined,
-      // "" rather than undefined for the inactive one of node/region - ModifyOutput
-      // treats undefined as "leave existing value alone", but switching between
-      // dedicated node and public geo must clear whichever one is no longer active,
-      // or the fabric rejects the update ("only one of elvgeos or node_ids can be set").
-      node: isDedicated ? node : "",
-      region: !isDedicated ? geo : "",
-      url: isPush ? url : undefined,
-      // tags
-    });
-
-    // resetDirty before setFieldValue: same reasoning as GeneralPanel - set
-    // the baseline to include the (possibly server-assigned) passphrase
-    // first, so setting the field to match it doesn't read as a new change.
-    const newPassphrase = outputStore.outputs[id]?.[type]?.passphrase ?? "";
-    form.resetDirty({...values, passphrase: newPassphrase});
-    form.setFieldValue("passphrase", newPassphrase);
-  };
-
-  const SaveRef = useRef();
-  SaveRef.current = Save;
-
-  useEffect(() => {
-    outputSaveStore.Register({
-      id: "generalConfig",
-      Save: () => SaveRef.current(),
-      Discard: () => form.reset()
-    });
-
-    return () => outputSaveStore.Unregister("generalConfig");
-  }, []);
 
   return (
     <Box pt={16}>
@@ -355,9 +284,110 @@ const GeneralConfigPanel = observer(({output, id}) => {
   );
 });
 
+// Owns the form shared by SummaryPanel and GeneralConfigPanel, so edits from
+// either tab share the "generalConfig" dirty state. Mounted only once output
+// data has loaded, so initialValues below are always real.
+const OutputPanels = observer(({output, id, url}) => {
+  const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
+  const initialHasDedicatedNode = output.description?.startsWith("inod");
+  const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
+
+  useEffect(() => {
+    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
+  }, []);
+
+  const form = useForm({
+    mode: "controlled",
+    initialValues: {
+      name: output?.name,
+      type: initialType, // rtp | srt_pull | srt_push | udp
+      nodeType: initialHasDedicatedNode ? "dedicated" : "public", // dedicated | public
+      node: initialHasDedicatedNode ? (output.description ?? "") : "",
+      geo: !initialHasDedicatedNode ? (output.description ?? "") : "",
+      url: initialTargetUrl ?? "",
+      encryption: output?.[initialType]?.connection?.enforced_encryption,
+      stripRtp: output?.[initialType]?.strip_rtp,
+      passphrase: output?.[initialType]?.passphrase
+      // tags: output?.tags || []
+    },
+    validate: {
+      passphrase: (value, values) => {
+        if(!values.encryption) { return null; }
+        if(value && (value.length < 10 || value.length > 79)) {
+          return "Passphrase must be between 10 and 79 characters long";
+        }
+        return null;
+      },
+      node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
+      geo: (value, values) => values.nodeType === "public" ? (value ? null : "Geo is required") : null,
+      url: (value, values) => values.type === "srt_pull" ? null : (value ? null : "URL is required")
+    },
+    onValuesChange: () => outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()})
+  });
+
+  const Save = async() => {
+    const {hasErrors} = form.validate();
+    if(hasErrors) { throw new Error("Please resolve validation errors before saving"); }
+
+    const values = form.getValues();
+    const {name, type, node, geo, encryption, stripRtp, passphrase, url} = values;
+    const isDedicated = values.nodeType === "dedicated";
+    const isPush = type !== "srt_pull";
+
+    await outputStore.ModifyOutput({
+      outputId: id,
+      name,
+      type,
+      encryption,
+      stripRtp,
+      passphrase: encryption ? passphrase : undefined,
+      // "" rather than undefined for the inactive one of node/region - ModifyOutput
+      // treats undefined as "leave existing value alone", but switching between
+      // dedicated node and public geo must clear whichever one is no longer active,
+      // or the fabric rejects the update ("only one of elvgeos or node_ids can be set").
+      node: isDedicated ? node : "",
+      region: !isDedicated ? geo : "",
+      url: isPush ? url : undefined,
+      // tags
+    });
+
+    // resetDirty before setFieldValue: same reasoning as GeneralPanel - set
+    // the baseline to include the (possibly server-assigned) passphrase
+    // first, so setting the field to match it doesn't read as a new change.
+    const newPassphrase = outputStore.outputs[id]?.[type]?.passphrase ?? "";
+    form.resetDirty({...values, passphrase: newPassphrase});
+    form.setFieldValue("passphrase", newPassphrase);
+  };
+
+  const SaveRef = useRef();
+  SaveRef.current = Save;
+
+  useEffect(() => {
+    outputSaveStore.Register({
+      id: "generalConfig",
+      Save: () => SaveRef.current(),
+      Discard: () => form.reset()
+    });
+
+    return () => outputSaveStore.Unregister("generalConfig");
+  }, []);
+
+  return (
+    <>
+      <Tabs.Panel value="summary">
+        <SummaryPanel output={output} url={url} id={id} form={form} />
+      </Tabs.Panel>
+      <Tabs.Panel value="generalConfig">
+        <GeneralConfigPanel form={form} />
+      </Tabs.Panel>
+    </>
+  );
+});
+
+// Both tabs share the "generalConfig" dirty flag (see OutputPanels).
 const OUTPUT_TABS = [
-  {label: "Summary", value: "summary"},
-  {label: "General Config", value: "generalConfig", savable: true}
+  {label: "Summary", value: "summary", savable: true, dirtyId: "generalConfig"},
+  {label: "General Config", value: "generalConfig", savable: true, dirtyId: "generalConfig"}
 ];
 
 const OutputDetails = observer(() => {
@@ -379,11 +409,8 @@ const OutputDetails = observer(() => {
     )
   );
 
-  // Reset during render, not in an effect: on mount, GeneralConfigPanel's
-  // effect (registering itself with outputSaveStore) runs before this
-  // component's own effects, so resetting from an effect here would wipe out
-  // a registration that already happened. Render runs parent-before-child,
-  // so this always precedes it. Mirrors StreamDetailsPage.
+  // Reset during render, not an effect: an effect here would run after (and
+  // wipe out) OutputPanels' own registration effect. Mirrors StreamDetailsPage.
   const resetOutputIdRef = useRef(null);
   if(id && resetOutputIdRef.current !== id) {
     resetOutputIdRef.current = id;
@@ -571,12 +598,9 @@ const OutputDetails = observer(() => {
         />
       }
     >
-      {/* keepMountedMode="display-none": Mantine's default "activity" mode hides
-          inactive panels via React's Activity component, which runs useEffect
-          cleanup on hide and reruns it on show - that would unregister/clear
-          GeneralConfigPanel's dirty state from outputSaveStore every time its
-          tab is switched away from. Plain CSS hiding avoids that effect
-          teardown. Mirrors StreamDetailsPage. */}
+      {/* keepMountedMode="display-none": avoids Mantine's default Activity-based
+          unmount on tab switch, which would wipe OutputPanels' outputSaveStore
+          registration. Mirrors StreamDetailsPage. */}
       <Tabs defaultValue="summary" keepMountedMode="display-none">
         <Flex justify="space-between" align="center" mb={22}>
           <Tabs.List>
@@ -584,7 +608,7 @@ const OutputDetails = observer(() => {
               OUTPUT_TABS.map(tab => (
                 <Tabs.Tab value={tab.value} key={`output-details-tab-${tab.value}`}>
                   <Indicator
-                    disabled={!(tab.savable && outputSaveStore.IsDirty(tab.value))}
+                    disabled={!(tab.savable && outputSaveStore.IsDirty(tab.dirtyId))}
                     color="elv-blue.3"
                     size={8}
                     offset={-4}
@@ -617,14 +641,7 @@ const OutputDetails = observer(() => {
         {
           (loading || outputStore.state !== "loaded") ?
             <Box p={15}><Loader /></Box> :
-            <>
-              <Tabs.Panel value="summary">
-                <SummaryPanel output={output} url={url} id={id} />
-              </Tabs.Panel>
-              <Tabs.Panel value="generalConfig">
-                <GeneralConfigPanel output={output} id={id} />
-              </Tabs.Panel>
-            </>
+            <OutputPanels output={output} id={id} url={url} />
         }
       </Tabs>
 
