@@ -617,7 +617,8 @@ describe("ModifyOutput — node/region clearing and geo resolution", () => {
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.name).toBe("Renamed");
     expect(outputArg.rtp.node_id).toBe("inode-existing");
-    expect(outputArg.description).toBeUndefined();
+    // Carried over from cleanExisting untouched, not re-derived from node/region.
+    expect(outputArg.description).toBe("us-east");
   });
 
   it("should re-resolve node_id when the transport type changes even if node/region values look unchanged", async () => {
