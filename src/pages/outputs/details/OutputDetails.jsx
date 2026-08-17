@@ -195,6 +195,10 @@ const GeneralConfigPanel = observer(({form}) => {
             ]}
             key={form.key("type")}
             {...form.getInputProps("type")}
+            onChange={(value) => {
+              form.setFieldValue("type", value);
+              form.setFieldValue("url", "");
+            }}
             mb={20}
           />
           <Stack gap={20}>
