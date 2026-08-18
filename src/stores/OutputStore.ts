@@ -64,6 +64,10 @@ type Outputs = Record<string, Output>;
 
 export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
 
+// UpdateOutput's merge is shallow, so it never drops a key missing from a fresh
+// fetch - spread this first to clear the old transport block on a type change.
+const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, srt_pull: undefined, srt_push: undefined};
+
 const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
   const stripRtp = output.srt_pull?.strip_rtp ?? output.srt_push?.strip_rtp;
   const packaging: OutputType = streamSource?.includes("rtp") && !stripRtp ? "RTP" : "TS";
@@ -355,6 +359,7 @@ class OutputStore {
       this.UpdateOutput({
         slug: outputId,
         updates: {
+          ...CLEARED_TRANSPORT_KEYS,
           ...output,
           input: output?.input
             ? {...this.outputs[outputId]?.input, ...output.input}
@@ -742,7 +747,10 @@ class OutputStore {
 
       this.UpdateOutput({
         slug: outputId,
-        updates: updatedOutput
+        updates: {
+          ...CLEARED_TRANSPORT_KEYS,
+          ...updatedOutput
+        }
       });
     } catch(error) {
       // eslint-disable-next-line no-console

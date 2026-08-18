@@ -41,6 +41,8 @@ import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 
+const OutputUrlProtocol = (type) => type === "srt_push" ? "srt" : type;
+
 const SummaryPanel = observer(({output, url, id, form}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
@@ -51,7 +53,7 @@ const SummaryPanel = observer(({output, url, id, form}) => {
   const {type} = form.getValues();
   // srt_pull has no editable Target URL - matches GeneralConfigPanel.
   const isPush = type !== "srt_pull";
-  const urlPlaceholder = `${type === "srt_push" ? "srt" : type}://example.com:1234`;
+  const urlPlaceholder = `${OutputUrlProtocol(type)}://example.com:1234`;
 
   return (
     <Box pt={16}>
@@ -170,7 +172,7 @@ const GeneralConfigPanel = observer(({form}) => {
   const isPush = type !== "srt_pull";
   const isSrt = type?.includes("srt");
   // Protocol-specific example shown in the Target URL field
-  const urlPlaceholder = `${type === "srt_push" ? "srt" : type}://example.com:1234`;
+  const urlPlaceholder = `${OutputUrlProtocol(type)}://example.com:1234`;
 
   return (
     <Box pt={16}>
@@ -340,7 +342,13 @@ const OutputPanels = observer(({output, id, url}) => {
       },
       node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
       geo: (value, values) => values.nodeType === "public" ? (value ? null : "Geo is required") : null,
-      url: (value, values) => values.type === "srt_pull" ? null : (value ? null : "URL is required")
+      url: (value, values) => {
+        if(values.type === "srt_pull") { return null; }
+        if(!value) { return "URL is required"; }
+
+        const protocol = OutputUrlProtocol(values.type);
+        return new RegExp(`^${protocol}://`, "i").test(value) ? null : `URL must use the ${protocol}:// protocol`;
+      }
     },
     onValuesChange: () => {
       outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()});
@@ -672,7 +680,7 @@ const OutputDetails = observer(() => {
         {
           (loading || outputStore.state !== "loaded") ?
             <Box p={15}><Loader /></Box> :
-            <OutputPanels output={output} id={id} url={url} />
+            <OutputPanels key={id} output={output} id={id} url={url} />
         }
       </Tabs>
 
