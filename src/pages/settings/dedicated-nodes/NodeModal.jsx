@@ -115,7 +115,7 @@ const NodeModal = ({opened, nodeId, node, existingNodeIds=[], title, description
       closeOnClickOutside={false}
     >
       <TextInput
-        label="Node Name"
+        label="Name"
         placeholder="Enter node name"
         value={name}
         onChange={event => setName(event.target.value)}
