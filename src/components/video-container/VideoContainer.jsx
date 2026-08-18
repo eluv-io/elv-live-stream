@@ -10,7 +10,7 @@ import styles from "./VideoContainer.module.css";
 // Lazy-loaded so the player bundle (elv-player-js + hls.js + dash.js, the
 // heaviest deps in dist) is split into its own chunk and only fetched when a
 // stream is actually played, instead of bloating the initial app bundle.
-const Video = lazyWithReload(() => import("@/components/video/Video.jsx"));
+const Video = lazyWithReload(() => import("@/components/video/Video.jsx"), "video");
 
 const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLevelToPlayerSize=true}) => {
   return (

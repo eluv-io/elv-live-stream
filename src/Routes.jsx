@@ -2,14 +2,14 @@ import {Navigate} from "react-router-dom";
 import AppLayout from "./AppLayout.jsx";
 import lazyWithReload from "@/utils/lazyWithReload.js";
 
-const Create = lazyWithReload(() => import("@/pages/create/Create.jsx"));
-const Streams = lazyWithReload(() => import("@/pages/streams/Streams.jsx"));
-const Monitor = lazyWithReload(() => import("@/pages/monitor/Monitor.jsx"));
-const StreamPreview = lazyWithReload(() => import("@/components/stream-preview/StreamPreview.jsx"));
-const StreamDetailsPage = lazyWithReload(() => import("@/pages/streams/details/StreamDetailsPage"));
-const Settings = lazyWithReload(() => import("@/pages/settings/Settings.jsx"));
-const Outputs = lazyWithReload(() => import("@/pages/outputs/Outputs.jsx"));
-const OutputDetails = lazyWithReload(() => import("@/pages/outputs/details/OutputDetails.jsx"));
+const Create = lazyWithReload(() => import("@/pages/create/Create.jsx"), "create");
+const Streams = lazyWithReload(() => import("@/pages/streams/Streams.jsx"), "streams");
+const Monitor = lazyWithReload(() => import("@/pages/monitor/Monitor.jsx"), "monitor");
+const StreamPreview = lazyWithReload(() => import("@/components/stream-preview/StreamPreview.jsx"), "stream-preview");
+const StreamDetailsPage = lazyWithReload(() => import("@/pages/streams/details/StreamDetailsPage"), "stream-details");
+const Settings = lazyWithReload(() => import("@/pages/settings/Settings.jsx"), "settings");
+const Outputs = lazyWithReload(() => import("@/pages/outputs/Outputs.jsx"), "outputs");
+const OutputDetails = lazyWithReload(() => import("@/pages/outputs/details/OutputDetails.jsx"), "output-details");
 
 const routes = [
   {
