@@ -14,7 +14,9 @@ import {
   Loader, PasswordInput,
   Select,
   SimpleGrid,
+  Stack,
   Tabs,
+  Text,
   TextInput,
   Tooltip
 } from "@mantine/core";
@@ -41,13 +43,16 @@ const SummaryPanel = observer(({output, url, id}) => {
   // "inod" is the Eluvio fabric's node-ID prefix (see elv-client-js's
   // Utils.AddressToNodeId) - a dedicated node ID is stashed in description.
   const hasDedicatedNode = output.description?.startsWith("inod");
+  // client-js (OutputsList/OutputsListItem) marks this when the mapped stream's
+  // content object is gone - e.g. deleted without unmapping this output.
+  const streamUnavailable = output?.input?.status === STATUS_MAP.UNAVAILABLE;
 
   return (
     <Box pt={16}>
       <SectionTitle mb={12}>Key Stats</SectionTitle>
       <Flex direction="row" mb={36} gap={videoGap}>
         {
-          output?.input?.stream &&
+          output?.input?.stream && !streamUnavailable &&
           <Box w={videoWidth}>
             <VideoContainer
               index={0}
@@ -59,6 +64,18 @@ const SummaryPanel = observer(({output, url, id}) => {
           </Box>
         }
         {
+          streamUnavailable ?
+            <Box style={{width: "100%"}} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
+              <Box p={12}>
+                <DetailCardHeader title="Input" />
+                <Stack p="44px 100px" align="center" gap={12}>
+                  <Text c="dimmed" ta="center">
+                    The mapped stream no longer exists. Unmap it and select another stream.
+                  </Text>
+                  <Button onClick={() => outputModalStore.OpenModal("map", [id])}>Map to a Stream</Button>
+                </Stack>
+              </Box>
+            </Box> :
           output?.input?.stream ?
           <DetailCard
             style={{width: `calc(100% - ${videoWidth} - ${videoGap})`}}
@@ -284,7 +301,7 @@ const OutputDetails = observer(() => {
     try {
       setLoading(true);
       await outputStore.LoadOutputItem({outputId: id});
-      if(output?.input?.stream) {
+      if(output?.input?.stream && output?.input?.status !== STATUS_MAP.UNAVAILABLE) {
         await outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output.input.stream});
       }
     } finally {
@@ -300,7 +317,11 @@ const OutputDetails = observer(() => {
   }, [id]);
 
   useEffect(() => {
-    if(!output?.input?.stream) { return; }
+    // OutputsList/OutputsListItem (client-js) already mark input.status
+    // "unavailable" when the mapped stream's content object is gone (e.g.
+    // deleted without unmapping this output) - skip the doomed enrichment
+    // call rather than repeating the same failure it already caught.
+    if(!output?.input?.stream || output?.input?.status === STATUS_MAP.UNAVAILABLE) { return; }
 
     const LoadData = async() => {
       try {
@@ -313,7 +334,7 @@ const OutputDetails = observer(() => {
     };
 
     LoadData();
-  }, [output?.input?.stream]);
+  }, [output?.input?.stream, output?.input?.status]);
 
   const actions = [
     {
