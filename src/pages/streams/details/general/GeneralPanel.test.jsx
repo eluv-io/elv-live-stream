@@ -199,6 +199,27 @@ describe("GeneralPanel", () => {
       const select = await screen.findByDisplayValue("My Profile");
       expect(select).toBeTruthy();
     });
+
+    it("does not re-send an unchanged, already-assigned profile on save", async () => {
+      streamStore.streams["test-slug"] = {...baseStream, configProfile: "my-profile"};
+      mockUpdateGeneralConfig.mockResolvedValue(undefined);
+      renderGeneralPanel();
+
+      await screen.findByDisplayValue("My Profile");
+
+      const {Save} = mockRegister.mock.calls[0][0];
+      await act(async () => {
+        await Save();
+      });
+
+      await waitFor(() => {
+        expect(mockUpdateGeneralConfig).toHaveBeenCalledWith(
+          expect.objectContaining({
+            configProfile: undefined
+          })
+        );
+      });
+    });
   });
 
   describe("Discard", () => {

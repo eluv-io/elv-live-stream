@@ -116,7 +116,8 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
       objectId: params.id,
       slug,
       formData: values,
-      configProfile: values.configProfile,
+      // Only re-apply the profile when it actually changed
+      configProfile: values.configProfile !== currentConfigProfile ? values.configProfile : undefined,
       updatePermission: currentSettings.permission !== values.permission,
       updateAccessGroup: currentSettings.accessGroup !== values.accessGroup,
       removeAccessGroup: currentSettings.accessGroup
