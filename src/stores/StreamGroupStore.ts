@@ -25,10 +25,6 @@ class StreamGroupStore {
 
   *CreateStreamGroup({libraryId, name}): Generator<any, void> {
     try {
-      if(!libraryId) {
-        libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      }
-
       const { objectId: groupId, writeToken } = yield this.client.CreateContentFolder({
         libraryId,
         name,
@@ -45,6 +41,40 @@ class StreamGroupStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to create stream group.", error);
+    }
+  }
+
+  *StreamGroups({libraryId, objectId}): Generator<any, any> {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      return yield this.client.ContentObjectFolders({
+        libraryId,
+        objectId
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load stream groups.", error);
+    }
+  }
+
+  *GroupTagsAndFields({libraryId, objectId}): Generator<any, {tags: any, fields: any} | undefined> {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const [tags, fields] = yield Promise.all([
+        this.client.ContentTags({libraryId, objectId}),
+        this.client.ContentQueryFields({libraryId, objectId})
+      ]);
+
+      return {tags, fields};
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load group tags and query fields.", error);
     }
   }
 
