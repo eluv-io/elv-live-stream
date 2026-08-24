@@ -44,6 +44,20 @@ class StreamGroupStore {
     }
   }
 
+  *ListGroups(): Generator<any, any> {
+    try {
+      return yield this.client.TenantContent({
+        filter: ["tags:co:elv:folder"],
+        select: ["public/name", "public/asset_metadata/display_title"],
+        start: 0,
+        limit: 100
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to list stream groups.", error);
+    }
+  }
+
   *StreamGroups({libraryId, objectId}): Generator<any, any> {
     try {
       if(!libraryId) {
