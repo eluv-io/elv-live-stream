@@ -7,6 +7,7 @@ import {rootStore} from "@/stores/index.ts";
 import LeftNavigation from "@/components/left-navigation/LeftNavigation.jsx";
 import DataWrapper from "@/components/data-wrapper/DataWrapper.jsx";
 import ErrorBanner from "@/components/error/ErrorBanner";
+import UpdateBanner from "@/components/version/UpdateBanner.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import OutputModals from "@/pages/outputs/OutputModals.jsx";
 
@@ -19,6 +20,7 @@ const AppLayout = observer(() => {
     >
       <LeftNavigation />
       <AppShell.Main>
+        <UpdateBanner />
         <ErrorBanner />
         <Notifications zIndex={1000} position="top-right" autoClose={5000} />
         <DataWrapper>

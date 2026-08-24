@@ -10,6 +10,8 @@ import OutputStore from "@/stores/OutputStore";
 import OutputModalStore from "@/stores/OutputModalStore";
 import UserSettingsStore from "@/stores/UserSettingsStore";
 import StreamSaveStore from "@/stores/StreamSaveStore";
+import OutputSaveStore from "@/stores/OutputSaveStore";
+import VersionStore from "@/stores/VersionStore";
 
 // Force strict mode so mutations are only allowed within actions.
 configure({
@@ -38,8 +40,10 @@ class RootStore {
   siteStore: SiteStore;
   profileStore: ProfileStore;
   outputStore: OutputStore;
+  outputSaveStore: OutputSaveStore;
   outputModalStore: OutputModalStore;
   userSettingsStore: UserSettingsStore;
+  versionStore: VersionStore;
 
   constructor() {
     this.dataStore = new DataStore(this);
@@ -50,8 +54,10 @@ class RootStore {
     this.siteStore = new SiteStore(this);
     this.profileStore = new ProfileStore(this);
     this.outputStore = new OutputStore(this);
+    this.outputSaveStore = new OutputSaveStore(this);
     this.outputModalStore = new OutputModalStore(this);
     this.userSettingsStore = new UserSettingsStore(this);
+    this.versionStore = new VersionStore(this);
 
     makeAutoObservable(this);
   }

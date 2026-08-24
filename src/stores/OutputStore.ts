@@ -64,6 +64,10 @@ type Outputs = Record<string, Output>;
 
 export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
 
+// UpdateOutput's merge is shallow, so it never drops a key missing from a fresh
+// fetch - spread this first to clear the old transport block on a type change.
+const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, srt_pull: undefined, srt_push: undefined};
+
 const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
   const stripRtp = output.srt_pull?.strip_rtp ?? output.srt_push?.strip_rtp;
   const packaging: OutputType = streamSource?.includes("rtp") && !stripRtp ? "RTP" : "TS";
@@ -93,6 +97,33 @@ interface FlatOutput {
   connectedClients: number;
   input?: OutputInput;
 }
+
+// elvgeo/elvgeos are a create-time-only convenience: elv-client-js's OutputsCreate
+// resolves them to a concrete node_id/node_ids and deletes them before ever hitting
+// the fabric - the fabric's output config schema doesn't have an elvgeo field at all.
+// OutputsModify has no such resolution step (it PUTs the raw output object as-is), so
+// a region picked in the edit UI must be resolved to a node ID client-side first, or
+// the fabric rejects the request with "unknown field \"elvgeo\"". This mirrors the
+// resolution elv-client-js does internally (LiveStream.js's private RetrieveOutputNodeId).
+const ResolveEgressNodeId = async ({client, geo}: {client: any, geo?: string}): Promise<string> => {
+  const configUrl = new URL(await client.ConfigUrl());
+  configUrl.pathname = "/config";
+  if(geo) { configUrl.searchParams.set("elvgeo", geo); }
+
+  const fabricInfo = await (await fetch(configUrl.toString())).json();
+  const liveEgressUrls = fabricInfo?.network?.services?.live_egress;
+  if(!liveEgressUrls?.length) {
+    throw new Error("No live_egress endpoints found in fabric config");
+  }
+
+  const hostname = new URL(liveEgressUrls[0]).hostname;
+  const nodes = await client.SpaceNodes({matchEndpoint: hostname});
+  if(!nodes?.length) {
+    throw new Error(`No node found matching live_egress endpoint: ${hostname}`);
+  }
+
+  return nodes[0].id;
+};
 
 interface CreateOutputParams {
   name?: string;
@@ -212,6 +243,11 @@ class OutputStore {
   };
 
   UpdateOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
+    // Guard against creating a phantom entry keyed by a slug that isn't a real
+    // output (e.g. a stream slug passed in error) - that would surface as a
+    // bogus row in outputList with an undefined name, sorting to the top.
+    if(!this.outputs[slug]) { return; }
+
     this.outputs[slug] = {...this.outputs[slug], ...updates};
   };
 
@@ -323,6 +359,7 @@ class OutputStore {
       this.UpdateOutput({
         slug: outputId,
         updates: {
+          ...CLEARED_TRANSPORT_KEYS,
           ...output,
           input: output?.input
             ? {...this.outputs[outputId]?.input, ...output.input}
@@ -614,11 +651,15 @@ class OutputStore {
   *ModifyOutput({
     outputId,
     name,
+    type,
     passphrase,
     encryption,
     stripRtp,
+    node,
+    region,
+    url,
     // tags
-  }: {outputId: string, name?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -627,30 +668,70 @@ class OutputStore {
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
       // reset/state are transient runtime fields surfaced by OutputsListItem; a config
-      // edit must not persist them back
+      // edit must not persist them back. rtp/udp/srt_pull/srt_push are stripped here too -
+      // whichever one applies is rebuilt fresh below, since switching output type means the
+      // old transport block(s) must not be carried over onto the new one.
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-      const {state: _st, ...cleanExisting} = existing;
+      const {state: _st, rtp: _rtp, udp: _udp, srt_pull: _srtPull, srt_push: _srtPush, ...cleanExisting} = existing;
 
+      const existingTransportKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : existing.rtp ? "rtp" : existing.udp ? "udp" : undefined;
+      const transportKey = type ?? existingTransportKey;
+      const typeChanged = !!type && type !== existingTransportKey;
       // Encryption/passphrase/strip_rtp live on the SRT block, which is keyed by
       // srt_pull or srt_push depending on the output type. RTP/UDP outputs have no
       // SRT block, so building one would pollute the payload.
-      const srtKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : undefined;
-      const existingSrt = srtKey ? existing[srtKey] : undefined;
+      const srtKey = transportKey === "srt_pull" || transportKey === "srt_push" ? transportKey : undefined;
+      // When the type changed, the old transport block's settings (node/region/url/SRT
+      // config) belong to a different shape and must not carry over onto the new one.
+      const existingTransport = typeChanged ? undefined : (transportKey ? existing[transportKey] : undefined);
+      const existingSrt = typeChanged ? undefined : (srtKey ? existing[srtKey] : undefined);
+      // node/region/url live on whichever transport block (rtp/udp/srt_pull/srt_push)
+      // the output actually uses. srt_pull stores node/region as arrays.
+      const isPull = transportKey === "srt_pull";
+
+      // node/region arrive as raw picks from the edit form (one truthy, "" for the
+      // inactive one - see OutputDetails.jsx). Only actually touch node_id/node_ids
+      // when the pick differs from what's already pinned - existing.description holds
+      // the last node ID or geo string used (see CreateOutput) - or the transport type
+      // changed (which discards the old transport block, including its node_id). This
+      // avoids re-resolving, and potentially re-pinning to a different available node,
+      // on saves that don't touch node/geo at all, e.g. a plain rename.
+      const touchesNodeOrRegion = node !== undefined || region !== undefined;
+      const nodeOrRegionTarget = node || region || "";
+      const nodeOrRegionChanged = touchesNodeOrRegion && (typeChanged || nodeOrRegionTarget !== (existing.description || ""));
+
+      // elvgeo/elvgeos aren't real fabric fields (see ResolveEgressNodeId) - a chosen
+      // region must be resolved to a concrete node ID before it's written.
+      const resolvedNodeId = nodeOrRegionChanged ?
+        (node || (region ? yield ResolveEgressNodeId({client: this.client, geo: region}) : undefined)) :
+        undefined;
 
       const output = {
         ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
         // ...(tags !== undefined && {tags}),
         input: cleanInput,
-        ...(srtKey && {
-          [srtKey]: {
-            ...existingSrt,
-            connection: {
-              ...existingSrt?.connection,
-              enforced_encryption: encryption ?? existingSrt?.connection?.enforced_encryption
-            },
-            passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
-            strip_rtp: stripRtp ?? existingSrt?.strip_rtp
+        ...(nodeOrRegionChanged && {description: nodeOrRegionTarget}),
+        ...(transportKey && {
+          [transportKey]: {
+            ...existingTransport,
+            ...(srtKey && {
+              connection: {
+                ...existingSrt?.connection,
+                enforced_encryption: encryption ?? existingSrt?.connection?.enforced_encryption
+              },
+              passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
+              strip_rtp: stripRtp ?? existingSrt?.strip_rtp
+            }),
+            // elvgeo/elvgeos are cleared unconditionally here (not just written as
+            // undefined-if-absent) so a stale value from existingTransport - e.g. from
+            // data that predates this resolution step - never survives a save that
+            // touches node/region.
+            ...(nodeOrRegionChanged && {
+              [isPull ? "node_ids" : "node_id"]: resolvedNodeId ? (isPull ? [resolvedNodeId] : resolvedNodeId) : undefined,
+              [isPull ? "elvgeos" : "elvgeo"]: undefined
+            }),
+            ...(!isPull && url !== undefined && {url: url || undefined})
           }
         })
       };
@@ -666,7 +747,10 @@ class OutputStore {
 
       this.UpdateOutput({
         slug: outputId,
-        updates: updatedOutput
+        updates: {
+          ...CLEARED_TRANSPORT_KEYS,
+          ...updatedOutput
+        }
       });
     } catch(error) {
       // eslint-disable-next-line no-console

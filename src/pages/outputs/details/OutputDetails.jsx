@@ -1,15 +1,17 @@
 import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import {useNavigate, useParams} from "react-router-dom";
-import {dataStore, outputStore} from "@/stores/index.ts";
+import {useBlocker, useNavigate, useParams} from "react-router-dom";
+import {dataStore, outputStore, outputSaveStore} from "@/stores/index.ts";
 import {
   ActionIcon,
+  Badge,
   Box,
   Button,
   Checkbox,
   Divider,
   Flex,
   Group,
+  Indicator,
   Input,
   Loader, PasswordInput,
   Select,
@@ -18,31 +20,33 @@ import {
   Tabs,
   Text,
   TextInput,
+  Title,
   Tooltip
 } from "@mantine/core";
-import {Fragment, useEffect, useState} from "react";
+import {Fragment, useCallback, useEffect, useRef, useState} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
 import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
-import {FABRIC_NODE_REGIONS, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
+import {FABRIC_NODE_REGIONS, OUTPUT_TYPE_COLOR_MAP, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import styles from "@/components/detail-card/DetailCard.module.css";
+import sharedStyles from "@/assets/shared.module.css";
 import {outputModalStore} from "@/stores/index.ts";
 import {DateFormat, BytesToMb} from "@/utils/formatters.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
+
+const OutputUrlProtocol = (type) => type === "srt_push" ? "srt" : type;
 
 const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
   const videoGap = "20px";
-  // "inod" is the Eluvio fabric's node-ID prefix (see elv-client-js's
-  // Utils.AddressToNodeId) - a dedicated node ID is stashed in description.
-  const hasDedicatedNode = output.description?.startsWith("inod");
   // client-js (OutputsList/OutputsListItem) marks this when the mapped stream's
   // content object is gone - e.g. deleted without unmapping this output.
   const streamUnavailable = output?.input?.status === STATUS_MAP.UNAVAILABLE;
@@ -124,23 +128,6 @@ const SummaryPanel = observer(({output, url, id}) => {
         </Group>
       <TextInput value={url ?? ""} readOnly />
 
-      <Divider mb={20} mt={30} />
-
-      <Box style={{opacity: 0.5, pointerEvents: "none"}}>
-        <SectionTitle mb={12}>
-          {hasDedicatedNode ? "Dedicated Node" : "Fabric Geo"}
-        </SectionTitle>
-        <Select
-          description={hasDedicatedNode ? "The dedicated fabric node serving this output." : "The geographic region this output is served from."}
-          onChange={() => {}}
-          data={
-            (hasDedicatedNode ? dataStore.dedicatedNodesList : FABRIC_NODE_REGIONS).slice().sort((a, b) => a.label.localeCompare(b.label))
-          }
-          value={output.description ?? ""}
-          readOnly
-        />
-      </Box>
-
       {
         output?.state?.clients?.map((client, i) => (
           <Fragment key={`output-client-${i}`}>
@@ -164,77 +151,26 @@ const SummaryPanel = observer(({output, url, id}) => {
   );
 });
 
-const GeneralConfigPanel = observer(({output, id}) => {
-  const [applyingChanges, setApplyingChanges] = useState(false);
-
-  const outputType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
-
-  const form = useForm({
-    mode: "uncontrolled",
-    initialValues: {
-      encryption: output?.[outputType]?.connection?.enforced_encryption,
-      stripRtp: output?.[outputType]?.strip_rtp,
-      passphrase: output?.[outputType]?.passphrase,
-      name: output?.name,
-      // tags: output?.tags || []
-    },
-    validate: {
-      passphrase: (value, values) => {
-        if(!values.encryption) { return null; }
-        if(value && (value.length < 10 || value.length > 79)) {
-          return "Passphrase must be between 10 and 79 characters long";
-        }
-        return null;
-      }
-    }
-  });
-
-  const HandleSubmit = async(values) => {
-    try {
-      setApplyingChanges(true);
-
-      const {encryption, stripRtp, passphrase, name} = values;
-
-      await outputStore.ModifyOutput({
-        outputId: id,
-        encryption,
-        stripRtp,
-        passphrase: encryption ? passphrase : undefined,
-        name,
-        // tags
-      });
-
-      form.setFieldValue("passphrase", outputStore.outputs[id]?.[outputType]?.passphrase ?? "");
-
-      notifications.show({
-        title: <NotificationMessage>Updated output</NotificationMessage>,
-        message: "Changes have been applied successfully"
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to update output", error);
-
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: "Unable to save changes"
-      });
-    } finally {
-      setApplyingChanges(false);
-    }
-  };
+const GeneralConfigPanel = observer(({form}) => {
+  const {type, nodeType} = form.getValues();
+  const isDedicated = nodeType === "dedicated";
+  // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
+  // so it has no editable Target URL.
+  const isPush = type !== "srt_pull";
+  const isSrt = type?.includes("srt");
+  // Protocol-specific example shown in the Target URL field
+  const urlPlaceholder = `${OutputUrlProtocol(type)}://example.com:1234`;
 
   return (
     <Box pt={16}>
-      <form onSubmit={form.onSubmit(HandleSubmit)}>
-        <SectionTitle mb={12}>General</SectionTitle>
-        <SimpleGrid cols={2} spacing={150} mb={20}>
-          <TextInput
-            label="Name"
-            key={form.key("name")}
-            {...form.getInputProps("name")}
-          />
-        </SimpleGrid>
+      <SectionTitle mb={12}>General</SectionTitle>
+      <Box mb={20}>
+        <TextInput
+          label="Name"
+          key={form.key("name")}
+          {...form.getInputProps("name")}
+        />
+      </Box>
         {/*<SimpleGrid cols={2} spacing={150}>*/}
         {/*  <TagsInput*/}
         {/*    label="Tags"*/}
@@ -249,54 +185,284 @@ const GeneralConfigPanel = observer(({output, id}) => {
 
         <Divider mb={20} mt={30} />
 
-        <SectionTitle mb={12}>Encryption</SectionTitle>
-        <Checkbox
-          label="Enable Encryption"
-          description="If encryption is enabled, a passphrase is required to decrypt the stream. If not provided, one will be auto-generated."
-          key={form.key("encryption")}
-          {...form.getInputProps("encryption", {type: "checkbox"})}
-        />
-        {
-          form.getValues().encryption &&
-          <SimpleGrid cols={2} spacing={150} mt={20} pl={28}>
-            <PasswordInput
-              label="Passphrase"
-              key={form.key("passphrase")}
-              {...form.getInputProps("passphrase")}
+        <Box>
+          <SectionTitle mb={12}>Output</SectionTitle>
+          <Select
+            label="Output Type"
+            description="Defines the output type"
+            placeholder="Output Type"
+            allowDeselect={false}
+            data={[
+              {label: "SRT PULL", value: "srt_pull"},
+              {label: "SRT PUSH", value: "srt_push"},
+              {label: "RTP", value: "rtp"},
+              {label: "UDP", value: "udp"}
+            ]}
+            key={form.key("type")}
+            {...form.getInputProps("type")}
+            onChange={(value) => {
+              form.setFieldValue("type", value);
+              form.setFieldValue("url", "");
+            }}
+            mb={20}
+          />
+          <Stack gap={20}>
+            <Select
+              label="Node Type"
+              data={[
+                ...(dataStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
+                {label: "Public", value: "public"}
+              ]}
+              allowDeselect={false}
+              key={form.key("nodeType")}
+              {...form.getInputProps("nodeType")}
+              onChange={(value) => {
+                form.setFieldValue("nodeType", value);
+                form.setFieldValue("url", "");
+              }}
             />
-          </SimpleGrid>
+            {
+              isDedicated ?
+                <Select
+                  label="Node"
+                  placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
+                  data={dataStore.dedicatedNodesList}
+                  allowDeselect={false}
+                  withAsterisk
+                  key={form.key("node")}
+                  {...form.getInputProps("node")}
+                /> :
+                <Select
+                  label="Fabric Geo"
+                  withAsterisk
+                  data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
+                  placeholder="Select Geo"
+                  clearable
+                  key={form.key("geo")}
+                  {...form.getInputProps("geo")}
+                />
+            }
+            {
+              isPush &&
+              <TextInput
+                label="Target URL"
+                placeholder={urlPlaceholder}
+                key={form.key("url")}
+                withAsterisk
+                {...form.getInputProps("url")}
+              />
+            }
+          </Stack>
+        </Box>
+
+        {
+          isSrt &&
+          <>
+            <Divider mb={20} mt={30} />
+
+            <SectionTitle mb={12}>Encryption</SectionTitle>
+            <Checkbox
+              label="Enable Encryption"
+              description="If encryption is enabled, a passphrase is required to decrypt the stream. If not provided, one will be auto-generated."
+              key={form.key("encryption")}
+              {...form.getInputProps("encryption", {type: "checkbox"})}
+            />
+            {
+              form.getValues().encryption &&
+              <SimpleGrid cols={2} spacing={150} mt={20} pl={28}>
+                <PasswordInput
+                  label="Passphrase"
+                  key={form.key("passphrase")}
+                  {...form.getInputProps("passphrase")}
+                />
+              </SimpleGrid>
+            }
+
+            <Divider mb={20} mt={30} />
+
+            <SectionTitle mb={12}>Strip RTP</SectionTitle>
+            <Checkbox
+              label="Enable Strip RTP"
+              description="Remove RTP encapsulation from the incoming stream"
+              key={form.key("stripRtp")}
+              {...form.getInputProps("stripRtp", {type: "checkbox"})}
+            />
+          </>
         }
-
-        <Divider mb={20} mt={30} />
-
-        <SectionTitle mb={12}>Strip RTP</SectionTitle>
-        <Checkbox
-          label="Enable Strip RTP"
-          description="Remove RTP encapsulation from the incoming stream"
-          key={form.key("stripRtp")}
-          {...form.getInputProps("stripRtp", {type: "checkbox"})}
-        />
-
-        <Button
-          mt={60}
-          type="submit"
-          disabled={applyingChanges || !form.isDirty()}
-          loading={applyingChanges}
-        >
-          Save
-        </Button>
-      </form>
     </Box>
   );
 });
+
+// Owns the form shared by SummaryPanel and GeneralConfigPanel, so edits from
+// either tab share the "generalConfig" dirty state. Mounted only once output
+// data has loaded, so initialValues below are always real.
+const OutputPanels = observer(({output, id, url}) => {
+  const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
+  const initialHasDedicatedNode = output.description?.startsWith("inod");
+  const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
+
+  useEffect(() => {
+    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
+  }, []);
+
+  const form = useForm({
+    mode: "controlled",
+    initialValues: {
+      name: output?.name,
+      type: initialType, // rtp | srt_pull | srt_push | udp
+      nodeType: initialHasDedicatedNode ? "dedicated" : "public", // dedicated | public
+      node: initialHasDedicatedNode ? (output.description ?? "") : "",
+      geo: !initialHasDedicatedNode ? (output.description ?? "") : "",
+      url: initialTargetUrl ?? "",
+      encryption: output?.[initialType]?.connection?.enforced_encryption,
+      stripRtp: output?.[initialType]?.strip_rtp,
+      passphrase: output?.[initialType]?.passphrase
+      // tags: output?.tags || []
+    },
+    validate: {
+      passphrase: (value, values) => {
+        if(!values.encryption) { return null; }
+        if(value && (value.length < 10 || value.length > 79)) {
+          return "Passphrase must be between 10 and 79 characters long";
+        }
+        return null;
+      },
+      node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
+      geo: (value, values) => values.nodeType === "public" ? (value ? null : "Geo is required") : null,
+      url: (value, values) => {
+        if(values.type === "srt_pull") { return null; }
+        if(!value) { return "URL is required"; }
+
+        const protocol = OutputUrlProtocol(values.type);
+        return new RegExp(`^${protocol}://`, "i").test(value) ? null : `URL must use the ${protocol}:// protocol`;
+      }
+    },
+    onValuesChange: () => {
+      outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()});
+    }
+  });
+
+  const Save = async() => {
+    const {hasErrors} = form.validate();
+    if(hasErrors) { throw new Error("Please resolve validation errors before saving"); }
+
+    const values = form.getValues();
+    const {name, type, node, geo, encryption, stripRtp, passphrase, url} = values;
+    const isDedicated = values.nodeType === "dedicated";
+    const isPush = type !== "srt_pull";
+
+    await outputStore.ModifyOutput({
+      outputId: id,
+      name,
+      type,
+      encryption,
+      stripRtp,
+      passphrase: encryption ? passphrase : undefined,
+      // "" rather than undefined for the inactive one of node/region - ModifyOutput
+      // treats undefined as "leave existing value alone", but switching between
+      // dedicated node and public geo must clear whichever one is no longer active,
+      // or the fabric rejects the update ("only one of elvgeos or node_ids can be set").
+      node: isDedicated ? node : "",
+      region: !isDedicated ? geo : "",
+      url: isPush ? url : undefined,
+      // tags
+    });
+
+    // resetDirty before setFieldValue: same reasoning as GeneralPanel - set
+    // the baseline to include the (possibly server-assigned) passphrase
+    // first, so setting the field to match it doesn't read as a new change.
+    const newPassphrase = outputStore.outputs[id]?.[type]?.passphrase ?? "";
+    form.resetDirty({...values, passphrase: newPassphrase});
+    form.setFieldValue("passphrase", newPassphrase);
+  };
+
+  const SaveRef = useRef();
+  SaveRef.current = Save;
+
+  useEffect(() => {
+    outputSaveStore.Register({
+      id: "generalConfig",
+      Save: () => SaveRef.current(),
+      Discard: () => form.reset()
+    });
+
+    return () => outputSaveStore.Unregister("generalConfig");
+  }, []);
+
+  return (
+    <>
+      <Tabs.Panel value="summary">
+        <SummaryPanel output={output} url={url} id={id} />
+      </Tabs.Panel>
+      <Tabs.Panel value="generalConfig">
+        <GeneralConfigPanel form={form} />
+      </Tabs.Panel>
+    </>
+  );
+});
+
+// Summary's URL field is read-only, so only General Config can be dirty/savable.
+const OUTPUT_TABS = [
+  {label: "Summary", value: "summary", savable: false},
+  {label: "General Config", value: "generalConfig", savable: true, IsDirty: () => outputSaveStore.IsDirty("generalConfig")}
+];
 
 const OutputDetails = observer(() => {
   const {id} = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [pendingBack, setPendingBack] = useState(false);
+
+  // Blocks in-app navigation (sidebar links, browser back/forward, navigate())
+  // away from this page while the config tab has unsaved changes. Only
+  // guards actual route changes - switching within-page tabs doesn't change
+  // the pathname, so it's left alone. Mirrors StreamDetailsPage.
+  const blocker = useBlocker(
+    useCallback(
+      ({currentLocation, nextLocation}) =>
+        outputSaveStore.anyDirty && currentLocation.pathname !== nextLocation.pathname,
+      []
+    )
+  );
+
+  // Reset during render, not an effect: an effect here would run after (and
+  // wipe out) OutputPanels' own registration effect. Mirrors StreamDetailsPage.
+  const resetOutputIdRef = useRef(null);
+  if(id && resetOutputIdRef.current !== id) {
+    resetOutputIdRef.current = id;
+    outputSaveStore.Reset();
+  }
 
   const output = outputStore.outputs[id];
-  const url = outputStore.OutputItem(id)?.url;
+  const flatOutput = outputStore.OutputItem(id);
+  const url = flatOutput?.url;
+  // "inod" is the Eluvio fabric's node-ID prefix (see elv-client-js's
+  // Utils.AddressToNodeId) - a dedicated node ID is stashed in description.
+  const hasDedicatedNode = output?.description?.startsWith("inod");
+  const geoLabel = !hasDedicatedNode ?
+    FABRIC_NODE_REGIONS.find(geo => geo.value === output?.description)?.label :
+    undefined;
+  const nodeLabel = hasDedicatedNode ?
+    dataStore.dedicatedNodes?.[output.description]?.name :
+    undefined;
+  const typeBadges = flatOutput?.type?.length ?
+    <Group gap={4} wrap="nowrap">
+      {
+        flatOutput.type.map(type => (
+          <Badge key={type} radius={2} color={OUTPUT_TYPE_COLOR_MAP[type]} c="elv-gray.7" tt="uppercase" fz={12} fw={400} classNames={{label: sharedStyles.badgeLabel}}>
+            {type}
+          </Badge>
+        ))
+      }
+    </Group> :
+    undefined;
+  const subtitleItems = [
+    typeBadges,
+    geoLabel,
+    hasDedicatedNode ? "Dedicated" : "Public",
+    nodeLabel
+  ].filter(Boolean);
   const DebouncedRefresh = useDebouncedCallback(async() => {
     try {
       setLoading(true);
@@ -336,12 +502,50 @@ const OutputDetails = observer(() => {
     LoadData();
   }, [output?.input?.stream, output?.input?.status]);
 
+  const HandleSaveAll = async () => {
+    try {
+      await outputSaveStore.SaveAll();
+
+      notifications.show({
+        title: <NotificationMessage>Updated {output?.name || id}</NotificationMessage>,
+        message: "Changes have been applied successfully"
+      });
+
+      DebouncedRefresh();
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to save changes", error);
+
+      const failedTab = OUTPUT_TABS.find(tab => tab.value === outputSaveStore.failedPanelId);
+
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: `Unable to save ${failedTab?.label ?? "changes"}. Please review that tab and try again.`
+      });
+    }
+  };
+
+  const HandleDiscardAll = () => {
+    outputSaveStore.DiscardAll();
+  };
+
+  // Checks dirty state before ever calling navigate(-1) - see StreamDetailsPage
+  // for why this is pre-checked rather than left to the router blocker alone.
+  const HandleBack = () => {
+    if(outputSaveStore.anyDirty) {
+      setPendingBack(true);
+    } else {
+      navigate(-1);
+    }
+  };
+
   const actions = [
     {
       label: "Back",
       buttonVariant: "filled",
       color: "elv-gray.6",
-      onClick: () => navigate(-1)
+      onClick: HandleBack
     },
     {
       label: "Refresh",
@@ -351,27 +555,36 @@ const OutputDetails = observer(() => {
     {
       label: "Reset",
       buttonVariant: "outline",
-      onClick: () => outputModalStore.OpenModal("reset", [id])
+      onClick: () => outputModalStore.OpenModal("reset", [id]),
+      mutatesOutput: true
     },
     {
       label: output?.enabled ? "Disable" : "Enable",
       buttonVariant: "outline",
-      onClick: () => outputModalStore.OpenModal(output?.enabled ? "disable" : "enable", [id], () => outputStore.LoadOutputItem({outputId: id}))
+      onClick: () => outputModalStore.OpenModal(output?.enabled ? "disable" : "enable", [id], () => outputStore.LoadOutputItem({outputId: id})),
+      mutatesOutput: true
     },
     {
       label: "Unmap Stream",
       buttonVariant: "filled",
       onClick: () => outputModalStore.OpenModal("unmap", [id]),
-      hidden: !output?.input?.stream
+      hidden: !output?.input?.stream,
+      mutatesOutput: true
     },
     {
       label: "Map to a Stream",
       buttonVariant: "filled",
       onClick: () => outputModalStore.OpenModal("map", [id]),
-      hidden: output?.input?.stream
+      hidden: output?.input?.stream,
+      mutatesOutput: true
     }
   ]
-    .filter(e => !e.hidden);
+    .filter(e => !e.hidden)
+    .map(action =>
+      action.mutatesOutput && outputSaveStore.anyDirty ?
+        {...action, disabled: true, disabledTooltip: "Save or discard your changes to use output controls"} :
+        action
+    );
 
   if(!output) { return <Loader />; }
 
@@ -379,6 +592,23 @@ const OutputDetails = observer(() => {
     <PageContainer
       title={outputStore?.outputs?.[id]?.name ?? ""}
       subtitle={id}
+      subtitleRightSection={
+        subtitleItems.length > 0 &&
+        <Group gap={8}>
+          {
+            subtitleItems.map((item, i) => (
+              <Group gap={8} key={i} wrap="nowrap">
+                <Title order={6} c="elv-gray.6" mt={0}>•</Title>
+                {
+                  typeof item === "string" ?
+                    <Title order={6} c="elv-gray.6" mt={0}>{item}</Title> :
+                    item
+                }
+              </Group>
+            ))
+          }
+        </Group>
+      }
       actions={actions}
       titleRightSection={
         <LabeledIndicator
@@ -389,25 +619,87 @@ const OutputDetails = observer(() => {
         />
       }
     >
-      <Tabs defaultValue="summary">
-        <Tabs.List>
-          <Tabs.Tab value="summary">Summary</Tabs.Tab>
-          <Tabs.Tab value="generalConfig">General Config</Tabs.Tab>
-        </Tabs.List>
+      {/* keepMountedMode="display-none": avoids Mantine's default Activity-based
+          unmount on tab switch, which would wipe OutputPanels' outputSaveStore
+          registration. Mirrors StreamDetailsPage. */}
+      <Tabs defaultValue="summary" keepMountedMode="display-none">
+        <Flex justify="space-between" align="center" mb={22}>
+          <Tabs.List>
+            {
+              OUTPUT_TABS.map(tab => (
+                <Tabs.Tab value={tab.value} key={`output-details-tab-${tab.value}`}>
+                  <Indicator
+                    disabled={!(tab.savable && tab.IsDirty())}
+                    color="elv-blue.3"
+                    size={8}
+                    offset={-4}
+                    position="top-end"
+                  >
+                    <Title order={3} c="elv-gray.9">{tab.label}</Title>
+                  </Indicator>
+                </Tabs.Tab>
+              ))
+            }
+          </Tabs.List>
+          <Flex gap={12} align="center">
+            <Button
+              variant="outline"
+              color="elv-gray.6"
+              disabled={!outputSaveStore.anyDirty || outputSaveStore.saving}
+              onClick={() => setShowDiscardModal(true)}
+            >
+              Discard Changes
+            </Button>
+            <Button
+              disabled={!outputSaveStore.anyDirty}
+              loading={outputSaveStore.saving}
+              onClick={HandleSaveAll}
+            >
+              Save
+            </Button>
+          </Flex>
+        </Flex>
         {
           (loading || outputStore.state !== "loaded") ?
             <Box p={15}><Loader /></Box> :
-            <>
-              <Tabs.Panel value="summary">
-                <SummaryPanel output={output} url={url} id={id} />
-              </Tabs.Panel>
-              <Tabs.Panel value="generalConfig">
-                <GeneralConfigPanel output={output} id={id} />
-              </Tabs.Panel>
-            </>
+            <OutputPanels key={id} output={output} id={id} url={url} />
         }
       </Tabs>
 
+      <ConfirmModal
+        show={showDiscardModal}
+        title="Discard Changes"
+        message="Are you sure you want to discard your unsaved changes? This cannot be undone."
+        confirmText="Discard Changes"
+        cancelText="Cancel"
+        ConfirmCallback={async () => HandleDiscardAll()}
+        CloseCallback={() => setShowDiscardModal(false)}
+      />
+
+      <ConfirmModal
+        show={blocker.state === "blocked" || pendingBack}
+        title="Unsaved Changes"
+        message="Are you sure you want to leave this page? Your unsaved changes will be lost."
+        confirmText="Leave Without Saving"
+        cancelText="Cancel"
+        ConfirmCallback={async () => {
+          outputSaveStore.DiscardAll();
+
+          if(pendingBack) {
+            setPendingBack(false);
+            navigate(-1);
+          } else {
+            blocker.proceed();
+          }
+        }}
+        CloseCallback={() => {
+          setPendingBack(false);
+
+          if(blocker.state === "blocked") {
+            blocker.reset();
+          }
+        }}
+      />
     </PageContainer>
   );
 });

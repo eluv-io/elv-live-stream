@@ -7,7 +7,7 @@ import {StreamStatus} from "@/utils/constants";
 export type PermissionLevel = "owner" | "editable" | "viewable" | "listable" | "public";
 
 type PublicProtocol = "rtmp" | "srt" | "mpegts";
-type DedicatedProtocol = "rtmp" | "mpegts";
+type DedicatedProtocol = "rtp" | "srt" | "mpegts";
 type Region =
   | "as-east"
   | "au-east"
@@ -521,6 +521,43 @@ class DataStore {
   UpdateDedicatedNodes = ({nodes}: {nodes: DedicatedNodeMap}) => {
     this.dedicatedNodes = nodes;
   };
+
+  *SaveDedicatedNodes({nodes, commitMessage="Update dedicated nodes"}: {nodes: DedicatedNodeMap, commitMessage?: string}): Generator<any, void> {
+    try {
+      if(!this.siteLibraryId) {
+        const {siteObjectId, siteLibraryId} = yield this.LoadTenantData();
+        this.siteId = siteObjectId;
+        this.siteLibraryId = siteLibraryId;
+      }
+
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId
+      });
+
+      yield this.client.ReplaceMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        metadataSubtree: "/dedicated_nodes",
+        metadata: toJS(nodes)
+      });
+
+      yield this.client.FinalizeContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        commitMessage,
+        awaitCommitConfirmation: true
+      });
+
+      this.UpdateDedicatedNodes({nodes});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to save dedicated nodes", error);
+      throw error;
+    }
+  }
 
   UpdateSrtUrls({objectId, newData={}, removeData={}}: {objectId: string, newData: Partial<SrtEntry>, removeData: Partial<SrtEntry>}) {
     const urlsByStream = this.srtUrlsByStream[objectId];

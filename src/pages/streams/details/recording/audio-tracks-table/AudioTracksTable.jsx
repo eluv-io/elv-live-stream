@@ -15,12 +15,12 @@ const AudioTracksTable = observer(({
   disabled
 }) => {
   const HandleFormChange = ({index, key, value}) => {
-    const audioIndexSpecific = audioFormData[index];
-    audioIndexSpecific[key] = value;
-
     setAudioFormData({
       ...audioFormData,
-      [index]: audioIndexSpecific
+      [index]: {
+        ...audioFormData[index],
+        [key]: value
+      }
     });
   };
 
@@ -51,9 +51,9 @@ const AudioTracksTable = observer(({
         classNames={{header: sharedStyles.tableHeader}}
         idAccessor="stream_index"
         noRecordsText="No audio tracks found"
-        minHeight={(records.length > 0) ? 150 : 170}
+        minHeight={(!records || records.length === 0) ? 170 : 150}
         fetching={!disabled && !audioFormData}
-        records={records}
+        records={records || []}
         withColumnBorders
         groups={[
           {

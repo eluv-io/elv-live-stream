@@ -988,7 +988,7 @@ class StreamStore {
   *LoadStreamProbeData({
     objectId,
     libraryId
-  }: {objectId: string, libraryId: string}): Generator<any, ProbeData | undefined> {
+  }: {objectId: string, libraryId: string}): Generator<any, ProbeData> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -1064,6 +1064,7 @@ class StreamStore {
     } catch(error) {
 
       console.error("Unable to load live_recording metadata", error);
+      return {audioStreams: [], audioData: {}};
     }
   }
 

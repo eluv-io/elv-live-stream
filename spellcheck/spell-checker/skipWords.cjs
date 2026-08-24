@@ -157,6 +157,8 @@ module.exports = [
   "videovideo",
   "viewable",
   "virtualizer",
+  "visibilitychange",
+  "vite",
   "vo",
   "vod",
   "webkit",
