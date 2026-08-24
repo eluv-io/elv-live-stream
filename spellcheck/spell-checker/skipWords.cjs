@@ -157,14 +157,14 @@ module.exports = [
   "videovideo",
   "viewable",
   "virtualizer",
+  "visibilitychange",
+  "vite",
   "vo",
   "vod",
   "webkit",
   "whitespace",
   "widevine",
   "wm",
-  "visibilitychange",
-  "vite",
   "xc",
   "xl"
 ];
