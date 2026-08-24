@@ -311,7 +311,6 @@ const ConfigProfiles = observer(() => {
         CloseCallback={() => setShowModal(false)}
         ConfirmCallback={async() => {
           await HandleDeleteProfile({slug: pendingDeleteItem.slug});
-          profileStore.DeleteProfile(pendingDeleteItem?.slug);
           setPendingDeleteItem(null);
           setShowModal(false);
         }}
