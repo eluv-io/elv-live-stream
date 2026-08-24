@@ -43,17 +43,13 @@ import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 
 const OutputUrlProtocol = (type) => type === "srt_push" ? "srt" : type;
 
-const SummaryPanel = observer(({output, url, id, form}) => {
+const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
   const videoGap = "20px";
   // client-js (OutputsList/OutputsListItem) marks this when the mapped stream's
   // content object is gone - e.g. deleted without unmapping this output.
   const streamUnavailable = output?.input?.status === STATUS_MAP.UNAVAILABLE;
-  const {type} = form.getValues();
-  // srt_pull has no editable Target URL - matches GeneralConfigPanel.
-  const isPush = type !== "srt_pull";
-  const urlPlaceholder = `${OutputUrlProtocol(type)}://example.com:1234`;
 
   return (
     <Box pt={16}>
@@ -130,16 +126,7 @@ const SummaryPanel = observer(({output, url, id, form}) => {
             </ActionIcon>
           </Tooltip>
         </Group>
-      {
-        isPush ?
-          <TextInput
-            placeholder={urlPlaceholder}
-            withAsterisk
-            key={form.key("url")}
-            {...form.getInputProps("url")}
-          /> :
-          <TextInput value={url ?? ""} readOnly />
-      }
+      <TextInput value={url ?? ""} readOnly />
 
       {
         output?.state?.clients?.map((client, i) => (
@@ -352,9 +339,6 @@ const OutputPanels = observer(({output, id, url}) => {
     },
     onValuesChange: () => {
       outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()});
-      // Summary only ever edits "url" - track it separately so changes to
-      // General-Config-only fields (e.g. name) don't flag Summary as dirty.
-      outputSaveStore.SetUrlDirty(form.isDirty("url"));
     }
   });
 
@@ -408,7 +392,7 @@ const OutputPanels = observer(({output, id, url}) => {
   return (
     <>
       <Tabs.Panel value="summary">
-        <SummaryPanel output={output} url={url} id={id} form={form} />
+        <SummaryPanel output={output} url={url} id={id} />
       </Tabs.Panel>
       <Tabs.Panel value="generalConfig">
         <GeneralConfigPanel form={form} />
@@ -417,11 +401,9 @@ const OutputPanels = observer(({output, id, url}) => {
   );
 });
 
-// Both tabs share the "generalConfig" save/discard action (see OutputPanels),
-// but each shows its own dirty indicator: Summary only edits "url", so it
-// uses the field-level urlDirty flag rather than the whole-form flag.
+// Summary's URL field is read-only, so only General Config can be dirty/savable.
 const OUTPUT_TABS = [
-  {label: "Summary", value: "summary", savable: true, IsDirty: () => outputSaveStore.urlDirty},
+  {label: "Summary", value: "summary", savable: false},
   {label: "General Config", value: "generalConfig", savable: true, IsDirty: () => outputSaveStore.IsDirty("generalConfig")}
 ];
 
