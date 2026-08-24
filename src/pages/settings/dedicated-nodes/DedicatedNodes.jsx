@@ -17,6 +17,7 @@ const DedicatedNodes = observer(() => {
   const [addingNode, setAddingNode] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     dataStore.LoadDedicatedNodes();
@@ -40,15 +41,21 @@ const DedicatedNodes = observer(() => {
   };
 
   const HandleDeleteNode = async(id) => {
-    // eslint-disable-next-line no-unused-vars
-    const {[id]: _removed, ...remainingNodes} = toJS(dataStore.dedicatedNodes) ?? {};
+    try {
+      setSaving(true);
 
-    await dataStore.SaveDedicatedNodes({nodes: remainingNodes, commitMessage: "Delete dedicated node"});
+      // eslint-disable-next-line no-unused-vars
+      const {[id]: _removed, ...remainingNodes} = toJS(dataStore.dedicatedNodes) ?? {};
 
-    notifications.show({
-      title: "Node deleted",
-      message: "Dedicated node successfully deleted"
-    });
+      await dataStore.SaveDedicatedNodes({nodes: remainingNodes, commitMessage: "Delete dedicated node"});
+
+      notifications.show({
+        title: "Node deleted",
+        message: "Dedicated node successfully deleted"
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const records = dataStore.dedicatedNodesList;
@@ -62,13 +69,14 @@ const DedicatedNodes = observer(() => {
             <Button
               variant="filled"
               onClick={HandleAddNode}
+              disabled={saving}
             >
               Add Node
             </Button>
             <Button
               variant="outline"
               onClick={HandleRefresh}
-              disabled={refreshing}
+              disabled={refreshing || saving}
             >
               Refresh
             </Button>
@@ -109,6 +117,7 @@ const DedicatedNodes = observer(() => {
                       variant="transparent"
                       color="elv-gray.6"
                       onClick={() => HandleEditNode(record)}
+                      disabled={saving}
                     >
                       <IconPencil />
                     </ActionIcon>
@@ -123,6 +132,7 @@ const DedicatedNodes = observer(() => {
                         setPendingDeleteItem({id: record.value, name: record.label});
                         setShowModal(true);
                       }}
+                      disabled={saving}
                     >
                       <IconTrash />
                     </ActionIcon>
@@ -160,18 +170,24 @@ const DedicatedNodes = observer(() => {
         description="Update the name, ID, and URLs for this dedicated node."
         onClose={() => setEditNodeId(null)}
         onSave={async(newId, updatedNode) => {
-          // eslint-disable-next-line no-unused-vars
-          const {[editNodeId]: _removed, ...remainingNodes} = toJS(dataStore.dedicatedNodes) ?? {};
+          try {
+            setSaving(true);
 
-          await dataStore.SaveDedicatedNodes({
-            nodes: {...remainingNodes, [newId]: updatedNode},
-            commitMessage: "Update dedicated node"
-          });
+            // eslint-disable-next-line no-unused-vars
+            const {[editNodeId]: _removed, ...remainingNodes} = toJS(dataStore.dedicatedNodes) ?? {};
 
-          notifications.show({
-            title: "Node updated",
-            message: "Dedicated node successfully updated"
-          });
+            await dataStore.SaveDedicatedNodes({
+              nodes: {...remainingNodes, [newId]: updatedNode},
+              commitMessage: "Update dedicated node"
+            });
+
+            notifications.show({
+              title: "Node updated",
+              message: "Dedicated node successfully updated"
+            });
+          } finally {
+            setSaving(false);
+          }
         }}
       />
       <NodeModal
@@ -182,18 +198,24 @@ const DedicatedNodes = observer(() => {
         title="Add Dedicated Node"
         onClose={() => setAddingNode(false)}
         onSave={async(newId, newNode) => {
-          await dataStore.SaveDedicatedNodes({
-            nodes: {
-              ...toJS(dataStore.dedicatedNodes),
-              [newId]: newNode
-            },
-            commitMessage: "Add dedicated node"
-          });
+          try {
+            setSaving(true);
 
-          notifications.show({
-            title: "Node added",
-            message: "Dedicated node successfully added"
-          });
+            await dataStore.SaveDedicatedNodes({
+              nodes: {
+                ...toJS(dataStore.dedicatedNodes),
+                [newId]: newNode
+              },
+              commitMessage: "Add dedicated node"
+            });
+
+            notifications.show({
+              title: "Node added",
+              message: "Dedicated node successfully added"
+            });
+          } finally {
+            setSaving(false);
+          }
         }}
       />
     </>
