@@ -1,5 +1,74 @@
 import {FormatTime} from "@/utils/formatters";
 
+export type DateRangePreset = "day" | "week" | "month" | "year" | "all";
+
+export const DATE_RANGE_PRESET_OPTIONS: {value: DateRangePreset, label: string}[] = [
+  {value: "day", label: "Day"},
+  {value: "week", label: "Week"},
+  {value: "month", label: "Month"},
+  {value: "year", label: "Year"},
+  {value: "all", label: "All"}
+];
+
+export const ShiftDateRangePreset = (preset: DateRangePreset, referenceDate: Date, direction: 1 | -1): Date => {
+  const date = new Date(referenceDate);
+
+  switch(preset) {
+    case "day":
+      date.setDate(date.getDate() + direction);
+      break;
+
+    case "week":
+      date.setDate(date.getDate() + direction * 7);
+      break;
+
+    case "month":
+      date.setMonth(date.getMonth() + direction);
+      break;
+
+    case "year":
+      date.setFullYear(date.getFullYear() + direction);
+      break;
+  }
+
+  return date;
+};
+
+export const GetDateRangePreset = (preset: DateRangePreset, referenceDate: Date = new Date()): [Date | null, Date | null] => {
+  const now = referenceDate;
+  const StartOfDay = (date: Date) => { const d = new Date(date); d.setHours(0, 0, 0, 0); return d; };
+  const EndOfDay = (date: Date) => { const d = new Date(date); d.setHours(23, 59, 59, 999); return d; };
+
+  switch(preset) {
+    case "day":
+      return [StartOfDay(now), EndOfDay(now)];
+
+    case "week": {
+      const start = new Date(now);
+      start.setDate(now.getDate() - now.getDay());
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      return [StartOfDay(start), EndOfDay(end)];
+    }
+
+    case "month": {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      return [StartOfDay(start), EndOfDay(end)];
+    }
+
+    case "year": {
+      const start = new Date(now.getFullYear(), 0, 1);
+      const end = new Date(now.getFullYear(), 11, 31);
+      return [StartOfDay(start), EndOfDay(end)];
+    }
+
+    case "all":
+    default:
+      return [null, null];
+  }
+};
+
 export const SortTable = ({sortStatus, AdditionalCondition}: {sortStatus: {columnAccessor: string, direction: string}, AdditionalCondition?: (a: Record<string, any>, b: Record<string, any>) => number | undefined}) => {
   return (a, b) => {
     if(AdditionalCondition && typeof AdditionalCondition(a, b) !== "undefined") {
