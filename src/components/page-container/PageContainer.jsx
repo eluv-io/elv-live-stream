@@ -78,18 +78,18 @@ const TopActions = ({showSearchBar, actions=[]}) => {
 const TitleSection = ({title, subtitle, subtitleRightSection, rightSection, leftSection, mb}) => {
   return (
     <Flex direction="column" gap={6} mb={mb}>
-      <Group gap={16}>
-        {
-          leftSection ? leftSection : null
-        }
-        <Group gap={20}>
+      <Group justify="space-between" wrap="nowrap" w="100%">
+        <Group gap={16}>
+          {
+            leftSection ? leftSection : null
+          }
           <Title order={1} c="elv-gray.9">
             { title }
           </Title>
-          {
-            rightSection ? rightSection : null
-          }
         </Group>
+        {
+          rightSection ? rightSection : null
+        }
       </Group>
       <Box display="block">
         <Group gap={8}>

@@ -103,6 +103,8 @@ export interface StreamInfo {
   packaging?: string[];
   connectionTimeout: number;
   reconnectionTimeout: number;
+  // Placeholder pending API support - object creation date, epoch ms
+  createdAt?: number;
   // Fields added by LoadSummaryData
   videoStreamProbe?: any;
   audioStreams?: any;

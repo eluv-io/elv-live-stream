@@ -74,6 +74,7 @@ class StreamStore {
   loadingStatus = false;
   tableFilter = "";
   tableTagFilter: string[] = [];
+  dateRangeFilter: [Date | null, Date | null] = [null, null];
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
@@ -105,13 +106,19 @@ class StreamStore {
   get filteredStreams(): StreamInfo[] {
     const filter = this.tableFilter.toLowerCase();
     const tagFilter = this.activeTagFilter;
+    const [startDate, endDate] = this.dateRangeFilter;
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||
         s.title?.toLowerCase().includes(filter) ||
         s.objectId?.toLowerCase().includes(filter);
       const matchesTags = tagFilter.length === 0 ||
         tagFilter.some(tag => s.tags?.includes(tag));
-      return matchesText && matchesTags;
+      const matchesDate = (!startDate && !endDate) || (
+        s.createdAt !== undefined &&
+        (!startDate || s.createdAt >= new Date(startDate).setHours(0, 0, 0, 0)) &&
+        (!endDate || s.createdAt <= new Date(endDate).setHours(23, 59, 59, 999))
+      );
+      return matchesText && matchesTags && matchesDate;
     });
   }
 
@@ -146,6 +153,10 @@ class StreamStore {
 
   RestoreTableTagFilter = (tags: string[]) => {
     this.tableTagFilter = tags;
+  };
+
+  SetDateRangeFilter = (range: [Date | null, Date | null]) => {
+    this.dateRangeFilter = range;
   };
 
   *CheckStatus({

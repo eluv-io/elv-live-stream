@@ -2,6 +2,7 @@ import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
+import {DatePickerInput} from "@mantine/dates";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
 import {dataStore, modalStore, streamStore} from "@/stores/index.ts";
@@ -14,6 +15,7 @@ import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {notifications} from "@mantine/notifications";
 import {IconCopy, IconLabel, IconPlayerPlay, IconPlayerStop, IconTrash} from "@tabler/icons-react";
+import {CalendarMonthIcon} from "@/assets/icons/index.js";
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
@@ -92,6 +94,17 @@ const Streams = observer(() => {
   return (
     <PageContainer
       title="Streams"
+      titleRightSection={
+        <DatePickerInput
+          type="range"
+          placeholder="Filter by date"
+          leftSection={<CalendarMonthIcon size={20} />}
+          value={streamStore.dateRangeFilter}
+          onChange={streamStore.SetDateRangeFilter}
+          clearable
+          w={350}
+        />
+      }
     >
       <Actions
         actions={[
