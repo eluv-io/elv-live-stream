@@ -16,7 +16,7 @@ const AppLayout = observer(() => {
   return (
     <AppShell
       padding="0"
-      navbar={{width: 200, breakpoint: "sm"}}
+      navbar={{width: 70, breakpoint: "sm"}}
     >
       <LeftNavigation />
       <AppShell.Main>

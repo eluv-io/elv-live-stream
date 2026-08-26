@@ -1,5 +1,5 @@
 import {StreamIcon} from "@/assets/icons/index.js";
-import {AppShell, NavLink} from "@mantine/core";
+import {AppShell, NavLink, Tooltip} from "@mantine/core";
 import {useLocation, useNavigate} from "react-router-dom";
 import styles from "@/components/left-navigation/LeftNavigation.module.css";
 import {IconDeviceTv, IconRoute, IconSettings} from "@tabler/icons-react";
@@ -24,23 +24,22 @@ const LeftNavigation = () => {
     <AppShell.Navbar p="24 14">
       {
         NAV_LINKS.map(({path, label, icon}) => (
-          <NavLink
-            key={`navigation-link-${path}`}
-            classNames={{
-              root: styles.root,
-              label: styles.label,
-              section: styles.section
-          }}
-            href="#"
-            label={label}
-            leftSection={icon}
-            onClick={(event) => {
-              event.preventDefault();
-              navigate(path);
+          <Tooltip key={`navigation-link-${path}`} label={label} position="right" withArrow>
+            <NavLink
+              classNames={{
+                root: styles.root,
+                label: styles.label,
+                section: styles.section
             }}
-            title={label}
-            active={location.pathname.includes(path)}
-          />
+              href="#"
+              leftSection={icon}
+              onClick={(event) => {
+                event.preventDefault();
+                navigate(path);
+              }}
+              active={location.pathname.includes(path)}
+            />
+          </Tooltip>
         ))
       }
     </AppShell.Navbar>

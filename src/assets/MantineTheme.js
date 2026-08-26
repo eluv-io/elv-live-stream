@@ -255,7 +255,8 @@ const theme = createTheme({
       styles: (theme, params) => ({
         root: {
           ...(params.active && {
-            "backgroundColor": "var(--mantine-color-elv-blue-1)"
+            "backgroundColor": "var(--mantine-color-elv-blue-0)",
+            "borderRadius": "2px"
           })
         },
         label: {

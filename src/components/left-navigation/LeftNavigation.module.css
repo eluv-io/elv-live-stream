@@ -1,9 +1,9 @@
 .root {
   justify-content: center;
   padding: 5px 0 5px 10px;
+  border: 2px;
 
   &:where([data-active]) {
-    background-color: transparent;
     font-weight: 500;
   }
 
