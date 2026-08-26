@@ -39,51 +39,16 @@ const { mockDataStore, mockStreamStore, mockModalStore } = vi.hoisted(() => {
   };
 });
 
-// mantine-datatable relies on layout measurement that jsdom cannot provide,
-// so rows are never rendered. This minimal mock calls each column's render()
-// so cell content actually reaches the DOM.
-vi.mock("mantine-datatable", () => ({
-  DataTable: ({records = [], columns = [], selectedRecords = [], onSelectedRecordsChange}) => {
-    const selectedIds = new Set((selectedRecords || []).map(r => r.slug));
-    return (
-      <table>
-        <thead>
-          <tr>
-            <th>
-              <input
-                type="checkbox"
-                aria-label="select-all-rows"
-                checked={records.length > 0 && selectedIds.size === records.length}
-                onChange={e => onSelectedRecordsChange?.(e.target.checked ? records : [])}
-              />
-            </th>
-            {columns.map(c => <th key={c.accessor}>{c.title}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {records.map(record => (
-            <tr key={record.slug} data-record-slug={record.slug}>
-              <td>
-                <input
-                  type="checkbox"
-                  aria-label={`select-row-${record.slug}`}
-                  checked={selectedIds.has(record.slug)}
-                  onChange={e => {
-                    if(e.target.checked) {
-                      onSelectedRecordsChange?.([...(selectedRecords || []), record]);
-                    } else {
-                      onSelectedRecordsChange?.((selectedRecords || []).filter(r => r.slug !== record.slug));
-                    }
-                  }}
-                />
-              </td>
-              {columns.map(c => <td key={c.accessor}>{c.render ? c.render(record) : record[c.accessor]}</td>)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    );
-  }
+// jsdom doesn't lay out real elements, so the scroll container always measures as 0px and
+// @tanstack/react-virtual would compute an empty visible range. This mock bypasses windowing
+// entirely and just returns every row, so StreamsTable's actual column/selection/sort markup
+// renders and is exercised for real.
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({count}) => ({
+    getVirtualItems: () => Array.from({length: count}, (_, index) => ({index, key: index, start: index * 64, size: 64})),
+    getTotalSize: () => count * 64,
+    measureElement: () => {}
+  })
 }));
 
 vi.mock("@/stores", () => ({

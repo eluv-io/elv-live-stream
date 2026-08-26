@@ -91,7 +91,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
           />
         </Flex>
 
-        <Box style={{flex: 1, overflow: "auto", minHeight: 0}}>
+        <Box style={{flex: 1, minHeight: 0}}>
           <StreamsTable
             records={records}
             isRecordSelectable={record => !!record.inputCfg}
@@ -103,6 +103,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
               if(selectedRecords?.[0]?.record?.objectId === record.objectId) { return {backgroundColor: "var(--mantine-color-elv-blue-0)"}; }
             }}
             showActions={false}
+            maxHeight="100%"
           />
         </Box>
         <Flex direction="row" align="center" pt="1.5rem" justify="flex-end">

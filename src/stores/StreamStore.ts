@@ -2,7 +2,7 @@
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET} from "@/utils/helpers";
-import {LIVE_STREAM_CONTENT_TAG, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
+import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 import {
   DeriveSourceAndPackaging,
   StreamMetadata, ProbeStream, RecordingInputCfg
@@ -117,22 +117,18 @@ class StreamStore {
     return this.tableTagFilter.filter(t => available.has(t));
   }
 
+  // Date scoping happens server-side (LoadTenantLiveStreamContent's date-tag filter) - streams
+  // don't carry a real createdAt to filter on client-side, so this only handles text/tags.
   get filteredStreams(): StreamInfo[] {
     const filter = this.tableFilter.toLowerCase();
     const tagFilter = this.activeTagFilter;
-    const [startDate, endDate] = this.dateRangeFilter;
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||
         s.title?.toLowerCase().includes(filter) ||
         s.objectId?.toLowerCase().includes(filter);
       const matchesTags = tagFilter.length === 0 ||
         tagFilter.some(tag => s.tags?.includes(tag));
-      const matchesDate = (!startDate && !endDate) || (
-        s.createdAt !== undefined &&
-        (!startDate || s.createdAt >= new Date(startDate).setHours(0, 0, 0, 0)) &&
-        (!endDate || s.createdAt <= new Date(endDate).setHours(23, 59, 59, 999))
-      );
-      return matchesText && matchesTags && matchesDate;
+      return matchesText && matchesTags;
     });
   }
 
@@ -703,9 +699,15 @@ class StreamStore {
     }
   }
 
-  *LoadTenantLiveStreamContent({dateRange, force=false}: {dateRange?: [Date | null, Date | null], force?: boolean} = {}): Generator<any, StreamMap> {
+  *LoadTenantLiveStreamContent({siteId, dateRange, force=false}: {siteId?: string, dateRange?: [Date | null, Date | null], force?: boolean} = {}): Generator<any, StreamMap> {
+    if(!siteId) {
+      this.tenantLiveStreamContent = {};
+      return this.tenantLiveStreamContent;
+    }
+
     const [startDate, endDate] = dateRange || [null, null];
     const filterKey = JSON.stringify([
+      siteId,
       startDate ? FormatDateFilter(startDate) : null,
       endDate ? FormatDateFilter(endDate) : null
     ]);
@@ -725,11 +727,12 @@ class StreamStore {
       let start = 0;
       let versions: TenantContentVersion[] = [];
 
-      const filter = [`tag:eq:${LIVE_STREAM_CONTENT_TAG}`];
+      const filter = [`group:eq:${siteId}`];
       if(startDate && endDate && FormatDateFilter(startDate) === FormatDateFilter(endDate)) {
         // Single day - one exact-match tag rather than a redundant ge/le pair.
         filter.push(`tag:eq:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`);
-      } else {
+      } else if(startDate || endDate) {
+        filter.push(`tag:co:${LIVE_STREAM_DATE_TAG_KEY}`);
         if(startDate) { filter.push(`tag:ge:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`); }
         if(endDate) { filter.push(`tag:le:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(endDate)}`); }
       }
@@ -767,8 +770,11 @@ class StreamStore {
   }
 
   *LoadStreams({streamMetadata}: {streamMetadata: StreamMap}) {
-    // Resolve objectId/versionHash up front (local decode, no network call) so the table can
-    // render immediately with stable row keys; per-stream details then fill in incrementally.
+    // Build the fully-enriched result in a plain local object - not the observable `this.streams`
+    // - so nothing here triggers a re-render until every stream's list data has loaded. One
+    // UpdateStreams call at the end reveals it all at once.
+    const enriched: StreamMap = {};
+
     Object.keys(streamMetadata).forEach(slug => {
       const stream = streamMetadata[slug];
 
@@ -785,16 +791,14 @@ class StreamStore {
       }
 
       const objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
-      streamMetadata[slug] = {...stream, slug, objectId, versionHash};
+      enriched[slug] = {...stream, slug, objectId, versionHash};
     });
-
-    this.UpdateStreams({streams: streamMetadata});
 
     yield this.client.utils.LimitedMap(
       10,
-      Object.keys(streamMetadata),
+      Object.keys(enriched),
       async slug => {
-        const {objectId, versionHash} = this.streams[slug] || {};
+        const {objectId, versionHash} = enriched[slug];
         if(!objectId) { return; }
 
         try {
@@ -804,7 +808,7 @@ class StreamStore {
             `ContentObjectLibraryId(${objectId})`
           );
 
-          this.UpdateStream({key: slug, value: {libraryId}});
+          enriched[slug].libraryId = libraryId;
 
           const streamDetails = await WithTimeout(
             this.LoadStreamListData({objectId, libraryId}) as unknown as Promise<StreamListData | undefined>,
@@ -812,12 +816,14 @@ class StreamStore {
             `LoadStreamListData(${objectId})`
           ) || {};
 
-          this.UpdateStream({key: slug, value: streamDetails as Partial<StreamInfo>});
+          Object.assign(enriched[slug], streamDetails);
         } catch(error) {
           console.error(`Failed to load stream ${slug} (${versionHash})`, error);
         }
       }
     );
+
+    this.UpdateStreams({streams: enriched});
   }
 
   *LoadStreamListData({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, StreamListData | undefined> {

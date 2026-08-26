@@ -189,18 +189,10 @@ class DataStore {
     return this.dedicatedNodes?.[nodeId]?.urls?.[protocol] ?? [];
   }
 
-  *Initialize({tenantContentPromise}: {tenantContentPromise?: Promise<Record<string, unknown>>} = {}): Generator<any, void> {
+  *Initialize(): Generator<any, void> {
     this.loaded = false;
     try {
-      const tenantStreamMetadata = tenantContentPromise ? yield tenantContentPromise : undefined;
-      const tenantHasContent = Object.keys(tenantStreamMetadata || {}).length > 0;
-
-      if(!tenantHasContent) {
-        yield this.LoadTenantData();
-      } else {
-        (this.LoadTenantData() as unknown as Promise<unknown>).catch(() => {});
-      }
-
+      yield this.LoadTenantData();
       this.loaded = true;
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -218,7 +210,7 @@ class DataStore {
       const dateRange = this.rootStore.streamStore.dateRangeFilter;
       const hasDateFilter = !!(dateRange && (dateRange[0] || dateRange[1]));
 
-      const tenantStreamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({dateRange, force: reload});
+      const tenantStreamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, force: reload});
       const tenantHasContent = Object.keys(tenantStreamMetadata || {}).length > 0;
 
       let streamMetadata = tenantStreamMetadata;
@@ -229,16 +221,15 @@ class DataStore {
         streamMetadata = this.streamMetadata;
       }
 
-      // LoadStreams populates the raw list synchronously (before its own per-stream
-      // enrichment loop) - flip streamsLoaded as soon as it's invoked so the table renders
-      // and fills in details incrementally, instead of sitting behind a loader the whole time.
-      const loadStreamsPromise = this.rootStore.streamStore.LoadStreams({streamMetadata});
-      this.streamsLoaded = true;
-
+      // Table only updates once both the tenant query and the per-stream metadata call
+      // (LoadStreams) have fully resolved - streamsLoaded stays false (table shows its
+      // loading state) until then, instead of revealing rows as they fill in.
       yield Promise.all([
-        loadStreamsPromise,
+        this.rootStore.streamStore.LoadStreams({streamMetadata}),
         this.rootStore.outputStore.LoadOutputSettingsId()
       ]);
+
+      this.streamsLoaded = true;
 
       yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {

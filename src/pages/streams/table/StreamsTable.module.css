@@ -1,0 +1,35 @@
+.header {
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid var(--mantine-datatable-row-border-color, var(--mantine-color-gray-3));
+  background-color: var(--mantine-color-white);
+}
+
+.headerCell {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.body {
+  overflow: auto;
+}
+
+.row {
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid var(--mantine-datatable-row-border-color, var(--mantine-color-gray-3));
+
+  &:hover {
+    background-color: var(--mantine-color-elv-gray-0);
+  }
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  min-width: 0;
+  overflow: hidden;
+}

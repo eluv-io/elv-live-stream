@@ -75,12 +75,10 @@ class RootStore {
       this.networkInfo = yield this.client.NetworkInfo();
       this.contentSpaceId = yield this.client.ContentSpaceId();
 
-      const tenantContentPromise = this.streamStore.LoadTenantLiveStreamContent({
-        dateRange: this.streamStore.dateRangeFilter
-      }) as unknown as Promise<Record<string, unknown>>;
-
+      // The tenant-wide live-stream query is scoped by siteId (group:eq:<siteId>), so it can't
+      // fire until site settings (dataStore.Initialize -> LoadTenantData) have resolved.
       yield Promise.all([
-        this.dataStore.Initialize({tenantContentPromise}),
+        this.dataStore.Initialize(),
         this.userSettingsStore.Load()
       ]);
 
