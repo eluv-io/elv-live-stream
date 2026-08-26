@@ -75,8 +75,12 @@ class RootStore {
       this.networkInfo = yield this.client.NetworkInfo();
       this.contentSpaceId = yield this.client.ContentSpaceId();
 
+      const tenantContentPromise = this.streamStore.LoadTenantLiveStreamContent({
+        dateRange: this.streamStore.dateRangeFilter
+      }) as unknown as Promise<Record<string, unknown>>;
+
       yield Promise.all([
-        this.dataStore.Initialize(),
+        this.dataStore.Initialize({tenantContentPromise}),
         this.userSettingsStore.Load()
       ]);
 

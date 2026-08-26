@@ -2,6 +2,8 @@ import {FormatTime} from "@/utils/formatters";
 
 export type DateRangePreset = "day" | "week" | "month" | "year" | "all";
 
+export const DEFAULT_DATE_PRESET: DateRangePreset = "all";
+
 export const DATE_RANGE_PRESET_OPTIONS: {value: DateRangePreset, label: string}[] = [
   {value: "day", label: "Day"},
   {value: "week", label: "Week"},
@@ -164,6 +166,14 @@ export const Runtime = ({
   return time;
 };
 
+// Local-time YYYY-MM-DD, for date-range query filters (avoids the UTC day-shift of toISOString()).
+export const FormatDateFilter = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 // Copy of elv-client-js's `slugify`. Importing it from
 // `@eluvio/elv-client-js/utilities/lib/helpers.js` pulls that whole module in,
 // about 24KB gzip in the entry chunk for a one-line regex.
@@ -174,3 +184,13 @@ export const Runtime = ({
 // cases verified against upstream.
 export const slugify = (str?: string): string =>
   (str || "").toLowerCase().trim().replace(/ /g, "-").replace(/[^a-z0-9-]/g, "");
+
+// Fails fast on a single slow/hung call (e.g. a permission-restricted object) instead of
+// blocking a whole batch of concurrent requests indefinitely.
+export const WithTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timed out after ${ms}ms: ${label}`)), ms)
+    )
+  ]);

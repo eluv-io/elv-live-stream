@@ -32,6 +32,7 @@ const { mockDataStore, mockStreamStore, mockModalStore } = vi.hoisted(() => {
       get allTags() { return []; },
       SetTableFilter: vi.fn(),
       SetTableTagFilter: vi.fn(),
+      SetDateRangeFilter: vi.fn(),
       CheckStatus: vi.fn().mockResolvedValue({}),
     },
     mockModalStore: { SetBatchModal: vi.fn() }

@@ -182,6 +182,9 @@ export const RETENTION_TEXT = {
   2635200: "1 Month"
 };
 
+export const LIVE_STREAM_CONTENT_TAG = "elv:media:live_stream";
+export const LIVE_STREAM_DATE_TAG_PREFIX = "elv:date:";
+
 export const FABRIC_NODE_REGIONS = [
   {value: "na-east-north", label: "NA Northeast"},
   {value: "na-east-south", label: "NA Southeast"},

@@ -189,10 +189,18 @@ class DataStore {
     return this.dedicatedNodes?.[nodeId]?.urls?.[protocol] ?? [];
   }
 
-  *Initialize(): Generator<any, void> {
+  *Initialize({tenantContentPromise}: {tenantContentPromise?: Promise<Record<string, unknown>>} = {}): Generator<any, void> {
     this.loaded = false;
     try {
-      yield this.LoadTenantData();
+      const tenantStreamMetadata = tenantContentPromise ? yield tenantContentPromise : undefined;
+      const tenantHasContent = Object.keys(tenantStreamMetadata || {}).length > 0;
+
+      if(!tenantHasContent) {
+        yield this.LoadTenantData();
+      } else {
+        (this.LoadTenantData() as unknown as Promise<unknown>).catch(() => {});
+      }
+
       this.loaded = true;
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -206,16 +214,32 @@ class DataStore {
     this._loadingStreams = true;
     this.streamsLoaded = false;
     try {
-      if(!this.streamMetadata || reload) {
-        yield this.LoadTenantData();
+      // Prefer the tenant-wide tag query; only fall back to the site object's registered stream list
+      const dateRange = this.rootStore.streamStore.dateRangeFilter;
+      const hasDateFilter = !!(dateRange && (dateRange[0] || dateRange[1]));
+
+      const tenantStreamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({dateRange, force: reload});
+      const tenantHasContent = Object.keys(tenantStreamMetadata || {}).length > 0;
+
+      let streamMetadata = tenantStreamMetadata;
+      if(!tenantHasContent && !hasDateFilter) {
+        if(!this.streamMetadata || reload) {
+          yield this.LoadTenantData();
+        }
+        streamMetadata = this.streamMetadata;
       }
 
+      // LoadStreams populates the raw list synchronously (before its own per-stream
+      // enrichment loop) - flip streamsLoaded as soon as it's invoked so the table renders
+      // and fills in details incrementally, instead of sitting behind a loader the whole time.
+      const loadStreamsPromise = this.rootStore.streamStore.LoadStreams({streamMetadata});
+      this.streamsLoaded = true;
+
       yield Promise.all([
-        this.rootStore.streamStore.LoadStreams({streamMetadata: this.streamMetadata}),
+        loadStreamsPromise,
         this.rootStore.outputStore.LoadOutputSettingsId()
       ]);
 
-      this.streamsLoaded = true;
       yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
       this.streamsLoaded = true;

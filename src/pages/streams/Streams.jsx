@@ -6,7 +6,7 @@ import {ActionIcon, Group, Select, Tooltip} from "@mantine/core";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
 import {dataStore, modalStore, streamStore} from "@/stores/index.ts";
-import {DATE_RANGE_PRESET_OPTIONS, GetDateRangePreset, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
+import {DATE_RANGE_PRESET_OPTIONS, DEFAULT_DATE_PRESET, GetDateRangePreset, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
@@ -22,7 +22,7 @@ const Streams = observer(() => {
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
   const [showEditTagsModal, {open: openEditTags, close: closeEditTags}] = useDisclosure(false);
-  const [datePreset, setDatePreset] = useState("all");
+  const [datePreset, setDatePreset] = useState(DEFAULT_DATE_PRESET);
   const [referenceDate, setReferenceDate] = useState(new Date());
   const navigate = useNavigate();
 
@@ -31,15 +31,19 @@ const Streams = observer(() => {
     setDatePreset(preset);
     setReferenceDate(date);
     streamStore.SetDateRangeFilter(GetDateRangePreset(preset, date));
+    DebouncedRefresh();
   };
 
   const ShiftDate = (direction) => {
     const date = ShiftDateRangePreset(datePreset, referenceDate, direction);
     setReferenceDate(date);
     streamStore.SetDateRangeFilter(GetDateRangePreset(datePreset, date));
+    DebouncedRefresh();
   };
 
   useEffect(() => {
+    streamStore.SetDateRangeFilter(GetDateRangePreset(datePreset, referenceDate));
+
     if(!dataStore.streamsLoaded) {
       dataStore.LoadSiteStreams();
     }

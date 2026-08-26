@@ -1,8 +1,8 @@
 // Manages runtime stream state: the streams map, status polling, live control (start, stop, deactivate), and frame preview.
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
-import {slugify} from "@/utils/helpers";
-import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
+import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET} from "@/utils/helpers";
+import {LIVE_STREAM_CONTENT_TAG, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 import {
   DeriveSourceAndPackaging,
   StreamMetadata, ProbeStream, RecordingInputCfg
@@ -67,6 +67,16 @@ interface StreamFrameUrl {
 
 type StreamMap = Record<string, StreamInfo>;
 
+interface TenantContentVersion {
+  id: string;
+  hash: string;
+  type: string;
+  object_version: number;
+  error: string;
+}
+
+const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
+
 class StreamStore {
   streams: StreamMap;
   streamFrameUrls: Record<string, StreamFrameUrl> = {};
@@ -74,12 +84,16 @@ class StreamStore {
   loadingStatus = false;
   tableFilter = "";
   tableTagFilter: string[] = [];
-  dateRangeFilter: [Date | null, Date | null] = [null, null];
+  dateRangeFilter: [Date | null, Date | null] = GetDateRangePreset(DEFAULT_DATE_PRESET);
+  tenantLiveStreamContent: StreamMap = {};
+  loadingTenantLiveStreamContent = false;
+  _tenantContentPromise: Promise<void> | null = null;
+  _tenantContentFilterKey: string | null = null;
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
-    makeAutoObservable(this, {}, {autoBind: true});
+    makeAutoObservable(this, {_tenantContentPromise: false, _tenantContentFilterKey: false}, {autoBind: true});
   }
 
   get client() {
@@ -167,10 +181,11 @@ class StreamStore {
   }: {objectId: string, slug?: string, showParams?: boolean, update?: boolean}): Generator<any, void | {}> {
     let response;
     try {
-      response = yield this.client.StreamStatus({
-        name: objectId,
-        showParams
-      });
+      response = yield WithTimeout(
+        this.client.StreamStatus({name: objectId, showParams}),
+        OBJECT_LOOKUP_TIMEOUT_MS,
+        `StreamStatus(${objectId})`
+      );
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(`Failed to load status for ${objectId || "object"}`, error);
@@ -688,50 +703,121 @@ class StreamStore {
     }
   }
 
+  *LoadTenantLiveStreamContent({dateRange, force=false}: {dateRange?: [Date | null, Date | null], force?: boolean} = {}): Generator<any, StreamMap> {
+    const [startDate, endDate] = dateRange || [null, null];
+    const filterKey = JSON.stringify([
+      startDate ? FormatDateFilter(startDate) : null,
+      endDate ? FormatDateFilter(endDate) : null
+    ]);
+
+    if(!force && this._tenantContentPromise && this._tenantContentFilterKey === filterKey) {
+      yield this._tenantContentPromise;
+      return this.tenantLiveStreamContent;
+    }
+
+    this._tenantContentFilterKey = filterKey;
+    let resolve: () => void;
+    this._tenantContentPromise = new Promise(res => { resolve = res; });
+    this.loadingTenantLiveStreamContent = true;
+
+    try {
+      const limit = 100;
+      let start = 0;
+      let versions: TenantContentVersion[] = [];
+
+      const filter = [`tag:eq:${LIVE_STREAM_CONTENT_TAG}`];
+      if(startDate && endDate && FormatDateFilter(startDate) === FormatDateFilter(endDate)) {
+        // Single day - one exact-match tag rather than a redundant ge/le pair.
+        filter.push(`tag:eq:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`);
+      } else {
+        if(startDate) { filter.push(`tag:ge:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`); }
+        if(endDate) { filter.push(`tag:le:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(endDate)}`); }
+      }
+
+      while(true) {
+        const {versions: page, paging} = yield this.client.TenantContent({
+          filter,
+          start,
+          limit
+        });
+
+        versions = versions.concat(page ?? []);
+
+        if(!paging || paging.next === undefined || paging.next === null || paging.next <= start) {
+          break;
+        }
+
+        start = paging.next;
+      }
+
+      this.tenantLiveStreamContent = Object.fromEntries(
+        versions
+          .filter(({id, hash}) => id && hash)
+          .map(({id, hash}) => [id, {versionHash: hash} as StreamInfo])
+      );
+    } catch(error) {
+      console.error("Unable to load tenant live stream content", error);
+      this._tenantContentFilterKey = null;
+    } finally {
+      this.loadingTenantLiveStreamContent = false;
+      resolve();
+    }
+
+    return this.tenantLiveStreamContent;
+  }
+
   *LoadStreams({streamMetadata}: {streamMetadata: StreamMap}) {
+    // Resolve objectId/versionHash up front (local decode, no network call) so the table can
+    // render immediately with stable row keys; per-stream details then fill in incrementally.
+    Object.keys(streamMetadata).forEach(slug => {
+      const stream = streamMetadata[slug];
+
+      let versionHash = stream?.["."]?.source ?? stream.versionHash;
+
+      if(!versionHash) {
+        const match = stream?.["/"].match(/(hq__[^/]+)/);
+        versionHash = match ? match[1] : undefined;
+      }
+
+      if(!versionHash) {
+        console.error(`No version hash for ${slug}`);
+        return;
+      }
+
+      const objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
+      streamMetadata[slug] = {...stream, slug, objectId, versionHash};
+    });
+
+    this.UpdateStreams({streams: streamMetadata});
+
     yield this.client.utils.LimitedMap(
       10,
       Object.keys(streamMetadata),
       async slug => {
+        const {objectId, versionHash} = this.streams[slug] || {};
+        if(!objectId) { return; }
+
         try {
-          const stream = streamMetadata[slug];
+          const libraryId = await WithTimeout(
+            this.client.ContentObjectLibraryId({objectId}) as Promise<string>,
+            OBJECT_LOOKUP_TIMEOUT_MS,
+            `ContentObjectLibraryId(${objectId})`
+          );
 
-          let versionHash = stream?.["."]?.source ?? stream.versionHash;
+          this.UpdateStream({key: slug, value: {libraryId}});
 
-          if(!versionHash) {
-            const match = stream?.["/"].match(/(hq__[^/]+)/);
-            versionHash = match ? match[1] : undefined;
-          }
+          const streamDetails = await WithTimeout(
+            this.LoadStreamListData({objectId, libraryId}) as unknown as Promise<StreamListData | undefined>,
+            OBJECT_LOOKUP_TIMEOUT_MS,
+            `LoadStreamListData(${objectId})`
+          ) || {};
 
-          if(versionHash) {
-            const objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
-            const libraryId = await this.client.ContentObjectLibraryId({objectId});
-
-            streamMetadata[slug].slug = slug;
-            streamMetadata[slug].objectId = objectId;
-            streamMetadata[slug].versionHash = versionHash;
-            streamMetadata[slug].libraryId = libraryId;
-
-            const streamDetails = await this.LoadStreamListData({
-              objectId,
-              libraryId
-            }) || {};
-
-            Object.keys(streamDetails).forEach(detail => {
-              streamMetadata[slug][detail] = streamDetails[detail];
-            });
-          } else {
-
-            console.error(`No version hash for ${slug}`);
-          }
+          this.UpdateStream({key: slug, value: streamDetails as Partial<StreamInfo>});
         } catch(error) {
-
-          console.error(`Failed to load stream ${slug}`, error);
+          console.error(`Failed to load stream ${slug} (${versionHash})`, error);
         }
       }
     );
-
-    this.UpdateStreams({streams: streamMetadata});
   }
 
   *LoadStreamListData({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, StreamListData | undefined> {
