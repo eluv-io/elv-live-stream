@@ -30,7 +30,7 @@ const AppLayout = observer(() => {
                 <Outlet />
               </Suspense> :
               (
-                <Flex justify="center" align="center">
+                <Flex justify="center" align="center" h="100%" pt={48}>
                   <Loader />
                 </Flex>
               )

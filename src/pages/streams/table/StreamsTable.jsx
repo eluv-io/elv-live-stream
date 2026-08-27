@@ -199,9 +199,11 @@ const TableShell = ({
   const someSelected = selectionEnabled && !allSelected && selectableRecords.some(IsSelected);
 
   return (
+    // While fetching, a min height gives the loading spinner room to sit below the header rather than at the top edge
     <Box
       className={sharedStyles.tableWrapper}
       {...scrollContainerProps}
+      mih={fetching ? 220 : undefined}
       style={{position: "relative", display: "flex", flexDirection: "column", ...scrollContainerProps?.style}}
     >
       <LoadingOverlay visible={!!fetching} zIndex={1} overlayProps={{radius: "sm", blur: 1}} />

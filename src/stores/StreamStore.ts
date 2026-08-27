@@ -118,6 +118,12 @@ class StreamStore {
   dateRangeFilter: [Date | null, Date | null] = GetDateRangePreset(DEFAULT_DATE_PRESET);
   tenantLiveStreamContent: StreamMap = {};
   loadingTenantLiveStreamContent = false;
+  // Full, unscoped stream set for the map-to-stream modal. Kept separate from `streams`
+  // (the streams page's date-scoped list) so neither one clobbers the other.
+  allStreams: StreamMap = {};
+  allStreamsLoaded = false;
+  loadingAllStreams = false;
+  _allStreamsPromise: Promise<void> | null = null;
   // Paged tenant query state (streams page): whether another page is available,
   // whether a page fetch is in flight, and the resume cursor / query params.
   tenantContentHasMore = false;
@@ -134,7 +140,8 @@ class StreamStore {
       _tenantContentPromise: false,
       _tenantContentFilterKey: false,
       _tenantContentCursor: false,
-      _tenantContentQuery: false
+      _tenantContentQuery: false,
+      _allStreamsPromise: false
     }, {autoBind: true});
   }
 
@@ -190,6 +197,10 @@ class StreamStore {
 
   UpdateStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
+    // The scoped list was (re)built or a stream was added/removed - the modal's full
+    // set may now be stale, so refetch it the next time the modal opens.
+    this.allStreamsLoaded = false;
+    this._allStreamsPromise = null;
     const remaining = this.allTags;
     this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
   };
@@ -898,9 +909,10 @@ class StreamStore {
     return added;
   }
 
-  // append=true merges the enriched results into the existing stream list (used when
-  // pulling additional pages) instead of replacing it.
-  *LoadStreams({streamMetadata, append=false}: {streamMetadata: StreamMap, append?: boolean}) {
+  // Enriches a raw stream-metadata map (tenant query fields or site-object entries) with
+  // per-object data: decoded objectId, libraryId, title, tags, source/packaging, inputCfg.
+  // Returns the enriched map without touching store state - callers decide where it goes.
+  *_EnrichStreams({streamMetadata}: {streamMetadata: StreamMap}): Generator<any, StreamMap> {
     const enriched: StreamMap = {};
 
     Object.keys(streamMetadata).forEach(slug => {
@@ -964,7 +976,77 @@ class StreamStore {
       }
     );
 
+    return enriched;
+  }
+
+  // append=true merges into the existing scoped list (additional pages); otherwise replaces it.
+  *LoadStreams({streamMetadata, append=false}: {streamMetadata: StreamMap, append?: boolean}): Generator<any, void> {
+    const enriched: StreamMap = yield this._EnrichStreams({streamMetadata});
     this.UpdateStreams({streams: append ? {...this.streams, ...enriched} : enriched});
+  }
+
+  // Loads the full, unscoped stream set for the map-to-stream modal. Kept independent of
+  // the streams page's paged / date-scoped tenant query (LoadTenantLiveStreamContent) so
+  // neither list clobbers the other. No status polling - the modal only needs inputCfg /
+  // title / objectId to pick a stream.
+  *LoadAllStreams({force=false}: {force?: boolean} = {}): Generator<any, StreamMap> {
+    if(this.allStreamsLoaded && !force) { return this.allStreams; }
+    if(this._allStreamsPromise && !force) {
+      yield this._allStreamsPromise;
+      return this.allStreams;
+    }
+
+    let resolve: () => void;
+    this._allStreamsPromise = new Promise(res => { resolve = res; });
+    this.loadingAllStreams = true;
+
+    try {
+      const siteId = this.rootStore.dataStore.siteId;
+      let streamMetadata: StreamMap = {};
+
+      if(siteId) {
+        const filter = this._TenantContentFilter(siteId); // no date range - full set
+        let start = 0;
+        let versions: TenantContentVersion[] = [];
+
+        while(true) {
+          const {versions: page, paging} = yield this.client.TenantContent({
+            filter,
+            start,
+            limit: TENANT_CONTENT_PAGE_SIZE
+          });
+
+          const received = (page ?? []).length;
+          versions = versions.concat(page ?? []);
+
+          const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+          if(next === null) { break; }
+          start = next;
+        }
+
+        streamMetadata = Object.fromEntries(
+          versions
+            .filter(({id, hash}) => id && hash)
+            .map(version => [version.id, StreamInfoFromQueryFields(version) as StreamInfo])
+        );
+      }
+
+      // Fall back to the site object's registered list when the tenant query is empty.
+      if(Object.keys(streamMetadata).length === 0) {
+        streamMetadata = yield this.rootStore.dataStore.LoadTenantSiteStreams();
+      }
+
+      this.allStreams = yield this._EnrichStreams({streamMetadata});
+      this.allStreamsLoaded = true;
+    } catch(error) {
+      console.error("Unable to load all streams", error);
+      this._allStreamsPromise = null;
+    } finally {
+      this.loadingAllStreams = false;
+      resolve();
+    }
+
+    return this.allStreams;
   }
 
   *LoadStreamListData({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, StreamListData | undefined> {
