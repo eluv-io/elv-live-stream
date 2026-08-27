@@ -48,5 +48,5 @@
 
 /* Stream rows nested under an expanded group */
 .groupChildRow {
-  background: rgba(60, 60, 60, 0.05);
+  background: rgb(60 60 60 / 5%);
 }
