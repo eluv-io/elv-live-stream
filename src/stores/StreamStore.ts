@@ -1157,7 +1157,7 @@ class StreamStore {
     try {
       result.embedUrl = yield this.EmbedUrl({objectId});
     } catch(error) {
-      // eslint-disable-next-line no-console
+       
       console.error(`Unable to load embed URL for ${objectId}`, error);
     }
 
@@ -1170,7 +1170,7 @@ class StreamStore {
         channelAuth: true
       });
     } catch(error) {
-      // eslint-disable-next-line no-console
+       
       console.error(`Unable to load playout options URL for ${objectId}`, error);
     }
 
@@ -1198,7 +1198,7 @@ class StreamStore {
         });
       });
     } catch(error) {
-      // eslint-disable-next-line no-console
+       
       console.error(`Unable to load playout options for ${objectId}`, error);
     }
 
