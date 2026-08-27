@@ -1052,6 +1052,74 @@ class StreamStore {
     return this.allStreams;
   }
 
+  // Loads and enriches only the streams belonging to one group (query_fields.title_id).
+  // The tenant query can only be narrowed by site + date tag, so version metadata is
+  // still paged in full, but the expensive per-object enrichment runs for the group's
+  // streams alone. Returns the map without touching store state - the caller owns it.
+  // TODO: use a server-side title_id filter here once the group-data source lands.
+  *LoadStreamsByTitleId(titleId: string): Generator<any, StreamMap> {
+    const siteId = this.rootStore.dataStore.siteId;
+    if(!siteId || !titleId) { return {}; }
+
+    const filter = this._TenantContentFilter(siteId);
+    let start = 0;
+    let versions: TenantContentVersion[] = [];
+
+    while(true) {
+      const {versions: page, paging} = yield this.client.TenantContent({
+        filter,
+        start,
+        limit: TENANT_CONTENT_PAGE_SIZE
+      });
+
+      const received = (page ?? []).length;
+      versions = versions.concat(page ?? []);
+
+      const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+      if(next === null) { break; }
+      start = next;
+    }
+
+    const streamMetadata: StreamMap = Object.fromEntries(
+      versions
+        .filter(({id, hash}) => id && hash)
+        .map(version => [version.id, StreamInfoFromQueryFields(version) as StreamInfo])
+        .filter(([, info]) => (info as StreamInfo).titleId === titleId)
+    );
+
+    return yield this._EnrichStreams({streamMetadata});
+  }
+
+  // Fetches live status for the given objectIds and returns it keyed by objectId.
+  // Pure - does not write to any store map, so callers holding a local stream list
+  // (e.g. the group summary page) can merge it themselves.
+  *StreamStatuses(objectIds: string[]): Generator<any, Record<string, Partial<StreamInfo>>> {
+    const result: Record<string, Partial<StreamInfo>> = {};
+
+    yield this.client.utils.LimitedMap(
+      15,
+      objectIds || [],
+      async (objectId: string) => {
+        if(!objectId) { return; }
+
+        try {
+          const response = await this.CheckStatus({objectId}) as any;
+          result[objectId] = {
+            status: response?.state,
+            warnings: response?.warnings,
+            quality: response?.quality,
+            embedUrl: response?.playoutUrls?.embedUrl
+          };
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error(`Skipping status for ${objectId}.`, error);
+        }
+      }
+    );
+
+    return result;
+  }
+
   *LoadStreamListData({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, StreamListData | undefined> {
     try {
       if(!libraryId) {

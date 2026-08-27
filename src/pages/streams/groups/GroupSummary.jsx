@@ -1,10 +1,11 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {Link, useNavigate, useParams} from "react-router-dom";
+import {Box, Group, Text} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
-import {IconDeviceAnalytics} from "@tabler/icons-react";
+import {IconChevronRight, IconDeviceAnalytics} from "@tabler/icons-react";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
-import CollapsibleSection from "@/components/collapsible-section/CollapsibleSection.jsx";
+import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import {SortTable} from "@/utils/helpers.ts";
 import {streamStore, streamGroupStore} from "@/stores/index.ts";
@@ -28,17 +29,43 @@ const GroupSummary = observer(() => {
   const navigate = useNavigate();
   const {id: titleId} = useParams();
   const [sortStatus, setSortStatus] = useState({columnAccessor: "date", direction: "desc"});
+  // All page state is local - nothing is written to a store, localStorage, or user settings.
+  const [tagFilter, setTagFilter] = useState([]);
+  const [streams, setStreams] = useState({});
+  const [loading, setLoading] = useState(true);
+  const loadId = useRef(0);
 
-  const Refresh = () => {
+  const LoadData = async () => {
+    const runId = ++loadId.current;
+    setLoading(true);
     streamGroupStore.LoadGroupData({titleId});
-    streamStore.LoadAllStreams({force: true});
+
+    // Load + enrich only this group's streams, not the whole tenant.
+    const map = await streamStore.LoadStreamsByTitleId(titleId);
+    if(runId !== loadId.current) { return; }
+    setStreams(map);
+    setLoading(false);
+
+    const objectIds = Object.values(map).map(stream => stream.objectId).filter(Boolean);
+    if(objectIds.length === 0) { return; }
+
+    const statuses = await streamStore.StreamStatuses(objectIds);
+    if(runId !== loadId.current) { return; }
+    setStreams(current => {
+      const next = {...current};
+      Object.keys(next).forEach(slug => {
+        const status = statuses[next[slug].objectId];
+        if(status) { next[slug] = {...next[slug], ...status}; }
+      });
+      return next;
+    });
   };
 
-  const DebouncedRefresh = useDebouncedCallback(Refresh, 500);
+  const DebouncedRefresh = useDebouncedCallback(LoadData, 500);
 
   useEffect(() => {
-    streamGroupStore.LoadGroupData({titleId});
-    streamStore.LoadAllStreams();
+    LoadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [titleId]);
 
   const actions = [
@@ -55,8 +82,22 @@ const GroupSummary = observer(() => {
     }
   ];
 
-  const records = Object.values(streamStore.allStreams || {})
-    .filter(stream => stream.titleId === titleId)
+  const streamList = Object.values(streams);
+
+  const allTags = Array.from(
+    new Set(streamList.flatMap(stream => stream.tags || []))
+  ).sort();
+
+  const activeTagFilter = tagFilter.filter(tag => allTags.includes(tag));
+
+  const ToggleTag = (tag) => setTagFilter(current =>
+    current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag]
+  );
+
+  const records = streamList
+    .filter(stream =>
+      activeTagFilter.length === 0 || activeTagFilter.some(tag => stream.tags?.includes(tag))
+    )
     .sort(SortTable({sortStatus}));
 
   return (
@@ -64,16 +105,26 @@ const GroupSummary = observer(() => {
       title={`Distribution Summary - ${titleId}`}
       actions={actions}
     >
-      <CollapsibleSection title="Sources" defaultOpen>
+      <Group gap={8} wrap="nowrap" mb={4}>
+        <IconChevronRight size={20} color="var(--mantine-color-elv-blue-3)" />
+        <Text fz="1.125rem" fw={600} c="elv-blue.3">Sources</Text>
+      </Group>
+      <Box pt={16}>
+        <TagFilterRow
+          tags={allTags}
+          selectedTags={activeTagFilter}
+          onTagToggle={ToggleTag}
+          onClearAll={() => setTagFilter([])}
+        />
         <StreamsTable
           records={records}
           sortStatus={sortStatus}
           onSortStatusChange={setSortStatus}
-          fetching={streamStore.loadingAllStreams && records.length === 0}
+          fetching={loading && streamList.length === 0}
           onNameClick={objectId => navigate(`/streams/${objectId}`)}
           getRowActions={PreviewAction}
         />
-      </CollapsibleSection>
+      </Box>
     </PageContainer>
   );
 });
