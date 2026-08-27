@@ -5,7 +5,7 @@ import {useDisclosure} from "@mantine/hooks";
 import {ActionIcon, Group, Select, Text, Tooltip} from "@mantine/core";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
-import {dataStore, modalStore, streamStore} from "@/stores/index.ts";
+import {dataStore, modalStore, streamStore, streamGroupStore} from "@/stores/index.ts";
 import {DATE_RANGE_PRESET_OPTIONS, DEFAULT_DATE_PRESET, FormatDateRangeLabel, GetDateRangePreset, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -24,7 +24,16 @@ const Streams = observer(() => {
   const [showEditTagsModal, {open: openEditTags, close: closeEditTags}] = useDisclosure(false);
   const [datePreset, setDatePreset] = useState(DEFAULT_DATE_PRESET);
   const [referenceDate, setReferenceDate] = useState(new Date());
+  const [expandedGroups, setExpandedGroups] = useState([]);
   const navigate = useNavigate();
+
+  const ToggleGroup = (titleId) =>
+    setExpandedGroups(prev => prev.includes(titleId) ? prev.filter(t => t !== titleId) : [...prev, titleId]);
+
+  const ViewGroupSummary = (group) => {
+    // TODO: open the group summary view once the group-data source is wired
+    streamGroupStore.LoadGroupData({titleId: group.titleId});
+  };
 
   const SelectDatePreset = (preset) => {
     const date = new Date();
@@ -180,6 +189,10 @@ const Streams = observer(() => {
       />
       <StreamsTable
         records={records}
+        groups={Object.values(streamGroupStore.groups || {})}
+        expandedGroups={expandedGroups}
+        onToggleGroup={ToggleGroup}
+        onViewSummary={ViewGroupSummary}
         sortStatus={sortStatus}
         onSortStatusChange={setSortStatus}
         selectedRecords={selectedRecords}

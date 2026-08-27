@@ -11,8 +11,9 @@ vi.mock("react-router-dom", async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-const { mockDataStore, mockStreamStore, mockModalStore } = vi.hoisted(() => {
+const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } = vi.hoisted(() => {
   return {
+    mockStreamGroupStore: { groups: {}, LoadGroupData: vi.fn() },
     mockDataStore: {
       streamsLoaded: true,
       LoadSiteStreams: vi.fn(),
@@ -55,6 +56,7 @@ vi.mock("@/stores", () => ({
   dataStore: mockDataStore,
   streamStore: mockStreamStore,
   modalStore: mockModalStore,
+  streamGroupStore: mockStreamGroupStore,
 }));
 // -------------------------------------------------------------------------------
 

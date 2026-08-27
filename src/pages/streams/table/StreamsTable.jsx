@@ -1,8 +1,8 @@
 import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Badge, Box, Center, Checkbox, Group, Loader, LoadingOverlay, Stack, Text, Title, Tooltip, UnstyledButton} from "@mantine/core";
+import {ActionIcon, Badge, Box, Button, Center, Checkbox, Group, Loader, LoadingOverlay, Stack, Text, Title, Tooltip, UnstyledButton} from "@mantine/core";
 import {useVirtualizer} from "@tanstack/react-virtual";
-import {IconArrowNarrowDown, IconArrowNarrowUp, IconArrowsVertical} from "@tabler/icons-react";
+import {IconArrowNarrowDown, IconArrowNarrowUp, IconArrowsVertical, IconChevronRight} from "@tabler/icons-react";
 import {SanitizeUrl, FormatStreamDate} from "@/utils/helpers.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
@@ -27,7 +27,7 @@ const MinTrackWidth = width => {
   return match ? parseFloat(match[1]) : 0;
 };
 
-const BuildColumns = ({showActions, onNameClick}) => [
+const BuildColumns = ({showActions, onNameClick, onViewSummary}) => [
   {
     accessor: "title",
     title: "Name",
@@ -48,6 +48,21 @@ const BuildColumns = ({showActions, onNameClick}) => [
           {record.objectId}
         </Title>
       </Stack>
+    ),
+    renderGroup: record => (
+      <Group gap={8} wrap="nowrap" maw="100%">
+        <Title order={3} lineClamp={1} title={record.titleId} style={{wordBreak: "break-all"}}>
+          {record.titleId}
+        </Title>
+        <Badge
+          radius="sm"
+          c="elv-gray.7"
+          fw={600}
+          style={{background: "rgba(34, 139, 230, 0.20)", flexShrink: 0}}
+        >
+          {record.streamCount}
+        </Badge>
+      </Group>
     )
   },
   {
@@ -56,6 +71,11 @@ const BuildColumns = ({showActions, onNameClick}) => [
     sortable: true,
     width: "minmax(120px, 0.75fr)",
     render: record => (
+      <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500}>
+        {FormatStreamDate(record.date)}
+      </Text>
+    ),
+    renderGroup: record => (
       <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500}>
         {FormatStreamDate(record.date)}
       </Text>
@@ -116,6 +136,19 @@ const BuildColumns = ({showActions, onNameClick}) => [
     accessor: "actions",
     title: "",
     width: "140px",
+    renderGroup: record => (
+      <Group justify="right" wrap="nowrap" w="100%">
+        <Button
+          size="xs"
+          variant="subtle"
+          color="elv-blue.3"
+          styles={{label: {overflow: "visible"}}}
+          onClick={() => onViewSummary?.(record)}
+        >
+          View Summary
+        </Button>
+      </Group>
+    ),
     render: record => (
       <Group gap={7} justify="right" wrap="nowrap" w="100%">
         {GetStreamActions({record})
@@ -163,11 +196,16 @@ const TableShell = ({
   virtualItems,
   totalSize,
   measureElement,
-  loadingMore
+  loadingMore,
+  expandedGroups,
+  onToggleGroup
 }) => {
   const selectionEnabled = !!onSelectedRecordsChange;
 
-  const IsSelectable = (record, index) => !isRecordSelectable || isRecordSelectable(record, index);
+  const IsGroupRow = record => record?._type === "group";
+  const IsGroupChildRow = record => record?._type === "groupChild";
+  const IsSelectable = (record, index) =>
+    !IsGroupRow(record) && (!isRecordSelectable || isRecordSelectable(record, index));
   const IsSelected = record => (selectedRecords || []).some(r => r.objectId === record.objectId);
 
   const ToggleAll = checked => {
@@ -258,6 +296,9 @@ const TableShell = ({
                   const record = records[virtualRow.index];
                   const customStyle = typeof rowStyle === "function" ? rowStyle(record, virtualRow.index) : undefined;
                   const selectable = IsSelectable(record, virtualRow.index);
+                  const isGroup = IsGroupRow(record);
+                  const isGroupChild = IsGroupChildRow(record);
+                  const expanded = isGroup && (expandedGroups || []).includes(record.titleId);
 
                   return (
                     <div
@@ -265,7 +306,7 @@ const TableShell = ({
                       data-index={virtualRow.index}
                       data-record-slug={record.slug}
                       ref={measureElement}
-                      className={styles.row}
+                      className={isGroupChild ? `${styles.row} ${styles.groupChildRow}` : styles.row}
                       role="row"
                       style={{
                         position: "absolute",
@@ -282,18 +323,33 @@ const TableShell = ({
                       {
                         selectionEnabled &&
                         <div className={styles.cell} onClick={event => event.stopPropagation()}>
-                          <Checkbox
-                            aria-label={`select-row-${record.slug}`}
-                            checked={IsSelected(record)}
-                            disabled={!selectable}
-                            onChange={event => ToggleRecord(record, event.currentTarget.checked)}
-                          />
+                          {
+                            isGroup ?
+                              <ActionIcon
+                                aria-label={`toggle-group-${record.titleId}`}
+                                variant="subtle"
+                                size="sm"
+                                color="elv-gray.6"
+                                onClick={() => onToggleGroup?.(record.titleId)}
+                              >
+                                <IconChevronRight
+                                  size={16}
+                                  style={{transform: expanded ? "rotate(90deg)" : "none", transition: "transform 150ms ease"}}
+                                />
+                              </ActionIcon> :
+                              <Checkbox
+                                aria-label={`select-row-${record.slug}`}
+                                checked={IsSelected(record)}
+                                disabled={!selectable}
+                                onChange={event => ToggleRecord(record, event.currentTarget.checked)}
+                              />
+                          }
                         </div>
                       }
                       {
                         columns.map(column => (
                           <div key={column.accessor} className={styles.cell} role="cell">
-                            {column.render(record)}
+                            {isGroup ? column.renderGroup?.(record) : column.render(record)}
                           </div>
                         ))
                       }
@@ -405,6 +461,45 @@ const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
   );
 };
 
+// Flattens groups (with their expanded stream children) followed by ungrouped streams
+// into a single ordered row list for the virtualizer. Group order follows the active
+// sort via each group's first member's position in `records`.
+const BuildGroupedRows = ({records, groups, expandedGroups}) => {
+  if(!groups || groups.length === 0) { return records; }
+
+  const grouped = groups
+    .map(group => ({
+      group,
+      members: records.filter(record => group.streamIds?.includes(record.objectId))
+    }))
+    .filter(({members}) => members.length > 0)
+    .sort((a, b) => records.indexOf(a.members[0]) - records.indexOf(b.members[0]));
+
+  const groupedIds = new Set(grouped.flatMap(({members}) => members.map(m => m.objectId)));
+  const rows = [];
+
+  grouped.forEach(({group, members}) => {
+    rows.push({
+      _type: "group",
+      objectId: `group-${group.titleId}`,
+      titleId: group.titleId,
+      streamCount: group.streamIds?.length ?? members.length,
+      // Group date - falls back to a member's date until real group data is wired.
+      date: group.data?.date ?? members[0]?.date
+    });
+
+    if((expandedGroups || []).includes(group.titleId)) {
+      members.forEach(member => rows.push({...member, _type: "groupChild"}));
+    }
+  });
+
+  records.forEach(record => {
+    if(!groupedIds.has(record.objectId)) { rows.push(record); }
+  });
+
+  return rows;
+};
+
 const StreamsTable = observer(({
   records,
   sortStatus,
@@ -421,10 +516,15 @@ const StreamsTable = observer(({
   maxHeight = DEFAULT_MAX_HEIGHT,
   onLoadMore,
   hasMore = false,
-  loadingMore = false
+  loadingMore = false,
+  groups = [],
+  expandedGroups = [],
+  onToggleGroup,
+  onViewSummary
 }) => {
   const allRecords = records || [];
-  const columns = BuildColumns({showActions, onNameClick});
+  const rows = BuildGroupedRows({records: allRecords, groups, expandedGroups});
+  const columns = BuildColumns({showActions, onNameClick, onViewSummary});
 
   const columnWidths = [
     onSelectedRecordsChange ? SELECTION_COLUMN_WIDTH : null,
@@ -435,7 +535,7 @@ const StreamsTable = observer(({
 
   return (
     <BoundedVirtualizedTable
-      records={allRecords}
+      records={rows}
       columns={columns}
       gridTemplateColumns={gridTemplateColumns}
       minGridWidth={minGridWidth}
@@ -452,6 +552,8 @@ const StreamsTable = observer(({
       onLoadMore={onLoadMore}
       hasMore={hasMore}
       loadingMore={loadingMore}
+      expandedGroups={expandedGroups}
+      onToggleGroup={onToggleGroup}
     />
   );
 });

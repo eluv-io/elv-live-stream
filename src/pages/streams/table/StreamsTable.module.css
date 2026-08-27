@@ -45,3 +45,8 @@
   min-width: 0;
   overflow: hidden;
 }
+
+/* Stream rows nested under an expanded group */
+.groupChildRow {
+  background: rgba(60, 60, 60, 0.05);
+}

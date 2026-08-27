@@ -107,6 +107,7 @@ export interface StreamInfo {
   createdAt?: number;
   // Event/scheduled date from the tenant query's query_fields (raw string, e.g. "2026-08-27")
   date?: string;
+  titleId?: string;
   // Fields added by LoadSummaryData
   videoStreamProbe?: any;
   audioStreams?: any;

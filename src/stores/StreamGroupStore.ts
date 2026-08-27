@@ -2,11 +2,16 @@
 import {makeAutoObservable} from "mobx";
 import type RootStore from "@/stores/RootStore";
 
+// Group data fetched for a title_id. Shape TBD - real fetch not wired yet.
+export type GroupData = Record<string, unknown>;
+
 export interface StreamGroup {
-  name: string;
-  streams: string[]; // objectIds
+  titleId: string;
+  streamIds: string[]; // objectIds of streams whose query_fields.title_id === titleId
+  data?: GroupData;    // fetched group metadata - populated by LoadGroupData (placeholder)
 }
 
+// Keyed by title_id (from the tenant query's query_fields).
 type StreamGroupMap = Record<string, StreamGroup>;
 
 class StreamGroupStore {
@@ -21,6 +26,40 @@ class StreamGroupStore {
 
   get client() {
     return this.rootStore.client;
+  }
+
+  BuildGroups(streams: Record<string, {objectId?: string; titleId?: string}>): void {
+    const next: StreamGroupMap = {};
+
+    Object.values(streams || {}).forEach(stream => {
+      const {objectId, titleId} = stream || {};
+      if(!titleId || !objectId) { return; }
+
+      if(!next[titleId]) {
+        next[titleId] = {titleId, streamIds: [], data: this.groups[titleId]?.data};
+      }
+
+      if(!next[titleId].streamIds.includes(objectId)) {
+        next[titleId].streamIds.push(objectId);
+      }
+    });
+
+    this.groups = next;
+  }
+
+  // Placeholder - fetches the group data for a title_id and stashes it on the group.
+  // TODO: wire the real group-data source once the API is identified.
+  *LoadGroupData({titleId}: {titleId: string}): Generator<any, void> {
+    if(!titleId || !this.groups[titleId]) { return; }
+
+    try {
+      // TODO: replace with the real fetch.
+      const data: GroupData = yield Promise.resolve({});
+      this.groups[titleId] = {...this.groups[titleId], data};
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load group data.", error);
+    }
   }
 
   *CreateStreamGroup({libraryId, name}): Generator<any, void> {

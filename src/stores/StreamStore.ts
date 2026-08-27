@@ -85,13 +85,15 @@ const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: strin
 };
 
 // Builds the StreamInfo fields carried over from a tenant query version's query_fields.
-// For now just name + date; more will follow, eventually replacing the per-object metadata fetch.
+// For now name + date + title_id; more will follow, eventually replacing the per-object metadata fetch.
 const StreamInfoFromQueryFields = (version: TenantContentVersion): Partial<StreamInfo> => {
   const name = QueryFieldValue(version.query_fields, "name");
   const date = QueryFieldValue(version.query_fields, "date");
+  const titleId = QueryFieldValue(version.query_fields, "title_id");
   const info: Partial<StreamInfo> = {versionHash: version.hash};
   if(name != null) { info.name = name; info.title = name; }
   if(date != null) { info.date = date; }
+  if(titleId != null) { info.titleId = titleId; }
   return info;
 };
 
@@ -983,6 +985,7 @@ class StreamStore {
   *LoadStreams({streamMetadata, append=false}: {streamMetadata: StreamMap, append?: boolean}): Generator<any, void> {
     const enriched: StreamMap = yield this._EnrichStreams({streamMetadata});
     this.UpdateStreams({streams: append ? {...this.streams, ...enriched} : enriched});
+    this.rootStore.streamGroupStore.BuildGroups(this.streams);
   }
 
   // Loads the full, unscoped stream set for the map-to-stream modal. Kept independent of
