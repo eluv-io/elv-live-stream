@@ -119,7 +119,12 @@ const Streams = observer(() => {
     <PageContainer
       title="Streams"
       titleRightSection={
-        <Group gap={24} wrap="nowrap">
+        <Group gap={16} wrap="nowrap">
+          {dateRangeLabel && (
+            <Text fz="1.25rem" fw={400} style={{whiteSpace: "nowrap"}}>
+              {dateRangeLabel}
+            </Text>
+          )}
           <Group gap={8} wrap="nowrap">
             <Tooltip label={`Previous ${datePresetLabel}`} disabled={datePreset === "all"}>
               <ActionIcon variant="subtle" color="elv-gray.6" disabled={datePreset === "all"} onClick={() => ShiftDate(-1)}>
@@ -132,11 +137,6 @@ const Streams = observer(() => {
               </ActionIcon>
             </Tooltip>
           </Group>
-          {dateRangeLabel && (
-            <Text fz="1.25rem" fw={400} style={{whiteSpace: "nowrap"}}>
-              {dateRangeLabel}
-            </Text>
-          )}
           <Select
             data={DATE_RANGE_PRESET_OPTIONS}
             value={datePreset}
