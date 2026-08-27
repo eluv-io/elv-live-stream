@@ -2,11 +2,11 @@ import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
-import {ActionIcon, Group, Select, Tooltip} from "@mantine/core";
+import {ActionIcon, Group, Select, Text, Tooltip} from "@mantine/core";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
 import {dataStore, modalStore, streamStore} from "@/stores/index.ts";
-import {DATE_RANGE_PRESET_OPTIONS, DEFAULT_DATE_PRESET, GetDateRangePreset, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
+import {DATE_RANGE_PRESET_OPTIONS, DEFAULT_DATE_PRESET, FormatDateRangeLabel, GetDateRangePreset, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
@@ -18,7 +18,7 @@ import {IconChevronLeft, IconChevronRight, IconCopy, IconLabel, IconPlayerPlay, 
 import {CalendarMonthIcon} from "@/assets/icons/index.js";
 
 const Streams = observer(() => {
-  const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
+  const [sortStatus, setSortStatus] = useState({columnAccessor: "date", direction: "desc"});
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
   const [showEditTagsModal, {open: openEditTags, close: closeEditTags}] = useDisclosure(false);
@@ -58,6 +58,7 @@ const Streams = observer(() => {
   const records = streamStore.filteredStreams.slice().sort(SortTable({sortStatus}));
 
   const datePresetLabel = DATE_RANGE_PRESET_OPTIONS.find(({value}) => value === datePreset)?.label.toLowerCase();
+  const dateRangeLabel = FormatDateRangeLabel(datePreset, referenceDate);
 
   const refreshSelectedStatus = () =>
     Promise.all(selectedRecords.map(r => streamStore.CheckStatus({objectId: r.objectId, slug: r.slug, update: true})));
@@ -118,17 +119,24 @@ const Streams = observer(() => {
     <PageContainer
       title="Streams"
       titleRightSection={
-        <Group gap={8} wrap="nowrap">
-          <Tooltip label={`Previous ${datePresetLabel}`} disabled={datePreset === "all"}>
-            <ActionIcon variant="subtle" color="elv-gray.6" disabled={datePreset === "all"} onClick={() => ShiftDate(-1)}>
-              <IconChevronLeft size={24} />
-            </ActionIcon>
-          </Tooltip>
-          <Tooltip label={`Next ${datePresetLabel}`} disabled={datePreset === "all"}>
-            <ActionIcon variant="subtle" color="elv-gray.6" disabled={datePreset === "all"} onClick={() => ShiftDate(1)}>
-              <IconChevronRight size={24} />
-            </ActionIcon>
-          </Tooltip>
+        <Group gap={24} wrap="nowrap">
+          <Group gap={8} wrap="nowrap">
+            <Tooltip label={`Previous ${datePresetLabel}`} disabled={datePreset === "all"}>
+              <ActionIcon variant="subtle" color="elv-gray.6" disabled={datePreset === "all"} onClick={() => ShiftDate(-1)}>
+                <IconChevronLeft size={24} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label={`Next ${datePresetLabel}`} disabled={datePreset === "all"}>
+              <ActionIcon variant="subtle" color="elv-gray.6" disabled={datePreset === "all"} onClick={() => ShiftDate(1)}>
+                <IconChevronRight size={24} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+          {dateRangeLabel && (
+            <Text fz="1.25rem" fw={400} style={{whiteSpace: "nowrap"}}>
+              {dateRangeLabel}
+            </Text>
+          )}
           <Select
             data={DATE_RANGE_PRESET_OPTIONS}
             value={datePreset}

@@ -105,6 +105,8 @@ export interface StreamInfo {
   reconnectionTimeout: number;
   // Placeholder pending API support - object creation date, epoch ms
   createdAt?: number;
+  // Event/scheduled date from the tenant query's query_fields (raw string, e.g. "2026-08-27")
+  date?: string;
   // Fields added by LoadSummaryData
   videoStreamProbe?: any;
   audioStreams?: any;

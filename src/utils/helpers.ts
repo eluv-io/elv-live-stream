@@ -12,6 +12,38 @@ export const DATE_RANGE_PRESET_OPTIONS: {value: DateRangePreset, label: string}[
   {value: "all", label: "All"}
 ];
 
+/**
+ * Human-readable label for the currently-selected date filter.
+ *
+ * @param preset - Active range preset: day shows the date, week the range,
+ *   month the month, year the year; "all" (or anything else) yields "".
+ * @param referenceDate - Date the range is anchored to.
+ * @returns The localized label, or "" when there's nothing to show.
+ */
+export const FormatDateRangeLabel = (preset: DateRangePreset, referenceDate: Date): string => {
+  const locale = navigator.language;
+
+  switch(preset) {
+    case "day":
+      return referenceDate.toLocaleDateString(locale, {year: "numeric", month: "long", day: "numeric"});
+
+    case "week": {
+      const [start, end] = GetDateRangePreset("week", referenceDate);
+      if(!start || !end) { return ""; }
+      return `${start.toLocaleDateString(locale, {month: "short", day: "numeric"})} – ${end.toLocaleDateString(locale, {month: "short", day: "numeric", year: "numeric"})}`;
+    }
+
+    case "month":
+      return referenceDate.toLocaleDateString(locale, {year: "numeric", month: "long"});
+
+    case "year":
+      return String(referenceDate.getFullYear());
+
+    default:
+      return "";
+  }
+};
+
 export const ShiftDateRangePreset = (preset: DateRangePreset, referenceDate: Date, direction: 1 | -1): Date => {
   const date = new Date(referenceDate);
 
@@ -172,6 +204,22 @@ export const FormatDateFilter = (date: Date): string => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+/**
+ * Normalizes a stream's query-field date to YYYY-MM-DD for display.
+ *
+ * @param date - Raw date from the tenant query's query_fields. Already-date-only
+ *   strings pass through untouched (avoids the UTC day-shift).
+ * @returns The YYYY-MM-DD string, the input unchanged if it isn't a valid date,
+ *   or "" when no date is given.
+ */
+export const FormatStreamDate = (date?: string): string => {
+  if(!date) { return ""; }
+  if(/^\d{4}-\d{2}-\d{2}$/.test(date)) { return date; }
+
+  const parsed = new Date(date);
+  return isNaN(parsed.getTime()) ? date : FormatDateFilter(parsed);
 };
 
 // Copy of elv-client-js's `slugify`. Importing it from

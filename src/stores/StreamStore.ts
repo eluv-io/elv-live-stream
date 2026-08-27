@@ -73,7 +73,27 @@ interface TenantContentVersion {
   type: string;
   object_version: number;
   error: string;
+  // Indexed query fields returned by the tenant query (versions[].query_fields).
+  // Values may be scalars or arrays depending on the index definition.
+  query_fields?: Record<string, unknown>;
 }
+
+// Pulls a single scalar value out of a query field (arrays -> first entry).
+const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: string): string | undefined => {
+  const value = Array.isArray(fields?.[key]) ? (fields?.[key] as unknown[])[0] : fields?.[key];
+  return value == null || value === "" ? undefined : String(value);
+};
+
+// Builds the StreamInfo fields carried over from a tenant query version's query_fields.
+// For now just name + date; more will follow, eventually replacing the per-object metadata fetch.
+const StreamInfoFromQueryFields = (version: TenantContentVersion): Partial<StreamInfo> => {
+  const name = QueryFieldValue(version.query_fields, "name");
+  const date = QueryFieldValue(version.query_fields, "date");
+  const info: Partial<StreamInfo> = {versionHash: version.hash};
+  if(name != null) { info.name = name; info.title = name; }
+  if(date != null) { info.date = date; }
+  return info;
+};
 
 interface TenantContentPaging {
   start?: number;
@@ -825,7 +845,7 @@ class StreamStore {
       this.tenantLiveStreamContent = Object.fromEntries(
         versions
           .filter(({id, hash}) => id && hash)
-          .map(({id, hash}) => [id, {versionHash: hash} as StreamInfo])
+          .map(version => [version.id, StreamInfoFromQueryFields(version) as StreamInfo])
       );
     } catch(error) {
       console.error("Unable to load tenant live stream content", error);
@@ -862,7 +882,7 @@ class StreamStore {
       const received = (versions ?? []).length;
       (versions ?? [])
         .filter(({id, hash}: TenantContentVersion) => id && hash && !this.tenantLiveStreamContent[id])
-        .forEach(({id, hash}: TenantContentVersion) => { added[id] = {versionHash: hash} as StreamInfo; });
+        .forEach((version: TenantContentVersion) => { added[version.id] = StreamInfoFromQueryFields(version) as StreamInfo; });
 
       this.tenantLiveStreamContent = {...this.tenantLiveStreamContent, ...added};
 
@@ -933,7 +953,11 @@ class StreamStore {
             `LoadStreamListData(${objectId})`
           ) || {};
 
+          // Query-field name (from the tenant query) is the fallback title if the
+          // metadata fetch returns none.
+          const queryFieldName = enriched[slug].name;
           Object.assign(enriched[slug], streamDetails);
+          enriched[slug].title = enriched[slug].title || queryFieldName;
         } catch(error) {
           console.error(`Failed to load stream ${slug} (${versionHash})`, error);
         }

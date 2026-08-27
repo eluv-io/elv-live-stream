@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import {ActionIcon, Badge, Box, Center, Checkbox, Group, Loader, LoadingOverlay, Stack, Text, Title, Tooltip, UnstyledButton} from "@mantine/core";
 import {useVirtualizer} from "@tanstack/react-virtual";
 import {IconArrowNarrowDown, IconArrowNarrowUp, IconArrowsVertical} from "@tabler/icons-react";
-import {SanitizeUrl} from "@/utils/helpers.ts";
+import {SanitizeUrl, FormatStreamDate} from "@/utils/helpers.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
@@ -48,6 +48,17 @@ const BuildColumns = ({showActions, onNameClick}) => [
           {record.objectId}
         </Title>
       </Stack>
+    )
+  },
+  {
+    accessor: "date",
+    title: "Date",
+    sortable: true,
+    width: "minmax(120px, 0.75fr)",
+    render: record => (
+      <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500}>
+        {FormatStreamDate(record.date)}
+      </Text>
     )
   },
   {
