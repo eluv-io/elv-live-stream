@@ -7,6 +7,7 @@ import {IconChevronRight, IconDeviceAnalytics} from "@tabler/icons-react";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
+import OutputUrlsBySource from "@/pages/streams/groups/OutputUrlsBySource.jsx";
 import {SortTable} from "@/utils/helpers.ts";
 import {streamStore, streamGroupStore} from "@/stores/index.ts";
 
@@ -33,11 +34,14 @@ const GroupSummary = observer(() => {
   const [tagFilter, setTagFilter] = useState([]);
   const [streams, setStreams] = useState({});
   const [loading, setLoading] = useState(true);
+  const [outputUrls, setOutputUrls] = useState({});
+  const [loadingUrls, setLoadingUrls] = useState(true);
   const loadId = useRef(0);
 
   const LoadData = async () => {
     const runId = ++loadId.current;
     setLoading(true);
+    setLoadingUrls(true);
     streamGroupStore.LoadGroupData({titleId});
 
     // Load + enrich only this group's streams, not the whole tenant.
@@ -47,7 +51,7 @@ const GroupSummary = observer(() => {
     setLoading(false);
 
     const objectIds = Object.values(map).map(stream => stream.objectId).filter(Boolean);
-    if(objectIds.length === 0) { return; }
+    if(objectIds.length === 0) { setLoadingUrls(false); return; }
 
     const statuses = await streamStore.StreamStatuses(objectIds);
     if(runId !== loadId.current) { return; }
@@ -59,6 +63,11 @@ const GroupSummary = observer(() => {
       });
       return next;
     });
+
+    const urls = await streamStore.StreamOutputUrls(objectIds);
+    if(runId !== loadId.current) { return; }
+    setOutputUrls(urls);
+    setLoadingUrls(false);
   };
 
   const DebouncedRefresh = useDebouncedCallback(LoadData, 500);
@@ -123,8 +132,15 @@ const GroupSummary = observer(() => {
           fetching={loading && streamList.length === 0}
           onNameClick={objectId => navigate(`/streams/${objectId}`)}
           getRowActions={PreviewAction}
+          maxHeight={480}
         />
       </Box>
+
+      <OutputUrlsBySource
+        streams={records}
+        outputUrls={outputUrls}
+        loading={loadingUrls}
+      />
     </PageContainer>
   );
 });

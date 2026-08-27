@@ -110,6 +110,33 @@ interface TenantContentPaging {
 const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
 const TENANT_CONTENT_PAGE_SIZE = 100;
 
+// All DRM schemes we ask PlayoutOptions about, so the response carries every
+// available protocol/method the stream offers.
+const ALL_DRMS = ["clear", "aes-128", "sample-aes", "widevine", "fairplay", "playready"];
+const PLAYOUT_PROTOCOL_LABELS: Record<string, string> = {hls: "HLS", dash: "Dash"};
+const PLAYOUT_METHOD_LABELS: Record<string, string> = {
+  clear: "Clear",
+  "aes-128": "AES-128",
+  "sample-aes": "Sample AES",
+  widevine: "Widevine",
+  fairplay: "FairPlay",
+  playready: "PlayReady"
+};
+
+export interface OutputUrlRow {
+  label: string;
+  url: string;
+  // DRM methods (e.g. Widevine): the license server URL. When present the UI shows
+  // the playout + license URLs as sub-rows and leaves the parent row's URL blank.
+  licenseServerUrl?: string;
+}
+
+export interface StreamOutputUrls {
+  embedUrl?: string;
+  playoutUrl?: string;
+  playoutMethods: OutputUrlRow[];
+}
+
 class StreamStore {
   streams: StreamMap;
   streamFrameUrls: Record<string, StreamFrameUrl> = {};
@@ -1114,6 +1141,80 @@ class StreamStore {
            
           console.error(`Skipping status for ${objectId}.`, error);
         }
+      }
+    );
+
+    return result;
+  }
+
+  // Builds the output URLs for one stream: the embeddable URL, the offering
+  // options URL, and one playout URL per available protocol/DRM method
+  // (e.g. "HLS Clear", "Dash Widevine"). Each playoutUrl carries its own auth token.
+  *BuildStreamOutputUrls(objectId: string): Generator<any, StreamOutputUrls> {
+    const result: StreamOutputUrls = {playoutMethods: []};
+    if(!objectId) { return result; }
+
+    try {
+      result.embedUrl = yield this.EmbedUrl({objectId});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(`Unable to load embed URL for ${objectId}`, error);
+    }
+
+    try {
+      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      result.playoutUrl = yield this.client.FabricUrl({
+        libraryId,
+        objectId,
+        rep: "playout/default/options.json",
+        channelAuth: true
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(`Unable to load playout options URL for ${objectId}`, error);
+    }
+
+    try {
+      const playoutOptions = yield this.client.PlayoutOptions({
+        objectId,
+        protocols: ["hls", "dash"],
+        drms: ALL_DRMS,
+        offering: "default"
+      });
+
+      Object.keys(playoutOptions || {}).forEach(protocol => {
+        const methods = playoutOptions[protocol]?.playoutMethods || {};
+        Object.keys(methods).forEach(method => {
+          const url = methods[method]?.playoutUrl;
+          if(!url) { return; }
+
+          const licenseServers = methods[method]?.drms?.[method]?.licenseServers;
+
+          result.playoutMethods.push({
+            label: `${PLAYOUT_PROTOCOL_LABELS[protocol] || protocol.toUpperCase()} ${PLAYOUT_METHOD_LABELS[method] || method}`,
+            url,
+            licenseServerUrl: Array.isArray(licenseServers) && licenseServers.length > 0 ? licenseServers[0] : undefined
+          });
+        });
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(`Unable to load playout options for ${objectId}`, error);
+    }
+
+    return result;
+  }
+
+  // Output URLs for several streams, keyed by objectId. Pure - returned to the caller.
+  *StreamOutputUrls(objectIds: string[]): Generator<any, Record<string, StreamOutputUrls>> {
+    const result: Record<string, StreamOutputUrls> = {};
+
+    yield this.client.utils.LimitedMap(
+      5,
+      objectIds || [],
+      async (objectId: string) => {
+        if(!objectId) { return; }
+        result[objectId] = await this.BuildStreamOutputUrls(objectId) as unknown as StreamOutputUrls;
       }
     );
 
