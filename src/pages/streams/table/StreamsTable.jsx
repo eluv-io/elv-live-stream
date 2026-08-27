@@ -27,7 +27,7 @@ const MinTrackWidth = width => {
   return match ? parseFloat(match[1]) : 0;
 };
 
-const BuildColumns = ({showActions, onNameClick, onViewSummary}) => [
+const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) => [
   {
     accessor: "title",
     title: "Name",
@@ -151,7 +151,7 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary}) => [
     ),
     render: record => (
       <Group gap={7} justify="right" wrap="nowrap" w="100%">
-        {GetStreamActions({record})
+        {(getRowActions ? getRowActions(record) : GetStreamActions({record}))
           .filter(item => !item.hidden)
           .map(item => (
             <Tooltip key={`action-${item.title}`} label={item.title}>
@@ -520,11 +520,12 @@ const StreamsTable = observer(({
   groups = [],
   expandedGroups = [],
   onToggleGroup,
-  onViewSummary
+  onViewSummary,
+  getRowActions
 }) => {
   const allRecords = records || [];
   const rows = BuildGroupedRows({records: allRecords, groups, expandedGroups});
-  const columns = BuildColumns({showActions, onNameClick, onViewSummary});
+  const columns = BuildColumns({showActions, onNameClick, onViewSummary, getRowActions});
 
   const columnWidths = [
     onSelectedRecordsChange ? SELECTION_COLUMN_WIDTH : null,

@@ -30,10 +30,7 @@ const Streams = observer(() => {
   const ToggleGroup = (titleId) =>
     setExpandedGroups(prev => prev.includes(titleId) ? prev.filter(t => t !== titleId) : [...prev, titleId]);
 
-  const ViewGroupSummary = (group) => {
-    // TODO: open the group summary view once the group-data source is wired
-    streamGroupStore.LoadGroupData({titleId: group.titleId});
-  };
+  const ViewGroupSummary = (group) => navigate(`/streams/groups/${group.titleId}`);
 
   const SelectDatePreset = (preset) => {
     const date = new Date();
