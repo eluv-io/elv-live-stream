@@ -65,7 +65,7 @@ const GroupSummary = observer(() => {
 
   useEffect(() => {
     LoadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [titleId]);
 
   const actions = [

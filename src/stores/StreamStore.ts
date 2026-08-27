@@ -1111,7 +1111,7 @@ class StreamStore {
             embedUrl: response?.playoutUrls?.embedUrl
           };
         } catch(error) {
-          // eslint-disable-next-line no-console
+           
           console.error(`Skipping status for ${objectId}.`, error);
         }
       }
