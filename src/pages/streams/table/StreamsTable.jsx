@@ -233,7 +233,7 @@ const TableShell = ({
                 style={{cursor: column.sortable && onSortStatusChange ? "pointer" : "default"}}
               >
                 <Group gap={4} wrap="nowrap">
-                  <Text fz={13} fw={600} c="elv-black.3">{column.title}</Text>
+                  <Text fz="0.875rem" fw={700} c="#000">{column.title}</Text>
                   {
                     column.sortable && (
                       sortStatus?.columnAccessor === column.accessor ?
