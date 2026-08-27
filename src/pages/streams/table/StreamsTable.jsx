@@ -1,8 +1,8 @@
-import {useRef} from "react";
+import {useEffect, useLayoutEffect, useRef, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Badge, Box, Checkbox, Group, LoadingOverlay, Stack, Text, Title, Tooltip, UnstyledButton} from "@mantine/core";
+import {ActionIcon, Badge, Box, Center, Checkbox, Group, Loader, LoadingOverlay, Stack, Text, Title, Tooltip, UnstyledButton} from "@mantine/core";
 import {useVirtualizer} from "@tanstack/react-virtual";
-import {IconChevronDown, IconChevronUp} from "@tabler/icons-react";
+import {IconArrowNarrowDown, IconArrowNarrowUp, IconArrowsVertical} from "@tabler/icons-react";
 import {SanitizeUrl} from "@/utils/helpers.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
@@ -15,6 +15,17 @@ import {SOURCE_PACKAGING_COLOR_MAP, QUALITY_MAP} from "@/utils/constants.ts";
 const ROW_HEIGHT_ESTIMATE = 64;
 const SELECTION_COLUMN_WIDTH = "40px";
 const DEFAULT_MAX_HEIGHT = "calc(100vh - 320px)";
+// Space left below the table so its bottom edge clears the page's bottom padding
+// and the page itself never needs to scroll - only the table does.
+const VIEWPORT_BOTTOM_GAP = 48;
+
+// Minimum pixel width of a column track: the fixed width, or the first arg of minmax().
+// Summed across columns it gives the row/header width when columns overflow the viewport,
+// so their bottom borders span the full width the user can scroll to.
+const MinTrackWidth = width => {
+  const match = /(\d+(?:\.\d+)?)px/.exec(width);
+  return match ? parseFloat(match[1]) : 0;
+};
 
 const BuildColumns = ({showActions, onNameClick}) => [
   {
@@ -125,6 +136,7 @@ const TableShell = ({
   records,
   columns,
   gridTemplateColumns,
+  minGridWidth,
   sortStatus,
   onSortStatusChange,
   fetching,
@@ -134,10 +146,13 @@ const TableShell = ({
   onSelectedRecordsChange,
   isRecordSelectable,
   scrollContainerProps,
-  bodyContainerProps,
+  scrollAreaProps,
+  headerRef,
+  scrollMargin,
   virtualItems,
   totalSize,
-  measureElement
+  measureElement,
+  loadingMore
 }) => {
   const selectionEnabled = !!onSelectedRecordsChange;
 
@@ -176,43 +191,51 @@ const TableShell = ({
     <Box
       className={sharedStyles.tableWrapper}
       {...scrollContainerProps}
-      style={{position: "relative", ...scrollContainerProps?.style}}
+      style={{position: "relative", display: "flex", flexDirection: "column", ...scrollContainerProps?.style}}
     >
       <LoadingOverlay visible={!!fetching} zIndex={1} overlayProps={{radius: "sm", blur: 1}} />
-      <div className={styles.header} style={{gridTemplateColumns}} role="row">
-        {
-          selectionEnabled &&
-          <div className={styles.headerCell}>
-            <Checkbox
-              aria-label="select-all-rows"
-              checked={allSelected}
-              indeterminate={someSelected}
-              disabled={selectableRecords.length === 0}
-              onChange={event => ToggleAll(event.currentTarget.checked)}
-            />
-          </div>
-        }
-        {
-          columns.map(column => (
-            <UnstyledButton
-              key={column.accessor}
-              className={styles.headerCell}
-              onClick={() => HandleSort(column)}
-              style={{cursor: column.sortable && onSortStatusChange ? "pointer" : "default"}}
-            >
-              <Group gap={4} wrap="nowrap">
-                <Text fz={13} fw={600} c="elv-black.3">{column.title}</Text>
-                {
-                  column.sortable && sortStatus?.columnAccessor === column.accessor &&
-                  (sortStatus.direction === "asc" ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />)
-                }
-              </Group>
-            </UnstyledButton>
-          ))
-        }
-      </div>
 
-      <div {...bodyContainerProps}>
+      {/* This div is the scroll box. The header lives inside it so the browser scrolls the
+          header horizontally with the rows (no JS lag); it sticks to the top on vertical
+          scroll. The "loading more" spinner also lives inside it, after the rows, so it
+          sits above this element's own horizontal scrollbar. */}
+      <div {...scrollAreaProps} className={styles.scrollArea}>
+        <div ref={headerRef} className={styles.header} style={{gridTemplateColumns, minWidth: minGridWidth}} role="row">
+          {
+            selectionEnabled &&
+            <div className={styles.headerCell}>
+              <Checkbox
+                aria-label="select-all-rows"
+                checked={allSelected}
+                indeterminate={someSelected}
+                disabled={selectableRecords.length === 0}
+                onChange={event => ToggleAll(event.currentTarget.checked)}
+              />
+            </div>
+          }
+          {
+            columns.map(column => (
+              <UnstyledButton
+                key={column.accessor}
+                className={styles.headerCell}
+                onClick={() => HandleSort(column)}
+                style={{cursor: column.sortable && onSortStatusChange ? "pointer" : "default"}}
+              >
+                <Group gap={4} wrap="nowrap">
+                  <Text fz={13} fw={600} c="elv-black.3">{column.title}</Text>
+                  {
+                    column.sortable && (
+                      sortStatus?.columnAccessor === column.accessor ?
+                        (sortStatus.direction === "desc" ? <IconArrowNarrowUp size={14} /> : <IconArrowNarrowDown size={14} />) :
+                        <IconArrowsVertical size={14} color="var(--mantine-color-gray-5)" />
+                    )
+                  }
+                </Group>
+              </UnstyledButton>
+            ))
+          }
+        </div>
+
         {
           !fetching && records.length === 0 ?
             <Text ta="center" c="elv-gray.6" py="xl">No records found</Text> :
@@ -236,7 +259,8 @@ const TableShell = ({
                         top: 0,
                         left: 0,
                         width: "100%",
-                        transform: `translateY(${virtualRow.start}px)`,
+                        minWidth: minGridWidth,
+                        transform: `translateY(${virtualRow.start - (scrollMargin || 0)}px)`,
                         gridTemplateColumns,
                         ...customStyle
                       }}
@@ -266,29 +290,102 @@ const TableShell = ({
               }
             </div>
         }
+
+        {
+          loadingMore &&
+          <Center className={styles.loadingMore}>
+            <Loader size="sm" />
+          </Center>
+        }
       </div>
     </Box>
   );
 };
 
-// The table owns both scroll axes itself: vertical scroll is bounded to maxHeight, horizontal
-// scroll (via styles.body's overflow: auto) kicks in if columns don't fit the available width.
+// styles.scrollArea is the single scroll container, so the sticky header and the rows
+// scroll together horizontally. Its height is bounded so only the table scrolls vertically,
+// never the page.
 const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
   const scrollRef = useRef(null);
+  const headerRef = useRef(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  const [autoMaxHeight, setAutoMaxHeight] = useState(null);
+
+  // Callers that pass an explicit maxHeight (e.g. "100%" inside a modal) keep it; otherwise
+  // fit the table to the gap between its top and the bottom of the viewport so the page
+  // itself never needs a scrollbar.
+  const useAutoHeight = maxHeight === DEFAULT_MAX_HEIGHT;
+
+  useLayoutEffect(() => {
+    if(!useAutoHeight) { return; }
+
+    const Measure = () => {
+      const el = scrollRef.current;
+      if(!el) { return; }
+
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      setAutoMaxHeight(Math.max(minHeight, Math.round(window.innerHeight - top - VIEWPORT_BOTTOM_GAP)));
+    };
+
+    Measure();
+    window.addEventListener("resize", Measure);
+
+    // Re-measure when content above the table changes height (filters, batch actions row).
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(Measure);
+    observer?.observe(document.body);
+
+    return () => {
+      window.removeEventListener("resize", Measure);
+      observer?.disconnect();
+    };
+  }, [useAutoHeight, minHeight]);
+
+  const effectiveMaxHeight = useAutoHeight ? (autoMaxHeight ?? maxHeight) : maxHeight;
+
+  // The rows viewport starts below the sticky header inside the same scroll element,
+  // so the virtualizer needs that offset to map scrollTop -> row range correctly.
+  useLayoutEffect(() => {
+    const Measure = () => setScrollMargin(headerRef.current?.offsetHeight ?? 0);
+    Measure();
+
+    if(!headerRef.current || typeof ResizeObserver === "undefined") { return; }
+    const observer = new ResizeObserver(Measure);
+    observer.observe(headerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const rowVirtualizer = useVirtualizer({
     count: props.records.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT_ESTIMATE,
-    overscan: 8
+    overscan: 8,
+    scrollMargin
   });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
+  // Fetch the next page once the last row (within overscan) is rendered. Skip while the
+  // table is doing its main load/reload (fetching) - the current records are stale and
+  // the bottom is trivially "in view".
+  const {onLoadMore, hasMore, loadingMore, fetching, records} = props;
+  useEffect(() => {
+    if(!onLoadMore || !hasMore || loadingMore || fetching || records.length === 0) { return; }
+
+    const lastItem = virtualItems[virtualItems.length - 1];
+    if(lastItem && lastItem.index >= records.length - 1) {
+      onLoadMore();
+    }
+  }, [virtualItems, hasMore, loadingMore, fetching, records.length, onLoadMore]);
 
   return (
     <TableShell
       {...props}
-      scrollContainerProps={{style: {display: "flex", flexDirection: "column", maxHeight, minHeight}}}
-      bodyContainerProps={{ref: scrollRef, className: styles.body, style: {flex: 1, minHeight: 0}}}
-      virtualItems={rowVirtualizer.getVirtualItems()}
+      headerRef={headerRef}
+      scrollMargin={scrollMargin}
+      loadingMore={loadingMore}
+      scrollContainerProps={{style: {maxHeight: effectiveMaxHeight, minHeight}}}
+      scrollAreaProps={{ref: scrollRef}}
+      virtualItems={virtualItems}
       totalSize={rowVirtualizer.getTotalSize()}
       measureElement={rowVirtualizer.measureElement}
     />
@@ -308,21 +405,27 @@ const StreamsTable = observer(({
   isRecordSelectable,
   showActions = true,
   minHeight = 130,
-  maxHeight = DEFAULT_MAX_HEIGHT
+  maxHeight = DEFAULT_MAX_HEIGHT,
+  onLoadMore,
+  hasMore = false,
+  loadingMore = false
 }) => {
   const allRecords = records || [];
   const columns = BuildColumns({showActions, onNameClick});
 
-  const gridTemplateColumns = [
+  const columnWidths = [
     onSelectedRecordsChange ? SELECTION_COLUMN_WIDTH : null,
     ...columns.map(column => column.width)
-  ].filter(Boolean).join(" ");
+  ].filter(Boolean);
+  const gridTemplateColumns = columnWidths.join(" ");
+  const minGridWidth = columnWidths.reduce((sum, width) => sum + MinTrackWidth(width), 0);
 
   return (
     <BoundedVirtualizedTable
       records={allRecords}
       columns={columns}
       gridTemplateColumns={gridTemplateColumns}
+      minGridWidth={minGridWidth}
       sortStatus={sortStatus}
       onSortStatusChange={onSortStatusChange}
       fetching={fetching}
@@ -333,6 +436,9 @@ const StreamsTable = observer(({
       isRecordSelectable={isRecordSelectable}
       maxHeight={maxHeight}
       minHeight={minHeight}
+      onLoadMore={onLoadMore}
+      hasMore={hasMore}
+      loadingMore={loadingMore}
     />
   );
 });

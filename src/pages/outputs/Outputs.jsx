@@ -54,11 +54,13 @@ const Outputs = observer(() => {
         // These must run sequentially, not in parallel: OutputsList (inside
         // LoadOutputs) temporarily reroutes the shared client to a live-egress
         // node via RouteToLiveEgress. Any site-object read in flight during that
-        // window (LoadSiteStreams -> LoadTenantData) gets routed to the egress
+        // window (LoadSiteStreams -> LoadTenantSiteData/LoadTenantSiteStreams) gets routed to the egress
         // node and 403s ("token/auth not authorized"). Load streams first so the
         // site read completes against normal fabric nodes.
-        if(reload || !dataStore.streamsLoaded) {
-          await dataStore.LoadSiteStreams(reload);
+        // Reload when nothing is loaded or when the loaded set is the streams page's
+        // date-filtered view - outputs must resolve against every mapped stream.
+        if(reload || !dataStore.streamsLoaded || dataStore.streamsScoped) {
+          await dataStore.LoadSiteStreams({reload, scoped: false});
         }
         await outputStore.LoadOutputs();
       } finally {

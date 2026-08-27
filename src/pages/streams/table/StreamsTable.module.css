@@ -1,4 +1,20 @@
+.scrollArea {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.loadingMore {
+  position: sticky;
+  left: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--mantine-datatable-row-border-color, var(--mantine-color-gray-3));
+}
+
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: grid;
   align-items: center;
   border-bottom: 1px solid var(--mantine-datatable-row-border-color, var(--mantine-color-gray-3));
@@ -10,10 +26,6 @@
   align-items: center;
   padding: 10px 12px;
   min-width: 0;
-}
-
-.body {
-  overflow: auto;
 }
 
 .row {

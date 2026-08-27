@@ -18,8 +18,9 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if(!dataStore.streamsLoaded) {
-      dataStore.LoadSiteStreams();
+    // Mapping needs every stream, not just the streams page's date-filtered set.
+    if(!dataStore.streamsLoaded || dataStore.streamsScoped) {
+      dataStore.LoadSiteStreams({scoped: false});
     }
   }, []);
 

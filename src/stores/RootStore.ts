@@ -75,8 +75,6 @@ class RootStore {
       this.networkInfo = yield this.client.NetworkInfo();
       this.contentSpaceId = yield this.client.ContentSpaceId();
 
-      // The tenant-wide live-stream query is scoped by siteId (group:eq:<siteId>), so it can't
-      // fire until site settings (dataStore.Initialize -> LoadTenantData) have resolved.
       yield Promise.all([
         this.dataStore.Initialize(),
         this.userSettingsStore.Load()
@@ -84,6 +82,16 @@ class RootStore {
 
       this.streamStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.streams);
       this.outputStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.outputs);
+
+      // The tenant-wide live-stream query is scoped by siteId (group:eq:<siteId>), so it can't
+      // fire until site settings (dataStore.Initialize -> LoadTenantSiteData) have resolved siteId.
+      // Kick it off here (not awaited) so it's in flight before the streams page mounts;
+      // LoadSiteStreams picks up the same in-flight promise via the filter-key cache.
+      this.streamStore.LoadTenantLiveStreamContent({
+        siteId: this.dataStore.siteId,
+        dateRange: this.streamStore.dateRangeFilter,
+        paged: true
+      });
     } catch(error) {
       /* eslint-disable no-console */
       console.error("Failed to initialize application");

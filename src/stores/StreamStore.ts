@@ -75,7 +75,18 @@ interface TenantContentVersion {
   error: string;
 }
 
+interface TenantContentPaging {
+  start?: number;
+  limit?: number;
+  total?: number;
+  items?: number;
+  pages?: number;
+  next?: number | null;
+  more?: boolean;
+}
+
 const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
+const TENANT_CONTENT_PAGE_SIZE = 100;
 
 class StreamStore {
   streams: StreamMap;
@@ -87,13 +98,24 @@ class StreamStore {
   dateRangeFilter: [Date | null, Date | null] = GetDateRangePreset(DEFAULT_DATE_PRESET);
   tenantLiveStreamContent: StreamMap = {};
   loadingTenantLiveStreamContent = false;
+  // Paged tenant query state (streams page): whether another page is available,
+  // whether a page fetch is in flight, and the resume cursor / query params.
+  tenantContentHasMore = false;
+  loadingMoreTenantContent = false;
   _tenantContentPromise: Promise<void> | null = null;
   _tenantContentFilterKey: string | null = null;
+  _tenantContentCursor = 0;
+  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null]} | null = null;
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
-    makeAutoObservable(this, {_tenantContentPromise: false, _tenantContentFilterKey: false}, {autoBind: true});
+    makeAutoObservable(this, {
+      _tenantContentPromise: false,
+      _tenantContentFilterKey: false,
+      _tenantContentCursor: false,
+      _tenantContentQuery: false
+    }, {autoBind: true});
   }
 
   get client() {
@@ -209,7 +231,8 @@ class StreamStore {
     return response;
   }
 
-  *AllStreamsStatus(reload=false): Generator<any, void> {
+  // slugs limits the status refresh to specific streams (e.g. a newly-loaded page).
+  *AllStreamsStatus(reload=false, slugs: string[] | null = null): Generator<any, void> {
     if(this.loadingStatus && !reload) { return; }
 
     try {
@@ -217,7 +240,7 @@ class StreamStore {
 
       yield this.client.utils.LimitedMap(
         15,
-        Object.keys(this.streams || {}),
+        slugs ?? Object.keys(this.streams || {}),
         async slug => {
           const streamMeta = this.streams?.[slug];
           try {
@@ -699,9 +722,51 @@ class StreamStore {
     }
   }
 
-  *LoadTenantLiveStreamContent({siteId, dateRange, force=false}: {siteId?: string, dateRange?: [Date | null, Date | null], force?: boolean} = {}): Generator<any, StreamMap> {
+  // Builds the TenantContent filter array for the given site + optional date range.
+  _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null]): string[] {
+    const [startDate, endDate] = dateRange || [null, null];
+    const filter = [`group:eq:${siteId}`];
+
+    if(startDate && endDate && FormatDateFilter(startDate) === FormatDateFilter(endDate)) {
+      // Single day - one exact-match tag rather than a redundant ge/le pair.
+      filter.push(`tag:eq:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`);
+    } else if(startDate || endDate) {
+      filter.push(`tag:co:${LIVE_STREAM_DATE_TAG_KEY}`);
+      if(startDate) { filter.push(`tag:ge:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`); }
+      if(endDate) { filter.push(`tag:le:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(endDate)}`); }
+    }
+
+    return filter;
+  }
+
+  // Start index of the next page, or null when there are none left. The tenant query's
+  // paging shape has varied (next / more / total), so fall back to "was this page full?".
+  _NextTenantPageStart({paging, start, received, limit}: {paging?: TenantContentPaging, start: number, received: number, limit: number}): number | null {
+    const nextStart = start + limit;
+
+    if(paging) {
+      if(paging.next != null) { return paging.next > start ? paging.next : null; }
+      if(paging.more === true) { return nextStart; }
+      if(paging.more === false) { return null; }
+      if(typeof paging.pages === "number" && limit > 0) {
+        return Math.floor(start / limit) + 1 < paging.pages ? nextStart : null;
+      }
+      if(typeof paging.total === "number") { return nextStart < paging.total ? nextStart : null; }
+    }
+
+    return received >= limit && received > 0 ? nextStart : null;
+  }
+
+  // paged=true fetches only the first page and records a resume cursor; callers then
+  // pull further pages via LoadMoreTenantLiveStreamContent (e.g. on scroll-to-bottom).
+  // paged=false (default) loops through every page in one call.
+  *LoadTenantLiveStreamContent({siteId, dateRange, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
     if(!siteId) {
+      // No registered site id - skip the tenant query and let the caller fall back
+      // to the site object's stream list.
+      console.warn("LoadTenantLiveStreamContent: no siteId, skipping tenant query");
       this.tenantLiveStreamContent = {};
+      this.tenantContentHasMore = false;
       return this.tenantLiveStreamContent;
     }
 
@@ -709,7 +774,8 @@ class StreamStore {
     const filterKey = JSON.stringify([
       siteId,
       startDate ? FormatDateFilter(startDate) : null,
-      endDate ? FormatDateFilter(endDate) : null
+      endDate ? FormatDateFilter(endDate) : null,
+      paged
     ]);
 
     if(!force && this._tenantContentPromise && this._tenantContentFilterKey === filterKey) {
@@ -722,35 +788,38 @@ class StreamStore {
     this._tenantContentPromise = new Promise(res => { resolve = res; });
     this.loadingTenantLiveStreamContent = true;
 
+    // Reset the accumulated set and paging cursor for this fresh query.
+    this.tenantLiveStreamContent = {};
+    this.tenantContentHasMore = false;
+    this._tenantContentCursor = 0;
+    this._tenantContentQuery = {siteId, dateRange};
+
     try {
-      const limit = 100;
+      const filter = this._TenantContentFilter(siteId, dateRange);
       let start = 0;
       let versions: TenantContentVersion[] = [];
-
-      const filter = [`group:eq:${siteId}`];
-      if(startDate && endDate && FormatDateFilter(startDate) === FormatDateFilter(endDate)) {
-        // Single day - one exact-match tag rather than a redundant ge/le pair.
-        filter.push(`tag:eq:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`);
-      } else if(startDate || endDate) {
-        filter.push(`tag:co:${LIVE_STREAM_DATE_TAG_KEY}`);
-        if(startDate) { filter.push(`tag:ge:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`); }
-        if(endDate) { filter.push(`tag:le:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(endDate)}`); }
-      }
 
       while(true) {
         const {versions: page, paging} = yield this.client.TenantContent({
           filter,
           start,
-          limit
+          limit: TENANT_CONTENT_PAGE_SIZE
         });
 
+        const received = (page ?? []).length;
         versions = versions.concat(page ?? []);
 
-        if(!paging || paging.next === undefined || paging.next === null || paging.next <= start) {
+        const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+
+        if(paged) {
+          // One page per call - remember where to resume and stop.
+          this._tenantContentCursor = next ?? start;
+          this.tenantContentHasMore = next !== null;
           break;
         }
 
-        start = paging.next;
+        if(next === null) { break; }
+        start = next;
       }
 
       this.tenantLiveStreamContent = Object.fromEntries(
@@ -769,10 +838,49 @@ class StreamStore {
     return this.tenantLiveStreamContent;
   }
 
-  *LoadStreams({streamMetadata}: {streamMetadata: StreamMap}) {
-    // Build the fully-enriched result in a plain local object - not the observable `this.streams`
-    // - so nothing here triggers a re-render until every stream's list data has loaded. One
-    // UpdateStreams call at the end reveals it all at once.
+  // Fetches the next page of the current paged tenant query, merges it into
+  // tenantLiveStreamContent, and returns only the newly-added entries.
+  *LoadMoreTenantLiveStreamContent(): Generator<any, StreamMap> {
+    if(!this.tenantContentHasMore || this.loadingMoreTenantContent || !this._tenantContentQuery) {
+      return {};
+    }
+
+    this.loadingMoreTenantContent = true;
+    const added: StreamMap = {};
+
+    try {
+      const {siteId, dateRange} = this._tenantContentQuery;
+      const filter = this._TenantContentFilter(siteId, dateRange);
+      const start = this._tenantContentCursor;
+
+      const {versions, paging} = yield this.client.TenantContent({
+        filter,
+        start,
+        limit: TENANT_CONTENT_PAGE_SIZE
+      });
+
+      const received = (versions ?? []).length;
+      (versions ?? [])
+        .filter(({id, hash}: TenantContentVersion) => id && hash && !this.tenantLiveStreamContent[id])
+        .forEach(({id, hash}: TenantContentVersion) => { added[id] = {versionHash: hash} as StreamInfo; });
+
+      this.tenantLiveStreamContent = {...this.tenantLiveStreamContent, ...added};
+
+      const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+      this._tenantContentCursor = next ?? start;
+      this.tenantContentHasMore = next !== null;
+    } catch(error) {
+      console.error("Unable to load more tenant live stream content", error);
+    } finally {
+      this.loadingMoreTenantContent = false;
+    }
+
+    return added;
+  }
+
+  // append=true merges the enriched results into the existing stream list (used when
+  // pulling additional pages) instead of replacing it.
+  *LoadStreams({streamMetadata, append=false}: {streamMetadata: StreamMap, append?: boolean}) {
     const enriched: StreamMap = {};
 
     Object.keys(streamMetadata).forEach(slug => {
@@ -781,8 +889,10 @@ class StreamStore {
       let versionHash = stream?.["."]?.source ?? stream.versionHash;
 
       if(!versionHash) {
-        const match = stream?.["/"].match(/(hq__[^/]+)/);
-        versionHash = match ? match[1] : undefined;
+        try {
+          const match = stream?.["/"]?.match(/(hq__[^/]+)/);
+          versionHash = match ? match[1] : undefined;
+        } catch { /* skip */ }
       }
 
       if(!versionHash) {
@@ -790,7 +900,14 @@ class StreamStore {
         return;
       }
 
-      const objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
+      let objectId: string;
+      try {
+        objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
+      } catch(error) {
+        console.error(`Failed to decode version hash for ${slug}`, error);
+        return;
+      }
+
       enriched[slug] = {...stream, slug, objectId, versionHash};
     });
 
@@ -823,7 +940,7 @@ class StreamStore {
       }
     );
 
-    this.UpdateStreams({streams: enriched});
+    this.UpdateStreams({streams: append ? {...this.streams, ...enriched} : enriched});
   }
 
   *LoadStreamListData({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, StreamListData | undefined> {

@@ -226,8 +226,9 @@ const Monitor = observer(() => {
   const [debouncedFilter] = useDebouncedValue(filter, 200);
 
   useEffect(() => {
-    if(!dataStore.streamsLoaded) {
-      dataStore.LoadSiteStreams();
+    // Monitor needs every stream, not just the streams page's date-filtered set.
+    if(!dataStore.streamsLoaded || dataStore.streamsScoped) {
+      dataStore.LoadSiteStreams({scoped: false});
     }
   }, []);
 

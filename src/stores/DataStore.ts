@@ -166,12 +166,23 @@ class DataStore {
   srtUrlsByStream: Record<string, SrtUrlInfo>;
   loadedDedicatedNodes = false;
   streamsLoaded = false;
+  // Whether the currently-loaded stream set is scoped to the streams page's date filter.
+  // Pages that need the full set (Outputs, Monitor, stream mapping) reload when this is true.
+  streamsScoped = false;
+  // True while an additional page of streams is being fetched (scroll-to-load-more).
+  loadingMoreStreams = false;
   _loadingStreams = false;
+  _loadingMoreStreams = false;
   _accessGroupsPromise: Promise<void> | null = null;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
-    makeAutoObservable(this, {streamMetadata: observable.ref, _loadingStreams: false, _accessGroupsPromise: false}, {autoBind: true});
+    makeAutoObservable(this, {streamMetadata: observable.ref, _loadingStreams: false, _loadingMoreStreams: false, _accessGroupsPromise: false}, {autoBind: true});
+  }
+
+  // Whether the streams page has more pages to load
+  get hasMoreStreams(): boolean {
+    return this.streamsScoped && this.rootStore.streamStore.tenantContentHasMore;
   }
 
   get client() {
@@ -192,7 +203,7 @@ class DataStore {
   *Initialize(): Generator<any, void> {
     this.loaded = false;
     try {
-      yield this.LoadTenantData();
+      yield this.LoadTenantSiteData();
       this.loaded = true;
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -201,35 +212,41 @@ class DataStore {
     }
   }
 
-  *LoadSiteStreams(reload=false): Generator<any, void> {
+  // scoped=true applies the streams page's date-range filter to the tenant query.
+  // Callers that need the full stream map (Outputs, Monitor, stream mapping) pass
+  // scoped=false so the list isn't limited to the currently-selected date range.
+  *LoadSiteStreams({reload=false, scoped=true}: {reload?: boolean, scoped?: boolean} = {}): Generator<any, void> {
     if(this._loadingStreams && !reload) { return; }
     this._loadingStreams = true;
     this.streamsLoaded = false;
     try {
-      // Prefer the tenant-wide tag query; only fall back to the site object's registered stream list
-      const dateRange = this.rootStore.streamStore.dateRangeFilter;
-      const hasDateFilter = !!(dateRange && (dateRange[0] || dateRange[1]));
+      // Need the site object id for the tenant query scope (and any site-list fallback)
+      if(!this.siteId || !this.siteLibraryId) {
+        yield this.LoadTenantSiteData();
+      }
 
-      const tenantStreamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, force: reload});
+      // Prefer the tenant-wide tag query; only fall back to the site object's registered stream list
+      const dateRange: [Date | null, Date | null] = scoped ? this.rootStore.streamStore.dateRangeFilter : [null, null];
+
+      // Scoped (streams page) loads one page at a time; LoadMoreSiteStreams pulls the rest.
+      const tenantStreamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, force: reload, paged: scoped});
       const tenantHasContent = Object.keys(tenantStreamMetadata || {}).length > 0;
 
       let streamMetadata = tenantStreamMetadata;
-      if(!tenantHasContent && !hasDateFilter) {
+      if(!tenantHasContent) {
         if(!this.streamMetadata || reload) {
-          yield this.LoadTenantData();
+          yield this.LoadTenantSiteStreams();
         }
         streamMetadata = this.streamMetadata;
       }
 
-      // Table only updates once both the tenant query and the per-stream metadata call
-      // (LoadStreams) have fully resolved - streamsLoaded stays false (table shows its
-      // loading state) until then, instead of revealing rows as they fill in.
       yield Promise.all([
         this.rootStore.streamStore.LoadStreams({streamMetadata}),
         this.rootStore.outputStore.LoadOutputSettingsId()
       ]);
 
       this.streamsLoaded = true;
+      this.streamsScoped = scoped;
 
       yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
@@ -241,33 +258,122 @@ class DataStore {
     }
   }
 
-  *LoadTenantData(): Generator<any, {siteLibraryId: string, siteObjectId: string, streamMetadata: StreamMap}> {
+  // Loads the next page of the paged tenant stream query and appends it to the list.
+  // Called when the streams table is scrolled to the bottom.
+  *LoadMoreSiteStreams(): Generator<any, void> {
+    // Bail while the list itself is (re)building - it will replace the list anyway.
+    // (streamsLoaded flips true once the list is ready, before the status-polling tail,
+    // so this doesn't block on that long-running tail.)
+    if(this._loadingMoreStreams || !this.streamsLoaded || !this.hasMoreStreams) { return; }
+
+    this._loadingMoreStreams = true;
+    this.loadingMoreStreams = true;
+    let newSlugs: string[] = [];
     try {
-      const {siteLibraryId, siteObjectId, streamMetadata, contentTypes} = yield this.client.StreamSiteSettings();
-      const {live_stream, title} = contentTypes;
+      const added = yield this.rootStore.streamStore.LoadMoreTenantLiveStreamContent();
+      newSlugs = Object.keys(added || {});
+      if(newSlugs.length > 0) {
+        yield this.rootStore.streamStore.LoadStreams({streamMetadata: added, append: true});
+      }
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load more site streams", error);
+    } finally {
+      // Clear the spinner as soon as the new rows are in - status polling for them
+      // continues in the background and fills the Status column in as it resolves.
+      this._loadingMoreStreams = false;
+      this.loadingMoreStreams = false;
+    }
 
-      if(live_stream) {
-        this.contentType = live_stream;
+    if(newSlugs.length > 0) {
+      try {
+        yield this.rootStore.streamStore.AllStreamsStatus(true, newSlugs);
+      } catch(error) {
+        // eslint-disable-next-line no-console
+        console.error("Unable to load status for newly-loaded streams", error);
+      }
+    }
+  }
+
+  // Resolves the site object id/library id from the tenant object, plus the tenant's
+  // live_stream/title content types. Does NOT read the site's stream list - use
+  // LoadTenantSiteStreams for that (only needed when the tenant tag query returns nothing).
+  *LoadTenantSiteData(force=false): Generator<any, {siteLibraryId: string, siteObjectId: string, contentTypes: {live_stream?: string, title?: string}}> {
+    if(this.siteId && this.siteLibraryId && !force) {
+      return {
+        siteLibraryId: this.siteLibraryId,
+        siteObjectId: this.siteId,
+        contentTypes: {live_stream: this.contentType, title: this.titleContentType}
+      };
+    }
+
+    try {
+      const tenantId = yield this.client.userProfileClient.TenantContractId();
+
+      if(!tenantId) {
+        throw new Error("Tenant ID not found. Ensure the user profile has a tenant contract configured.");
       }
 
-      if(title) {
-        this.titleContentType = title;
-      }
+      const tenantLibraryId = tenantId.replace("iten", "ilib");
+      const tenantObjectId = tenantId.replace("iten", "iq__");
+
+      const [siteObjectId, contentTypes] = yield Promise.all([
+        this.client.ContentObjectMetadata({
+          libraryId: tenantLibraryId,
+          objectId: tenantObjectId,
+          metadataSubtree: "public/sites/live_streams"
+        }),
+        this.client.ContentObjectMetadata({
+          libraryId: tenantLibraryId,
+          objectId: tenantObjectId,
+          metadataSubtree: "public/content_types",
+          select: ["live_stream", "title"]
+        })
+      ]);
+
+      const siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: siteObjectId});
+
+      const {live_stream, title} = contentTypes || {};
+      if(live_stream) { this.contentType = live_stream; }
+      if(title) { this.titleContentType = title; }
 
       this.siteId = siteObjectId;
       this.siteLibraryId = siteLibraryId;
-      this.streamMetadata = streamMetadata;
 
-      return {
-        siteLibraryId,
-        siteObjectId,
-        streamMetadata
-      };
+      return {siteLibraryId, siteObjectId, contentTypes: contentTypes || {}};
     } catch(error) {
       this.rootStore.SetErrorMessage("Error: Unable to load tenant sites");
       // eslint-disable-next-line no-console
       console.error(error);
       throw Error("Unable to load sites for tenant.");
+    }
+  }
+
+  // Fallback stream list: reads the site object's registered live_streams. Only used when
+  // the tenant-wide tag query (LoadTenantLiveStreamContent) returns no content.
+  *LoadTenantSiteStreams(): Generator<any, StreamMap> {
+    try {
+      if(!this.siteLibraryId || !this.siteId) {
+        yield this.LoadTenantSiteData();
+      }
+
+      const streamMetadata = yield this.client.ContentObjectMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        metadataSubtree: "public/asset_metadata/live_streams",
+        resolveIncludeSource: true,
+        resolveLinks: true,
+        resolveIgnoreErrors: true
+      });
+
+      this.streamMetadata = streamMetadata || {};
+
+      return this.streamMetadata;
+    } catch(error) {
+      this.rootStore.SetErrorMessage("Error: Unable to load tenant streams");
+      // eslint-disable-next-line no-console
+      console.error(error);
+      throw Error("Unable to load streams for tenant.");
     }
   }
 
@@ -384,9 +490,7 @@ class DataStore {
     this.loadedDedicatedNodes = false;
     try {
       if(!this.siteLibraryId) {
-        const {siteObjectId, siteLibraryId} = yield this.LoadTenantData();
-        this.siteId = siteObjectId;
-        this.siteLibraryId = siteLibraryId;
+        yield this.LoadTenantSiteData();
       }
 
       const nodes = yield this.client.ContentObjectMetadata({
@@ -542,9 +646,7 @@ class DataStore {
   *SaveDedicatedNodes({nodes, commitMessage="Update dedicated nodes"}: {nodes: DedicatedNodeMap, commitMessage?: string}): Generator<any, void> {
     try {
       if(!this.siteLibraryId) {
-        const {siteObjectId, siteLibraryId} = yield this.LoadTenantData();
-        this.siteId = siteObjectId;
-        this.siteLibraryId = siteLibraryId;
+        yield this.LoadTenantSiteData();
       }
 
       const {writeToken} = yield this.client.EditContentObject({

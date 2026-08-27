@@ -2,7 +2,7 @@ import {FormatTime} from "@/utils/formatters";
 
 export type DateRangePreset = "day" | "week" | "month" | "year" | "all";
 
-export const DEFAULT_DATE_PRESET: DateRangePreset = "year";
+export const DEFAULT_DATE_PRESET: DateRangePreset = "day";
 
 export const DATE_RANGE_PRESET_OPTIONS: {value: DateRangePreset, label: string}[] = [
   {value: "day", label: "Day"},
