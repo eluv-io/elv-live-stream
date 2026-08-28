@@ -932,7 +932,7 @@ class StreamStore {
       try {
         await this.client.ResetRegion();
       } catch(error) {
-        // eslint-disable-next-line no-console
+         
         console.error("Unable to reset region after TenantContent", error);
       }
     }
