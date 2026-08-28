@@ -30,16 +30,11 @@ const PACKAGING_OPTIONS = [
   {label: "TS", value: "ts"}
 ];
 
-// HLS playout URLs point at a "playlist" manifest whose segment packaging (fMP4/TS) is
-// selected by renaming it "playlist-{type}" - the same convention client-js's own
-// PlayoutOptions playoutType param uses. DASH manifests have no "playlist" segment, so the
-// replace is a no-op there.
+// Renames "playlist" -> "playlist-{type}" (client-js's playoutType convention); no-op for DASH.
 const ApplyPackaging = (url, packaging) => url ? url.replace("playlist", `playlist-${packaging}`) : url;
 
-// Flattens one stream's output URLs into rows. A DRM method (e.g. Widevine) becomes a
-// parent row with a blank URL plus two sub-rows: the playout URL and the license server URL.
-// mode picks between the channel-auth URL (default) and its named-network, anonymous-token
-// public counterpart; packaging picks the HLS segment format (fMP4/TS).
+// Flattens one stream's output URLs into rows. A DRM method with a license server becomes a
+// parent row with two sub-rows (playout URL, license server URL).
 const UrlRows = (output, mode, packaging) => {
   if(!output) { return []; }
   const isPublic = mode === "public";
@@ -68,6 +63,41 @@ const UrlRows = (output, mode, packaging) => {
   });
 
   return rows;
+};
+
+// label -> url for one stream's rows. Keyed off the row's own label, not the DRM sub-label,
+// which collides across protocols (HLS/Dash Widevine both have a "Widevine URL" child).
+const UrlsByLabel = (rows) => {
+  const urlByLabel = {};
+
+  rows.forEach(row => {
+    if(row.children) {
+      const [playoutUrl, licenseServerUrl] = row.children;
+      if(playoutUrl?.url) { urlByLabel[row.label] = playoutUrl.url; }
+      if(licenseServerUrl?.url) { urlByLabel[`${row.label} License Server`] = licenseServerUrl.url; }
+    } else if(row.url) {
+      urlByLabel[row.label] = row.url;
+    }
+  });
+
+  return urlByLabel;
+};
+
+const AllUrlsJson = (rows) => {
+  const urlByLabel = UrlsByLabel(rows);
+  return Object.keys(urlByLabel).length === 0 ? "" : JSON.stringify(urlByLabel, null, 2);
+};
+
+// Every stream's URLs, keyed by stream id, as pretty JSON.
+const AllStreamsUrlsJson = ({streams, outputUrls, mode, packaging}) => {
+  const urlsByStreamId = {};
+
+  streams.forEach(stream => {
+    const urlByLabel = UrlsByLabel(UrlRows(outputUrls[stream.objectId], mode, packaging));
+    if(Object.keys(urlByLabel).length > 0) { urlsByStreamId[stream.objectId] = urlByLabel; }
+  });
+
+  return Object.keys(urlsByStreamId).length === 0 ? "" : JSON.stringify(urlsByStreamId, null, 2);
 };
 
 const PackagingSwitch = ({options, value, onChange}) => (
@@ -105,8 +135,8 @@ const PackagingSwitch = ({options, value, onChange}) => (
   </Group>
 );
 
-const CopyControl = ({url}) => (
-  <CopyButton value={url} timeout={2000}>
+const CopyControl = ({value}) => (
+  <CopyButton value={value} timeout={2000}>
     {({copied, copy}) => (
       <Tooltip label={copied ? "Copied" : "Copy"} position="bottom">
         <ActionIcon
@@ -118,6 +148,24 @@ const CopyControl = ({url}) => (
           {copied ? <IconCheck size={20} /> : <IconCopy size={20} />}
         </ActionIcon>
       </Tooltip>
+    )}
+  </CopyButton>
+);
+
+const CopyAllButton = ({value}) => (
+  <CopyButton value={value} timeout={2000}>
+    {({copied, copy}) => (
+      <UnstyledButton
+        onClick={copy}
+        disabled={!value}
+        style={{display: "flex", alignItems: "center", gap: "8px"}}
+        mr={11}
+      >
+        <Text fz="0.65rem" fw={600} c="elv-gray.9">{copied ? "Copied" : "Copy All"}</Text>
+        <ActionIcon component="div" variant="transparent" c="elv-gray.6" size={20}>
+          {copied ? <IconCheck size={20} /> : <IconCopy size={20} />}
+        </ActionIcon>
+      </UnstyledButton>
     )}
   </CopyButton>
 );
@@ -140,9 +188,8 @@ const ToggleControl = ({open}) => (
   </ActionIcon>
 );
 
-// Fixed column widths: chevron spacer, label, URL (fills the rest), copy (hugs the icon).
-// Needed because layout="fixed" derives widths from the first row, whose header cell
-// spans columns 2-4.
+// Fixed column widths; layout="fixed" derives them from the first row, whose header cell
+// spans multiple columns.
 const ColGroup = () => (
   <colgroup>
     <col style={{width: 40}} />
@@ -154,7 +201,7 @@ const ColGroup = () => (
 
 const CopyCell = ({url, background}) => (
   <Table.Td px={8} style={{textAlign: "center", background}}>
-    {url ? <CopyControl url={url} /> : null}
+    {url ? <CopyControl value={url} /> : null}
   </Table.Td>
 );
 
@@ -184,8 +231,7 @@ const DataRow = ({row}) => (
   </>
 );
 
-// One collapsible table of output URLs (embeddable, playout options, and a URL per
-// playout protocol/DRM method) per stream in the group.
+// One collapsible table of output URLs per stream in the group.
 const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) => {
   const [collapsed, setCollapsed] = useState({});
   const [mode, setMode] = useState("authorized");
@@ -202,7 +248,19 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
           </Group>
           <PackagingSwitch options={PACKAGING_OPTIONS} value={packaging} onChange={setPackaging} />
         </Group>
-        <SegmentedControl size="xs" value={mode} onChange={setMode} data={URL_MODES} />
+        <Group gap={16} wrap="nowrap">
+          <SegmentedControl
+            size="sm"
+            value={mode}
+            onChange={setMode}
+            data={URL_MODES}
+            styles={{
+              root: {backgroundColor: "#e0e0e0", borderRadius: 4},
+              label: {fontSize: "0.75rem", fontWeight: 500, color: "var(--mantine-color-elv-gray-9)"}
+            }}
+          />
+          <CopyAllButton value={AllStreamsUrlsJson({streams, outputUrls, mode, packaging})} />
+        </Group>
       </Group>
 
       <Stack gap={12} pt={16}>
@@ -213,6 +271,7 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
         {streams.map(stream => {
           const rows = UrlRows(outputUrls[stream.objectId], mode, packaging);
           const open = !collapsed[stream.objectId];
+          const allUrls = AllUrlsJson(rows);
 
           return (
             <Box
@@ -230,8 +289,11 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
                     <Table.Th px={8}>
                       <ToggleControl open={open} />
                     </Table.Th>
-                    <Table.Th colSpan={3}>
+                    <Table.Th colSpan={2}>
                       <Text fw={700} fz="0.875rem" c="elv-gray.9">{stream.title || stream.slug}</Text>
+                    </Table.Th>
+                    <Table.Th px={8} style={{textAlign: "center"}}>
+                      {allUrls ? <CopyControl value={allUrls} /> : null}
                     </Table.Th>
                   </Table.Tr>
                 </Table.Thead>
