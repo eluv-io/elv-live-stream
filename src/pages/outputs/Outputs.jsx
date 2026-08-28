@@ -180,16 +180,6 @@ const Outputs = observer(() => {
                         <BasicTableRowText title={record.streamName} lineClamp={1}>
                           { record.streamName }
                         </BasicTableRowText>
-                        <ActionIcon
-                          variant="transparent"
-                          c="elv-gray.6"
-                          size={18}
-                          onClick={() => rootStore.OpenInFabricBrowser({
-                            objectId: record.streamId
-                          })}
-                        >
-                          <IconExternalLink />
-                        </ActionIcon>
                       </Group>
                       <Group wrap="nowrap" gap={6}>
                         <StatusIndicator
@@ -203,6 +193,16 @@ const Outputs = observer(() => {
                           <Divider orientation="vertical" c="elv-gray.6" size="sm" h="100%" />
                         </Box>
                         <Text fz="0.75rem" fw={400} c="elv-gray.6">{ record.streamId }</Text>
+                        <ActionIcon
+                          variant="transparent"
+                          c="elv-gray.6"
+                          size={18}
+                          onClick={() => rootStore.OpenInFabricBrowser({
+                            objectId: record.streamId
+                          })}
+                        >
+                          <IconExternalLink />
+                        </ActionIcon>
                       </Group>
                     </Stack>
                   );
