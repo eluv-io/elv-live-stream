@@ -117,7 +117,7 @@ export const STATUS_TEXT = {
   running: "Running",
   stalled: "Stalled",
   terminating: "Terminating",
-  unavailable: "Temporarily Unavailable"
+  unavailable: "Unavailable"
 };
 
 export const CODEC_TEXT = {

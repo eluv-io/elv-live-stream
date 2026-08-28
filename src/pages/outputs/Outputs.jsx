@@ -131,7 +131,7 @@ const Outputs = observer(() => {
             ClearSelection={() => setSelectedSlugs([])}
           />
         </Stack>
-        <Box className={sharedStyles.tableWrapper}>
+        <Box className={`${sharedStyles.tableWrapper} outputs-table`}>
           <DataTable
             idAccessor="slug"
             minHeight={(!records || records.length === 0) ? 130 : 75}
