@@ -1,35 +1,109 @@
 import {useState} from "react";
-import {ActionIcon, Box, CopyButton, Group, Loader, Stack, Table, Text, Tooltip} from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  CopyButton,
+  Group,
+  Loader,
+  SegmentedControl,
+  Stack,
+  Table,
+  Text,
+  Tooltip,
+  UnstyledButton
+} from "@mantine/core";
 import {IconCheck, IconChevronRight, IconCopy} from "@tabler/icons-react";
+import {SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
+import sharedStyles from "@/assets/shared.module.css";
 
 const SUBROW_BG = "#F5F5F5";
+const SELECTED_COLOR = "#4489df";
+
+const URL_MODES = [
+  {label: "Authorized", value: "authorized"},
+  {label: "Public", value: "public"}
+];
+
+const PACKAGING_OPTIONS = [
+  {label: "FMP4", value: "fmp4"},
+  {label: "TS", value: "ts"}
+];
+
+// HLS playout URLs point at a "playlist" manifest whose segment packaging (fMP4/TS) is
+// selected by renaming it "playlist-{type}" - the same convention client-js's own
+// PlayoutOptions playoutType param uses. DASH manifests have no "playlist" segment, so the
+// replace is a no-op there.
+const ApplyPackaging = (url, packaging) => url ? url.replace("playlist", `playlist-${packaging}`) : url;
 
 // Flattens one stream's output URLs into rows. A DRM method (e.g. Widevine) becomes a
 // parent row with a blank URL plus two sub-rows: the playout URL and the license server URL.
-const UrlRows = (output) => {
+// mode picks between the channel-auth URL (default) and its named-network, anonymous-token
+// public counterpart; packaging picks the HLS segment format (fMP4/TS).
+const UrlRows = (output, mode, packaging) => {
   if(!output) { return []; }
+  const isPublic = mode === "public";
 
   const rows = [];
   if(output.embedUrl) { rows.push({label: "Embeddable URL", url: output.embedUrl}); }
-  if(output.playoutUrl) { rows.push({label: "Playout URL", url: output.playoutUrl}); }
+
+  const playoutUrl = isPublic ? output.publicPlayoutUrl : output.playoutUrl;
+  if(playoutUrl) { rows.push({label: "Playout URL", url: playoutUrl}); }
 
   (output.playoutMethods || []).forEach(method => {
+    const url = ApplyPackaging(isPublic ? method.publicUrl : method.url, packaging);
+
     if(method.licenseServerUrl) {
       const drm = method.label.split(" ").pop();
       rows.push({
         label: method.label,
         children: [
-          {label: `${drm} URL`, url: method.url},
-          {label: "License Server URL", url: method.licenseServerUrl}
+          {label: `${drm} URL`, url},
+          {label: "License Server URL", url: isPublic ? method.publicLicenseServerUrl : method.licenseServerUrl}
         ]
       });
     } else {
-      rows.push({label: method.label, url: method.url});
+      rows.push({label: method.label, url});
     }
   });
 
   return rows;
 };
+
+const PackagingSwitch = ({options, value, onChange}) => (
+  <Group gap={12} wrap="nowrap">
+    {options.map(option => (
+      <UnstyledButton
+        key={option.value}
+        onClick={() => onChange(option.value)}
+        style={{
+          fontSize: "0.8125rem",
+          fontWeight: 600,
+          lineHeight: 1,
+          paddingBottom: 3,
+          cursor: "pointer",
+          color: value === option.value ? SELECTED_COLOR : "var(--mantine-color-elv-gray-6)",
+          borderBottom: `2px solid ${value === option.value ? SELECTED_COLOR : "transparent"}`,
+          borderRadius: 2
+        }}
+      >
+        <Badge
+          key={`source-${option.label}`}
+          radius={2}
+          color={SOURCE_PACKAGING_COLOR_MAP[option.value]}
+          c="elv-gray.7"
+          tt="uppercase"
+          fz={12}
+          fw={400}
+          style={{cursor: "pointer"}}
+          classNames={{label: sharedStyles.badgeLabel}}
+        >
+          {option.label}
+        </Badge>
+      </UnstyledButton>
+    ))}
+  </Group>
+);
 
 const CopyControl = ({url}) => (
   <CopyButton value={url} timeout={2000}>
@@ -114,22 +188,30 @@ const DataRow = ({row}) => (
 // playout protocol/DRM method) per stream in the group.
 const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) => {
   const [collapsed, setCollapsed] = useState({});
+  const [mode, setMode] = useState("authorized");
+  const [packaging, setPackaging] = useState("fmp4");
   const Toggle = (id) => setCollapsed(current => ({...current, [id]: !current[id]}));
 
   return (
     <Box mt={40}>
-      <Group gap={8} wrap="nowrap" mb={4}>
-        <IconChevronRight size={20} color="var(--mantine-color-elv-blue-3)" />
-        <Text fz="1.125rem" fw={600} c="elv-blue.3">Output URLs by Source</Text>
+      <Group justify="space-between" wrap="nowrap" mb={4}>
+        <Group gap={12} wrap="nowrap">
+          <Group gap={8} wrap="nowrap">
+            <IconChevronRight size={20} color="var(--mantine-color-elv-blue-3)" />
+            <Text fz="1.125rem" fw={600} c="elv-blue.3">Output URLs by Source</Text>
+          </Group>
+          <PackagingSwitch options={PACKAGING_OPTIONS} value={packaging} onChange={setPackaging} />
+        </Group>
+        <SegmentedControl size="xs" value={mode} onChange={setMode} data={URL_MODES} />
       </Group>
 
-      <Stack gap={20} pt={16}>
+      <Stack gap={12} pt={16}>
         {
           streams.length === 0 &&
           (loading ? <Loader /> : <Text fz={14} c="elv-gray.6">No sources.</Text>)
         }
         {streams.map(stream => {
-          const rows = UrlRows(outputUrls[stream.objectId]);
+          const rows = UrlRows(outputUrls[stream.objectId], mode, packaging);
           const open = !collapsed[stream.objectId];
 
           return (
@@ -163,7 +245,7 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
                           <Table.Td colSpan={3}>
                             {
                               loading ?
-                                <Loader size="sm" /> :
+                                <Text fz="0.875rem" c="elv-gray.6">Loading URLs...</Text> :
                                 <Text fz="0.875rem" c="elv-gray.6">No output URLs available.</Text>
                             }
                           </Table.Td>

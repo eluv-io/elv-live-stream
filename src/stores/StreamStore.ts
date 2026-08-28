@@ -123,17 +123,31 @@ const PLAYOUT_METHOD_LABELS: Record<string, string> = {
   playready: "PlayReady"
 };
 
+// Named-network hostname map for building public playout URLs - mirrors elv-client-js's
+// internal NetworkUrls table. A public URL resolves to a fabric node close to the viewer
+// rather than the node that happened to serve the (private, token-bound) playout URL.
+const NETWORK_HOSTS: Record<string, string> = {
+  main: "main.net955305.contentfabric.io",
+  demo: "demov3.net955210.contentfabric.io",
+  test: "test.net955203.contentfabric.io"
+};
+
 export interface OutputUrlRow {
   label: string;
   url: string;
   // DRM methods (e.g. Widevine): the license server URL. When present the UI shows
   // the playout + license URLs as sub-rows and leaves the parent row's URL blank.
   licenseServerUrl?: string;
+  // Named-network variant of url/licenseServerUrl, authorized with an anonymous
+  // (qspace_id-only) token instead of the stream's own channel-auth token.
+  publicUrl?: string;
+  publicLicenseServerUrl?: string;
 }
 
 export interface StreamOutputUrls {
   embedUrl?: string;
   playoutUrl?: string;
+  publicPlayoutUrl?: string;
   playoutMethods: OutputUrlRow[];
 }
 
@@ -1154,23 +1168,30 @@ class StreamStore {
     const result: StreamOutputUrls = {playoutMethods: []};
     if(!objectId) { return result; }
 
+    const versionHash = yield this.client.LatestVersionHash({objectId});
+    const anonymousToken = this.client.utils.B64(
+      JSON.stringify({qspace_id: this.rootStore.contentSpaceId})
+    );
+
     try {
       result.embedUrl = yield this.EmbedUrl({objectId});
     } catch(error) {
-       
+
       console.error(`Unable to load embed URL for ${objectId}`, error);
     }
 
     try {
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      result.playoutUrl = yield this.client.FabricUrl({
+      const rawPlayoutUrl = yield this.client.FabricUrl({
         libraryId,
         objectId,
         rep: "playout/default/options.json",
         channelAuth: true
       });
+      result.playoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, versionHash});
+      result.publicPlayoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, versionHash, dropAuthorization: true});
     } catch(error) {
-       
+
       console.error(`Unable to load playout options URL for ${objectId}`, error);
     }
 
@@ -1185,24 +1206,77 @@ class StreamStore {
       Object.keys(playoutOptions || {}).forEach(protocol => {
         const methods = playoutOptions[protocol]?.playoutMethods || {};
         Object.keys(methods).forEach(method => {
-          const url = methods[method]?.playoutUrl;
-          if(!url) { return; }
+          const rawUrl = methods[method]?.playoutUrl;
+          if(!rawUrl) { return; }
 
           const licenseServers = methods[method]?.drms?.[method]?.licenseServers;
+          const licenseServerUrl = Array.isArray(licenseServers) && licenseServers.length > 0 ? licenseServers[0] : undefined;
 
           result.playoutMethods.push({
             label: `${PLAYOUT_PROTOCOL_LABELS[protocol] || protocol.toUpperCase()} ${PLAYOUT_METHOD_LABELS[method] || method}`,
-            url,
-            licenseServerUrl: Array.isArray(licenseServers) && licenseServers.length > 0 ? licenseServers[0] : undefined
+            url: this._NamedNetworkUrl({url: rawUrl, versionHash}),
+            licenseServerUrl,
+            publicUrl: this._NamedNetworkUrl({url: rawUrl, versionHash, dropAuthorization: true}),
+            publicLicenseServerUrl: licenseServerUrl ?
+              this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
+              undefined
           });
         });
       });
     } catch(error) {
-       
+
       console.error(`Unable to load playout options for ${objectId}`, error);
     }
 
     return result;
+  }
+
+  // Rebuilds a fabric URL against a named-network host (e.g. main.net955305.contentfabric.io)
+  // instead of the specific node that happened to serve the original URL, so the link resolves
+  // close to whichever viewer opens it. Used for both toggle states - dropAuthorization strips
+  // the auth token entirely for the "public" variant; omitted, it keeps the URL's own token.
+  _NamedNetworkUrl({url, versionHash, dropAuthorization=false}: {url: string, versionHash: string, dropAuthorization?: boolean}): string | undefined {
+    try {
+      const network = this.rootStore.networkInfo?.name || "main";
+      const networkHost = NETWORK_HOSTS[network] || NETWORK_HOSTS.main;
+
+      const originalUrl = new URL(url);
+      let path = UrlJoin("rep", originalUrl.pathname.split("/rep")[1] || "");
+      if(originalUrl.pathname.includes("/meta")) {
+        path = UrlJoin("meta", originalUrl.pathname.split("/meta")[1]);
+      }
+
+      const namedNetworkUrl = new URL(`https://${networkHost}`);
+      namedNetworkUrl.pathname = UrlJoin("s", network, "q", versionHash, path);
+      originalUrl.searchParams.forEach((value, key) => {
+        if(key !== "authorization") { namedNetworkUrl.searchParams.set(key, value); }
+      });
+      if(!dropAuthorization) {
+        namedNetworkUrl.searchParams.set("authorization", originalUrl.searchParams.get("authorization") || "");
+      }
+
+      return namedNetworkUrl.toString();
+    } catch(error) {
+
+      console.error(`Unable to build named-network URL for ${url}`, error);
+      return undefined;
+    }
+  }
+
+  // License servers are a separate DRM proxy service, not a fabric node - keep their host/path
+  // as-is and just swap the auth token (plus qhash, which the proxy needs to look up the object).
+  _PublicLicenseServerUrl({url, versionHash, authorizationToken}: {url: string, versionHash: string, authorizationToken: string}): string | undefined {
+    try {
+      const licenseServerUrl = new URL(url);
+      licenseServerUrl.searchParams.set("qhash", versionHash);
+      licenseServerUrl.searchParams.set("authorization", authorizationToken);
+
+      return licenseServerUrl.toString();
+    } catch(error) {
+
+      console.error(`Unable to build public license server URL for ${url}`, error);
+      return undefined;
+    }
   }
 
   // Output URLs for several streams, keyed by objectId. Pure - returned to the caller.

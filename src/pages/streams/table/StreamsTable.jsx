@@ -51,9 +51,11 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) 
     ),
     renderGroup: record => (
       <Group gap={8} wrap="nowrap" maw="100%">
-        <Title order={3} lineClamp={1} title={record.titleId} style={{wordBreak: "break-all"}}>
-          {record.titleId}
-        </Title>
+        <UnstyledButton onClick={() => onViewSummary?.(record)}>
+          <Title order={3} lineClamp={1} title={record.titleId} style={{wordBreak: "break-all"}}>
+            {record.titleId}
+          </Title>
+        </UnstyledButton>
         <Badge
           radius="sm"
           c="elv-gray.7"
