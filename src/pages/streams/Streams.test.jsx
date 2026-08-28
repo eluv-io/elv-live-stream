@@ -46,9 +46,8 @@ const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } =
 // renders and is exercised for real.
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({count}) => ({
-    getVirtualItems: () => Array.from({length: count}, (_, index) => ({index, key: index, start: index * 64, size: 64})),
-    getTotalSize: () => count * 64,
-    measureElement: () => {}
+    getVirtualItems: () => Array.from({length: count}, (_, index) => ({index, key: index, start: index * 51, size: 51})),
+    getTotalSize: () => count * 51
   })
 }));
 

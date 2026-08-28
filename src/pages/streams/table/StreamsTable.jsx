@@ -10,18 +10,16 @@ import sharedStyles from "@/assets/shared.module.css";
 import styles from "./StreamsTable.module.css";
 import {SOURCE_PACKAGING_COLOR_MAP, QUALITY_MAP} from "@/utils/constants.ts";
 
-// Estimate only - actual row height is measured per-row (rowVirtualizer.measureElement),
-// so wrapped/variable content (e.g. multiple source badges) still lays out correctly.
-const ROW_HEIGHT_ESTIMATE = 64;
+// Fixed height for every row. No per-row measureElement, so getTotalSize() stays exact
+// and there's no scrollMargin/measurement race. Overflowing content is clipped by the cells.
+const ROW_HEIGHT = 51;
 const SELECTION_COLUMN_WIDTH = "40px";
 const DEFAULT_MAX_HEIGHT = "calc(100vh - 320px)";
-// Space left below the table so its bottom edge clears the page's bottom padding
-// and the page itself never needs to scroll - only the table does.
+// Gap below the table so only it scrolls, never the page.
 const VIEWPORT_BOTTOM_GAP = 48;
 
-// Minimum pixel width of a column track: the fixed width, or the first arg of minmax().
-// Summed across columns it gives the row/header width when columns overflow the viewport,
-// so their bottom borders span the full width the user can scroll to.
+// Min pixel width of a column track (fixed width, or first arg of minmax()). Summed, it's
+// the row/header width when columns overflow, so bottom borders span the full scroll width.
 const MinTrackWidth = width => {
   const match = /(\d+(?:\.\d+)?)px/.exec(width);
   return match ? parseFloat(match[1]) : 0;
@@ -177,7 +175,7 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) 
   }] : [])
 ];
 
-// Renders the header + whichever rows the virtualizer says are currently visible.
+// Header + the rows the virtualizer currently reports as visible.
 const TableShell = ({
   records,
   columns,
@@ -197,7 +195,6 @@ const TableShell = ({
   scrollMargin,
   virtualItems,
   totalSize,
-  measureElement,
   loadingMore,
   expandedGroups,
   onToggleGroup
@@ -239,7 +236,7 @@ const TableShell = ({
   const someSelected = selectionEnabled && !allSelected && selectableRecords.some(IsSelected);
 
   return (
-    // While fetching, a min height gives the loading spinner room to sit below the header rather than at the top edge
+    // A min height while fetching keeps the spinner below the header, not at the top edge
     <Box
       className={sharedStyles.tableWrapper}
       {...scrollContainerProps}
@@ -248,10 +245,9 @@ const TableShell = ({
     >
       <LoadingOverlay visible={!!fetching} zIndex={1} overlayProps={{radius: "sm", blur: 1}} />
 
-      {/* This div is the scroll box. The header lives inside it so the browser scrolls the
-          header horizontally with the rows (no JS lag); it sticks to the top on vertical
-          scroll. The "loading more" spinner also lives inside it, after the rows, so it
-          sits above this element's own horizontal scrollbar. */}
+      {/* The single scroll box. Header lives inside it so it scrolls horizontally with the
+          rows and sticks to the top vertically. The "loading more" spinner sits after the
+          rows, above this element's horizontal scrollbar. */}
       <div {...scrollAreaProps} className={styles.scrollArea}>
         <div ref={headerRef} className={styles.header} style={{gridTemplateColumns, minWidth: minGridWidth}} role="row">
           {
@@ -307,7 +303,6 @@ const TableShell = ({
                       key={record.objectId || virtualRow.key}
                       data-index={virtualRow.index}
                       data-record-slug={record.slug}
-                      ref={measureElement}
                       className={isGroupChild ? `${styles.row} ${styles.groupChildRow}` : styles.row}
                       role="row"
                       style={{
@@ -315,6 +310,7 @@ const TableShell = ({
                         top: 0,
                         left: 0,
                         width: "100%",
+                        height: ROW_HEIGHT,
                         minWidth: minGridWidth,
                         transform: `translateY(${virtualRow.start - (scrollMargin || 0)}px)`,
                         gridTemplateColumns,
@@ -373,18 +369,15 @@ const TableShell = ({
   );
 };
 
-// styles.scrollArea is the single scroll container, so the sticky header and the rows
-// scroll together horizontally. Its height is bounded so only the table scrolls vertically,
-// never the page.
+// Bounds the scroll area's height so only the table scrolls vertically, never the page.
 const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
   const scrollRef = useRef(null);
   const headerRef = useRef(null);
   const [scrollMargin, setScrollMargin] = useState(0);
   const [autoMaxHeight, setAutoMaxHeight] = useState(null);
 
-  // Callers that pass an explicit maxHeight (e.g. "100%" inside a modal) keep it; otherwise
-  // fit the table to the gap between its top and the bottom of the viewport so the page
-  // itself never needs a scrollbar.
+  // An explicit maxHeight (e.g. "100%" in a modal) wins; otherwise fit the table to the
+  // space between its top and the viewport bottom so the page never scrolls.
   const useAutoHeight = maxHeight === DEFAULT_MAX_HEIGHT;
 
   useLayoutEffect(() => {
@@ -401,7 +394,7 @@ const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
     Measure();
     window.addEventListener("resize", Measure);
 
-    // Re-measure when content above the table changes height (filters, batch actions row).
+    // Re-measure when content above the table changes height (filters, batch actions).
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(Measure);
     observer?.observe(document.body);
 
@@ -413,8 +406,8 @@ const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
 
   const effectiveMaxHeight = useAutoHeight ? (autoMaxHeight ?? maxHeight) : maxHeight;
 
-  // The rows viewport starts below the sticky header inside the same scroll element,
-  // so the virtualizer needs that offset to map scrollTop -> row range correctly.
+  // Rows start below the sticky header in the same scroll element; the virtualizer needs
+  // that offset to map scrollTop -> row range.
   useLayoutEffect(() => {
     const Measure = () => setScrollMargin(headerRef.current?.offsetHeight ?? 0);
     Measure();
@@ -428,16 +421,15 @@ const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
   const rowVirtualizer = useVirtualizer({
     count: props.records.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => ROW_HEIGHT_ESTIMATE,
+    estimateSize: () => ROW_HEIGHT,
     overscan: 8,
     scrollMargin
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
-  // Fetch the next page once the last row (within overscan) is rendered. Skip while the
-  // table is doing its main load/reload (fetching) - the current records are stale and
-  // the bottom is trivially "in view".
+  // Fetch the next page once the last row is rendered. Skip during the main load/reload
+  // (fetching) - records are stale and the bottom is trivially "in view".
   const {onLoadMore, hasMore, loadingMore, fetching, records} = props;
   useEffect(() => {
     if(!onLoadMore || !hasMore || loadingMore || fetching || records.length === 0) { return; }
@@ -458,14 +450,12 @@ const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
       scrollAreaProps={{ref: scrollRef}}
       virtualItems={virtualItems}
       totalSize={rowVirtualizer.getTotalSize()}
-      measureElement={rowVirtualizer.measureElement}
     />
   );
 };
 
-// Flattens groups (with their expanded stream children) followed by ungrouped streams
-// into a single ordered row list for the virtualizer. Group order follows the active
-// sort via each group's first member's position in `records`.
+// Flattens groups (with their expanded children) then ungrouped streams into one ordered
+// row list. Group order follows the active sort via each group's first member in `records`.
 const BuildGroupedRows = ({records, groups, expandedGroups}) => {
   if(!groups || groups.length === 0) { return records; }
 
@@ -486,7 +476,7 @@ const BuildGroupedRows = ({records, groups, expandedGroups}) => {
       objectId: `group-${group.titleId}`,
       titleId: group.titleId,
       streamCount: group.streamIds?.length ?? members.length,
-      // Group date - falls back to a member's date until real group data is wired.
+      // Falls back to a member's date until real group data is wired.
       date: group.data?.date ?? members[0]?.date
     });
 
