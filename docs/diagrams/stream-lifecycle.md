@@ -61,21 +61,25 @@ flowchart TD
     State -->|starting / running / stalled| NoOp[no-op: already active]
     State -->|stopped / inactive / other| TokenCheck{edge_write_token<br/>matches metadata?}
     TokenCheck -->|no match| StartRecording[StreamStartRecording]
-    TokenCheck -->|match| Operate
-    StartRecording --> Operate[OperateLRO op=START]
+    TokenCheck -->|match| SetActive
+    StartRecording --> SetActive["_SetStreamActive(slug, active: true)"]
+    SetActive --> Operate[OperateLRO op=START]
     Operate --> LRO[StreamStartOrStopOrReset<br/>op: start/stop/reset]
     LRO --> UpdateStream[UpdateStream: status = response.state]
 
     StopCall([Stop / Reset request]) --> Operate
 
     Deactivate([DeactivateStream]) --> StopRecording[StreamStopRecording]
-    StopRecording --> UpdateStream2[UpdateStream: status = response.state]
+    StopRecording --> SetInactive["_SetStreamActive(slug, active: false)"]
+    SetInactive --> UpdateStream2[UpdateStream: status = response.state]
     StopRecording -.error: log only, no throw.-> UpdateStream2
 ```
 
 ## Status polling
 
 `DataWrapper` drives a **recursive `setTimeout` loop** (not `setInterval`) at a 60s delay — the next poll is scheduled only after the previous one fully resolves, because overlapping polls were found to corrupt node routing. Each cycle awaits `streamStore.AllStreamsStatus()` **then** `outputStore.AllOutputsState()` sequentially (both reroute the shared client to a live-egress node, so concurrency would race).
+
+`AllStreamsStatus` is two-phase. `_ClassifyStreams` first does a cheap, fabric-node-free pass over every stream — a narrow `ContentObjectMetadata` read that mirrors the pre-bitcode branch of client-js `StreamStatus`: no `live_recording_config/url` → `unconfigured`; missing `live_recording` fabric/playout/recording config → `uninitialized`; no `live_recording/status/edge_write_token` (nor `fabric_config/edge_write_token`) → `inactive`. Those states are written directly. Only streams that still hold an edge write token are "active" and get the full `StreamStatus` call. `activeStreamSlugs` is rebuilt every poll, and nudged optimistically by `StartStream` (add) and `DeactivateStream` (remove) so the UI reacts before the next cycle; `UpdateStreams` prunes slugs dropped from the list.
 
 ```mermaid
 sequenceDiagram
@@ -89,9 +93,12 @@ sequenceDiagram
             StreamStore-->>DataWrapper: skip (no overlap)
         else
             StreamStore->>StreamStore: loadingStatus = true
-            StreamStore->>FrameClient: CheckStatus per stream<br/>(LimitedMap, concurrency 15)
+            StreamStore->>FrameClient: _ClassifyStreams: read local metadata per stream<br/>(LimitedMap, concurrency 15)
+            FrameClient-->>StreamStore: live_recording_config/url, live_recording/*/config,<br/>live_recording/status/edge_write_token
+            StreamStore->>StreamStore: no token -> UpdateStream(status = unconfigured / uninitialized / inactive)<br/>token -> activeStreamSlugs.add(slug)
+            StreamStore->>FrameClient: CheckStatus per ACTIVE stream only<br/>(LimitedMap, concurrency 15)
             FrameClient-->>StreamStore: {state, warnings, quality, embedUrl}
-            StreamStore->>StreamStore: UpdateStream per slug
+            StreamStore->>StreamStore: UpdateStream per active slug
             StreamStore->>StreamStore: loadingStatus = false
         end
         DataWrapper->>DataWrapper: outputStore.AllOutputsState() (see output-lifecycle.md)
@@ -116,11 +123,13 @@ Defined in `STATUS_MAP`: `unconfigured`, `uninitialized`, `initialized`, `inacti
 - `src/stores/StreamEditStore.ts:241-317` — `InitLiveStreamObject` (creation)
 - `src/stores/StreamEditStore.ts:319-394` — `DuplicateStream`
 - `src/stores/StreamEditStore.ts:1126-1202` — `ConfigureStream`
-- `src/stores/StreamStore.ts:223-264` — `StartStream`
-- `src/stores/StreamStore.ts:266-293` — `OperateLRO` (shared START/STOP/RESET)
-- `src/stores/StreamStore.ts:295-306` — `DeactivateStream`
-- `src/stores/StreamStore.ts:190-219` — `AllStreamsStatus` (poll batch)
-- `src/stores/StreamStore.ts:151-188` — `CheckStatus`
+- `src/stores/StreamStore.ts:440-484` — `StartStream`
+- `src/stores/StreamStore.ts:486-513` — `OperateLRO` (shared START/STOP/RESET)
+- `src/stores/StreamStore.ts:515-527` — `DeactivateStream`
+- `src/stores/StreamStore.ts:401-437` — `AllStreamsStatus` (classify + poll batch)
+- `src/stores/StreamStore.ts:300-355` — `_ClassifyStreams` (cheap local-metadata classification)
+- `src/stores/StreamStore.ts:279-292` — `_SetStreamActive` (active-poll set membership)
+- `src/stores/StreamStore.ts:358-398` — `CheckStatus`
 - `src/components/data-wrapper/DataWrapper.jsx:20-58` — polling loop scheduler
 - `src/utils/constants.ts:8-19` — `STATUS_MAP`
 - `src/stores/ModalStore.ts:91-96` — `BATCH_READY_STATUSES`

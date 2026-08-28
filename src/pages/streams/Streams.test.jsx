@@ -34,6 +34,7 @@ const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } =
       SetTableFilter: vi.fn(),
       SetTableTagFilter: vi.fn(),
       SetDateRangeFilter: vi.fn(),
+      SetStreamSort: vi.fn().mockReturnValue(false),
       CheckStatus: vi.fn().mockResolvedValue({}),
     },
     mockModalStore: { SetBatchModal: vi.fn() }
@@ -134,5 +135,25 @@ describe("Streams Dashboard Component", () => {
     fireEvent.click(createButton);
 
     expect(mockNavigate).toHaveBeenCalledWith("/streams/create");
+  });
+
+  it("group row count reflects the members actually shown, not the full group", () => {
+    // Group declares 3 streams, but only 2 are present in the current (filtered) list.
+    mockStreamStore.streams = {
+      "stream-1": { objectId: "111", slug: "stream-1", title: "A", titleId: "grp" },
+      "stream-2": { objectId: "222", slug: "stream-2", title: "B", titleId: "grp" },
+    };
+    mockStreamGroupStore.groups = {
+      grp: { titleId: "grp", streamIds: ["111", "222", "333"] },
+    };
+
+    renderWithProviders(<Streams />);
+
+    // Group header row renders the titleId + a count badge of the shown members.
+    expect(screen.getByText("grp")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.queryByText("3")).not.toBeInTheDocument();
+
+    mockStreamGroupStore.groups = {};
   });
 });

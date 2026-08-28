@@ -475,7 +475,9 @@ const BuildGroupedRows = ({records, groups, expandedGroups}) => {
       _type: "group",
       objectId: `group-${group.titleId}`,
       titleId: group.titleId,
-      streamCount: group.streamIds?.length ?? members.length,
+      // Count the members actually shown - group.streamIds is the unfiltered set, so
+      // it would overstate the count whenever a tag/text filter hides some members.
+      streamCount: members.length,
       // Falls back to a member's date until real group data is wired.
       date: group.data?.date ?? members[0]?.date
     });

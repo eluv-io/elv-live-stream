@@ -2,7 +2,7 @@
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET} from "@/utils/helpers";
-import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
+import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {
   DeriveSourceAndPackaging,
   StreamMetadata, ProbeStream, RecordingInputCfg
@@ -110,6 +110,17 @@ interface TenantContentPaging {
 const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
 const TENANT_CONTENT_PAGE_SIZE = 100;
 
+// Table sort column -> tenant-query field. Unlisted columns (status) sort client-side only.
+const STREAM_SORT_FIELDS: Record<string, string> = {
+  title: "name",
+  date: "date"
+};
+
+interface StreamSort {
+  field: string;
+  desc: boolean;
+}
+
 // All DRM schemes we ask PlayoutOptions about, so the response carries every
 // available protocol/method the stream offers.
 const ALL_DRMS = ["clear", "aes-128", "sample-aes", "widevine", "fairplay", "playready"];
@@ -153,12 +164,18 @@ export interface StreamOutputUrls {
 
 class StreamStore {
   streams: StreamMap;
+  // Streams with a live edge write token - the only ones polled for full status.
+  // Rebuilt each poll by _ClassifyStreams; nudged by start/deactivate.
+  activeStreamSlugs = new Set<string>();
   streamFrameUrls: Record<string, StreamFrameUrl> = {};
   showMonitorPreviews = false;
   loadingStatus = false;
   tableFilter = "";
   tableTagFilter: string[] = [];
   dateRangeFilter: [Date | null, Date | null] = GetDateRangePreset(DEFAULT_DATE_PRESET);
+  // Server-side sort for the paged tenant query. null = backend order (initial
+  // load, or a client-only sort column like status).
+  streamSort: StreamSort | null = null;
   tenantLiveStreamContent: StreamMap = {};
   loadingTenantLiveStreamContent = false;
   // Full, unscoped stream set for the map-to-stream modal. Kept separate from `streams`
@@ -174,7 +191,7 @@ class StreamStore {
   _tenantContentPromise: Promise<void> | null = null;
   _tenantContentFilterKey: string | null = null;
   _tenantContentCursor = 0;
-  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null]} | null = null;
+  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], sortOptions?: StreamSort | null} | null = null;
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
@@ -240,6 +257,10 @@ class StreamStore {
 
   UpdateStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
+    // Drop active slugs for streams no longer listed.
+    this.activeStreamSlugs.forEach(slug => {
+      if(!this.streams[slug]) { this.activeStreamSlugs.delete(slug); }
+    });
     // The scoped list was (re)built or a stream was added/removed - the modal's full
     // set may now be stale, so refetch it the next time the modal opens.
     this.allStreamsLoaded = false;
@@ -264,6 +285,97 @@ class StreamStore {
   SetDateRangeFilter = (range: [Date | null, Date | null]) => {
     this.dateRangeFilter = range;
   };
+
+  // Maps a table sortStatus to the server-side sort. Returns true when it changed
+  // (caller re-runs the query). Client-only columns (status) keep the last sort, return false.
+  SetStreamSort = (sortStatus: {columnAccessor: string, direction: string} | null): boolean => {
+    const field = sortStatus ? STREAM_SORT_FIELDS[sortStatus.columnAccessor] : undefined;
+    const next: StreamSort | null = field ? {field, desc: sortStatus.direction === "desc"} : null;
+
+    if(!next) { return false; }
+
+    const changed = this.streamSort?.field !== next.field || this.streamSort?.desc !== next.desc;
+    this.streamSort = next;
+
+    return changed;
+  };
+
+  // Add/remove a slug from the active-poll set. On removal, `state` is written
+  // straight to the stream since the poll skips it.
+  _SetStreamActive = ({slug, active, state}: {slug: string, active: boolean, state?: StreamStatus}) => {
+    if(!slug) { return; }
+
+    if(active) {
+      this.activeStreamSlugs.add(slug);
+    } else {
+      this.activeStreamSlugs.delete(slug);
+      if(state && this.streams?.[slug]) {
+        this.UpdateStream({key: slug, value: {status: state}});
+      }
+    }
+  };
+
+  // Cheap classification from local metadata, mirroring client-js StreamStatus's
+  // pre-bitcode branch: no url -> unconfigured; no fabric/playout/recording config
+  // -> uninitialized; no edge write token -> inactive; else active.
+  // Updates activeStreamSlugs, writes inactive states, returns the slugs to poll.
+  *_ClassifyStreams({slugs}: {slugs: string[]}): Generator<any, string[]> {
+    yield this.client.utils.LimitedMap(
+      15,
+      slugs,
+      async (slug: string) => {
+        const stream = this.streams?.[slug];
+        if(!stream?.objectId) { return; }
+
+        try {
+          const libraryId = stream.libraryId ||
+            await this.client.ContentObjectLibraryId({objectId: stream.objectId});
+
+          const meta = await this.client.ContentObjectMetadata({
+            libraryId,
+            objectId: stream.objectId,
+            select: [
+              "live_recording_config/url",
+              "live_recording/fabric_config/ingress_node_api",
+              "live_recording/fabric_config/edge_write_token",
+              "live_recording/playout_config",
+              "live_recording/recording_config",
+              "live_recording/status/edge_write_token"
+            ]
+          });
+
+          const liveRecording = meta?.live_recording;
+          const edgeWriteToken = liveRecording?.status?.edge_write_token ||
+            liveRecording?.fabric_config?.edge_write_token;
+
+          if(edgeWriteToken) {
+            this._SetStreamActive({slug, active: true});
+            return;
+          }
+
+          let state: StreamStatus;
+          if(!meta?.live_recording_config?.url) {
+            state = STATUS_MAP.UNCONFIGURED;
+          } else if(
+            !liveRecording?.fabric_config?.ingress_node_api ||
+            !liveRecording?.playout_config ||
+            !liveRecording?.recording_config
+          ) {
+            state = STATUS_MAP.UNINITIALIZED;
+          } else {
+            state = STATUS_MAP.INACTIVE;
+          }
+
+          this._SetStreamActive({slug, active: false, state});
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error(`Unable to classify stream ${slug}`, error);
+        }
+      }
+    );
+
+    return slugs.filter(slug => this.activeStreamSlugs.has(slug));
+  }
 
   *CheckStatus({
     objectId,
@@ -305,16 +417,22 @@ class StreamStore {
     return response;
   }
 
-  // slugs limits the status refresh to specific streams (e.g. a newly-loaded page).
+  // Classifies streams from local metadata, then polls full status for the active
+  // ones only. slugs limits the refresh (e.g. a newly-loaded page).
   *AllStreamsStatus(reload=false, slugs: string[] | null = null): Generator<any, void> {
     if(this.loadingStatus && !reload) { return; }
 
     try {
       this.loadingStatus = true;
 
+      const targetSlugs = slugs ?? Object.keys(this.streams || {});
+
+      // Cheap pass: resolves inactive states locally, narrows the poll to active streams.
+      const activeSlugs: string[] = yield this._ClassifyStreams({slugs: targetSlugs});
+
       yield this.client.utils.LimitedMap(
         15,
-        slugs ?? Object.keys(this.streams || {}),
+        activeSlugs,
         async slug => {
           const streamMeta = this.streams?.[slug];
           try {
@@ -375,6 +493,9 @@ class StreamStore {
       yield this.client.StreamStartRecording({name: objectId, start});
     }
 
+    // Write token exists now - start polling without waiting for the next classify pass.
+    this._SetStreamActive({slug, active: true});
+
     yield this.OperateLRO({
       objectId,
       slug,
@@ -417,6 +538,8 @@ class StreamStore {
 
       if(!response) { return; }
 
+      // Edge write token is gone - stop polling this stream.
+      this._SetStreamActive({slug, active: false});
       this.UpdateStream({key: slug, value: { status: response.state }});
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -845,11 +968,13 @@ class StreamStore {
     }
 
     const [startDate, endDate] = dateRange || [null, null];
+    const sortOptions = this.streamSort;
     const filterKey = JSON.stringify([
       siteId,
       startDate ? FormatDateFilter(startDate) : null,
       endDate ? FormatDateFilter(endDate) : null,
-      paged
+      paged,
+      sortOptions
     ]);
 
     if(!force && this._tenantContentPromise && this._tenantContentFilterKey === filterKey) {
@@ -866,7 +991,7 @@ class StreamStore {
     this.tenantLiveStreamContent = {};
     this.tenantContentHasMore = false;
     this._tenantContentCursor = 0;
-    this._tenantContentQuery = {siteId, dateRange};
+    this._tenantContentQuery = {siteId, dateRange, sortOptions};
 
     try {
       const filter = this._TenantContentFilter(siteId, dateRange);
@@ -877,7 +1002,8 @@ class StreamStore {
         const {versions: page, paging} = yield this.client.TenantContent({
           filter,
           start,
-          limit: TENANT_CONTENT_PAGE_SIZE
+          limit: TENANT_CONTENT_PAGE_SIZE,
+          ...(sortOptions ? {sortOptions} : {})
         });
 
         const received = (page ?? []).length;
@@ -923,14 +1049,15 @@ class StreamStore {
     const added: StreamMap = {};
 
     try {
-      const {siteId, dateRange} = this._tenantContentQuery;
+      const {siteId, dateRange, sortOptions} = this._tenantContentQuery;
       const filter = this._TenantContentFilter(siteId, dateRange);
       const start = this._tenantContentCursor;
 
       const {versions, paging} = yield this.client.TenantContent({
         filter,
         start,
-        limit: TENANT_CONTENT_PAGE_SIZE
+        limit: TENANT_CONTENT_PAGE_SIZE,
+        ...(sortOptions ? {sortOptions} : {})
       });
 
       const received = (versions ?? []).length;

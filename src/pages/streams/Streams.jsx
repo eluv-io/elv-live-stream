@@ -61,6 +61,16 @@ const Streams = observer(() => {
     await dataStore.LoadSiteStreams({reload: true});
   }, 500);
 
+  // Push the table sort to the server-side tenant query. Re-query from the first
+  // page only when the sort maps to an indexed field and actually changed;
+  // client-only columns (status) just re-sort the loaded rows below.
+  const HandleSortStatusChange = (nextSort) => {
+    setSortStatus(nextSort);
+    if(streamStore.SetStreamSort(nextSort)) {
+      DebouncedRefresh();
+    }
+  };
+
   const records = streamStore.filteredStreams.slice().sort(SortTable({sortStatus}));
 
   const datePresetLabel = DATE_RANGE_PRESET_OPTIONS.find(({value}) => value === datePreset)?.label.toLowerCase();
@@ -191,7 +201,7 @@ const Streams = observer(() => {
         onToggleGroup={ToggleGroup}
         onViewSummary={ViewGroupSummary}
         sortStatus={sortStatus}
-        onSortStatusChange={setSortStatus}
+        onSortStatusChange={HandleSortStatusChange}
         selectedRecords={selectedRecords}
         onSelectedRecordsChange={setSelectedRecords}
         fetching={!dataStore.streamsLoaded}
