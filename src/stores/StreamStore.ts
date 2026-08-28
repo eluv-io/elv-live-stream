@@ -109,6 +109,9 @@ interface TenantContentPaging {
 
 const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
 const TENANT_CONTENT_PAGE_SIZE = 100;
+// TenantContent must be served by this fabric node - the client is pinned to it
+// per query and the region is reset afterward.
+const TENANT_CONTENT_NODE_URI = "https://host-154-14-243-34.contentfabric.io";
 
 // Table sort column -> tenant-query field. Unlisted columns (status) sort client-side only.
 const STREAM_SORT_FIELDS: Record<string, string> = {
@@ -919,6 +922,22 @@ class StreamStore {
     }
   }
 
+  // Runs a TenantContent query pinned to the fixed fabric node, always releasing
+  // the region afterward (even on error).
+  async _TenantContent(params: Record<string, any>): Promise<any> {
+    this.client.SetNodes({fabricURIs: [TENANT_CONTENT_NODE_URI]});
+    try {
+      return await this.client.TenantContent(params);
+    } finally {
+      try {
+        await this.client.ResetRegion();
+      } catch(error) {
+        // eslint-disable-next-line no-console
+        console.error("Unable to reset region after TenantContent", error);
+      }
+    }
+  }
+
   // Builds the TenantContent filter array for the given site + optional date range.
   _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null]): string[] {
     const [startDate, endDate] = dateRange || [null, null];
@@ -999,7 +1018,7 @@ class StreamStore {
       let versions: TenantContentVersion[] = [];
 
       while(true) {
-        const {versions: page, paging} = yield this.client.TenantContent({
+        const {versions: page, paging} = yield this._TenantContent({
           filter,
           start,
           limit: TENANT_CONTENT_PAGE_SIZE,
@@ -1053,7 +1072,7 @@ class StreamStore {
       const filter = this._TenantContentFilter(siteId, dateRange);
       const start = this._tenantContentCursor;
 
-      const {versions, paging} = yield this.client.TenantContent({
+      const {versions, paging} = yield this._TenantContent({
         filter,
         start,
         limit: TENANT_CONTENT_PAGE_SIZE,
@@ -1181,7 +1200,7 @@ class StreamStore {
         let versions: TenantContentVersion[] = [];
 
         while(true) {
-          const {versions: page, paging} = yield this.client.TenantContent({
+          const {versions: page, paging} = yield this._TenantContent({
             filter,
             start,
             limit: TENANT_CONTENT_PAGE_SIZE
@@ -1234,7 +1253,7 @@ class StreamStore {
     let versions: TenantContentVersion[] = [];
 
     while(true) {
-      const {versions: page, paging} = yield this.client.TenantContent({
+      const {versions: page, paging} = yield this._TenantContent({
         filter,
         start,
         limit: TENANT_CONTENT_PAGE_SIZE

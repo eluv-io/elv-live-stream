@@ -29,6 +29,8 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
     StreamStartOrStopOrReset: vi.fn().mockResolvedValue({state: "starting"}),
     StreamStopRecording: vi.fn().mockResolvedValue({state: "inactive"}),
     TenantContent: vi.fn().mockImplementation(tenantContent ?? (() => Promise.resolve({versions: [], paging: {more: false}}))),
+    SetNodes: vi.fn(),
+    ResetRegion: vi.fn().mockResolvedValue(undefined),
     utils: {LimitedMap}
   };
 
@@ -165,8 +167,7 @@ describe("StreamStore tenant-query sort", () => {
     const TenantContent = vi.fn()
       .mockResolvedValueOnce(pages[0])
       .mockResolvedValueOnce(pages[1]);
-    const {store, mockClient} = makeStore({tenantContent: TenantContent});
-    mockClient.TenantContent = TenantContent;
+    const {store} = makeStore({tenantContent: TenantContent});
 
     store.SetStreamSort({columnAccessor: "title", direction: "asc"});
     await store.LoadTenantLiveStreamContent({siteId: "iq__site", paged: true});
@@ -181,10 +182,33 @@ describe("StreamStore tenant-query sort", () => {
     });
   });
 
+  it("pins the fabric node before each TenantContent call and resets the region after", async () => {
+    const tenantContent = vi.fn()
+      .mockResolvedValueOnce({versions: [{id: "iq__1", hash: "hq__1"}], paging: {more: true}})
+      .mockResolvedValueOnce({versions: [{id: "iq__2", hash: "hq__2"}], paging: {more: false}});
+    const {store, mockClient} = makeStore({tenantContent});
+
+    // Non-paged load pages through everything in one call.
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
+
+    expect(mockClient.SetNodes).toHaveBeenCalledWith({
+      fabricURIs: ["https://host-154-14-243-34.contentfabric.io"]
+    });
+    expect(mockClient.SetNodes).toHaveBeenCalledTimes(2);
+    expect(mockClient.ResetRegion).toHaveBeenCalledTimes(2);
+  });
+
+  it("resets the region even when TenantContent throws", async () => {
+    const {store, mockClient} = makeStore({tenantContent: vi.fn().mockRejectedValue(new Error("boom"))});
+
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
+
+    expect(mockClient.ResetRegion).toHaveBeenCalledTimes(1);
+  });
+
   it("omits sortOptions when no column maps to an indexed field", async () => {
     const TenantContent = vi.fn().mockResolvedValue({versions: [], paging: {more: false}});
-    const {store} = makeStore();
-    store.client.TenantContent = TenantContent;
+    const {store} = makeStore({tenantContent: TenantContent});
     store.streamSort = null;
 
     await store.LoadTenantLiveStreamContent({siteId: "iq__site", paged: true});
