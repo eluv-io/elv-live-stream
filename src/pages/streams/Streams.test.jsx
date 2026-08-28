@@ -34,7 +34,6 @@ const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } =
       SetTableFilter: vi.fn(),
       SetTableTagFilter: vi.fn(),
       SetDateRangeFilter: vi.fn(),
-      SetStreamSort: vi.fn().mockReturnValue(false),
       CheckStatus: vi.fn().mockResolvedValue({}),
     },
     mockModalStore: { SetBatchModal: vi.fn() }

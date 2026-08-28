@@ -131,57 +131,7 @@ describe("StreamStore._SetStreamActive", () => {
   });
 });
 
-describe("StreamStore.SetStreamSort", () => {
-  it("maps sortable columns to tenant-query fields and reports real changes", () => {
-    const {store} = makeStore();
-
-    expect(store.SetStreamSort({columnAccessor: "title", direction: "asc"})).toBe(true);
-    expect(store.streamSort).toEqual({field: "name", desc: false});
-
-    // Same field + direction -> no change.
-    expect(store.SetStreamSort({columnAccessor: "title", direction: "asc"})).toBe(false);
-
-    // Direction flip -> change.
-    expect(store.SetStreamSort({columnAccessor: "title", direction: "desc"})).toBe(true);
-    expect(store.streamSort).toEqual({field: "name", desc: true});
-
-    expect(store.SetStreamSort({columnAccessor: "date", direction: "desc"})).toBe(true);
-    expect(store.streamSort).toEqual({field: "date", desc: true});
-  });
-
-  it("keeps the last server sort for client-only columns and returns false", () => {
-    const {store} = makeStore();
-    store.SetStreamSort({columnAccessor: "date", direction: "asc"});
-
-    expect(store.SetStreamSort({columnAccessor: "status", direction: "asc"})).toBe(false);
-    expect(store.streamSort).toEqual({field: "date", desc: false});
-  });
-});
-
-describe("StreamStore tenant-query sort", () => {
-  it("passes the active sort to TenantContent and reuses it for the next page", async () => {
-    const pages = [
-      {versions: [{id: "iq__1", hash: "hq__1", query_fields: {name: "A"}}], paging: {more: true}},
-      {versions: [{id: "iq__2", hash: "hq__2", query_fields: {name: "B"}}], paging: {more: false}}
-    ];
-    const TenantContent = vi.fn()
-      .mockResolvedValueOnce(pages[0])
-      .mockResolvedValueOnce(pages[1]);
-    const {store} = makeStore({tenantContent: TenantContent});
-
-    store.SetStreamSort({columnAccessor: "title", direction: "asc"});
-    await store.LoadTenantLiveStreamContent({siteId: "iq__site", paged: true});
-
-    expect(TenantContent.mock.calls[0][0]).toMatchObject({
-      sortOptions: {field: "name", desc: false}
-    });
-
-    await store.LoadMoreTenantLiveStreamContent();
-    expect(TenantContent.mock.calls[1][0]).toMatchObject({
-      sortOptions: {field: "name", desc: false}
-    });
-  });
-
+describe("StreamStore tenant-query node pinning", () => {
   it("pins the fabric node before each TenantContent call and resets the region after", async () => {
     const tenantContent = vi.fn()
       .mockResolvedValueOnce({versions: [{id: "iq__1", hash: "hq__1"}], paging: {more: true}})
@@ -204,16 +154,6 @@ describe("StreamStore tenant-query sort", () => {
     await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
 
     expect(mockClient.ResetRegion).toHaveBeenCalledTimes(1);
-  });
-
-  it("omits sortOptions when no column maps to an indexed field", async () => {
-    const TenantContent = vi.fn().mockResolvedValue({versions: [], paging: {more: false}});
-    const {store} = makeStore({tenantContent: TenantContent});
-    store.streamSort = null;
-
-    await store.LoadTenantLiveStreamContent({siteId: "iq__site", paged: true});
-
-    expect(TenantContent.mock.calls[0][0]).not.toHaveProperty("sortOptions");
   });
 });
 

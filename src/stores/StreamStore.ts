@@ -113,17 +113,6 @@ const TENANT_CONTENT_PAGE_SIZE = 100;
 // per query and the region is reset afterward.
 const TENANT_CONTENT_NODE_URI = "https://host-154-14-243-34.contentfabric.io";
 
-// Table sort column -> tenant-query field. Unlisted columns (status) sort client-side only.
-const STREAM_SORT_FIELDS: Record<string, string> = {
-  title: "name",
-  date: "date"
-};
-
-interface StreamSort {
-  field: string;
-  desc: boolean;
-}
-
 // All DRM schemes we ask PlayoutOptions about, so the response carries every
 // available protocol/method the stream offers.
 const ALL_DRMS = ["clear", "aes-128", "sample-aes", "widevine", "fairplay", "playready"];
@@ -176,9 +165,6 @@ class StreamStore {
   tableFilter = "";
   tableTagFilter: string[] = [];
   dateRangeFilter: [Date | null, Date | null] = GetDateRangePreset(DEFAULT_DATE_PRESET);
-  // Server-side sort for the paged tenant query. null = backend order (initial
-  // load, or a client-only sort column like status).
-  streamSort: StreamSort | null = null;
   tenantLiveStreamContent: StreamMap = {};
   loadingTenantLiveStreamContent = false;
   // Full, unscoped stream set for the map-to-stream modal. Kept separate from `streams`
@@ -194,7 +180,7 @@ class StreamStore {
   _tenantContentPromise: Promise<void> | null = null;
   _tenantContentFilterKey: string | null = null;
   _tenantContentCursor = 0;
-  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], sortOptions?: StreamSort | null} | null = null;
+  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null]} | null = null;
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
@@ -287,20 +273,6 @@ class StreamStore {
 
   SetDateRangeFilter = (range: [Date | null, Date | null]) => {
     this.dateRangeFilter = range;
-  };
-
-  // Maps a table sortStatus to the server-side sort. Returns true when it changed
-  // (caller re-runs the query). Client-only columns (status) keep the last sort, return false.
-  SetStreamSort = (sortStatus: {columnAccessor: string, direction: string} | null): boolean => {
-    const field = sortStatus ? STREAM_SORT_FIELDS[sortStatus.columnAccessor] : undefined;
-    const next: StreamSort | null = field ? {field, desc: sortStatus.direction === "desc"} : null;
-
-    if(!next) { return false; }
-
-    const changed = this.streamSort?.field !== next.field || this.streamSort?.desc !== next.desc;
-    this.streamSort = next;
-
-    return changed;
   };
 
   // Add/remove a slug from the active-poll set. On removal, `state` is written
@@ -987,13 +959,11 @@ class StreamStore {
     }
 
     const [startDate, endDate] = dateRange || [null, null];
-    const sortOptions = this.streamSort;
     const filterKey = JSON.stringify([
       siteId,
       startDate ? FormatDateFilter(startDate) : null,
       endDate ? FormatDateFilter(endDate) : null,
-      paged,
-      sortOptions
+      paged
     ]);
 
     if(!force && this._tenantContentPromise && this._tenantContentFilterKey === filterKey) {
@@ -1010,7 +980,7 @@ class StreamStore {
     this.tenantLiveStreamContent = {};
     this.tenantContentHasMore = false;
     this._tenantContentCursor = 0;
-    this._tenantContentQuery = {siteId, dateRange, sortOptions};
+    this._tenantContentQuery = {siteId, dateRange};
 
     try {
       const filter = this._TenantContentFilter(siteId, dateRange);
@@ -1021,8 +991,7 @@ class StreamStore {
         const {versions: page, paging} = yield this._TenantContent({
           filter,
           start,
-          limit: TENANT_CONTENT_PAGE_SIZE,
-          ...(sortOptions ? {sortOptions} : {})
+          limit: TENANT_CONTENT_PAGE_SIZE
         });
 
         const received = (page ?? []).length;
@@ -1068,15 +1037,14 @@ class StreamStore {
     const added: StreamMap = {};
 
     try {
-      const {siteId, dateRange, sortOptions} = this._tenantContentQuery;
+      const {siteId, dateRange} = this._tenantContentQuery;
       const filter = this._TenantContentFilter(siteId, dateRange);
       const start = this._tenantContentCursor;
 
       const {versions, paging} = yield this._TenantContent({
         filter,
         start,
-        limit: TENANT_CONTENT_PAGE_SIZE,
-        ...(sortOptions ? {sortOptions} : {})
+        limit: TENANT_CONTENT_PAGE_SIZE
       });
 
       const received = (versions ?? []).length;

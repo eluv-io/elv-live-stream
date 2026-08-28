@@ -9,6 +9,7 @@ import {GetStreamActions} from "@/utils/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 import styles from "./StreamsTable.module.css";
 import {SOURCE_PACKAGING_COLOR_MAP, QUALITY_MAP} from "@/utils/constants.ts";
+import {BuildGroupedRows} from "./groupedRows.js";
 
 // Fixed height for every row. No per-row measureElement, so getTotalSize() stays exact
 // and there's no scrollMargin/measurement race. Overflowing content is clipped by the cells.
@@ -454,46 +455,6 @@ const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
   );
 };
 
-// Flattens groups (with their expanded children) then ungrouped streams into one ordered
-// row list. Group order follows the active sort via each group's first member in `records`.
-const BuildGroupedRows = ({records, groups, expandedGroups}) => {
-  if(!groups || groups.length === 0) { return records; }
-
-  const grouped = groups
-    .map(group => ({
-      group,
-      members: records.filter(record => group.streamIds?.includes(record.objectId))
-    }))
-    .filter(({members}) => members.length > 0)
-    .sort((a, b) => records.indexOf(a.members[0]) - records.indexOf(b.members[0]));
-
-  const groupedIds = new Set(grouped.flatMap(({members}) => members.map(m => m.objectId)));
-  const rows = [];
-
-  grouped.forEach(({group, members}) => {
-    rows.push({
-      _type: "group",
-      objectId: `group-${group.titleId}`,
-      titleId: group.titleId,
-      // Count the members actually shown - group.streamIds is the unfiltered set, so
-      // it would overstate the count whenever a tag/text filter hides some members.
-      streamCount: members.length,
-      // Falls back to a member's date until real group data is wired.
-      date: group.data?.date ?? members[0]?.date
-    });
-
-    if((expandedGroups || []).includes(group.titleId)) {
-      members.forEach(member => rows.push({...member, _type: "groupChild"}));
-    }
-  });
-
-  records.forEach(record => {
-    if(!groupedIds.has(record.objectId)) { rows.push(record); }
-  });
-
-  return rows;
-};
-
 const StreamsTable = observer(({
   records,
   sortStatus,
@@ -513,12 +474,13 @@ const StreamsTable = observer(({
   loadingMore = false,
   groups = [],
   expandedGroups = [],
+  streamOrder,
   onToggleGroup,
   onViewSummary,
   getRowActions
 }) => {
   const allRecords = records || [];
-  const rows = BuildGroupedRows({records: allRecords, groups, expandedGroups});
+  const rows = BuildGroupedRows({records: allRecords, groups, expandedGroups, streamOrder});
   const columns = BuildColumns({showActions, onNameClick, onViewSummary, getRowActions});
 
   const columnWidths = [
