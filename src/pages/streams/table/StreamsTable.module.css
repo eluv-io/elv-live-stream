@@ -50,3 +50,7 @@
 .groupChildRow {
   background: rgb(60 60 60 / 5%);
 }
+
+.lastRow {
+  border-bottom: none;
+}

@@ -298,13 +298,18 @@ const TableShell = ({
                   const isGroup = IsGroupRow(record);
                   const isGroupChild = IsGroupChildRow(record);
                   const expanded = isGroup && (expandedGroups || []).includes(record.titleId);
+                  const isLastRow = virtualRow.index === records.length - 1;
 
                   return (
                     <div
                       key={record.objectId || virtualRow.key}
                       data-index={virtualRow.index}
                       data-record-slug={record.slug}
-                      className={isGroupChild ? `${styles.row} ${styles.groupChildRow}` : styles.row}
+                      className={[
+                        styles.row,
+                        isGroupChild && styles.groupChildRow,
+                        isLastRow && styles.lastRow
+                      ].filter(Boolean).join(" ")}
                       role="row"
                       style={{
                         position: "absolute",
@@ -428,6 +433,33 @@ const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
+
+  // When a group is expanded, scroll its newly revealed rows into view. Without this a
+  // group near the bottom expands off-screen and the user sees nothing change.
+  const prevExpandedRef = useRef(props.expandedGroups || []);
+  useLayoutEffect(() => {
+    const prev = prevExpandedRef.current;
+    const current = props.expandedGroups || [];
+    prevExpandedRef.current = current;
+
+    const opened = current.find(id => !prev.includes(id));
+    if(!opened) { return; }
+
+    const groupIndex = props.records.findIndex(r => r._type === "group" && r.titleId === opened);
+    if(groupIndex === -1) { return; }
+
+    const childCount = props.records[groupIndex].streamCount || 0;
+    const lastChildIndex = groupIndex + childCount;
+
+    // If the whole group fits, bring its last row to the bottom edge; otherwise pin the
+    // group header to the top so the user starts at the beginning of the list.
+    const visibleRows = Math.floor((scrollRef.current?.clientHeight ?? 0) / ROW_HEIGHT);
+    if(childCount + 1 <= visibleRows) {
+      rowVirtualizer.scrollToIndex(lastChildIndex, {align: "end"});
+    } else {
+      rowVirtualizer.scrollToIndex(groupIndex, {align: "start"});
+    }
+  }, [props.expandedGroups, props.records]);
 
   // Fetch the next page once the last row is rendered. Skip during the main load/reload
   // (fetching) - records are stale and the bottom is trivially "in view".
