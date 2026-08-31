@@ -89,16 +89,22 @@ const AllUrlsJson = (rows) => {
   return Object.keys(urlByLabel).length === 0 ? "" : JSON.stringify(urlByLabel, null, 2);
 };
 
-// Every stream's URLs, keyed by stream id, as pretty JSON.
+// Every stream's URLs, keyed by the stream title (the accordion header), as pretty JSON.
+// Falls back to slug, then objectId; a duplicate title gets a numeric suffix.
 const AllStreamsUrlsJson = ({streams, outputUrls, mode, packaging}) => {
-  const urlsByStreamId = {};
+  const urlsByTitle = {};
 
   streams.forEach(stream => {
     const urlByLabel = UrlsByLabel(UrlRows(outputUrls[stream.objectId], mode, packaging));
-    if(Object.keys(urlByLabel).length > 0) { urlsByStreamId[stream.objectId] = urlByLabel; }
+    if(Object.keys(urlByLabel).length === 0) { return; }
+
+    const base = stream.title || stream.slug || stream.objectId;
+    let key = base;
+    for(let i = 2; key in urlsByTitle; i++) { key = `${base} (${i})`; }
+    urlsByTitle[key] = urlByLabel;
   });
 
-  return Object.keys(urlsByStreamId).length === 0 ? "" : JSON.stringify(urlsByStreamId, null, 2);
+  return Object.keys(urlsByTitle).length === 0 ? "" : JSON.stringify(urlsByTitle, null, 2);
 };
 
 const PackagingSwitch = ({options, value, onChange}) => (
@@ -153,13 +159,19 @@ const CopyControl = ({value}) => (
   </CopyButton>
 );
 
-const CopyAllButton = ({value}) => (
+const CopyAllButton = ({value, disabled}) => (
   <CopyButton value={value} timeout={2000}>
     {({copied, copy}) => (
       <UnstyledButton
         onClick={copy}
-        disabled={!value}
-        style={{display: "flex", alignItems: "center", gap: "8px"}}
+        disabled={disabled || !value}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          opacity: disabled || !value ? 0.4 : 1,
+          pointerEvents: disabled || !value ? "none" : undefined
+        }}
         mr={11}
       >
         <Text fz="0.65rem" fw={600} c="elv-gray.9">{copied ? "Copied" : "Copy All"}</Text>
@@ -258,7 +270,10 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
                 label: {fontSize: "0.75rem", fontWeight: 500, color: "var(--mantine-color-elv-gray-9)"}
               }}
             />
-            <CopyAllButton value={AllStreamsUrlsJson({streams, outputUrls, mode, packaging})} />
+            <CopyAllButton
+              value={AllStreamsUrlsJson({streams, outputUrls, mode, packaging})}
+              disabled={loading}
+            />
           </Group>
         }
       >

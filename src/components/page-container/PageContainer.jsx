@@ -118,12 +118,13 @@ const PageContainer = ({
   titleRightSection,
   titleLeftSection,
   mb=20,
-  p="24 46 24",
+  p="24px 24px 46px",
   ...rest
 }) => {
   return (
     <Box
-      p={p} w="100%"
+      p={p}
+      w="100%"
       className={className}
       {...rest}
     >
