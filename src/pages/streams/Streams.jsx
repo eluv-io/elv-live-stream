@@ -32,8 +32,10 @@ const Streams = observer(() => {
 
   const ViewGroupSummary = (group) => navigate(`/streams/groups/${group.titleId}`);
 
+  // A new date query reloads the list; collapse every group so the fresh set starts collapsed.
   const SelectDatePreset = (preset) => {
     streamStore.SetDateFilter({preset});
+    streamGroupStore.CollapseAllGroups();
     DebouncedRefresh();
   };
 
@@ -42,6 +44,7 @@ const Streams = observer(() => {
       preset: datePreset,
       referenceDate: ShiftDateRangePreset(datePreset, referenceDate, direction)
     });
+    streamGroupStore.CollapseAllGroups();
     DebouncedRefresh();
   };
 
