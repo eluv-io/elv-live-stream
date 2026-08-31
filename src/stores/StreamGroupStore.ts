@@ -14,14 +14,37 @@ export interface StreamGroup {
 // Keyed by title_id (from the tenant query's query_fields).
 type StreamGroupMap = Record<string, StreamGroup>;
 
+const EXPANDED_GROUPS_KEY = "elv-streams-expanded-groups";
+
+const LoadExpandedGroups = (): string[] => {
+  try {
+    return JSON.parse(sessionStorage.getItem(EXPANDED_GROUPS_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
 class StreamGroupStore {
   state: "pending" | "loaded" | "error" = "pending";
   groups: StreamGroupMap = {};
+  // title_ids of groups the user has expanded in the streams table. Persisted so the
+  // expansion survives navigating to a stream detail page and back (and a page reload).
+  expandedGroups: string[] = LoadExpandedGroups();
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
     makeAutoObservable(this, {}, {autoBind: true});
+  }
+
+  ToggleExpandedGroup(titleId: string): void {
+    this.expandedGroups = this.expandedGroups.includes(titleId) ?
+      this.expandedGroups.filter(t => t !== titleId) :
+      [...this.expandedGroups, titleId];
+
+    try {
+      sessionStorage.setItem(EXPANDED_GROUPS_KEY, JSON.stringify(this.expandedGroups));
+    } catch { /* sessionStorage unavailable - expansion is still tracked in memory */ }
   }
 
   get client() {

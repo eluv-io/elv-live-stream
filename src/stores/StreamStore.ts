@@ -108,6 +108,7 @@ interface TenantContentPaging {
 }
 
 const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
+const STREAM_STATUS_TIMEOUT_MS = 10000;
 const TENANT_CONTENT_PAGE_SIZE = 100;
 // TenantContent must be served by this fabric node - the client is pinned to it
 // per query and the region is reset afterward.
@@ -362,7 +363,7 @@ class StreamStore {
     try {
       response = yield WithTimeout(
         this.client.StreamStatus({name: objectId, showParams}),
-        OBJECT_LOOKUP_TIMEOUT_MS,
+        STREAM_STATUS_TIMEOUT_MS,
         `StreamStatus(${objectId})`
       );
     } catch(error) {

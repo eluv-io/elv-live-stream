@@ -24,11 +24,9 @@ const Streams = observer(() => {
   const [showEditTagsModal, {open: openEditTags, close: closeEditTags}] = useDisclosure(false);
   const [datePreset, setDatePreset] = useState(DEFAULT_DATE_PRESET);
   const [referenceDate, setReferenceDate] = useState(new Date());
-  const [expandedGroups, setExpandedGroups] = useState([]);
   const navigate = useNavigate();
 
-  const ToggleGroup = (titleId) =>
-    setExpandedGroups(prev => prev.includes(titleId) ? prev.filter(t => t !== titleId) : [...prev, titleId]);
+  const ToggleGroup = (titleId) => streamGroupStore.ToggleExpandedGroup(titleId);
 
   const ViewGroupSummary = (group) => navigate(`/streams/groups/${group.titleId}`);
 
@@ -195,7 +193,7 @@ const Streams = observer(() => {
       <StreamsTable
         records={records}
         groups={Object.values(streamGroupStore.groups || {})}
-        expandedGroups={expandedGroups}
+        expandedGroups={streamGroupStore.expandedGroups}
         onToggleGroup={ToggleGroup}
         onViewSummary={ViewGroupSummary}
         sortStatus={sortStatus}
