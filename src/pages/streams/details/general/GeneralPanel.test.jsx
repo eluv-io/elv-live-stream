@@ -103,7 +103,7 @@ const renderGeneralPanel = (props = {}) => {
         <Routes>
           <Route
             path="/streams/:id"
-            element={<GeneralPanel slug="test-slug" currentConfigProfile="" {...props} />}
+            element={<GeneralPanel slug="test-slug" currentConfigProfile="" active {...props} />}
           />
         </Routes>
       </MemoryRouter>

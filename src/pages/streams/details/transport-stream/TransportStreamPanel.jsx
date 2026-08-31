@@ -9,7 +9,7 @@ import {
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {dataStore, streamStore} from "@/stores/index.ts";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router-dom";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
@@ -17,8 +17,9 @@ import {CheckExpiration} from "@/utils/helpers.ts";
 import SavedLinks from "@/pages/streams/details/transport-stream/saved-links/SavedLinks.jsx";
 import QuickLinks from "@/pages/streams/details/transport-stream/quick-links/QuickLinks.jsx";
 
-const TransportStreamPanel = observer(({active, slug}) => {
+const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
   const params = useParams();
+  const loadedRef = useRef(null);
 
   const initModalData = {
     show: false,
@@ -52,10 +53,15 @@ const TransportStreamPanel = observer(({active, slug}) => {
       }
     };
 
-    if(params.id) {
+    // Defer until this tab is first shown - every detail panel is mounted at
+    // once (keepMountedMode="display-none"), so an unconditional load fires
+    // all panels' fetches on page open.
+    const loadKey = `${params.id}:${checkVersion}`;
+    if(params.id && active && loadedRef.current !== loadKey) {
+      loadedRef.current = loadKey;
       LoadData();
     }
-  }, [params.id]);
+  }, [params.id, active, checkVersion]);
 
   const DetailLink = (item) => {
     const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === item.region)?.label || "";
