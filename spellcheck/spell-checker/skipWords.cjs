@@ -11,6 +11,7 @@ module.exports = [
   "algo",
   "audioaudio",
   "arial",
+  "ats",
   "au",
   "autoplay",
   "avc",
