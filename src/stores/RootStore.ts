@@ -85,13 +85,16 @@ class RootStore {
 
       // The tenant-wide live-stream query is scoped by siteId (group:eq:<siteId>), so it can't
       // fire until site settings (dataStore.Initialize -> LoadTenantSiteData) have resolved siteId.
-      // Kick it off here (not awaited) so it's in flight before the streams page mounts;
-      // LoadSiteStreams picks up the same in-flight promise via the filter-key cache.
-      this.streamStore.LoadTenantLiveStreamContent({
-        siteId: this.dataStore.siteId,
-        dateRange: this.streamStore.dateRangeFilter,
-        paged: true
-      });
+      // Only used when the site opts into the content-group query; kick it off here (not awaited)
+      // so it's in flight before the streams page mounts; LoadSiteStreams picks up the same
+      // in-flight promise via the filter-key cache.
+      if(this.dataStore.useContentGroup) {
+        this.streamStore.LoadTenantLiveStreamContent({
+          siteId: this.dataStore.siteId,
+          dateRange: this.dataStore.useDateFilter ? this.streamStore.dateRangeFilter : [null, null],
+          paged: true
+        });
+      }
     } catch(error) {
       /* eslint-disable no-console */
       console.error("Failed to initialize application");

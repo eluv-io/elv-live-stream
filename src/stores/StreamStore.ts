@@ -182,6 +182,9 @@ class StreamStore {
   _tenantContentFilterKey: string | null = null;
   _tenantContentCursor = 0;
   _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null]} | null = null;
+  // Bumped whenever the paged tenant query is (re)started or the date filter changes.
+  // In-flight "load more" fetches compare against it and discard stale results.
+  _tenantContentEpoch = 0;
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
@@ -191,6 +194,7 @@ class StreamStore {
       _tenantContentFilterKey: false,
       _tenantContentCursor: false,
       _tenantContentQuery: false,
+      _tenantContentEpoch: false,
       _allStreamsPromise: false
     }, {autoBind: true});
   }
@@ -274,6 +278,8 @@ class StreamStore {
 
   SetDateRangeFilter = (range: [Date | null, Date | null]) => {
     this.dateRangeFilter = range;
+    // Invalidate any in-flight paged "load more" from the previous range.
+    this._tenantContentEpoch++;
   };
 
   // Add/remove a slug from the active-poll set. On removal, `state` is written
@@ -982,6 +988,8 @@ class StreamStore {
     this.tenantContentHasMore = false;
     this._tenantContentCursor = 0;
     this._tenantContentQuery = {siteId, dateRange};
+    // Any "load more" still in flight from a prior query is now stale.
+    this._tenantContentEpoch++;
 
     try {
       const filter = this._TenantContentFilter(siteId, dateRange);
@@ -1036,6 +1044,7 @@ class StreamStore {
 
     this.loadingMoreTenantContent = true;
     const added: StreamMap = {};
+    const epoch = this._tenantContentEpoch;
 
     try {
       const {siteId, dateRange} = this._tenantContentQuery;
@@ -1047,6 +1056,10 @@ class StreamStore {
         start,
         limit: TENANT_CONTENT_PAGE_SIZE
       });
+
+      // The date filter changed (or the query restarted) while this page was in
+      // flight - drop it so stale rows don't get merged into the new list.
+      if(epoch !== this._tenantContentEpoch) { return {}; }
 
       const received = (versions ?? []).length;
       (versions ?? [])
@@ -1163,7 +1176,7 @@ class StreamStore {
       const siteId = this.rootStore.dataStore.siteId;
       let streamMetadata: StreamMap = {};
 
-      if(siteId) {
+      if(siteId && this.rootStore.dataStore.useContentGroup) {
         const filter = this._TenantContentFilter(siteId); // no date range - full set
         let start = 0;
         let versions: TenantContentVersion[] = [];
@@ -1190,8 +1203,8 @@ class StreamStore {
         );
       }
 
-      // Fall back to the site object's registered list when the tenant query is empty.
-      if(Object.keys(streamMetadata).length === 0) {
+      // Legacy sites (no content-group query) use the site object's registered list.
+      if(!this.rootStore.dataStore.useContentGroup) {
         streamMetadata = yield this.rootStore.dataStore.LoadTenantSiteStreams();
       }
 

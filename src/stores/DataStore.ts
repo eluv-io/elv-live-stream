@@ -172,6 +172,11 @@ class DataStore {
   // Whether the currently-loaded stream set is scoped to the streams page's date filter.
   // Pages that need the full set (Outputs, Monitor, stream mapping) reload when this is true.
   streamsScoped = false;
+  //  - useContentGroup: use the tenant-wide content-group query (new) vs. the site
+  //    object's registered stream list (legacy).
+  //  - useDateFilter: scope the stream list by date and show the streams-page date controls.
+  useContentGroup = false;
+  useDateFilter = false;
   // True while an additional page of streams is being fetched (scroll-to-load-more).
   loadingMoreStreams = false;
   _loadingStreams = false;
@@ -222,21 +227,26 @@ class DataStore {
     if(this._loadingStreams && !reload) { return; }
     this._loadingStreams = true;
     this.streamsLoaded = false;
+    // Drop any in-flight "load more" spinner - this rebuild replaces the list.
+    this.loadingMoreStreams = false;
     try {
       // Need the site object id for the tenant query scope (and any site-list fallback)
       if(!this.siteId || !this.siteLibraryId) {
         yield this.LoadTenantSiteData();
       }
 
-      // Prefer the tenant-wide tag query; only fall back to the site object's registered stream list
-      const dateRange: [Date | null, Date | null] = scoped ? this.rootStore.streamStore.dateRangeFilter : [null, null];
+      // Date scoping only applies when the site opts into it (useDateFilter).
+      const dateRange: [Date | null, Date | null] =
+        scoped && this.useDateFilter ? this.rootStore.streamStore.dateRangeFilter : [null, null];
 
-      // Scoped (streams page) loads one page at a time; LoadMoreSiteStreams pulls the rest.
-      const tenantStreamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, force: reload, paged: scoped});
-      const tenantHasContent = Object.keys(tenantStreamMetadata || {}).length > 0;
-
-      let streamMetadata = tenantStreamMetadata;
-      if(!tenantHasContent) {
+      // useContentGroup picks the source of truth outright - no fall-through between the two.
+      let streamMetadata;
+      if(this.useContentGroup) {
+        // Tenant-wide content-group query. Scoped (streams page) loads one page at a
+        // time; LoadMoreSiteStreams pulls the rest.
+        streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, force: reload, paged: scoped});
+      } else {
+        // Legacy: the site object's registered stream list.
         if(!this.streamMetadata || reload) {
           yield this.LoadTenantSiteStreams();
         }
@@ -275,8 +285,12 @@ class DataStore {
     try {
       const added = yield this.rootStore.streamStore.LoadMoreTenantLiveStreamContent();
       newSlugs = Object.keys(added || {});
-      if(newSlugs.length > 0) {
+      // A reload (e.g. date-filter change) kicked off while this page was in flight -
+      // it will rebuild the list, so don't append these now-stale rows.
+      if(newSlugs.length > 0 && this.streamsLoaded && !this._loadingStreams) {
         yield this.rootStore.streamStore.LoadStreams({streamMetadata: added, append: true});
+      } else {
+        newSlugs = [];
       }
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -335,6 +349,15 @@ class DataStore {
       ]);
 
       const siteLibraryId = yield this.client.ContentObjectLibraryId({objectId: siteObjectId});
+
+      const liveManagementSettings = yield this.client.ContentObjectMetadata({
+        libraryId: siteLibraryId,
+        objectId: siteObjectId,
+        metadataSubtree: "/live_management_settings",
+        select: ["use_content_group", "use_date_filter"]
+      });
+      this.useContentGroup = !!liveManagementSettings?.use_content_group;
+      this.useDateFilter = !!liveManagementSettings?.use_date_filter;
 
       const {live_stream, title} = contentTypes || {};
       if(live_stream) { this.contentType = live_stream; }

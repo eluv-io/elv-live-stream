@@ -45,8 +45,14 @@ const Streams = observer(() => {
     DebouncedRefresh();
   };
 
+  // Date scoping is only enforceable through the tenant content-group query - the
+  // legacy site-object stream list can't filter by date, so hide the controls there.
+  const showDateControls = dataStore.useDateFilter && dataStore.useContentGroup;
+
   useEffect(() => {
-    streamStore.SetDateRangeFilter(GetDateRangePreset(datePreset, referenceDate));
+    if(showDateControls) {
+      streamStore.SetDateRangeFilter(GetDateRangePreset(datePreset, referenceDate));
+    }
 
     // Reload if nothing is loaded, or if what's loaded is the full (unscoped) set
     // from another page - the streams page needs its date-filtered view.
@@ -131,6 +137,7 @@ const Streams = observer(() => {
     <PageContainer
       title="Streams"
       titleRightSection={
+        !showDateControls ? null :
         <Group gap={16} wrap="nowrap">
           {dateRangeLabel && (
             <Text fz="1.25rem" fw={400} style={{whiteSpace: "nowrap"}}>
