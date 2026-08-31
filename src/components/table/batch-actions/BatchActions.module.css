@@ -14,6 +14,14 @@
   }
 }
 
+.buttonSection {
+  color: var(--mantine-color-elv-gray-9);
+}
+
+.button[data-disabled] .buttonSection {
+  color: var(--mantine-color-elv-gray-6);
+}
+
 .boxRounded {
   border-radius: 4px;
 }

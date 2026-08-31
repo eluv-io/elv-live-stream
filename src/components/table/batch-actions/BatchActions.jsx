@@ -1,17 +1,40 @@
+import {Fragment} from "react";
 import {Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/core";
 import styles from "./BatchActions.module.css";
 
+const Separator = () => (
+  <Divider orientation="vertical" size={1} color="#dadada" h="50%" style={{alignSelf: "center"}} />
+);
+
 const BatchActions = ({
   actions=[],
+  endActions=[],
   selectedRecords=[],
   SelectAll,
   mb=20,
 }) => {
   const IconDisplay = Icon => <Icon size={16} />;
+  const ActionButton = action => (
+    <Button
+      key={action.id}
+      variant="subtle"
+      c="elv-gray.9"
+      p={"0 8px 0 4px"}
+      fw={400}
+      miw={0}
+      h={30}
+      leftSection={action.icon ? IconDisplay(action.icon) : null}
+      classNames={{root: styles.button, inner: styles.buttonInner, section: styles.buttonSection}}
+      onClick={action.onClick}
+      disabled={action.disabled}
+    >
+      { action.label }
+    </Button>
+  );
   return (
     <>
       <Box bg="elv-blue.0" p="3px 12px" mb={mb} className={styles.boxRounded}>
-        <Flex direction="row">
+        <Flex direction="row" w="100%" h={30} align="center" gap={12}>
           <Group gap={0}>
             {
               selectedRecords.length === 0 ?
@@ -30,28 +53,14 @@ const BatchActions = ({
                 </Group>
               }
           </Group>
-          <Divider orientation="vertical" color="elv-gray.2" ml={16} mr={16} />
-          <Group gap={12}>
-            {
-              actions.map(action => (
-                <Button
-                  key={action.id}
-                  variant="subtle"
-                  c="elv-gray.9"
-                  p={"0 8px 0 4px"}
-                  fw={400}
-                  miw={0}
-                  h={30}
-                  leftSection={action.icon ? IconDisplay(action.icon) : null}
-                  classNames={{root: styles.button, inner: styles.buttonInner}}
-                  onClick={action.onClick}
-                  disabled={action.disabled}
-                >
-                  { action.label }
-                </Button>
-              ))
-            }
-          </Group>
+          {
+            [...actions, ...endActions].map(action => (
+              <Fragment key={action.id}>
+                <Separator />
+                { ActionButton(action) }
+              </Fragment>
+            ))
+          }
         </Flex>
       </Box>
     </>

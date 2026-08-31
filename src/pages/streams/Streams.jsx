@@ -14,7 +14,7 @@ import Actions from "@/components/table/actions/Actions.jsx";
 import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {notifications} from "@mantine/notifications";
-import {IconChevronLeft, IconChevronRight, IconCopy, IconLabel, IconPlayerPlay, IconPlayerStop, IconTrash} from "@tabler/icons-react";
+import {IconArrowsMaximize, IconArrowsMinimize, IconChevronLeft, IconChevronRight, IconCopy, IconLabel, IconPlayerPlay, IconPlayerStop, IconTrash} from "@tabler/icons-react";
 import {CalendarMonthIcon} from "@/assets/icons/index.js";
 
 const Streams = observer(() => {
@@ -129,6 +129,22 @@ const Streams = observer(() => {
     }
   ];
 
+  const hasGroups = Object.keys(streamGroupStore.groups || {}).length > 0;
+  const groupActions = !hasGroups ? [] : [
+    !streamGroupStore.allGroupsExpanded && {
+      label: "Expand All",
+      id: "expand-all-groups-action",
+      icon: IconArrowsMaximize,
+      onClick: () => streamGroupStore.ExpandAllGroups()
+    },
+    streamGroupStore.anyGroupExpanded && {
+      label: "Collapse All",
+      id: "collapse-all-groups-action",
+      icon: IconArrowsMinimize,
+      onClick: () => streamGroupStore.CollapseAllGroups()
+    }
+  ].filter(Boolean);
+
   return (
     <PageContainer
       title="Streams"
@@ -192,6 +208,7 @@ const Streams = observer(() => {
         SelectAll={() => setSelectedRecords(records)}
         ClearSelection={() => setSelectedRecords([])}
         actions={batchActions}
+        endActions={groupActions}
       />
       <StreamsTable
         records={records}

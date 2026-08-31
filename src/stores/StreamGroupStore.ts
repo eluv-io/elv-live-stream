@@ -42,7 +42,29 @@ class StreamGroupStore {
     this.expandedGroups = this.expandedGroups.includes(titleId) ?
       this.expandedGroups.filter(t => t !== titleId) :
       [...this.expandedGroups, titleId];
+    this._PersistExpandedGroups();
+  }
 
+  ExpandAllGroups(): void {
+    this.expandedGroups = Object.keys(this.groups || {});
+    this._PersistExpandedGroups();
+  }
+
+  CollapseAllGroups(): void {
+    this.expandedGroups = [];
+    this._PersistExpandedGroups();
+  }
+
+  get allGroupsExpanded(): boolean {
+    const titleIds = Object.keys(this.groups || {});
+    return titleIds.length > 0 && titleIds.every(id => this.expandedGroups.includes(id));
+  }
+
+  get anyGroupExpanded(): boolean {
+    return Object.keys(this.groups || {}).some(id => this.expandedGroups.includes(id));
+  }
+
+  _PersistExpandedGroups(): void {
     try {
       sessionStorage.setItem(EXPANDED_GROUPS_KEY, JSON.stringify(this.expandedGroups));
     } catch { /* sessionStorage unavailable - expansion is still tracked in memory */ }
