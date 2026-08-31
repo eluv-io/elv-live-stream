@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {CheckExpiration, SanitizeUrl, SortTable, slugify} from "@/utils/helpers";
+import {CheckExpiration, GetDateRangePreset, SanitizeUrl, ShiftDateRangePreset, SortTable, slugify} from "@/utils/helpers";
 
 describe("SortTable", () => {
   const asc = {columnAccessor: "name", direction: "asc"};
@@ -180,5 +180,36 @@ describe("slugify", () => {
 
   it("handles a realistic profile name", () => {
     expect(slugify("Profile: 1080p @ 60fps")).toBe("profile-1080p--60fps");
+  });
+});
+
+describe("ShiftDateRangePreset", () => {
+  it("advances one calendar month without skipping when the reference day is the 31st", () => {
+    // Aug 31 + 1 month must land in September, not roll over to October.
+    const shifted = ShiftDateRangePreset("month", new Date(2026, 7, 31), 1);
+    expect(shifted.getFullYear()).toBe(2026);
+    expect(shifted.getMonth()).toBe(8); // September
+  });
+
+  it("goes back one calendar month without skipping from the 31st", () => {
+    const shifted = ShiftDateRangePreset("month", new Date(2026, 9, 31), -1);
+    expect(shifted.getMonth()).toBe(8); // September
+  });
+
+  it("keeps the month range aligned after a shift from the 31st", () => {
+    const shifted = ShiftDateRangePreset("month", new Date(2026, 7, 31), 1);
+    const [start, end] = GetDateRangePreset("month", shifted);
+    expect(start?.getMonth()).toBe(8);
+    expect(end?.getMonth()).toBe(8);
+  });
+
+  it("advances one year without skipping from Feb 29", () => {
+    const shifted = ShiftDateRangePreset("year", new Date(2028, 1, 29), 1);
+    expect(shifted.getFullYear()).toBe(2029);
+  });
+
+  it("shifts days and weeks by the expected offset", () => {
+    expect(ShiftDateRangePreset("day", new Date(2026, 7, 31), 1).getDate()).toBe(1);
+    expect(ShiftDateRangePreset("week", new Date(2026, 7, 10), 1).getDate()).toBe(17);
   });
 });

@@ -57,10 +57,15 @@ export const ShiftDateRangePreset = (preset: DateRangePreset, referenceDate: Dat
       break;
 
     case "month":
+      // Anchor to day 1 before shifting so a 31st/30th day never rolls the
+      // month over (e.g. Aug 31 + 1 month would otherwise land on Oct 1).
+      date.setDate(1);
       date.setMonth(date.getMonth() + direction);
       break;
 
     case "year":
+      // Anchor to Jan 1 so a Feb 29 reference date never rolls into March.
+      date.setMonth(0, 1);
       date.setFullYear(date.getFullYear() + direction);
       break;
   }
