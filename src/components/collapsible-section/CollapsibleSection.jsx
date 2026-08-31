@@ -2,23 +2,27 @@ import {useState} from "react";
 import {Box, Collapse, Group, Text, UnstyledButton} from "@mantine/core";
 import {IconChevronRight} from "@tabler/icons-react";
 
-// Chevron accordion matching the streams-table group rows: a click-to-toggle header
-// with a chevron that rotates 90deg when expanded.
-const CollapsibleSection = ({title, defaultOpen = false, mb, children}) => {
+const CollapsibleSection = ({title, defaultOpen = false, mb, titleAside, actions, children}) => {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
     <Box mb={mb}>
-      <UnstyledButton onClick={() => setOpen(prev => !prev)} w="100%">
-        <Group gap={8} wrap="nowrap">
-          <IconChevronRight
-            size={20}
-            color="var(--mantine-color-elv-blue-3)"
-            style={{transform: open ? "rotate(90deg)" : "none", transition: "transform 150ms ease"}}
-          />
-          <Text fz="1.125rem" fw={600} c="elv-blue.3">{title}</Text>
+      <Group justify="space-between" wrap="nowrap" mb={4}>
+        <Group gap={12} wrap="nowrap">
+          <UnstyledButton onClick={() => setOpen(prev => !prev)}>
+            <Group gap={8} wrap="nowrap">
+              <IconChevronRight
+                size={20}
+                color="var(--mantine-color-elv-blue-3)"
+                style={{transform: open ? "rotate(90deg)" : "none", transition: "transform 150ms ease"}}
+              />
+              <Text fz="1.125rem" fw={600} c="elv-blue.3">{title}</Text>
+            </Group>
+          </UnstyledButton>
+          {titleAside}
         </Group>
-      </UnstyledButton>
+        {actions}
+      </Group>
       <Collapse expanded={open}>
         {children}
       </Collapse>

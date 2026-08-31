@@ -1,10 +1,11 @@
 import {useEffect, useRef, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {Link, useNavigate, useParams} from "react-router-dom";
-import {Box, Group, Text} from "@mantine/core";
+import {Box} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
-import {IconChevronRight, IconDeviceAnalytics} from "@tabler/icons-react";
+import {IconDeviceAnalytics} from "@tabler/icons-react";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
+import CollapsibleSection from "@/components/collapsible-section/CollapsibleSection.jsx";
 import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import OutputUrlsBySource from "@/pages/streams/groups/OutputUrlsBySource.jsx";
@@ -118,27 +119,25 @@ const GroupSummary = observer(() => {
       title={`Distribution Summary - ${groupName}`}
       actions={actions}
     >
-      <Group gap={8} wrap="nowrap" mb={4}>
-        <IconChevronRight size={20} color="var(--mantine-color-elv-blue-3)" />
-        <Text fz="1.125rem" fw={600} c="elv-blue.3">Sources</Text>
-      </Group>
-      <Box pt={16}>
-        <TagFilterRow
-          tags={allTags}
-          selectedTags={activeTagFilter}
-          onTagToggle={ToggleTag}
-          onClearAll={() => setTagFilter([])}
-        />
-        <StreamsTable
-          records={records}
-          sortStatus={sortStatus}
-          onSortStatusChange={setSortStatus}
-          fetching={loading && streamList.length === 0}
-          onNameClick={objectId => navigate(`/streams/${objectId}`)}
-          getRowActions={PreviewAction}
-          maxHeight={480}
-        />
-      </Box>
+      <CollapsibleSection title="Sources" defaultOpen>
+        <Box pt={16}>
+          <TagFilterRow
+            tags={allTags}
+            selectedTags={activeTagFilter}
+            onTagToggle={ToggleTag}
+            onClearAll={() => setTagFilter([])}
+          />
+          <StreamsTable
+            records={records}
+            sortStatus={sortStatus}
+            onSortStatusChange={setSortStatus}
+            fetching={loading && streamList.length === 0}
+            onNameClick={objectId => navigate(`/streams/${objectId}`)}
+            getRowActions={PreviewAction}
+            maxHeight={480}
+          />
+        </Box>
+      </CollapsibleSection>
 
       <OutputUrlsBySource
         streams={records}

@@ -14,6 +14,7 @@ import {
   UnstyledButton
 } from "@mantine/core";
 import {IconCheck, IconChevronRight, IconCopy} from "@tabler/icons-react";
+import CollapsibleSection from "@/components/collapsible-section/CollapsibleSection.jsx";
 import {SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
 import sharedStyles from "@/assets/shared.module.css";
 
@@ -231,7 +232,6 @@ const DataRow = ({row}) => (
   </>
 );
 
-// One collapsible table of output URLs per stream in the group.
 const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) => {
   const [collapsed, setCollapsed] = useState({});
   const [mode, setMode] = useState("authorized");
@@ -240,87 +240,87 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
 
   return (
     <Box mt={40}>
-      <Group justify="space-between" wrap="nowrap" mb={4}>
-        <Group gap={12} wrap="nowrap">
-          <Group gap={8} wrap="nowrap">
-            <IconChevronRight size={20} color="var(--mantine-color-elv-blue-3)" />
-            <Text fz="1.125rem" fw={600} c="elv-blue.3">Output URLs by Source</Text>
-          </Group>
+      <CollapsibleSection
+        title="Output URLs by Source"
+        defaultOpen
+        titleAside={
           <PackagingSwitch options={PACKAGING_OPTIONS} value={packaging} onChange={setPackaging} />
-        </Group>
-        <Group gap={16} wrap="nowrap">
-          <SegmentedControl
-            size="sm"
-            value={mode}
-            onChange={setMode}
-            data={URL_MODES}
-            styles={{
-              root: {backgroundColor: "#e0e0e0", borderRadius: 4},
-              label: {fontSize: "0.75rem", fontWeight: 500, color: "var(--mantine-color-elv-gray-9)"}
-            }}
-          />
-          <CopyAllButton value={AllStreamsUrlsJson({streams, outputUrls, mode, packaging})} />
-        </Group>
-      </Group>
-
-      <Stack gap={12} pt={16}>
-        {
-          streams.length === 0 &&
-          (loading ? <Loader /> : <Text fz={14} c="elv-gray.6">No sources.</Text>)
         }
-        {streams.map(stream => {
-          const rows = UrlRows(outputUrls[stream.objectId], mode, packaging);
-          const open = !collapsed[stream.objectId];
-          const allUrls = AllUrlsJson(rows);
-
-          return (
-            <Box
-              key={stream.objectId}
-              style={{
-                border: "1px solid var(--mantine-color-gray-3)",
-                borderRadius: 4,
-                overflow: "hidden"
+        actions={
+          <Group gap={16} wrap="nowrap">
+            <SegmentedControl
+              size="sm"
+              value={mode}
+              onChange={setMode}
+              data={URL_MODES}
+              styles={{
+                root: {backgroundColor: "#e0e0e0", borderRadius: 4},
+                label: {fontSize: "0.75rem", fontWeight: 500, color: "var(--mantine-color-elv-gray-9)"}
               }}
-            >
-              <Table withRowBorders layout="fixed" styles={{td: {paddingBlock: 15}}}>
-                <ColGroup />
-                <Table.Thead>
-                  <Table.Tr style={{cursor: "pointer"}} onClick={() => Toggle(stream.objectId)}>
-                    <Table.Th px={8}>
-                      <ToggleControl open={open} />
-                    </Table.Th>
-                    <Table.Th colSpan={2}>
-                      <Text fw={700} fz="0.875rem" c="elv-gray.9">{stream.title || stream.slug}</Text>
-                    </Table.Th>
-                    <Table.Th px={8} style={{textAlign: "center"}}>
-                      {allUrls ? <CopyControl value={allUrls} /> : null}
-                    </Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                {
-                  open &&
-                  <Table.Tbody>
-                    {
-                      rows.length === 0 ?
-                        <Table.Tr>
-                          <Table.Td />
-                          <Table.Td colSpan={3}>
-                            {
-                              loading ?
-                                <Text fz="0.875rem" c="elv-gray.6">Loading URLs...</Text> :
-                                <Text fz="0.875rem" c="elv-gray.6">No output URLs available.</Text>
-                            }
-                          </Table.Td>
-                        </Table.Tr> :
-                        rows.map(row => <DataRow key={row.label} row={row} />)
-                    }
-                  </Table.Tbody>
-                }
-              </Table>
-            </Box>
-          );
-        })}
-      </Stack>
+            />
+            <CopyAllButton value={AllStreamsUrlsJson({streams, outputUrls, mode, packaging})} />
+          </Group>
+        }
+      >
+        <Stack gap={12} pt={16}>
+          {
+            streams.length === 0 &&
+            (loading ? <Loader /> : <Text fz={14} c="elv-gray.6">No sources.</Text>)
+          }
+          {streams.map(stream => {
+            const rows = UrlRows(outputUrls[stream.objectId], mode, packaging);
+            const open = !collapsed[stream.objectId];
+            const allUrls = AllUrlsJson(rows);
+
+            return (
+              <Box
+                key={stream.objectId}
+                style={{
+                  border: "1px solid var(--mantine-color-gray-3)",
+                  borderRadius: 4,
+                  overflow: "hidden"
+                }}
+              >
+                <Table withRowBorders layout="fixed" styles={{td: {paddingBlock: 15}}}>
+                  <ColGroup />
+                  <Table.Thead>
+                    <Table.Tr style={{cursor: "pointer"}} onClick={() => Toggle(stream.objectId)}>
+                      <Table.Th px={8}>
+                        <ToggleControl open={open} />
+                      </Table.Th>
+                      <Table.Th colSpan={2}>
+                        <Text fw={700} fz="0.875rem" c="elv-gray.9">{stream.title || stream.slug}</Text>
+                      </Table.Th>
+                      <Table.Th px={8} style={{textAlign: "center"}}>
+                        {allUrls ? <CopyControl value={allUrls} /> : null}
+                      </Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  {
+                    open &&
+                    <Table.Tbody>
+                      {
+                        rows.length === 0 ?
+                          <Table.Tr>
+                            <Table.Td />
+                            <Table.Td colSpan={3}>
+                              {
+                                loading ?
+                                  <Text fz="0.875rem" c="elv-gray.6">Loading URLs...</Text> :
+                                  <Text fz="0.875rem" c="elv-gray.6">No output URLs available.</Text>
+                              }
+                            </Table.Td>
+                          </Table.Tr> :
+                          rows.map(row => <DataRow key={row.label} row={row} />)
+                      }
+                    </Table.Tbody>
+                  }
+                </Table>
+              </Box>
+            );
+          })}
+        </Stack>
+      </CollapsibleSection>
     </Box>
   );
 };
