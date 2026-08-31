@@ -48,7 +48,7 @@ export interface SimpleWatermark {
 export interface RecordingInputCfg {
   bypass_libav_reader?: boolean;
   copy_mode?: string;
-  copy_packaging?: "raw_ts" | "rtp_ts";
+  copy_packaging?: "raw_ts" | "rtp_ts" | "ats_ts";
   custom_read_loop_enabled?: boolean;
   input_packaging?: "rtp_ts" | "raw_ts";
 }
@@ -427,6 +427,7 @@ export const DeriveSourceAndPackaging = ({url, inputCfg}: {url: string, inputCfg
   if(copyPackaging === "rtp_ts") { packaging.push("rtp"); }
   if(copyMode === "raw") { packaging.push("ts"); }
   else if(copyMode === "raw_only") { packaging.push("ts"); }
+  if(copyPackaging === "ats_ts" && !packaging.includes("ts")) { packaging.push("ts"); }
   if(copyMode !== "raw_only") { packaging.push("fmp4"); }
 
   switch(protocol) {

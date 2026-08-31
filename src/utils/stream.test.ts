@@ -239,6 +239,22 @@ describe("DeriveSourceAndPackaging", () => {
       expect(packaging).toEqual(["ts"]);
     });
 
+    it("adds ts (not rtp) when copy_packaging is ats_ts", () => {
+      const {packaging} = DeriveSourceAndPackaging({
+        url: "srt://host:1234",
+        inputCfg: {copy_packaging: "ats_ts"}
+      });
+      expect(packaging).toEqual(["ts", "fmp4"]);
+    });
+
+    it("does not duplicate ts when copy_packaging is ats_ts and copy_mode is raw", () => {
+      const {packaging} = DeriveSourceAndPackaging({
+        url: "srt://host:1234",
+        inputCfg: {copy_packaging: "ats_ts", copy_mode: "raw"}
+      });
+      expect(packaging).toEqual(["ts", "fmp4"]);
+    });
+
     it("combines rtp, ts, fmp4 when copy_packaging is rtp_ts and copy_mode is raw", () => {
       const {packaging} = DeriveSourceAndPackaging({
         url: "srt://host:1234",
