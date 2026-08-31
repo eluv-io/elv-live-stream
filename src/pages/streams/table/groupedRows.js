@@ -50,6 +50,7 @@ export const BuildGroupedRows = ({records, groups, expandedGroups, streamOrder})
         _type: "group",
         objectId: `group-${titleId}`,
         titleId,
+        displayTitle: group?.displayTitle ?? members[0]?.display_title,
         streamCount: members.length,
         // Falls back to a member's date until real group data is wired.
         date: group?.data?.date ?? members[0]?.date

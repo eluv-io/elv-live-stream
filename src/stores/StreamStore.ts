@@ -50,7 +50,7 @@ export interface ProbeData {
   audioData: AudioDataMap;
 }
 
-type StreamListData = Pick<StreamMetadata, "title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags">;
+type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags">;
 
 type GeneralConfigData = Pick<StreamMetadata,
   "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
@@ -89,9 +89,10 @@ const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: strin
   return value == null || value === "" ? undefined : String(value);
 };
 
-// Derives the streams-list fields (title, tags, origin URL, source/packaging, inputCfg)
-// from an object's metadata subtree. Shared by the per-object fetch (LoadStreamListData)
-// and the tenant query's `meta` so the two never drift.
+// Derives the streams-list fields (title, display_title, tags, origin URL,
+// source/packaging, inputCfg) from an object's metadata subtree. Shared by the
+// per-object fetch (LoadStreamListData) and the tenant query's `meta` so the two
+// never drift.
 const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamListData => {
   const url = meta?.live_recording_config?.url;
   const inputCfg =
@@ -101,6 +102,7 @@ const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamLi
 
   return {
     title: meta?.public?.name,
+    display_title: meta?.public?.asset_metadata?.display_title,
     tags: meta?.public?.asset_metadata?.tags ?? [],
     originUrl: url,
     source,
@@ -122,6 +124,7 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
   if(version.meta) {
     const listData = StreamListDataFromMeta(version.meta);
     if(listData.title != null) { info.title = listData.title; }
+    if(listData.display_title != null) { info.display_title = listData.display_title; }
     if(listData.tags?.length) { info.tags = listData.tags; }
     if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
     if(listData.source?.length) { info.source = listData.source; }
@@ -1097,6 +1100,7 @@ class StreamStore {
           limit: TENANT_CONTENT_PAGE_SIZE,
           select: [
             "public/name",
+            "public/asset_metadata/display_title",
             "public/asset_metadata/tags",
             "live_recording/recording_config/recording_params/xc_params/input_cfg",
             "live_recording_config/url",
@@ -1545,6 +1549,7 @@ class StreamStore {
         objectId,
         select: [
           "public/name",
+          "public/asset_metadata/display_title",
           "public/asset_metadata/tags",
           "live_recording/recording_config/recording_params/xc_params/input_cfg",
           "live_recording_config/url",

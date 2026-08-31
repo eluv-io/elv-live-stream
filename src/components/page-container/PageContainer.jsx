@@ -118,7 +118,7 @@ const PageContainer = ({
   titleRightSection,
   titleLeftSection,
   mb=20,
-  p="24 46 46",
+  p="24 46 24",
   ...rest
 }) => {
   return (

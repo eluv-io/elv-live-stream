@@ -7,6 +7,7 @@ export type GroupData = Record<string, unknown>;
 
 export interface StreamGroup {
   titleId: string;
+  displayTitle?: string; // shared display_title of the group's streams (same title_id -> same value)
   streamIds: string[]; // objectIds of streams whose query_fields.title_id === titleId
   data?: GroupData;    // fetched group metadata - populated by LoadGroupData (placeholder)
 }
@@ -51,11 +52,11 @@ class StreamGroupStore {
     return this.rootStore.client;
   }
 
-  BuildGroups(streams: Record<string, {objectId?: string; titleId?: string}>): void {
+  BuildGroups(streams: Record<string, {objectId?: string; titleId?: string; display_title?: string}>): void {
     const next: StreamGroupMap = {};
 
     Object.values(streams || {}).forEach(stream => {
-      const {objectId, titleId} = stream || {};
+      const {objectId, titleId, display_title} = stream || {};
       if(!titleId || !objectId) { return; }
 
       if(!next[titleId]) {
@@ -64,6 +65,11 @@ class StreamGroupStore {
 
       if(!next[titleId].streamIds.includes(objectId)) {
         next[titleId].streamIds.push(objectId);
+      }
+
+      // All members share a title_id and therefore a display_title; first non-empty wins.
+      if(!next[titleId].displayTitle && display_title) {
+        next[titleId].displayTitle = display_title;
       }
     });
 

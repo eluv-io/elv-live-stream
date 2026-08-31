@@ -48,11 +48,13 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) 
         </Title>
       </Stack>
     ),
-    renderGroup: record => (
+    renderGroup: record => {
+      const groupName = record.displayTitle ? `${record.titleId} - ${record.displayTitle}` : record.titleId;
+      return (
       <Group gap={8} wrap="nowrap" maw="100%">
         <UnstyledButton onClick={() => onViewSummary?.(record)}>
-          <Title order={3} lineClamp={1} title={record.titleId} style={{wordBreak: "break-all"}}>
-            {record.titleId}
+          <Title order={3} lineClamp={1} title={groupName} style={{wordBreak: "break-all"}}>
+            {groupName}
           </Title>
         </UnstyledButton>
         <Badge
@@ -64,7 +66,8 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) 
           {record.streamCount}
         </Badge>
       </Group>
-    )
+      );
+    }
   },
   {
     accessor: "date",

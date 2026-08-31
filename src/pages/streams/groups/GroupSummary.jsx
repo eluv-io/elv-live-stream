@@ -93,6 +93,10 @@ const GroupSummary = observer(() => {
 
   const streamList = Object.values(streams);
 
+  // All of a group's streams share a display_title; first non-empty wins.
+  const displayTitle = streamList.find(stream => stream.display_title)?.display_title;
+  const groupName = displayTitle ? `${titleId} - ${displayTitle}` : titleId;
+
   const allTags = Array.from(
     new Set(streamList.flatMap(stream => stream.tags || []))
   ).sort();
@@ -111,7 +115,7 @@ const GroupSummary = observer(() => {
 
   return (
     <PageContainer
-      title={`Distribution Summary - ${titleId}`}
+      title={`Distribution Summary - ${groupName}`}
       actions={actions}
     >
       <Group gap={8} wrap="nowrap" mb={4}>
