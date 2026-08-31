@@ -254,7 +254,8 @@ class DataStore {
       }
 
       yield Promise.all([
-        this.rootStore.streamStore.LoadStreams({streamMetadata}),
+        // Content-group query: skip per-object metadata fetches - list data is loaded separately.
+        this.rootStore.streamStore.LoadStreams({streamMetadata, fetchObjectData: !this.useContentGroup}),
         this.rootStore.outputStore.LoadOutputSettingsId()
       ]);
 
@@ -288,7 +289,8 @@ class DataStore {
       // A reload (e.g. date-filter change) kicked off while this page was in flight -
       // it will rebuild the list, so don't append these now-stale rows.
       if(newSlugs.length > 0 && this.streamsLoaded && !this._loadingStreams) {
-        yield this.rootStore.streamStore.LoadStreams({streamMetadata: added, append: true});
+        // Load-more only runs on the content-group path - skip per-object fetches.
+        yield this.rootStore.streamStore.LoadStreams({streamMetadata: added, append: true, fetchObjectData: !this.useContentGroup});
       } else {
         newSlugs = [];
       }

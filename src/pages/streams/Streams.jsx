@@ -6,7 +6,7 @@ import {ActionIcon, Group, Select, Text, Tooltip} from "@mantine/core";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
 import {dataStore, modalStore, streamStore, streamGroupStore} from "@/stores/index.ts";
-import {DATE_RANGE_PRESET_OPTIONS, DEFAULT_DATE_PRESET, FormatDateRangeLabel, GetDateRangePreset, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
+import {DATE_RANGE_PRESET_OPTIONS, FormatDateRangeLabel, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
@@ -22,26 +22,26 @@ const Streams = observer(() => {
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
   const [showEditTagsModal, {open: openEditTags, close: closeEditTags}] = useDisclosure(false);
-  const [datePreset, setDatePreset] = useState(DEFAULT_DATE_PRESET);
-  const [referenceDate, setReferenceDate] = useState(new Date());
   const navigate = useNavigate();
+
+  // Date filter lives in the store (session-persisted) so it survives navigating
+  // to a stream detail page and back.
+  const {datePreset, referenceDate} = streamStore;
 
   const ToggleGroup = (titleId) => streamGroupStore.ToggleExpandedGroup(titleId);
 
   const ViewGroupSummary = (group) => navigate(`/streams/groups/${group.titleId}`);
 
   const SelectDatePreset = (preset) => {
-    const date = new Date();
-    setDatePreset(preset);
-    setReferenceDate(date);
-    streamStore.SetDateRangeFilter(GetDateRangePreset(preset, date));
+    streamStore.SetDateFilter({preset});
     DebouncedRefresh();
   };
 
   const ShiftDate = (direction) => {
-    const date = ShiftDateRangePreset(datePreset, referenceDate, direction);
-    setReferenceDate(date);
-    streamStore.SetDateRangeFilter(GetDateRangePreset(datePreset, date));
+    streamStore.SetDateFilter({
+      preset: datePreset,
+      referenceDate: ShiftDateRangePreset(datePreset, referenceDate, direction)
+    });
     DebouncedRefresh();
   };
 
@@ -50,10 +50,6 @@ const Streams = observer(() => {
   const showDateControls = dataStore.useDateFilter && dataStore.useContentGroup;
 
   useEffect(() => {
-    if(showDateControls) {
-      streamStore.SetDateRangeFilter(GetDateRangePreset(datePreset, referenceDate));
-    }
-
     // Reload if nothing is loaded, or if what's loaded is the full (unscoped) set
     // from another page - the streams page needs its date-filtered view.
     if(!dataStore.streamsLoaded || !dataStore.streamsScoped) {

@@ -1,7 +1,7 @@
 // Manages runtime stream state: the streams map, status polling, live control (start, stop, deactivate), and frame preview.
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
-import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET} from "@/utils/helpers";
+import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET, type DateRangePreset} from "@/utils/helpers";
 import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {
   DeriveSourceAndPackaging,
@@ -76,6 +76,11 @@ interface TenantContentVersion {
   // Indexed query fields returned by the tenant query (versions[].query_fields).
   // Values may be scalars or arrays depending on the index definition.
   query_fields?: Record<string, unknown>;
+  // Selected metadata subtree returned inline by the tenant query (versions[].meta),
+  // keyed by path exactly like ContentObjectMetadata's response. Present when the query
+  // requests the streams-list paths (public/name, public/asset_metadata/tags,
+  // live_recording_config/url, ...input_cfg).
+  meta?: Record<string, any>;
 }
 
 // Pulls a single scalar value out of a query field (arrays -> first entry).
@@ -84,16 +89,54 @@ const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: strin
   return value == null || value === "" ? undefined : String(value);
 };
 
-// Builds the StreamInfo fields carried over from a tenant query version's query_fields.
-// For now name + date + title_id; more will follow, eventually replacing the per-object metadata fetch.
-const StreamInfoFromQueryFields = (version: TenantContentVersion): Partial<StreamInfo> => {
+// Derives the streams-list fields (title, tags, origin URL, source/packaging, inputCfg)
+// from an object's metadata subtree. Shared by the per-object fetch (LoadStreamListData)
+// and the tenant query's `meta` so the two never drift.
+const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamListData => {
+  const url = meta?.live_recording_config?.url;
+  const inputCfg =
+    meta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg ??
+    meta?.live_recording_config?.recording_config?.input_cfg;
+  const {source, packaging} = DeriveSourceAndPackaging({url, inputCfg});
+
+  return {
+    title: meta?.public?.name,
+    tags: meta?.public?.asset_metadata?.tags ?? [],
+    originUrl: url,
+    source,
+    packaging,
+    inputCfg
+  };
+};
+
+// Builds the StreamInfo fields carried over from a tenant query version: name/date/title_id
+// from query_fields, plus the streams-list fields from `meta` when present
+// (which lets the content-group path skip the per-object metadata fetch entirely).
+const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<StreamInfo> => {
   const name = QueryFieldValue(version.query_fields, "name");
   const date = QueryFieldValue(version.query_fields, "date");
   const titleId = QueryFieldValue(version.query_fields, "title_id");
+
   const info: Partial<StreamInfo> = {versionHash: version.hash};
-  if(name != null) { info.name = name; info.title = name; }
+
+  if(version.meta) {
+    const listData = StreamListDataFromMeta(version.meta);
+    if(listData.title != null) { info.title = listData.title; }
+    if(listData.tags?.length) { info.tags = listData.tags; }
+    if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
+    if(listData.source?.length) { info.source = listData.source; }
+    if(listData.packaging?.length) { info.packaging = listData.packaging; }
+    // inputCfg isn't on StreamInfo's type but _EnrichStreams already attaches it the same way.
+    if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
+  }
+
+  if(name != null) {
+    info.name = name;
+    if(info.title == null) { info.title = name; }
+  }
   if(date != null) { info.date = date; }
   if(titleId != null) { info.titleId = titleId; }
+
   return info;
 };
 
@@ -106,6 +149,21 @@ interface TenantContentPaging {
   next?: number | null;
   more?: boolean;
 }
+
+// Streams-page date filter, persisted so it survives navigating to a stream detail
+// page and back (and a page reload) - mirrors StreamGroupStore's expandedGroups.
+const STREAMS_DATE_FILTER_KEY = "elv-streams-date-filter";
+
+const LoadPersistedDateFilter = (): {preset: DateRangePreset, referenceDate: Date} => {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(STREAMS_DATE_FILTER_KEY) || "null");
+    if(raw?.preset) {
+      const date = raw.referenceDate ? new Date(raw.referenceDate) : new Date();
+      return {preset: raw.preset, referenceDate: isNaN(date.getTime()) ? new Date() : date};
+    }
+  } catch { /* sessionStorage unavailable / malformed - fall through to default */ }
+  return {preset: DEFAULT_DATE_PRESET, referenceDate: new Date()};
+};
 
 const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
 const STREAM_STATUS_TIMEOUT_MS = 10000;
@@ -165,7 +223,11 @@ class StreamStore {
   loadingStatus = false;
   tableFilter = "";
   tableTagFilter: string[] = [];
-  dateRangeFilter: [Date | null, Date | null] = GetDateRangePreset(DEFAULT_DATE_PRESET);
+  // Streams-page date filter (preset + anchor date). Persisted via SetDateFilter so
+  // it isn't lost when the page unmounts on navigation. dateRangeFilter is derived.
+  datePreset: DateRangePreset;
+  referenceDate: Date;
+  dateRangeFilter: [Date | null, Date | null];
   tenantLiveStreamContent: StreamMap = {};
   loadingTenantLiveStreamContent = false;
   // Full, unscoped stream set for the map-to-stream modal. Kept separate from `streams`
@@ -185,16 +247,27 @@ class StreamStore {
   // Bumped whenever the paged tenant query is (re)started or the date filter changes.
   // In-flight "load more" fetches compare against it and discard stale results.
   _tenantContentEpoch = 0;
+  // Bumped whenever `streams` is replaced (e.g. date-filter change). An in-flight
+  // status/classify pass over the previous list checks this and stops early so it
+  // doesn't keep hammering per-object metadata for streams no longer displayed.
+  _streamListEpoch = 0;
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
+
+    const persisted = LoadPersistedDateFilter();
+    this.datePreset = persisted.preset;
+    this.referenceDate = persisted.referenceDate;
+    this.dateRangeFilter = GetDateRangePreset(persisted.preset, persisted.referenceDate);
+
     makeAutoObservable(this, {
       _tenantContentPromise: false,
       _tenantContentFilterKey: false,
       _tenantContentCursor: false,
       _tenantContentQuery: false,
       _tenantContentEpoch: false,
+      _streamListEpoch: false,
       _allStreamsPromise: false
     }, {autoBind: true});
   }
@@ -251,6 +324,8 @@ class StreamStore {
 
   UpdateStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
+    // Stop any in-flight status/classify pass over the previous list.
+    this._streamListEpoch++;
     // Drop active slugs for streams no longer listed.
     this.activeStreamSlugs.forEach(slug => {
       if(!this.streams[slug]) { this.activeStreamSlugs.delete(slug); }
@@ -276,10 +351,19 @@ class StreamStore {
     this.tableTagFilter = tags;
   };
 
-  SetDateRangeFilter = (range: [Date | null, Date | null]) => {
-    this.dateRangeFilter = range;
+  // Sets the streams-page date filter and persists it (session-scoped) so it
+  // survives the page unmounting on navigation.
+  SetDateFilter = ({preset, referenceDate}: {preset: DateRangePreset, referenceDate?: Date}) => {
+    const ref = referenceDate ?? new Date();
+    this.datePreset = preset;
+    this.referenceDate = ref;
+    this.dateRangeFilter = GetDateRangePreset(preset, ref);
     // Invalidate any in-flight paged "load more" from the previous range.
     this._tenantContentEpoch++;
+
+    try {
+      sessionStorage.setItem(STREAMS_DATE_FILTER_KEY, JSON.stringify({preset, referenceDate: ref.toISOString()}));
+    } catch { /* sessionStorage unavailable - filter is still held in memory */ }
   };
 
   // Add/remove a slug from the active-poll set. On removal, `state` is written
@@ -301,11 +385,13 @@ class StreamStore {
   // pre-bitcode branch: no url -> unconfigured; no fabric/playout/recording config
   // -> uninitialized; no edge write token -> inactive; else active.
   // Updates activeStreamSlugs, writes inactive states, returns the slugs to poll.
-  *_ClassifyStreams({slugs}: {slugs: string[]}): Generator<any, string[]> {
+  *_ClassifyStreams({slugs, listEpoch}: {slugs: string[], listEpoch?: number}): Generator<any, string[]> {
     yield this.client.utils.LimitedMap(
       15,
       slugs,
       async (slug: string) => {
+        // The list was replaced mid-pass - stop issuing per-object reads.
+        if(listEpoch !== undefined && listEpoch !== this._streamListEpoch) { return; }
         const stream = this.streams?.[slug];
         if(!stream?.objectId) { return; }
 
@@ -404,19 +490,27 @@ class StreamStore {
   *AllStreamsStatus(reload=false, slugs: string[] | null = null): Generator<any, void> {
     if(this.loadingStatus && !reload) { return; }
 
+    // Snapshot the list generation - if `streams` is replaced mid-run (e.g. a
+    // date-filter change), bail instead of polling streams no longer shown.
+    const listEpoch = this._streamListEpoch;
+
     try {
       this.loadingStatus = true;
 
       const targetSlugs = slugs ?? Object.keys(this.streams || {});
 
       // Cheap pass: resolves inactive states locally, narrows the poll to active streams.
-      const activeSlugs: string[] = yield this._ClassifyStreams({slugs: targetSlugs});
+      const activeSlugs: string[] = yield this._ClassifyStreams({slugs: targetSlugs, listEpoch});
+
+      if(listEpoch !== this._streamListEpoch) { return; }
 
       yield this.client.utils.LimitedMap(
         15,
         activeSlugs,
         async slug => {
+          if(listEpoch !== this._streamListEpoch) { return; }
           const streamMeta = this.streams?.[slug];
+          if(!streamMeta) { return; }
           try {
             await this.CheckStatus({
               objectId: streamMeta.objectId,
@@ -911,7 +1005,7 @@ class StreamStore {
       try {
         await this.client.ResetRegion();
       } catch(error) {
-         
+
         console.error("Unable to reset region after TenantContent", error);
       }
     }
@@ -1000,7 +1094,14 @@ class StreamStore {
         const {versions: page, paging} = yield this._TenantContent({
           filter,
           start,
-          limit: TENANT_CONTENT_PAGE_SIZE
+          limit: TENANT_CONTENT_PAGE_SIZE,
+          select: [
+            "public/name",
+            "public/asset_metadata/tags",
+            "live_recording/recording_config/recording_params/xc_params/input_cfg",
+            "live_recording_config/url",
+            "live_recording_config/recording_config/input_cfg"
+          ]
         });
 
         const received = (page ?? []).length;
@@ -1022,7 +1123,7 @@ class StreamStore {
       this.tenantLiveStreamContent = Object.fromEntries(
         versions
           .filter(({id, hash}) => id && hash)
-          .map(version => [version.id, StreamInfoFromQueryFields(version) as StreamInfo])
+          .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
       );
     } catch(error) {
       console.error("Unable to load tenant live stream content", error);
@@ -1064,7 +1165,7 @@ class StreamStore {
       const received = (versions ?? []).length;
       (versions ?? [])
         .filter(({id, hash}: TenantContentVersion) => id && hash && !this.tenantLiveStreamContent[id])
-        .forEach((version: TenantContentVersion) => { added[version.id] = StreamInfoFromQueryFields(version) as StreamInfo; });
+        .forEach((version: TenantContentVersion) => { added[version.id] = StreamInfoFromTenantVersion(version) as StreamInfo; });
 
       this.tenantLiveStreamContent = {...this.tenantLiveStreamContent, ...added};
 
@@ -1080,10 +1181,15 @@ class StreamStore {
     return added;
   }
 
-  // Enriches a raw stream-metadata map (tenant query fields or site-object entries) with
-  // per-object data: decoded objectId, libraryId, title, tags, source/packaging, inputCfg.
+  // Enriches a raw stream-metadata map with per-object data: decoded objectId
+  // libraryId, title, tags, source/packaging, inputCfg.
   // Returns the enriched map without touching store state - callers decide where it goes.
-  *_EnrichStreams({streamMetadata}: {streamMetadata: StreamMap}): Generator<any, StreamMap> {
+  //
+  // fetchObjectData=false skips the per-object metadata fetch (ContentObjectLibraryId +
+  // LoadStreamListData) and keeps only what's already in the map plus the decoded
+  // objectId - used for the tenant content-group query, whose list data is loaded
+  // separately rather than one object at a time.
+  *_EnrichStreams({streamMetadata, fetchObjectData=true}: {streamMetadata: StreamMap, fetchObjectData?: boolean}): Generator<any, StreamMap> {
     const enriched: StreamMap = {};
 
     Object.keys(streamMetadata).forEach(slug => {
@@ -1113,6 +1219,8 @@ class StreamStore {
 
       enriched[slug] = {...stream, slug, objectId, versionHash};
     });
+
+    if(!fetchObjectData) { return enriched; }
 
     yield this.client.utils.LimitedMap(
       10,
@@ -1151,8 +1259,9 @@ class StreamStore {
   }
 
   // append=true merges into the existing scoped list (additional pages); otherwise replaces it.
-  *LoadStreams({streamMetadata, append=false}: {streamMetadata: StreamMap, append?: boolean}): Generator<any, void> {
-    const enriched: StreamMap = yield this._EnrichStreams({streamMetadata});
+  // fetchObjectData=false skips per-object metadata fetches (see _EnrichStreams).
+  *LoadStreams({streamMetadata, append=false, fetchObjectData=true}: {streamMetadata: StreamMap, append?: boolean, fetchObjectData?: boolean}): Generator<any, void> {
+    const enriched: StreamMap = yield this._EnrichStreams({streamMetadata, fetchObjectData});
     this.UpdateStreams({streams: append ? {...this.streams, ...enriched} : enriched});
     this.rootStore.streamGroupStore.BuildGroups(this.streams);
   }
@@ -1199,7 +1308,7 @@ class StreamStore {
         streamMetadata = Object.fromEntries(
           versions
             .filter(({id, hash}) => id && hash)
-            .map(version => [version.id, StreamInfoFromQueryFields(version) as StreamInfo])
+            .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
         );
       }
 
@@ -1208,6 +1317,8 @@ class StreamStore {
         streamMetadata = yield this.rootStore.dataStore.LoadTenantSiteStreams();
       }
 
+      // Full per-object enrichment here on purpose: the map-to-stream modal needs
+      // inputCfg / source / packaging to pick a stream, and it's opened on demand.
       this.allStreams = yield this._EnrichStreams({streamMetadata});
       this.allStreamsLoaded = true;
     } catch(error) {
@@ -1252,7 +1363,7 @@ class StreamStore {
     const streamMetadata: StreamMap = Object.fromEntries(
       versions
         .filter(({id, hash}) => id && hash)
-        .map(version => [version.id, StreamInfoFromQueryFields(version) as StreamInfo])
+        .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
         .filter(([, info]) => (info as StreamInfo).titleId === titleId)
     );
 
@@ -1280,7 +1391,7 @@ class StreamStore {
             embedUrl: response?.playoutUrls?.embedUrl
           };
         } catch(error) {
-           
+
           console.error(`Skipping status for ${objectId}.`, error);
         }
       }
@@ -1441,21 +1552,7 @@ class StreamStore {
         ]
       });
 
-      const url = meta?.live_recording_config?.url;
-      const inputCfg = meta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg ?? meta?.live_recording_config?.recording_config?.input_cfg;
-      const {source, packaging} = DeriveSourceAndPackaging({
-        url,
-        inputCfg
-      });
-
-      return {
-        title: meta?.public?.name,
-        tags: meta?.public?.asset_metadata?.tags ?? [],
-        originUrl: url,
-        source,
-        packaging,
-        inputCfg
-      };
+      return StreamListDataFromMeta(meta);
     } catch(error) {
 
       console.error("Unable to load stream list data", error);

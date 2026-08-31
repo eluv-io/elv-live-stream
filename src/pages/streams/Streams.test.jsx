@@ -31,9 +31,11 @@ const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } =
       },
       get filteredStreams() { return Object.values(this.streams); },
       get allTags() { return []; },
+      datePreset: "day",
+      referenceDate: new Date(),
       SetTableFilter: vi.fn(),
       SetTableTagFilter: vi.fn(),
-      SetDateRangeFilter: vi.fn(),
+      SetDateFilter: vi.fn(),
       CheckStatus: vi.fn().mockResolvedValue({}),
     },
     mockModalStore: { SetBatchModal: vi.fn() }

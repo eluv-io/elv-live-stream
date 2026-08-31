@@ -239,7 +239,7 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
   const Toggle = (id) => setCollapsed(current => ({...current, [id]: !current[id]}));
 
   return (
-    <Box mt={40} w="50%">
+    <Box mt={40}>
       <Group justify="space-between" wrap="nowrap" mb={4}>
         <Group gap={12} wrap="nowrap">
           <Group gap={8} wrap="nowrap">
