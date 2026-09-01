@@ -44,38 +44,37 @@ const UrlRows = (output, mode, packaging) => {
   if(output.embedUrl) { rows.push({label: "Embeddable URL", url: output.embedUrl}); }
 
   const playoutUrl = isPublic ? output.publicPlayoutUrl : output.playoutUrl;
-  if(playoutUrl) { rows.push({label: "Playout URL", url: playoutUrl}); }
+  if(playoutUrl) { rows.push({label: "Playout Options URL", url: playoutUrl}); }
 
   (output.playoutMethods || []).forEach(method => {
     const url = ApplyPackaging(isPublic ? method.publicUrl : method.url, packaging);
 
     if(method.licenseServerUrl) {
-      const drm = method.label.split(" ").pop();
       rows.push({
         label: method.label,
         children: [
-          {label: `${drm} URL`, url},
-          {label: "License Server URL", url: isPublic ? method.publicLicenseServerUrl : method.licenseServerUrl}
+          {label: `${method.label} Playout URL`, url},
+          {label: `${method.label} License Server URL`, url: isPublic ? method.publicLicenseServerUrl : method.licenseServerUrl}
         ]
       });
     } else {
-      rows.push({label: method.label, url});
+      rows.push({label: `${method.label} Playout URL`, url});
     }
   });
 
   return rows;
 };
 
-// label -> url for one stream's rows. Keyed off the row's own label, not the DRM sub-label,
-// which collides across protocols (HLS/Dash Widevine both have a "Widevine URL" child).
+// label -> url for one stream's rows. Sub-rows carry their method-qualified label
+// ("HLS Widevine Playout URL"), so keying off it directly can't collide across protocols.
 const UrlsByLabel = (rows) => {
   const urlByLabel = {};
 
   rows.forEach(row => {
     if(row.children) {
-      const [playoutUrl, licenseServerUrl] = row.children;
-      if(playoutUrl?.url) { urlByLabel[row.label] = playoutUrl.url; }
-      if(licenseServerUrl?.url) { urlByLabel[`${row.label} License Server`] = licenseServerUrl.url; }
+      row.children.forEach(child => {
+        if(child.url) { urlByLabel[child.label] = child.url; }
+      });
     } else if(row.url) {
       urlByLabel[row.label] = row.url;
     }

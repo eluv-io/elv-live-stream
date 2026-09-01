@@ -190,14 +190,20 @@ const TENANT_CONTENT_SELECT = [
 // All DRM schemes we ask PlayoutOptions about, so the response carries every
 // available protocol/method the stream offers.
 const ALL_DRMS = ["clear", "aes-128", "sample-aes", "widevine", "fairplay", "playready"];
-const PLAYOUT_PROTOCOL_LABELS: Record<string, string> = {hls: "HLS", dash: "Dash"};
-const PLAYOUT_METHOD_LABELS: Record<string, string> = {
-  clear: "Clear",
-  "aes-128": "AES-128",
-  "sample-aes": "Sample AES",
-  widevine: "Widevine",
-  fairplay: "FairPlay",
-  playready: "PlayReady"
+
+// Configured playout-format keys (constants.ts PLAYOUT_FORMAT_OPTIONS) mapped to the
+// manifest filename plus the {protocol, drm} pair PlayoutOptions returns - so each row
+// can be built deterministically (works before the stream has ever run) and then
+// enriched with a license-server URL when the stream is live.
+const PLAYOUT_FORMATS: Record<string, {label: string, manifest: string, protocol: string, drm: string}> = {
+  "hls-clear":          {label: "HLS Clear",      manifest: "playlist.m3u8", protocol: "hls",  drm: "clear"},
+  "hls-aes128":         {label: "HLS AES-128",    manifest: "playlist.m3u8", protocol: "hls",  drm: "aes-128"},
+  "hls-sample-aes":     {label: "HLS Sample AES", manifest: "playlist.m3u8", protocol: "hls",  drm: "sample-aes"},
+  "hls-fairplay":       {label: "HLS FairPlay",   manifest: "playlist.m3u8", protocol: "hls",  drm: "fairplay"},
+  "hls-widevine-cenc":  {label: "HLS Widevine",   manifest: "playlist.m3u8", protocol: "hls",  drm: "widevine"},
+  "hls-playready-cenc": {label: "HLS PlayReady",  manifest: "playlist.m3u8", protocol: "hls",  drm: "playready"},
+  "dash-clear":         {label: "Dash Clear",     manifest: "dash.mpd",      protocol: "dash", drm: "clear"},
+  "dash-widevine":      {label: "Dash Widevine",  manifest: "dash.mpd",      protocol: "dash", drm: "widevine"}
 };
 
 // Named-network hostname map for building public playout URLs - mirrors elv-client-js's
@@ -1448,8 +1454,9 @@ class StreamStore {
       console.error(`Unable to load embed URL for ${objectId}`, error);
     }
 
+    let libraryId;
     try {
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      libraryId = yield this.client.ContentObjectLibraryId({objectId});
       const rawPlayoutUrl = yield this.client.FabricUrl({
         libraryId,
         objectId,
@@ -1463,6 +1470,26 @@ class StreamStore {
       console.error(`Unable to load playout options URL for ${objectId}`, error);
     }
 
+    // Configured playout formats, in the precedence order the stream details page uses
+    // (overrides -> config -> applied -> keys of the applied "default" offering).
+    let formats: string[] = [];
+    try {
+      const [overrides, config, applied, offering] = yield Promise.all([
+        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_overrides/playout_config/playout_formats"}),
+        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_config/playout_config/playout_formats"}),
+        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording/playout_config/playout_formats"}),
+        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "offerings/default/playout/playout_formats"})
+      ]);
+      const configured = overrides ?? config ?? applied ?? Object.keys(offering || {});
+      formats = (Array.isArray(configured) ? configured : []).filter(format => PLAYOUT_FORMATS[format]);
+    } catch(error) {
+
+      console.error(`Unable to load playout formats for ${objectId}`, error);
+    }
+
+    // License servers only exist for a running stream; when PlayoutOptions fails
+    // (no finalized offering yet) the deterministic playout URLs below still stand.
+    const liveMethods: Record<string, any> = {};
     try {
       const playoutOptions = yield this.client.PlayoutOptions({
         objectId,
@@ -1470,30 +1497,45 @@ class StreamStore {
         drms: ALL_DRMS,
         offering: "default"
       });
-
       Object.keys(playoutOptions || {}).forEach(protocol => {
-        const methods = playoutOptions[protocol]?.playoutMethods || {};
-        Object.keys(methods).forEach(method => {
-          const rawUrl = methods[method]?.playoutUrl;
-          if(!rawUrl) { return; }
-
-          const licenseServers = methods[method]?.drms?.[method]?.licenseServers;
-          const licenseServerUrl = Array.isArray(licenseServers) && licenseServers.length > 0 ? licenseServers[0] : undefined;
-
-          result.playoutMethods.push({
-            label: `${PLAYOUT_PROTOCOL_LABELS[protocol] || protocol.toUpperCase()} ${PLAYOUT_METHOD_LABELS[method] || method}`,
-            url: this._NamedNetworkUrl({url: rawUrl, versionHash}),
-            licenseServerUrl,
-            publicUrl: this._NamedNetworkUrl({url: rawUrl, versionHash, dropAuthorization: true}),
-            publicLicenseServerUrl: licenseServerUrl ?
-              this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
-              undefined
-          });
+        Object.keys(playoutOptions[protocol]?.playoutMethods || {}).forEach(drm => {
+          liveMethods[`${protocol}-${drm}`] = playoutOptions[protocol].playoutMethods[drm];
         });
       });
     } catch(error) {
 
-      console.error(`Unable to load playout options for ${objectId}`, error);
+      console.error(`Unable to load live playout options for ${objectId}`, error);
+    }
+
+    for(const format of formats) {
+      const {label, manifest, protocol, drm} = PLAYOUT_FORMATS[format];
+
+      let rawUrl;
+      try {
+        rawUrl = yield this.client.FabricUrl({
+          libraryId,
+          objectId,
+          rep: `playout/default/${format}/${manifest}`,
+          channelAuth: true
+        });
+      } catch(error) {
+
+        console.error(`Unable to build playout URL for ${objectId} (${format})`, error);
+        continue;
+      }
+
+      const licenseServers = liveMethods[`${protocol}-${drm}`]?.drms?.[drm]?.licenseServers;
+      const licenseServerUrl = Array.isArray(licenseServers) && licenseServers.length > 0 ? licenseServers[0] : undefined;
+
+      result.playoutMethods.push({
+        label,
+        url: this._NamedNetworkUrl({url: rawUrl, versionHash}),
+        licenseServerUrl,
+        publicUrl: this._NamedNetworkUrl({url: rawUrl, versionHash, dropAuthorization: true}),
+        publicLicenseServerUrl: licenseServerUrl ?
+          this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
+          undefined
+      });
     }
 
     return result;
