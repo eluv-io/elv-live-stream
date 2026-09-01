@@ -136,10 +136,8 @@ class StreamGroupStore {
 
   *ListGroups(): Generator<any, any> {
     try {
-      // CreateContentGroup no longer applies the elv:folder tag - match on the
-      // "live-stream" tag this store attaches to every group it creates instead.
       return yield this.client.TenantContent({
-        filter: ["tags:co:live-stream"],
+        filter: ["tag:eq:live-stream"],
         select: ["public/name", "public/asset_metadata/display_title"],
         start: 0,
         limit: 100
