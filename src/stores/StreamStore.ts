@@ -74,7 +74,7 @@ interface TenantContentVersion {
   object_version: number;
   error: string;
   // Indexed query fields returned by the tenant query (versions[].query_fields).
-  // Values may be scalars or arrays depending on the index definition.
+  // A value may be single or an array, depending on the index definition.
   query_fields?: Record<string, unknown>;
   // Selected metadata subtree returned inline by the tenant query (versions[].meta),
   // keyed by path exactly like ContentObjectMetadata's response. Present when the query
@@ -83,16 +83,17 @@ interface TenantContentVersion {
   meta?: Record<string, any>;
 }
 
-// Pulls a single scalar value out of a query field (arrays -> first entry).
+/** Pull a single value out of a query field (arrays -> first entry). */
 const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: string): string | undefined => {
   const value = Array.isArray(fields?.[key]) ? (fields?.[key] as unknown[])[0] : fields?.[key];
   return value == null || value === "" ? undefined : String(value);
 };
 
-// Derives the streams-list fields (title, display_title, tags, origin URL,
-// source/packaging, inputCfg) from an object's metadata subtree. Shared by the
-// per-object fetch (LoadStreamListData) and the tenant query's `meta` so the two
-// never drift.
+/**
+ * Derive the streams-list fields from an object's metadata subtree. Shared by the
+ * per-object fetch (LoadStreamListData) and the tenant query's `meta` so the two
+ * never drift.
+ */
 const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamListData => {
   const url = meta?.live_recording_config?.url;
   const inputCfg =
@@ -111,9 +112,11 @@ const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamLi
   };
 };
 
-// Builds the StreamInfo fields carried over from a tenant query version: name/date/title_id
-// from query_fields, plus the streams-list fields from `meta` when present
-// (which lets the content-group path skip the per-object metadata fetch entirely).
+/**
+ * Build the StreamInfo fields from a tenant query version: name/date/title_id from
+ * query_fields, plus the streams-list fields from `meta` when present (letting the
+ * content-group path skip the per-object metadata fetch entirely).
+ */
 const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<StreamInfo> => {
   const name = QueryFieldValue(version.query_fields, "name");
   const date = QueryFieldValue(version.query_fields, "date");
@@ -305,8 +308,10 @@ class StreamStore {
     return this.tableTagFilter.filter(t => available.has(t));
   }
 
-  // Date scoping happens server-side (LoadTenantLiveStreamContent's date-tag filter) - streams
-  // don't carry a real createdAt to filter on client-side, so this only handles text/tags.
+  /**
+   * Text/tag filtering only. Date scoping is server-side (LoadTenantLiveStreamContent's
+   * date-tag filter) - streams carry no real createdAt to filter on client-side.
+   */
   get filteredStreams(): StreamInfo[] {
     const filter = this.tableFilter.toLowerCase();
     const tagFilter = this.activeTagFilter;
@@ -363,8 +368,7 @@ class StreamStore {
     this.tableTagFilter = tags;
   };
 
-  // Sets the streams-page date filter and persists it (session-scoped) so it
-  // survives the page unmounting on navigation.
+  /** Set the streams-page date filter and persist it (session-scoped) so it survives navigation. */
   SetDateFilter = ({preset, referenceDate}: {preset: DateRangePreset, referenceDate?: Date}) => {
     const ref = referenceDate ?? new Date();
     this.datePreset = preset;
@@ -378,8 +382,10 @@ class StreamStore {
     } catch { /* sessionStorage unavailable - filter is still held in memory */ }
   };
 
-  // Add/remove a slug from the active-poll set. On removal, `state` is written
-  // straight to the stream since the poll skips it.
+  /**
+   * Add/remove a slug from the active-poll set. On removal, `state` is written
+   * straight to the stream since the poll skips it.
+   */
   _SetStreamActive = ({slug, active, state}: {slug: string, active: boolean, state?: StreamStatus}) => {
     if(!slug) { return; }
 
@@ -393,10 +399,12 @@ class StreamStore {
     }
   };
 
-  // Cheap classification from local metadata, mirroring client-js StreamStatus's
-  // pre-bitcode branch: no url -> unconfigured; no fabric/playout/recording config
-  // -> uninitialized; no edge write token -> inactive; else active.
-  // Updates activeStreamSlugs, writes inactive states, returns the slugs to poll.
+  /**
+   * Cheap classification from local metadata, mirroring client-js StreamStatus's
+   * pre-bitcode branch: no url -> unconfigured; no fabric/playout/recording config
+   * -> uninitialized; no edge write token -> inactive; else active. Updates
+   * activeStreamSlugs, writes inactive states, and returns the slugs to poll.
+   */
   *_ClassifyStreams({slugs, listEpoch}: {slugs: string[], listEpoch?: number}): Generator<any, string[]> {
     yield this.client.utils.LimitedMap(
       15,
@@ -497,13 +505,14 @@ class StreamStore {
     return response;
   }
 
-  // Classifies streams from local metadata, then polls full status for the active
-  // ones only. slugs limits the refresh (e.g. a newly-loaded page).
+  /**
+   * Classify streams from local metadata, then poll full status for the active
+   * ones only. `slugs` limits the refresh (e.g. a newly-loaded page).
+   */
   *AllStreamsStatus(reload=false, slugs: string[] | null = null): Generator<any, void> {
     if(this.loadingStatus && !reload) { return; }
 
-    // Snapshot the list generation - if `streams` is replaced mid-run (e.g. a
-    // date-filter change), bail instead of polling streams no longer shown.
+    // Snapshot the list generation - bail if `streams` is replaced mid-run.
     const listEpoch = this._streamListEpoch;
 
     try {
@@ -511,7 +520,7 @@ class StreamStore {
 
       const targetSlugs = slugs ?? Object.keys(this.streams || {});
 
-      // Cheap pass: resolves inactive states locally, narrows the poll to active streams.
+      // Cheap pass: resolve inactive states locally, narrow the poll to active streams.
       const activeSlugs: string[] = yield this._ClassifyStreams({slugs: targetSlugs, listEpoch});
 
       if(listEpoch !== this._streamListEpoch) { return; }
@@ -1007,8 +1016,7 @@ class StreamStore {
     }
   }
 
-  // Runs a TenantContent query pinned to the fixed fabric node, always releasing
-  // the region afterward (even on error).
+  /** Run a TenantContent query pinned to the fixed fabric node, always releasing the region afterward. */
   async _TenantContent(params: Record<string, any>): Promise<any> {
     this.client.SetNodes({fabricURIs: [TENANT_CONTENT_NODE_URI]});
     try {
@@ -1023,7 +1031,7 @@ class StreamStore {
     }
   }
 
-  // Builds the TenantContent filter array for the given site + optional date range.
+  /** Build the TenantContent filter array for the given site + optional date range. */
   _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null]): string[] {
     const [startDate, endDate] = dateRange || [null, null];
     const filter = [`group:eq:${siteId}`];
@@ -1040,8 +1048,10 @@ class StreamStore {
     return filter;
   }
 
-  // Start index of the next page, or null when there are none left. The tenant query's
-  // paging shape has varied (next / more / total), so fall back to "was this page full?".
+  /**
+   * Start index of the next page, or null when none are left. The tenant query's
+   * paging shape has varied (next / more / total), so fall back to "was this page full?".
+   */
   _NextTenantPageStart({paging, start, received, limit}: {paging?: TenantContentPaging, start: number, received: number, limit: number}): number | null {
     const nextStart = start + limit;
 
@@ -1058,9 +1068,11 @@ class StreamStore {
     return received >= limit && received > 0 ? nextStart : null;
   }
 
-  // paged=true fetches only the first page and records a resume cursor; callers then
-  // pull further pages via LoadMoreTenantLiveStreamContent (e.g. on scroll-to-bottom).
-  // paged=false (default) loops through every page in one call.
+  /**
+   * paged=true fetches only the first page and records a resume cursor; callers pull
+   * further pages via LoadMoreTenantLiveStreamContent. paged=false (default) loops
+   * through every page in one call.
+   */
   *LoadTenantLiveStreamContent({siteId, dateRange, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
     if(!siteId) {
       // No registered site id - skip the tenant query and let the caller fall back
@@ -1142,8 +1154,10 @@ class StreamStore {
     return this.tenantLiveStreamContent;
   }
 
-  // Fetches the next page of the current paged tenant query, merges it into
-  // tenantLiveStreamContent, and returns only the newly-added entries.
+  /**
+   * Fetch the next page of the current paged tenant query, merge it into
+   * tenantLiveStreamContent, and return only the newly-added entries.
+   */
   *LoadMoreTenantLiveStreamContent(): Generator<any, StreamMap> {
     if(!this.tenantContentHasMore || this.loadingMoreTenantContent || !this._tenantContentQuery) {
       return {};
@@ -1165,8 +1179,7 @@ class StreamStore {
         select: TENANT_CONTENT_SELECT
       });
 
-      // The date filter changed (or the query restarted) while this page was in
-      // flight - drop it so stale rows don't get merged into the new list.
+      // Query restarted while this page was in flight - drop stale rows.
       if(epoch !== this._tenantContentEpoch) { return {}; }
 
       const received = (versions ?? []).length;
@@ -1188,14 +1201,15 @@ class StreamStore {
     return added;
   }
 
-  // Enriches a raw stream-metadata map with per-object data: decoded objectId
-  // libraryId, title, tags, source/packaging, inputCfg.
-  // Returns the enriched map without touching store state - callers decide where it goes.
-  //
-  // fetchObjectData=false skips the per-object metadata fetch (ContentObjectLibraryId +
-  // LoadStreamListData) and keeps only what's already in the map plus the decoded
-  // objectId - used for the tenant content-group query, whose list data is loaded
-  // separately rather than one object at a time.
+  /**
+   * Enrich a raw stream-metadata map with per-object data (decoded objectId,
+   * libraryId, title, tags, source/packaging, inputCfg) and return it without
+   * touching store state.
+   *
+   * fetchObjectData=false skips the per-object metadata fetch, keeping only what's
+   * in the map plus the decoded objectId - used for the tenant content-group query,
+   * whose list data is loaded separately.
+   */
   *_EnrichStreams({streamMetadata, fetchObjectData=true}: {streamMetadata: StreamMap, fetchObjectData?: boolean}): Generator<any, StreamMap> {
     const enriched: StreamMap = {};
 
@@ -1251,8 +1265,7 @@ class StreamStore {
             `LoadStreamListData(${objectId})`
           ) || {};
 
-          // Query-field name (from the tenant query) is the fallback title if the
-          // metadata fetch returns none.
+          // Query-field name is the fallback title when the metadata fetch returns none.
           const queryFieldName = enriched[slug].name;
           Object.assign(enriched[slug], streamDetails);
           enriched[slug].title = enriched[slug].title || queryFieldName;
@@ -1265,18 +1278,21 @@ class StreamStore {
     return enriched;
   }
 
-  // append=true merges into the existing scoped list (additional pages); otherwise replaces it.
-  // fetchObjectData=false skips per-object metadata fetches (see _EnrichStreams).
+  /**
+   * append=true merges into the existing scoped list (additional pages); otherwise
+   * replaces it. fetchObjectData=false skips per-object metadata fetches (see _EnrichStreams).
+   */
   *LoadStreams({streamMetadata, append=false, fetchObjectData=true}: {streamMetadata: StreamMap, append?: boolean, fetchObjectData?: boolean}): Generator<any, void> {
     const enriched: StreamMap = yield this._EnrichStreams({streamMetadata, fetchObjectData});
     this.UpdateStreams({streams: append ? {...this.streams, ...enriched} : enriched});
     this.rootStore.streamGroupStore.BuildGroups(this.streams);
   }
 
-  // Loads the full, unscoped stream set for the map-to-stream modal. Kept independent of
-  // the streams page's paged / date-scoped tenant query (LoadTenantLiveStreamContent) so
-  // neither list clobbers the other. No status polling - the modal only needs inputCfg /
-  // title / objectId to pick a stream.
+  /**
+   * Load the full, unscoped stream set for the map-to-stream modal. Kept independent
+   * of the streams page's date-scoped query so neither list clobbers the other. No
+   * status polling - the modal only needs inputCfg / title / objectId to pick a stream.
+   */
   *LoadAllStreams({force=false}: {force?: boolean} = {}): Generator<any, StreamMap> {
     if(this.allStreamsLoaded && !force) { return this.allStreams; }
     if(this._allStreamsPromise && !force) {
@@ -1339,11 +1355,14 @@ class StreamStore {
     return this.allStreams;
   }
 
-  // Loads and enriches only the streams belonging to one group (query_fields.title_id).
-  // The tenant query can only be narrowed by site + date tag, so version metadata is
-  // still paged in full, but the expensive per-object enrichment runs for the group's
-  // streams alone. Returns the map without touching store state - the caller owns it.
-  // TODO: use a server-side title_id filter here once the group-data source lands.
+  /**
+   * Load and enrich only the streams in one group (query_fields.title_id). The tenant
+   * query only narrows by site + date tag, so version metadata is still paged in full,
+   * but per-object enrichment runs for the group's streams alone. Returns the map
+   * without touching store state.
+   *
+   * TODO: use a server-side title_id filter once the group-data source lands.
+   */
   *LoadStreamsByTitleId(titleId: string): Generator<any, StreamMap> {
     const siteId = this.rootStore.dataStore.siteId;
     if(!siteId || !titleId) { return {}; }
@@ -1377,9 +1396,10 @@ class StreamStore {
     return yield this._EnrichStreams({streamMetadata});
   }
 
-  // Fetches live status for the given objectIds and returns it keyed by objectId.
-  // Pure - does not write to any store map, so callers holding a local stream list
-  // (e.g. the group summary page) can merge it themselves.
+  /**
+   * Fetch live status for the given objectIds, keyed by objectId. Pure - writes to no
+   * store map, so callers holding a local stream list can merge it themselves.
+   */
   *StreamStatuses(objectIds: string[]): Generator<any, Record<string, Partial<StreamInfo>>> {
     const result: Record<string, Partial<StreamInfo>> = {};
 
@@ -1407,9 +1427,11 @@ class StreamStore {
     return result;
   }
 
-  // Builds the output URLs for one stream: the embeddable URL, the offering
-  // options URL, and one playout URL per available protocol/DRM method
-  // (e.g. "HLS Clear", "Dash Widevine"). Each playoutUrl carries its own auth token.
+  /**
+   * Build the output URLs for one stream: the embeddable URL, the offering options
+   * URL, and one playout URL per available protocol/DRM method (e.g. "HLS Clear",
+   * "Dash Widevine"). Each playoutUrl carries its own auth token.
+   */
   *BuildStreamOutputUrls(objectId: string): Generator<any, StreamOutputUrls> {
     const result: StreamOutputUrls = {playoutMethods: []};
     if(!objectId) { return result; }
@@ -1477,10 +1499,12 @@ class StreamStore {
     return result;
   }
 
-  // Rebuilds a fabric URL against a named-network host (e.g. main.net955305.contentfabric.io)
-  // instead of the specific node that happened to serve the original URL, so the link resolves
-  // close to whichever viewer opens it. Used for both toggle states - dropAuthorization strips
-  // the auth token entirely for the "public" variant; omitted, it keeps the URL's own token.
+  /**
+   * Rebuild a fabric URL against a named-network host instead of the specific node
+   * that served the original, so the link resolves close to whichever viewer opens it.
+   * dropAuthorization strips the auth token for the "public" variant; omitted, the
+   * URL's own token is kept.
+   */
   _NamedNetworkUrl({url, versionHash, dropAuthorization=false}: {url: string, versionHash: string, dropAuthorization?: boolean}): string | undefined {
     try {
       const network = this.rootStore.networkInfo?.name || "main";
@@ -1509,8 +1533,11 @@ class StreamStore {
     }
   }
 
-  // License servers are a separate DRM proxy service, not a fabric node - keep their host/path
-  // as-is and just swap the auth token (plus qhash, which the proxy needs to look up the object).
+  /**
+   * License servers are a separate DRM proxy service, not a fabric node - keep their
+   * host/path as-is and just swap the auth token (plus qhash, which the proxy needs
+   * to look up the object).
+   */
   _PublicLicenseServerUrl({url, versionHash, authorizationToken}: {url: string, versionHash: string, authorizationToken: string}): string | undefined {
     try {
       const licenseServerUrl = new URL(url);
@@ -1525,7 +1552,7 @@ class StreamStore {
     }
   }
 
-  // Output URLs for several streams, keyed by objectId. Pure - returned to the caller.
+  /** Output URLs for several streams, keyed by objectId. Pure - returned to the caller. */
   *StreamOutputUrls(objectIds: string[]): Generator<any, Record<string, StreamOutputUrls>> {
     const result: Record<string, StreamOutputUrls> = {};
 

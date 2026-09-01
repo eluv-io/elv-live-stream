@@ -64,8 +64,7 @@ type Outputs = Record<string, Output>;
 
 export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
 
-// UpdateOutput's merge is shallow, so it never drops a key missing from a fresh
-// fetch - spread this first to clear the old transport block on a type change.
+// Spread first to clear stale transport blocks on a type change - UpdateOutput merges shallow.
 const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, srt_pull: undefined, srt_push: undefined};
 
 const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
@@ -98,13 +97,14 @@ interface FlatOutput {
   input?: OutputInput;
 }
 
-// elvgeo/elvgeos are a create-time-only convenience: elv-client-js's OutputsCreate
-// resolves them to a concrete node_id/node_ids and deletes them before ever hitting
-// the fabric - the fabric's output config schema doesn't have an elvgeo field at all.
-// OutputsModify has no such resolution step (it PUTs the raw output object as-is), so
-// a region picked in the edit UI must be resolved to a node ID client-side first, or
-// the fabric rejects the request with "unknown field \"elvgeo\"". This mirrors the
-// resolution elv-client-js does internally (LiveStream.js's private RetrieveOutputNodeId).
+/**
+ * Resolve a fabric region (elvgeo) to a concrete egress node ID.
+ *
+ * elvgeo is a create-time convenience: OutputsCreate resolves and strips it before
+ * hitting the fabric, whose output schema has no elvgeo field. OutputsModify does no
+ * such resolution, so edits must resolve region -> node ID client-side or the fabric
+ * rejects the request. Mirrors elv-client-js's private LiveStream.RetrieveOutputNodeId.
+ */
 const ResolveEgressNodeId = async ({client, geo}: {client: any, geo?: string}): Promise<string> => {
   const configUrl = new URL(await client.ConfigUrl());
   configUrl.pathname = "/config";
@@ -166,11 +166,11 @@ class OutputStore {
     return Array.from(tags).sort();
   }
 
-  // Flatten a raw output into the derived shape used by tables and detail views.
+  /** Flatten a raw output into the derived shape used by tables and detail views. */
   FlattenOutput = (slug: string, output: Output): FlatOutput => {
     const {streamsByObjectId, streams} = this.rootStore.streamStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
-    // srt_pull.urls is an array of strings; other output types store a single url string.
+    // srt_pull stores urls as an array; other types store a single url string.
     const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
 
     return {
@@ -191,7 +191,7 @@ class OutputStore {
     };
   };
 
-  // Individualized version of outputList for a single output by slug.
+  /** outputList's single-item equivalent, keyed by slug. */
   OutputItem = (slug: string): FlatOutput | undefined => {
     const output = this.outputs[slug];
     if(!output) { return undefined; }
@@ -243,9 +243,7 @@ class OutputStore {
   };
 
   UpdateOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
-    // Guard against creating a phantom entry keyed by a slug that isn't a real
-    // output (e.g. a stream slug passed in error) - that would surface as a
-    // bogus row in outputList with an undefined name, sorting to the top.
+    // Ignore slugs that aren't real outputs, or we'd add a phantom row to outputList.
     if(!this.outputs[slug]) { return; }
 
     this.outputs[slug] = {...this.outputs[slug], ...updates};
@@ -291,11 +289,12 @@ class OutputStore {
     }
   }
 
-  // Fetch a single output's live egress state. Mirrors StreamStore.CheckStatus:
-  // pass update=true to merge the fresh state onto the stored output so derived
-  // table columns (connected_clients, etc.) react without a full OutputsList
-  // reload. Only `state` is merged so the enriched input fields added by
-  // LoadOutputStreamInfo and the persisted config aren't clobbered.
+  /**
+   * Fetch a single output's live egress state (mirrors StreamStore.CheckStatus).
+   * With update=true, merges only `state` onto the stored output so derived table
+   * columns react without a full OutputsList reload and without clobbering the
+   * enriched input fields from LoadOutputStreamInfo or the persisted config.
+   */
   *CheckOutputState({outputId, update=false}: {outputId: string, update?: boolean}): Generator<any, any> {
     let response;
     try {
@@ -320,15 +319,15 @@ class OutputStore {
     return response;
   }
 
-  // Resilient per-output state refresh for polling. Unlike LoadOutputs (a single
-  // OutputsList call that replaces the whole map and is all-or-nothing — one
-  // thrown enrichment/route step leaves every output stale), this updates each
-  // output independently so one failure can't block the rest.
-  //
-  // MUST run sequentially: OutputsState reroutes the shared client to each
-  // output's egress node (RouteToLiveEgress / RouteToOutputNode) and restores
-  // afterward. Concurrent calls corrupt each other's routing and fail their
-  // state reads.
+  /**
+   * Resilient per-output state refresh for polling: updates each output
+   * independently so one failure can't block the rest (unlike the all-or-nothing
+   * LoadOutputs).
+   *
+   * MUST run sequentially - OutputsState reroutes the shared client to each
+   * output's egress node and restores afterward; concurrent calls corrupt each
+   * other's routing.
+   */
   *AllOutputsState(): Generator<any, void> {
     for(const outputId of Object.keys(this.outputs || {})) {
       try {
@@ -352,10 +351,9 @@ class OutputStore {
         includeState
       });
 
-      // OutputsListItem returns a sparse `input` (stream/name/status). Merge it
-      // onto the existing input so the live fields added by LoadOutputStreamInfo
-      // (source, packaging, quality, stats, url, embedUrl) aren't clobbered when
-      // the item is (re)loaded. A null/undefined input (unmapped) passes through.
+      // OutputsListItem's `input` is sparse (stream/name/status) - merge onto the
+      // existing input so the live fields from LoadOutputStreamInfo survive a
+      // reload. A null/undefined input (unmapped) passes through.
       this.UpdateOutput({
         slug: outputId,
         updates: {
@@ -441,7 +439,7 @@ class OutputStore {
       }
 
       const isSrt = type === "srt_pull" || type === "srt_push";
-      // srt_pull accepts arrays of nodes/geos; srt_push/rtp/udp use a single node/geo.
+      // srt_pull takes arrays of nodes/geos; the other types take a single value.
       const isPull = type === "srt_pull";
 
       const settings: Record<string, any> = {};
@@ -648,6 +646,11 @@ class OutputStore {
     }
   }
 
+  /**
+   * Persist a config edit for one output. Strips transient runtime fields, rebuilds
+   * the applicable transport block fresh (so a type change drops the old one), and
+   * only re-resolves node/region when the pick actually changed.
+   */
   *ModifyOutput({
     outputId,
     name,
@@ -667,41 +670,32 @@ class OutputStore {
       const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
-      // reset/state are transient runtime fields surfaced by OutputsListItem; a config
-      // edit must not persist them back. rtp/udp/srt_pull/srt_push are stripped here too -
-      // whichever one applies is rebuilt fresh below, since switching output type means the
-      // old transport block(s) must not be carried over onto the new one.
+      // Strip transient runtime `state` and every transport block - the applicable
+      // one is rebuilt fresh below so a type change can't carry the old shape over.
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {state: _st, rtp: _rtp, udp: _udp, srt_pull: _srtPull, srt_push: _srtPush, ...cleanExisting} = existing;
 
       const existingTransportKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : existing.rtp ? "rtp" : existing.udp ? "udp" : undefined;
       const transportKey = type ?? existingTransportKey;
       const typeChanged = !!type && type !== existingTransportKey;
-      // Encryption/passphrase/strip_rtp live on the SRT block, which is keyed by
-      // srt_pull or srt_push depending on the output type. RTP/UDP outputs have no
-      // SRT block, so building one would pollute the payload.
+      // encryption/passphrase/strip_rtp live on the SRT block (srt_pull or srt_push);
+      // RTP/UDP outputs have none.
       const srtKey = transportKey === "srt_pull" || transportKey === "srt_push" ? transportKey : undefined;
-      // When the type changed, the old transport block's settings (node/region/url/SRT
-      // config) belong to a different shape and must not carry over onto the new one.
+      // On a type change the old blocks belong to a different shape - don't carry them over.
       const existingTransport = typeChanged ? undefined : (transportKey ? existing[transportKey] : undefined);
       const existingSrt = typeChanged ? undefined : (srtKey ? existing[srtKey] : undefined);
-      // node/region/url live on whichever transport block (rtp/udp/srt_pull/srt_push)
-      // the output actually uses. srt_pull stores node/region as arrays.
+      // srt_pull stores node/region as arrays; the other types store single values.
       const isPull = transportKey === "srt_pull";
 
-      // node/region arrive as raw picks from the edit form (one truthy, "" for the
-      // inactive one - see OutputDetails.jsx). Only actually touch node_id/node_ids
-      // when the pick differs from what's already pinned - existing.description holds
-      // the last node ID or geo string used (see CreateOutput) - or the transport type
-      // changed (which discards the old transport block, including its node_id). This
-      // avoids re-resolving, and potentially re-pinning to a different available node,
-      // on saves that don't touch node/geo at all, e.g. a plain rename.
+      // node/region are raw picks from the edit form (one truthy, "" for the inactive
+      // one). Only touch node_id/node_ids when the pick differs from what's pinned
+      // (existing.description holds the last node/geo used - see CreateOutput) or the
+      // type changed, so a plain rename doesn't re-resolve to a different node.
       const touchesNodeOrRegion = node !== undefined || region !== undefined;
       const nodeOrRegionTarget = node || region || "";
       const nodeOrRegionChanged = touchesNodeOrRegion && (typeChanged || nodeOrRegionTarget !== (existing.description || ""));
 
-      // elvgeo/elvgeos aren't real fabric fields (see ResolveEgressNodeId) - a chosen
-      // region must be resolved to a concrete node ID before it's written.
+      // A chosen region must be resolved to a node ID before writing (see ResolveEgressNodeId).
       const resolvedNodeId = nodeOrRegionChanged ?
         (node || (region ? yield ResolveEgressNodeId({client: this.client, geo: region}) : undefined)) :
         undefined;
@@ -723,10 +717,8 @@ class OutputStore {
               passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
               strip_rtp: stripRtp ?? existingSrt?.strip_rtp
             }),
-            // elvgeo/elvgeos are cleared unconditionally here (not just written as
-            // undefined-if-absent) so a stale value from existingTransport - e.g. from
-            // data that predates this resolution step - never survives a save that
-            // touches node/region.
+            // Clear elvgeo/elvgeos unconditionally so no stale value from
+            // existingTransport survives a save that touches node/region.
             ...(nodeOrRegionChanged && {
               [isPull ? "node_ids" : "node_id"]: resolvedNodeId ? (isPull ? [resolvedNodeId] : resolvedNodeId) : undefined,
               [isPull ? "elvgeos" : "elvgeo"]: undefined
