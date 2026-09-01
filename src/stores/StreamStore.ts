@@ -264,7 +264,7 @@ class StreamStore {
   _tenantContentPromise: Promise<void> | null = null;
   _tenantContentFilterKey: string | null = null;
   _tenantContentCursor = 0;
-  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null]} | null = null;
+  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string} | null = null;
   // Bumped whenever the paged tenant query is (re)started or the date filter changes.
   // In-flight "load more" fetches compare against it and discard stale results.
   _tenantContentEpoch = 0;
@@ -315,11 +315,15 @@ class StreamStore {
   }
 
   /**
-   * Text/tag filtering only. Date scoping is server-side (LoadTenantLiveStreamContent's
-   * date-tag filter) - streams carry no real createdAt to filter on client-side.
+   * Tag filtering (always client-side) plus text filtering. Date scoping is server-side
+   * (LoadTenantLiveStreamContent's date-tag filter) - streams carry no real createdAt to
+   * filter on client-side. On the content-group path the text search is also server-side
+   * (name:co: on the tenant query), so skip the client-side text match there and let the
+   * re-queried list stand on its own.
    */
   get filteredStreams(): StreamInfo[] {
-    const filter = this.tableFilter.toLowerCase();
+    const serverSideText = this.rootStore.dataStore.useContentGroup;
+    const filter = serverSideText ? "" : this.tableFilter.toLowerCase();
     const tagFilter = this.activeTagFilter;
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||
@@ -1037,10 +1041,18 @@ class StreamStore {
     }
   }
 
-  /** Build the TenantContent filter array for the given site + optional date range. */
-  _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null]): string[] {
+  /**
+   * Build the TenantContent filter array for the given site + optional date range +
+   * optional name search. `nameFilter` is matched against the `name` query field with
+   * a contains match, so the streams-page search box narrows server-side rather
+   * than only client-side.
+   */
+  _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string): string[] {
     const [startDate, endDate] = dateRange || [null, null];
     const filter = [`group:eq:${siteId}`];
+
+    const name = (nameFilter || "").trim();
+    if(name) { filter.push(`name:co:${name}`); }
 
     if(startDate && endDate && FormatDateFilter(startDate) === FormatDateFilter(endDate)) {
       // Single day - one exact-match tag rather than a redundant ge/le pair.
@@ -1079,7 +1091,7 @@ class StreamStore {
    * further pages via LoadMoreTenantLiveStreamContent. paged=false (default) loops
    * through every page in one call.
    */
-  *LoadTenantLiveStreamContent({siteId, dateRange, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
+  *LoadTenantLiveStreamContent({siteId, dateRange, nameFilter, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], nameFilter?: string, force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
     if(!siteId) {
       // No registered site id - skip the tenant query and let the caller fall back
       // to the site object's stream list.
@@ -1090,10 +1102,12 @@ class StreamStore {
     }
 
     const [startDate, endDate] = dateRange || [null, null];
+    const name = (nameFilter || "").trim();
     const filterKey = JSON.stringify([
       siteId,
       startDate ? FormatDateFilter(startDate) : null,
       endDate ? FormatDateFilter(endDate) : null,
+      name,
       paged
     ]);
 
@@ -1111,12 +1125,12 @@ class StreamStore {
     this.tenantLiveStreamContent = {};
     this.tenantContentHasMore = false;
     this._tenantContentCursor = 0;
-    this._tenantContentQuery = {siteId, dateRange};
+    this._tenantContentQuery = {siteId, dateRange, nameFilter: name};
     // Any "load more" still in flight from a prior query is now stale.
     this._tenantContentEpoch++;
 
     try {
-      const filter = this._TenantContentFilter(siteId, dateRange);
+      const filter = this._TenantContentFilter(siteId, dateRange, name);
       let start = 0;
       let versions: TenantContentVersion[] = [];
 
@@ -1174,8 +1188,8 @@ class StreamStore {
     const epoch = this._tenantContentEpoch;
 
     try {
-      const {siteId, dateRange} = this._tenantContentQuery;
-      const filter = this._TenantContentFilter(siteId, dateRange);
+      const {siteId, dateRange, nameFilter} = this._tenantContentQuery;
+      const filter = this._TenantContentFilter(siteId, dateRange, nameFilter);
       const start = this._tenantContentCursor;
 
       const {versions, paging} = yield this._TenantContent({

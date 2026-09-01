@@ -155,6 +155,51 @@ describe("StreamStore tenant-query node pinning", () => {
 
     expect(mockClient.ResetRegion).toHaveBeenCalledTimes(1);
   });
+
+  it("passes the name search to the tenant query as a name:co: filter", async () => {
+    const tenantContent = vi.fn().mockResolvedValue({versions: [], paging: {more: false}});
+    const {store} = makeStore({tenantContent});
+
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: "  Final Match  "});
+
+    expect(tenantContent).toHaveBeenCalledWith(expect.objectContaining({
+      filter: ["group:eq:iq__site", "name:co:Final Match"]
+    }));
+  });
+
+  it("omits the name filter when the search is blank and carries it into load-more", async () => {
+    const tenantContent = vi.fn().mockResolvedValue({versions: [], paging: {more: true}});
+    const {store} = makeStore({tenantContent});
+
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: "quarterfinal", paged: true});
+    expect(tenantContent).toHaveBeenLastCalledWith(expect.objectContaining({filter: ["group:eq:iq__site", "name:co:quarterfinal"]}));
+
+    await store.LoadMoreTenantLiveStreamContent();
+    expect(tenantContent).toHaveBeenLastCalledWith(expect.objectContaining({filter: ["group:eq:iq__site", "name:co:quarterfinal"]}));
+  });
+});
+
+describe("StreamStore.filteredStreams", () => {
+  const streams = {
+    a: {slug: "a", objectId: "iq__a", title: "Alpha", tags: ["x"]},
+    b: {slug: "b", objectId: "iq__b", title: "Beta", tags: ["y"]}
+  };
+
+  it("applies the text filter client-side on the legacy path", () => {
+    const {store} = makeStore({streams});
+    store.rootStore.dataStore.useContentGroup = false;
+    store.SetTableFilter("alph");
+
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["a"]);
+  });
+
+  it("skips the client-side text filter on the content-group path (server-side search)", () => {
+    const {store} = makeStore({streams});
+    store.rootStore.dataStore.useContentGroup = true;
+    store.SetTableFilter("alph");
+
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["a", "b"]);
+  });
 });
 
 describe("StreamStore active-set maintenance", () => {

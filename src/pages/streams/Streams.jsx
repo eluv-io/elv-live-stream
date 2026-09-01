@@ -64,6 +64,20 @@ const Streams = observer(() => {
     await dataStore.LoadStreamList({reload: true});
   }, 500);
 
+  // Content-group tenants search server-side: the search term is sent to the tenant
+  // query as a `name` filter, so a change re-runs the query (debounced).
+  const DebouncedSearchReload = useDebouncedCallback(async() => {
+    await dataStore.LoadStreamList({reload: true});
+  }, 400);
+
+  const OnSearchChange = (event) => {
+    streamStore.SetTableFilter(event.target.value);
+    if(dataStore.useContentGroup) {
+      streamGroupStore.CollapseAllGroups();
+      DebouncedSearchReload();
+    }
+  };
+
   const records = streamStore.filteredStreams.slice().sort(SortTable({sortStatus}));
 
   // Stable position (objectId -> index) over the full, unfiltered sorted list, so a
@@ -188,7 +202,7 @@ const Streams = observer(() => {
           {label: "Refresh", id: "refresh-action", variant: "outline", onClick: DebouncedRefresh}
         ]}
         searchValue={streamStore.tableFilter}
-        onSearchChange={(event) => streamStore.SetTableFilter(event.target.value)}
+        onSearchChange={OnSearchChange}
         tagOptions={streamStore.allTags}
         tagFilter={streamStore.activeTagFilter}
         onTagFilterChange={(tags) => streamStore.SetTableTagFilter(tags)}

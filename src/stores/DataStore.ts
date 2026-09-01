@@ -244,7 +244,8 @@ class DataStore {
       if(this.useContentGroup) {
         // Tenant-wide content-group query. Scoped (streams page) loads one page at a
         // time; LoadMoreStreamList pulls the rest.
-        streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, force: reload, paged: scoped});
+        const nameFilter = scoped ? this.rootStore.streamStore.tableFilter : "";
+        streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, nameFilter, force: reload, paged: scoped});
       } else {
         // Legacy: the site object's registered stream list.
         if(!this.streamMetadata || reload) {

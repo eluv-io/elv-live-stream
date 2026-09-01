@@ -92,6 +92,7 @@ class RootStore {
         this.streamStore.LoadTenantLiveStreamContent({
           siteId: this.dataStore.siteId,
           dateRange: this.dataStore.useDateFilter ? this.streamStore.dateRangeFilter : [null, null],
+          nameFilter: this.streamStore.tableFilter,
           paged: true
         });
       }
