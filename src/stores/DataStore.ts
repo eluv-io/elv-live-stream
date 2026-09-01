@@ -223,7 +223,7 @@ class DataStore {
   // scoped=true applies the streams page's date-range filter to the tenant query.
   // Callers that need the full stream map (Outputs, Monitor, stream mapping) pass
   // scoped=false so the list isn't limited to the currently-selected date range.
-  *LoadSiteStreams({reload=false, scoped=true}: {reload?: boolean, scoped?: boolean} = {}): Generator<any, void> {
+  *LoadStreamList({reload=false, scoped=true}: {reload?: boolean, scoped?: boolean} = {}): Generator<any, void> {
     if(this._loadingStreams && !reload) { return; }
     this._loadingStreams = true;
     this.streamsLoaded = false;
@@ -243,7 +243,7 @@ class DataStore {
       let streamMetadata;
       if(this.useContentGroup) {
         // Tenant-wide content-group query. Scoped (streams page) loads one page at a
-        // time; LoadMoreSiteStreams pulls the rest.
+        // time; LoadMoreStreamList pulls the rest.
         streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, force: reload, paged: scoped});
       } else {
         // Legacy: the site object's registered stream list.
@@ -266,7 +266,7 @@ class DataStore {
     } catch(error) {
       this.streamsLoaded = true;
       // eslint-disable-next-line no-console
-      console.error("Unable to load site streams", error);
+      console.error("Unable to load stream list", error);
     } finally {
       this._loadingStreams = false;
     }
@@ -274,7 +274,7 @@ class DataStore {
 
   // Loads the next page of the paged tenant stream query and appends it to the list.
   // Called when the streams table is scrolled to the bottom.
-  *LoadMoreSiteStreams(): Generator<any, void> {
+  *LoadMoreStreamList(): Generator<any, void> {
     // Bail while the list itself is (re)building - it will replace the list anyway.
     // (streamsLoaded flips true once the list is ready, before the status-polling tail,
     // so this doesn't block on that long-running tail.)

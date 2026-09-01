@@ -56,12 +56,12 @@ const Streams = observer(() => {
     // Reload if nothing is loaded, or if what's loaded is the full (unscoped) set
     // from another page - the streams page needs its date-filtered view.
     if(!dataStore.streamsLoaded || !dataStore.streamsScoped) {
-      dataStore.LoadSiteStreams();
+      dataStore.LoadStreamList();
     }
   }, []);
 
   const DebouncedRefresh = useDebouncedCallback(async() => {
-    await dataStore.LoadSiteStreams({reload: true});
+    await dataStore.LoadStreamList({reload: true});
   }, 500);
 
   const records = streamStore.filteredStreams.slice().sort(SortTable({sortStatus}));
@@ -226,7 +226,7 @@ const Streams = observer(() => {
         onSelectedRecordsChange={setSelectedRecords}
         fetching={!dataStore.streamsLoaded}
         onNameClick={objectId => navigate(`/streams/${objectId}`)}
-        onLoadMore={() => dataStore.LoadMoreSiteStreams()}
+        onLoadMore={() => dataStore.LoadMoreStreamList()}
         hasMore={dataStore.hasMoreStreams}
         loadingMore={dataStore.loadingMoreStreams}
       />

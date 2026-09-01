@@ -6,13 +6,13 @@ An **output** is not itself a live stream — it's a separate fabric object (`li
 
 ```mermaid
 flowchart TD
-    A[Outputs.jsx mounts] --> B["dataStore.LoadSiteStreams (must finish first)"]
+    A[Outputs.jsx mounts] --> B["dataStore.LoadStreamList (must finish first)"]
     B --> C[LoadOutputSettingsId]
     C --> D["resolves outputSettingsId from site's<br/>live_outputs metadata"]
     D --> E["LoadOutputs: client.OutputsList<br/>(replaces outputs map wholesale)"]
 ```
 
-`LoadOutputs` must run **after** `LoadSiteStreams` and never concurrently with output-state polling — `OutputsList`/`OutputsState` temporarily reroute the shared fabric client to a live-egress node; overlapping calls would mis-route each other's reads and 403.
+`LoadOutputs` must run **after** `LoadStreamList` and never concurrently with output-state polling — `OutputsList`/`OutputsState` temporarily reroute the shared fabric client to a live-egress node; overlapping calls would mis-route each other's reads and 403.
 
 ## Creation
 

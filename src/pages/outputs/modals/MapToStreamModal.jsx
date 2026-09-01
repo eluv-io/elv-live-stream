@@ -24,6 +24,8 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
     if(show) { streamStore.LoadAllStreams(); }
   }, [show]);
 
+  const CanMapStream = record => !!record.inputCfg && !!record.packaging?.includes("ts");
+
   const records = Object.values(streamStore.allStreams || {})
     .filter(record => (
       record.title?.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
@@ -96,12 +98,12 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
           <StreamsTable
             records={records}
             fetching={streamStore.loadingAllStreams && records.length === 0}
-            isRecordSelectable={record => !!record.inputCfg}
+            isRecordSelectable={CanMapStream}
             sortStatus={sortStatus}
             onSortStatusChange={setSortStatus}
-            onRowClick={record => { if(record.record.inputCfg) { setSelectedRecords([record]); } }}
+            onRowClick={record => { if(CanMapStream(record.record)) { setSelectedRecords([record]); } }}
             rowStyle={record => {
-              if(!record.inputCfg) { return {opacity: 0.4, cursor: "not-allowed"}; }
+              if(!CanMapStream(record)) { return {opacity: 0.4, cursor: "not-allowed"}; }
               if(selectedRecords?.[0]?.record?.objectId === record.objectId) { return {backgroundColor: "var(--mantine-color-elv-blue-0)"}; }
             }}
             showActions={false}

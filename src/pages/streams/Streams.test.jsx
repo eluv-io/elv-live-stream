@@ -16,7 +16,7 @@ const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } =
     mockStreamGroupStore: { groups: {}, LoadGroupData: vi.fn() },
     mockDataStore: {
       streamsLoaded: true,
-      LoadSiteStreams: vi.fn(),
+      LoadStreamList: vi.fn(),
       LoadStreamUrls: vi.fn().mockResolvedValue([]),
       loadedDedicatedNodes: true,
       LoadDedicatedNodes: vi.fn().mockResolvedValue([]),
@@ -78,12 +78,12 @@ describe("Streams Dashboard Component", () => {
     mockStreamStore.tableFilter = "";
   });
 
-  it("should trigger LoadSiteStreams on mount if streams are not loaded", () => {
+  it("should trigger LoadStreamList on mount if streams are not loaded", () => {
     mockDataStore.streamsLoaded = false;
 
     renderWithProviders(<Streams />);
 
-    expect(mockDataStore.LoadSiteStreams).toHaveBeenCalledTimes(1);
+    expect(mockDataStore.LoadStreamList).toHaveBeenCalledTimes(1);
   });
 
   it("should display the records passed from the stream store", async () => {

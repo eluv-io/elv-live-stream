@@ -228,7 +228,7 @@ const Monitor = observer(() => {
   useEffect(() => {
     // Monitor needs every stream, not just the streams page's date-filtered set.
     if(!dataStore.streamsLoaded || dataStore.streamsScoped) {
-      dataStore.LoadSiteStreams({scoped: false});
+      dataStore.LoadStreamList({scoped: false});
     }
   }, []);
 
