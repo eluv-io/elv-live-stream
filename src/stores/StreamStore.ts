@@ -174,6 +174,15 @@ const TENANT_CONTENT_PAGE_SIZE = 100;
 // TenantContent must be served by this fabric node - the client is pinned to it
 // per query and the region is reset afterward.
 const TENANT_CONTENT_NODE_URI = "https://host-154-14-243-34.contentfabric.io";
+// Meta paths needed to build StreamInfo from a tenant query version without a per-object fetch.
+const TENANT_CONTENT_SELECT = [
+  "public/name",
+  "public/asset_metadata/display_title",
+  "public/asset_metadata/tags",
+  "live_recording/recording_config/recording_params/xc_params/input_cfg",
+  "live_recording_config/url",
+  "live_recording_config/recording_config/input_cfg"
+];
 
 // All DRM schemes we ask PlayoutOptions about, so the response carries every
 // available protocol/method the stream offers.
@@ -1098,14 +1107,7 @@ class StreamStore {
           filter,
           start,
           limit: TENANT_CONTENT_PAGE_SIZE,
-          select: [
-            "public/name",
-            "public/asset_metadata/display_title",
-            "public/asset_metadata/tags",
-            "live_recording/recording_config/recording_params/xc_params/input_cfg",
-            "live_recording_config/url",
-            "live_recording_config/recording_config/input_cfg"
-          ]
+          select: TENANT_CONTENT_SELECT
         });
 
         const received = (page ?? []).length;
@@ -1159,7 +1161,8 @@ class StreamStore {
       const {versions, paging} = yield this._TenantContent({
         filter,
         start,
-        limit: TENANT_CONTENT_PAGE_SIZE
+        limit: TENANT_CONTENT_PAGE_SIZE,
+        select: TENANT_CONTENT_SELECT
       });
 
       // The date filter changed (or the query restarted) while this page was in
