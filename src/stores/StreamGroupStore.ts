@@ -115,7 +115,7 @@ class StreamGroupStore {
 
   *CreateStreamGroup({libraryId, name}): Generator<any, void> {
     try {
-      const { objectId: groupId, writeToken } = yield this.client.CreateContentFolder({
+      const { objectId: groupId, writeToken } = yield this.client.CreateContentGroup({
         libraryId,
         name,
         tags: ["live-stream"],
@@ -136,8 +136,10 @@ class StreamGroupStore {
 
   *ListGroups(): Generator<any, any> {
     try {
+      // CreateContentGroup no longer applies the elv:folder tag - match on the
+      // "live-stream" tag this store attaches to every group it creates instead.
       return yield this.client.TenantContent({
-        filter: ["tags:co:elv:folder"],
+        filter: ["tags:co:live-stream"],
         select: ["public/name", "public/asset_metadata/display_title"],
         start: 0,
         limit: 100
@@ -154,7 +156,7 @@ class StreamGroupStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      return yield this.client.ContentObjectFolders({
+      return yield this.client.ContentObjectGroups({
         libraryId,
         objectId
       });
@@ -164,15 +166,11 @@ class StreamGroupStore {
     }
   }
 
-  *GroupTagsAndFields({libraryId, objectId}): Generator<any, {tags: any, fields: any} | undefined> {
+  *GroupTagsAndFields({objectId}): Generator<any, {tags: any, fields: any} | undefined> {
     try {
-      if(!libraryId) {
-        libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      }
-
       const [tags, fields] = yield Promise.all([
-        this.client.ContentTags({libraryId, objectId}),
-        this.client.ContentQueryFields({libraryId, objectId})
+        this.client.ContentObjectTags({objectId}),
+        this.client.ContentObjectQueryFields({objectId})
       ]);
 
       return {tags, fields};
@@ -193,10 +191,10 @@ class StreamGroupStore {
         objectId
       });
 
-      yield this.client.AddContentObjectFolders({
+      yield this.client.AddContentObjectGroups({
         libraryId,
         writeToken,
-        groupIds: [groupId]
+        groups: [groupId]
       });
 
       yield this.client.FinalizeContentObject({
