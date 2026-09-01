@@ -94,6 +94,7 @@ vi.mock("@/stores/index.ts", () => ({
   },
   outputStore: {
     state: "pending",
+    outputSettingsId: "iq__output-settings",
     outputList: [],
     tableFilter: "",
     tableTagFilter: [],
@@ -175,6 +176,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 
   outputStore.state = "pending";
+  outputStore.outputSettingsId = "iq__output-settings";
   outputStore.outputList = [];
   outputStore.tableFilter = "";
   outputStore.tableTagFilter = [];
@@ -252,6 +254,28 @@ describe("Outputs — error state", () => {
     ).toBeInTheDocument();
     expect(outputStore.LoadOutputs).toHaveBeenCalledTimes(1);
     expect(outputStore.state).toBe("error");
+  });
+
+  it("should show an error banner when no output settings object exists after loading", async () => {
+    outputStore.state = "error";
+    outputStore.outputSettingsId = "";
+
+    renderOutputs();
+
+    expect(
+      await screen.findByText(/outputs are not set up for this tenant/i)
+    ).toBeInTheDocument();
+  });
+
+  it("should NOT show the error banner while outputs are still loading (pending)", () => {
+    outputStore.state = "pending";
+    outputStore.outputSettingsId = "";
+
+    renderOutputs();
+
+    expect(
+      screen.queryByText(/outputs are not set up for this tenant/i)
+    ).not.toBeInTheDocument();
   });
 
   it("should render an empty table without crashing when outputList is empty", () => {

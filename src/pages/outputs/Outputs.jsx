@@ -2,6 +2,7 @@ import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {
   ActionIcon,
+  Alert,
   Badge,
   Box,
   Divider,
@@ -16,6 +17,7 @@ import {dataStore, outputModalStore, outputStore, rootStore} from "@/stores/inde
 import {DataTable} from "mantine-datatable";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {
+  IconAlertTriangle,
   IconCancel,
   IconCheck,
   IconCopy,
@@ -87,6 +89,8 @@ const Outputs = observer(() => {
   const noSelectedRecords = selectedRecords.length === 0;
   const slugs = () => selectedRecords.map(r => r.slug);
 
+  const missingSettings = !loading && outputStore.state !== "pending" && !outputStore.outputSettingsId;
+
   const actions = [
     {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => outputModalStore.OpenModal("map", slugs()), disabled: noSelectedRecords},
     {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => outputModalStore.OpenModal("unmap", slugs()), disabled: noSelectedRecords},
@@ -102,6 +106,18 @@ const Outputs = observer(() => {
       <PageContainer
         title="Outputs"
       >
+        {
+          missingSettings &&
+          <Alert
+            variant="light"
+            color="yellow"
+            icon={<IconAlertTriangle />}
+            title="Outputs are not set up for this tenant"
+            mb={16}
+          >
+            No output settings object is configured for this site. Outputs cannot be loaded or created until one is set up.
+          </Alert>
+        }
         <Stack gap={0}>
           <Actions
             actions={[
