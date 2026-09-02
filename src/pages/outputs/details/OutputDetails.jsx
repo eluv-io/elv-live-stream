@@ -54,6 +54,19 @@ const InputStatRows = (data) => {
   ];
 };
 
+// Rows for the Summary "Failover" card. Values come off output.state (the
+// live/outputs/<id>/state bitcode response); these are placeholders.
+// TODO(failover): wire to the real output.state fields.
+const FailoverIncidentRows = (output) => {
+  const incidents = output?.state?.failover;
+  return [
+    {label: "Last Failover", value: incidents?.last_failover ? DateFormat({time: incidents.last_failover, format: "iso"}) : ""},
+    {label: "Reconnect", value: incidents?.reconnect === undefined ? "" : incidents.reconnect ? "On" : "Off"},
+    {label: "No. Switches", value: incidents?.num_switches ?? ""},
+    {label: "Reason", value: incidents?.reason ?? ""}
+  ];
+};
+
 export const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
@@ -63,6 +76,12 @@ export const SummaryPanel = observer(({output, url, id}) => {
   const streamUnavailable = output?.input?.status === STATUS_MAP.UNAVAILABLE;
   const failover = output?.input?.failover;
   const failoverStream = failover?.input?.stream;
+  // Show the section only on an actual reported incident, not just a configured
+  // failover stream.
+  const failoverIncidents = output?.state?.failover;
+  const hasFailoverIncidents = Boolean(
+    failoverIncidents && (failoverIncidents.last_failover || failoverIncidents.num_switches)
+  );
 
   return (
     <Box pt={16}>
@@ -156,6 +175,18 @@ export const SummaryPanel = observer(({output, url, id}) => {
           </Tooltip>
         </Group>
       <TextInput value={url ?? ""} readOnly />
+
+      {
+        hasFailoverIncidents &&
+        <>
+          <SectionTitle mb={12}>Failover Incidents</SectionTitle>
+          <DetailCard
+            mb={36}
+            title="Failover"
+            data={FailoverIncidentRows(output)}
+          />
+        </>
+      }
 
       {
         output?.state?.clients?.map((client, i) => (
