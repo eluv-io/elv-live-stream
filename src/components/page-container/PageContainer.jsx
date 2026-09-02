@@ -75,7 +75,7 @@ const TopActions = ({showSearchBar, actions=[]}) => {
   );
 };
 
-const TitleSection = ({title, subtitle, subtitleRightSection, rightSection, leftSection, mb}) => {
+const TitleSection = ({title, titleBadge, subtitle, subtitleRightSection, rightSection, leftSection, mb}) => {
   return (
     <Flex direction="column" gap={6} mb={mb}>
       <Group justify="space-between" wrap="nowrap" w="100%">
@@ -86,6 +86,9 @@ const TitleSection = ({title, subtitle, subtitleRightSection, rightSection, left
           <Title order={1} c="elv-gray.9">
             { title }
           </Title>
+          {
+            titleBadge ? titleBadge : null
+          }
         </Group>
         {
           rightSection ? rightSection : null
@@ -117,6 +120,7 @@ const PageContainer = ({
   actions=[],
   titleRightSection,
   titleLeftSection,
+  titleBadge,
   mb=20,
   p="24px 24px 46px",
   ...rest
@@ -134,6 +138,7 @@ const PageContainer = ({
         title &&
         <TitleSection
           title={title}
+          titleBadge={titleBadge}
           leftSection={titleLeftSection}
           subtitle={subtitle}
           subtitleRightSection={subtitleRightSection}

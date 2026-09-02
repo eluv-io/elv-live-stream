@@ -568,6 +568,14 @@ const OutputDetails = observer(() => {
   return (
     <PageContainer
       title={outputStore?.outputs?.[id]?.name ?? ""}
+      titleBadge={
+        <LabeledIndicator
+          label={output?.enabled ? "Enabled" : "Disabled"}
+          color={output?.enabled ? "elv-green.5" : "elv-red.4"}
+          size="md"
+          withBorder
+        />
+      }
       subtitle={id}
       subtitleRightSection={
         subtitleItems.length > 0 &&
@@ -587,14 +595,6 @@ const OutputDetails = observer(() => {
         </Group>
       }
       actions={actions}
-      titleRightSection={
-        <LabeledIndicator
-          label={output?.enabled ? "Enabled" : "Disabled"}
-          color={output?.enabled ? "elv-green.5" : "elv-red.4"}
-          size="md"
-          withBorder
-        />
-      }
     >
       {/* keepMountedMode="display-none": avoids Mantine's default Activity-based
           unmount on tab switch, which would wipe OutputPanels' outputSaveStore

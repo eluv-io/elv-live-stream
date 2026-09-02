@@ -185,7 +185,15 @@ const StreamDetailsPage = observer(() => {
 
   return (
     <PageContainer
-      title={`${streamStore.streams?.[streamSlug]?.title || stream.objectId}`}
+      title={streamStore.streams?.[streamSlug]?.title || stream.objectId}
+      titleBadge={
+        <StatusIndicator
+          status={stream.status}
+          showWarning={streamStore.streams?.[streamSlug]?.quality && streamStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
+          size="md"
+          withBorder
+        />
+      }
       subtitle={stream.objectId}
       subtitleRightSection={
         <ActionIcon
@@ -202,14 +210,6 @@ const StreamDetailsPage = observer(() => {
         >
           <IconExternalLink />
         </ActionIcon>
-      }
-      titleRightSection={
-        <StatusIndicator
-          status={stream.status}
-          showWarning={streamStore.streams?.[streamSlug]?.quality && streamStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
-          size="md"
-          withBorder
-        />
       }
       actions={actions}
     >
