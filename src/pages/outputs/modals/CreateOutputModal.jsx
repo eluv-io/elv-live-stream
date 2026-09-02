@@ -240,14 +240,6 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
               </Stack>
             </Stack>
           </Collapse>
-
-          <Stack gap={12}>
-            <Input.Label>Input Failover</Input.Label>
-            <Text fz="0.875rem" c="dimmed">
-              Available after the output is created and a primary stream is mapped.
-              Configure it from the output&apos;s General Config tab.
-            </Text>
-          </Stack>
         </Stack>
         <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
           <Button type="submit" loading={isSaving} disabled={isSaving}>Create</Button>

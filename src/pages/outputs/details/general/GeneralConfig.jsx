@@ -22,6 +22,7 @@ import {IconArrowsShuffle, IconPlus, IconTrash} from "@tabler/icons-react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import SelectFailoverStreamModal from "@/pages/outputs/modals/SelectFailoverStreamModal.jsx";
+import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {dataStore, streamStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS, FAILOVER_TIMEOUT_OPTIONS, SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
 import {OutputUrlProtocol, SanitizeUrl} from "@/utils/helpers.ts";
@@ -232,81 +233,86 @@ const GeneralConfig = observer(({form, output}) => {
         <Divider mb={20} mt={30} />
 
         <SectionTitle mb={12}>Input Failover</SectionTitle>
-        {
-          !hasPrimary ?
-            <Text fz="0.875rem" c="dimmed">Map a primary stream first to configure input failover.</Text> :
-            <Stack gap={20}>
-              {
-                failoverStream ?
-                  <Box>
-                    <Group wrap="nowrap">
-                      <Text fz={16} fw={600} lh={1.5} c="elv-black.3">Failover Stream</Text>
-                      <Group ml="auto">
-                        <Tooltip label="Change Failover Stream" position="bottom">
-                          <ActionIcon
-                            aria-label="Change failover stream"
-                            variant="transparent"
-                            c="elv-gray.6"
-                            size={24}
-                            onClick={() => setShowFailoverModal(true)}
-                          >
-                            <IconArrowsShuffle size={24} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Remove Failover Stream" position="bottom">
-                          <ActionIcon
-                            aria-label="Remove failover stream"
-                            variant="transparent"
-                            c="elv-gray.6"
-                            size={24}
-                            onClick={ClearFailoverStream}
-                          >
-                            <IconTrash size={24} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
+        {/* Whole section is disabled until a primary stream is mapped. */}
+        <DisabledTooltipWrapper
+          disabled={!hasPrimary}
+          tooltipLabel="A primary stream must be configured before setting input failover"
+        >
+          <Stack gap={20}>
+            {
+              failoverStream ?
+                <Box>
+                  <Group wrap="nowrap">
+                    <Text fz={16} fw={600} lh={1.5} c="elv-black.3">Failover Stream</Text>
+                    <Group ml="auto">
+                      <Tooltip label="Change Failover Stream" position="bottom">
+                        <ActionIcon
+                          aria-label="Change failover stream"
+                          variant="transparent"
+                          c="elv-gray.6"
+                          size={24}
+                          disabled={!hasPrimary}
+                          onClick={() => setShowFailoverModal(true)}
+                        >
+                          <IconArrowsShuffle size={24} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label="Remove Failover Stream" position="bottom">
+                        <ActionIcon
+                          aria-label="Remove failover stream"
+                          variant="transparent"
+                          c="elv-gray.6"
+                          size={24}
+                          disabled={!hasPrimary}
+                          onClick={ClearFailoverStream}
+                        >
+                          <IconTrash size={24} />
+                        </ActionIcon>
+                      </Tooltip>
                     </Group>
-                    {
-                      failoverRecord ?
-                        <FailoverStreamRow record={failoverRecord} /> :
-                        <Text fz="0.875rem" c="dimmed" mt={8}>{failoverStreamName || failoverStream}</Text>
-                    }
-                  </Box> :
-                  <Box>
-                    <Input.Label>Failover Stream</Input.Label>
-                    <Box mt={4}>
-                      <Button
-                        variant="outline"
-                        leftSection={<IconPlus size={16} />}
-                        onClick={() => setShowFailoverModal(true)}
-                      >
-                        Add Failover Stream
-                      </Button>
-                    </Box>
+                  </Group>
+                  {
+                    failoverRecord ?
+                      <FailoverStreamRow record={failoverRecord} /> :
+                      <Text fz="0.875rem" c="dimmed" mt={8}>{failoverStreamName || failoverStream}</Text>
+                  }
+                </Box> :
+                <Box>
+                  <Input.Label>Failover Stream</Input.Label>
+                  <Box mt={4}>
+                    <Button
+                      variant="outline"
+                      leftSection={<IconPlus size={16} />}
+                      disabled={!hasPrimary}
+                      onClick={() => setShowFailoverModal(true)}
+                    >
+                      Add Failover Stream
+                    </Button>
                   </Box>
-              }
-              <SimpleGrid cols={2} spacing={150}>
-                <Select
-                  label="Failover Timeout"
-                  description="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
-                  data={FAILOVER_TIMEOUT_OPTIONS}
-                  allowDeselect={false}
-                  disabled={!failoverStream}
-                  key={form.key("failoverAfter")}
-                  {...form.getInputProps("failoverAfter")}
-                />
-                <Select
-                  label="Reconnect"
-                  description="The stream will become active and connect after timeout."
-                  data={[{label: "On", value: "on"}, {label: "Off", value: "off"}]}
-                  allowDeselect={false}
-                  disabled={!failoverStream}
-                  key={form.key("failoverReconnect")}
-                  {...form.getInputProps("failoverReconnect")}
-                />
-              </SimpleGrid>
-            </Stack>
-        }
+                </Box>
+            }
+            <SimpleGrid cols={2} spacing={150}>
+              <Select
+                label="Failover Timeout"
+                description="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
+                data={FAILOVER_TIMEOUT_OPTIONS}
+                allowDeselect={false}
+                disabled={!hasPrimary || !failoverStream}
+                key={form.key("failoverAfter")}
+                {...form.getInputProps("failoverAfter")}
+              />
+              <Select
+                label="Reconnect"
+                description="The stream will become active and connect after timeout."
+                data={[{label: "On", value: "on"}, {label: "Off", value: "off"}]}
+                allowDeselect={false}
+                disabled={!hasPrimary || !failoverStream}
+                key={form.key("failoverReconnect")}
+                {...form.getInputProps("failoverReconnect")}
+              />
+            </SimpleGrid>
+          </Stack>
+        </DisabledTooltipWrapper>
 
         <SelectFailoverStreamModal
           show={showFailoverModal}

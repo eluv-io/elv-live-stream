@@ -825,7 +825,48 @@ describe("CreateOutput", () => {
 // Batch flows
 // ---------------------------------------------------------------------------
 
+describe("MapStream", () => {
+  it("should drop any existing failover block when the primary is remapped", async () => {
+    const {store, mockClient} = makeStore({
+      ContentObjectMetadata: vi.fn().mockResolvedValue({
+        name: "Out",
+        enabled: true,
+        input: {
+          stream: "iq__old",
+          failover: {after: "5s", disconnect_outputs: true, input: {stream: "iq__failover"}}
+        }
+      })
+    });
+    store.outputs = {"out-1": {name: "Out", input: {stream: "iq__old", failover: {after: "5s", name: "Failover", input: {stream: "iq__failover"}}}}};
+
+    await store.MapStream({outputId: "out-1", streamObjectId: "iq__new"});
+
+    const {output} = mockClient.OutputsModify.mock.calls[0][0];
+    expect(output.input.stream).toBe("iq__new");
+    expect(output.input.failover).toBeUndefined();
+    expect(store.outputs["out-1"].input.failover).toBeUndefined();
+  });
+});
+
 describe("MapStreamBatch", () => {
+  it("should drop any existing failover block when the primary is remapped", async () => {
+    const {store, mockClient} = makeStore({
+      ContentObjectMetadata: vi.fn().mockResolvedValue({
+        name: "Out",
+        enabled: true,
+        input: {stream: "iq__old", failover: {after: "5s", input: {stream: "iq__failover"}}}
+      })
+    });
+    store.outputs = {"out-1": {name: "Out", input: {stream: "iq__old", failover: {after: "5s", input: {stream: "iq__failover"}}}}};
+
+    await store.MapStreamBatch({outputs: ["out-1"], streamObjectId: "iq__new"});
+
+    const batchArg = mockClient.OutputsModifyBatch.mock.calls[0][0];
+    expect(batchArg.outputs["out-1"].input.stream).toBe("iq__new");
+    expect(batchArg.outputs["out-1"].input.failover).toBeUndefined();
+    expect(store.outputs["out-1"].input.failover).toBeUndefined();
+  });
+
   it("should call OutputsModifyBatch with a map of updated outputs", async () => {
     const {store, mockClient} = makeStore({
       ContentObjectMetadata: vi.fn()

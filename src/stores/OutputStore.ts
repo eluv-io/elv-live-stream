@@ -571,11 +571,16 @@ class OutputStore {
         metadataSubtree: `live_outputs/${outputId}`
       }) || {};
 
+      // A failover config is tied to the primary it fails away from - drop it
+      // whenever the primary is (re)mapped.
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {failover: _failover, ...existingInput} = existing.input || {};
+
       const updatedOutput = {
         ...existing,
         enabled: !existing.input?.stream ? true : existing.enabled,
         input: {
-          ...(existing.input || {}),
+          ...existingInput,
           stream: streamObjectId
         }
       };
@@ -590,12 +595,15 @@ class OutputStore {
       const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
         .find(s => s.objectId === streamObjectId);
 
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {failover: _localFailover, ...localInput} = this.outputs[outputId]?.input || {};
+
       this.UpdateOutput({
         slug: outputId,
         updates: {
           enabled: !existing.input?.stream ? true : existing.enabled,
           input: {
-            ...(this.outputs[outputId]?.input || {}),
+            ...localInput,
             stream: streamObjectId,
             name: stream?.title,
             status: stream?.status
@@ -622,13 +630,18 @@ class OutputStore {
             metadataSubtree: `live_outputs/${outputId}`
           }) || {};
 
+          // A failover config is tied to the primary it fails away from - drop
+          // it whenever the primary is (re)mapped.
+          // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+          const {failover: _failover, ...existingInput} = existing.input || {};
+
           return {
             outputId,
             output: {
               ...existing,
               enabled: !existing.input?.stream ? true : existing.enabled,
               input: {
-                ...(existing.input || {}),
+                ...existingInput,
                 stream: streamObjectId
               }
             }
@@ -650,12 +663,15 @@ class OutputStore {
         .find(s => s.objectId === streamObjectId);
 
       Object.entries(outputsMap).forEach(([outputId, output]) => {
+        // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+        const {failover: _localFailover, ...localInput} = this.outputs[outputId]?.input || {};
+
         this.UpdateOutput({
           slug: outputId,
           updates: {
             enabled: output.enabled,
             input: {
-              ...(this.outputs[outputId]?.input || {}),
+              ...localInput,
               stream: streamObjectId,
               name: stream?.title,
               status: stream?.status

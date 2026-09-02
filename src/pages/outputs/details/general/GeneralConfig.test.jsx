@@ -66,19 +66,19 @@ beforeEach(() => {
 });
 
 describe("GeneralConfig - Input Failover section", () => {
-  it("should disable the section with a note when no primary stream is mapped", () => {
+  it("should disable the whole section when no primary stream is mapped", () => {
     renderConfig({output: {input: {}}});
 
     expect(screen.getByText("Input Failover")).toBeInTheDocument();
-    expect(screen.getByText(/map a primary stream first/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", {name: /add failover stream/i})).not.toBeInTheDocument();
+    expect(screen.getByRole("button", {name: /add failover stream/i})).toBeDisabled();
+    expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).toBeDisabled();
+    expect(screen.getByLabelText("Reconnect", {selector: "input"})).toBeDisabled();
   });
 
-  it("should show the Add Failover Stream button when a primary is mapped and no failover is set", () => {
+  it("should enable the Add Failover Stream button when a primary is mapped and no failover is set", () => {
     renderConfig({output: makeOutput()});
 
-    expect(screen.getByRole("button", {name: /add failover stream/i})).toBeInTheDocument();
-    expect(screen.queryByText(/map a primary stream first/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", {name: /add failover stream/i})).toBeEnabled();
   });
 
   it("should disable Timeout and Reconnect until a failover stream is chosen", () => {

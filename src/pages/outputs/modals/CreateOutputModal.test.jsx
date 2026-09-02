@@ -20,19 +20,12 @@ const renderModal = () =>
     </MantineProvider>
   );
 
-describe("CreateOutputModal - Input Failover", () => {
-  it("should show the failover section as a create-time-unavailable note", () => {
+describe("CreateOutputModal", () => {
+  it("should render the create form with a Create button", () => {
     renderModal();
 
-    expect(screen.getByText("Input Failover")).toBeInTheDocument();
-    expect(
-      screen.getByText(/available after the output is created and a primary stream is mapped/i)
-    ).toBeInTheDocument();
-  });
-
-  it("should not render a failover stream picker in the create modal", () => {
-    renderModal();
-
-    expect(screen.queryByRole("button", {name: /add failover stream/i})).not.toBeInTheDocument();
+    expect(screen.getByText("Create New Output")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", {name: "Name"})).toBeInTheDocument();
+    expect(screen.getByRole("button", {name: "Create"})).toBeInTheDocument();
   });
 });
