@@ -1450,7 +1450,7 @@ class StreamStore {
   /**
    * Build the output URLs for one stream: the embeddable URL, the offering options
    * URL, and one playout URL per available protocol/DRM method (e.g. "HLS Clear",
-   * "Dash Widevine"). Each playoutUrl carries its own auth token.
+   * "Dash Widevine"). All playout URLs carry the same week-long signed token.
    */
   *BuildStreamOutputUrls(objectId: string): Generator<any, StreamOutputUrls> {
     const result: StreamOutputUrls = {playoutMethods: []};
@@ -1460,6 +1460,23 @@ class StreamStore {
     const anonymousToken = this.client.utils.B64(
       JSON.stringify({qspace_id: this.rootStore.contentSpaceId})
     );
+
+    let signedToken;
+    try {
+      signedToken = yield this.client.CreateSignedToken({
+        objectId,
+        subject: "elv-lsm",
+        duration: 7 * 86400000 // 1 week
+      });
+    } catch(error) {
+
+      console.error(`Unable to create signed token for ${objectId}`, error);
+    }
+
+    // Swap channel auth for the signed token when we have one
+    const authArgs = signedToken ?
+      {noAuth: true, queryParams: {authorization: signedToken}} :
+      {channelAuth: true};
 
     try {
       result.embedUrl = yield this.EmbedUrl({objectId});
@@ -1475,7 +1492,7 @@ class StreamStore {
         libraryId,
         objectId,
         rep: "playout/default/options.json",
-        channelAuth: true
+        ...authArgs
       });
       result.playoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, versionHash});
       result.publicPlayoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, versionHash, dropAuthorization: true});
@@ -1530,7 +1547,7 @@ class StreamStore {
           libraryId,
           objectId,
           rep: `playout/default/${format}/${manifest}`,
-          channelAuth: true
+          ...authArgs
         });
       } catch(error) {
 
