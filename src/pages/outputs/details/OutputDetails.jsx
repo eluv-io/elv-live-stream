@@ -270,11 +270,11 @@ const OutputPanels = observer(({output, id, url}) => {
       encryption: output?.[initialType]?.connection?.enforced_encryption,
       stripRtp: output?.[initialType]?.strip_rtp,
       passphrase: output?.[initialType]?.passphrase,
-      // Input failover. "Reconnect" is inverted disconnect_outputs.
+      // Input failover. "Reset Clients" maps directly to disconnect_outputs.
       failoverStream: output?.input?.failover?.input?.stream ?? "",
       failoverStreamName: output?.input?.failover?.name ?? "",
       failoverAfter: output?.input?.failover?.after ?? FAILOVER_TIMEOUT_OPTIONS[0].value,
-      failoverReconnect: output?.input?.failover?.disconnect_outputs ? "off" : "on"
+      failoverResetClients: output?.input?.failover?.disconnect_outputs ? "on" : "off"
       // tags: output?.tags || []
     },
     validate: {
@@ -328,7 +328,7 @@ const OutputPanels = observer(({output, id, url}) => {
       url: isPush ? url : undefined,
       failoverStream: hasPrimary ? values.failoverStream : undefined,
       failoverAfter: values.failoverAfter,
-      failoverReconnect: values.failoverReconnect === "on"
+      failoverResetClients: values.failoverResetClients === "on"
       // tags
     });
 

@@ -46,7 +46,7 @@ const ConfigHarness = ({output, initialValues}) => {
     initialValues: {
       name: "", type: "srt_pull", nodeType: "public", node: "", geo: "", url: "",
       encryption: false, stripRtp: false, passphrase: "",
-      failoverStream: "", failoverStreamName: "", failoverAfter: "5s", failoverReconnect: "on",
+      failoverStream: "", failoverStreamName: "", failoverAfter: "5s", failoverResetClients: "off",
       ...initialValues
     }
   });
@@ -72,7 +72,7 @@ describe("GeneralConfig - Input Failover section", () => {
     expect(screen.getByText("Input Failover")).toBeInTheDocument();
     expect(screen.getByRole("button", {name: /add failover stream/i})).toBeDisabled();
     expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).toBeDisabled();
-    expect(screen.getByLabelText("Reconnect", {selector: "input"})).toBeDisabled();
+    expect(screen.getByLabelText("Reset Clients", {selector: "input"})).toBeDisabled();
   });
 
   it("should enable the Add Failover Stream button when a primary is mapped and no failover is set", () => {
@@ -81,11 +81,11 @@ describe("GeneralConfig - Input Failover section", () => {
     expect(screen.getByRole("button", {name: /add failover stream/i})).toBeEnabled();
   });
 
-  it("should disable Timeout and Reconnect until a failover stream is chosen", () => {
+  it("should disable Timeout and Reset Clients until a failover stream is chosen", () => {
     renderConfig({output: makeOutput()});
 
     expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).toBeDisabled();
-    expect(screen.getByLabelText("Reconnect", {selector: "input"})).toBeDisabled();
+    expect(screen.getByLabelText("Reset Clients", {selector: "input"})).toBeDisabled();
   });
 
   it("should render the chosen stream as a row and load the stream set", () => {
@@ -103,7 +103,7 @@ describe("GeneralConfig - Input Failover section", () => {
     expect(streamStore.LoadAllStreams).toHaveBeenCalled();
   });
 
-  it("should enable Timeout and Reconnect and show Change once a stream is set", () => {
+  it("should enable Timeout and Reset Clients and show Change once a stream is set", () => {
     renderConfig({
       output: makeOutput(),
       initialValues: {failoverStream: "iq__failover", failoverStreamName: "Backup Stream"}
@@ -111,7 +111,7 @@ describe("GeneralConfig - Input Failover section", () => {
 
     expect(screen.getByRole("button", {name: /change failover stream/i})).toBeInTheDocument();
     expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).not.toBeDisabled();
-    expect(screen.getByLabelText("Reconnect", {selector: "input"})).not.toBeDisabled();
+    expect(screen.getByLabelText("Reset Clients", {selector: "input"})).not.toBeDisabled();
   });
 
   it("should clear the failover stream when the remove control is clicked", async () => {

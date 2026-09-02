@@ -1088,26 +1088,26 @@ describe("ModifyOutput — input failover", () => {
       outputId: "out-1",
       failoverStream: "iq__failover",
       failoverAfter: "10s",
-      failoverReconnect: true
+      failoverResetClients: false
     });
 
     const {input} = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(input.failover).toEqual({
       after: "10s",
-      disconnect_outputs: false, // reconnect on => not disconnected
+      disconnect_outputs: false, // reset clients off => clients stay connected
       input: {stream: "iq__failover"}
     });
     expect(input.stream).toBe("iq__primary");
   });
 
-  it("should set disconnect_outputs true when reconnect is off", async () => {
+  it("should set disconnect_outputs true when reset clients is on", async () => {
     const {store, mockClient} = makeModifyStore(baseExisting);
 
     await store.ModifyOutput({
       outputId: "out-1",
       failoverStream: "iq__failover",
       failoverAfter: "5s",
-      failoverReconnect: false
+      failoverResetClients: true
     });
 
     expect(mockClient.OutputsModify.mock.calls[0][0].output.input.failover.disconnect_outputs).toBe(true);
@@ -1120,7 +1120,7 @@ describe("ModifyOutput — input failover", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", failoverStream: "", failoverReconnect: true});
+    await store.ModifyOutput({outputId: "out-1", failoverStream: "", failoverResetClients: false});
 
     expect(mockClient.OutputsModify.mock.calls[0][0].output.input.failover).toBeNull();
   });

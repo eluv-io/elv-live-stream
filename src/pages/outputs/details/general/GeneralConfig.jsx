@@ -233,7 +233,6 @@ const GeneralConfig = observer(({form, output}) => {
         <Divider mb={20} mt={30} />
 
         <SectionTitle mb={12}>Input Failover</SectionTitle>
-        {/* Whole section is disabled until a primary stream is mapped. */}
         <DisabledTooltipWrapper
           disabled={!hasPrimary}
           tooltipLabel="A primary stream must be configured before setting input failover"
@@ -302,13 +301,13 @@ const GeneralConfig = observer(({form, output}) => {
                 {...form.getInputProps("failoverAfter")}
               />
               <Select
-                label="Reconnect"
-                description="The stream will become active and connect after timeout."
+                label="Reset Clients"
+                description="All client sessions will be reset on failover."
                 data={[{label: "On", value: "on"}, {label: "Off", value: "off"}]}
                 allowDeselect={false}
                 disabled={!hasPrimary || !failoverStream}
-                key={form.key("failoverReconnect")}
-                {...form.getInputProps("failoverReconnect")}
+                key={form.key("failoverResetClients")}
+                {...form.getInputProps("failoverResetClients")}
               />
             </SimpleGrid>
           </Stack>

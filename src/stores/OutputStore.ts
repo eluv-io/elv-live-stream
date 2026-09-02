@@ -769,9 +769,9 @@ class OutputStore {
     url,
     failoverStream,
     failoverAfter,
-    failoverReconnect,
+    failoverResetClients,
     // tags
-  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverReconnect?: boolean, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -782,10 +782,10 @@ class OutputStore {
 
       // Input failover. Only touched when the caller passes failoverStream;
       // otherwise the existing block round-trips untouched. "" clears it (sent as
-      // explicit null). "Reconnect on" => disconnect_outputs false.
+      // explicit null). "Reset Clients on" => disconnect_outputs true.
       if(failoverStream !== undefined) {
         cleanInput.failover = failoverStream
-          ? {after: failoverAfter, disconnect_outputs: !failoverReconnect, input: {stream: failoverStream}}
+          ? {after: failoverAfter, disconnect_outputs: Boolean(failoverResetClients), input: {stream: failoverStream}}
           : null;
       } else if(cleanInput.failover) {
         // Drop client-resolved display fields before the fabric write.
