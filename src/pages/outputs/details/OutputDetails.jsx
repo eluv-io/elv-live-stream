@@ -57,6 +57,14 @@ const InputStatRows = (data) => {
 // Live failover state, off output.state (live/outputs/<id>/state, verbatim).
 const FailoverState = (output) => output?.state?.failover;
 
+// Badge marking whichever input card (Primary or Failover) is the one currently
+// feeding the output, per output.state.failover.active_stream.
+const ConnectedBadge = () => (
+  <Badge radius={4} bg="elv-green.1" c="elv-green.9" tt="uppercase" fz={12} fw={600}>
+    Connected
+  </Badge>
+);
+
 // Read-only summary of the most recent failover incident (no hop-by-hop chain).
 const FailoverIncidentRows = (failoverState) => {
   return [
@@ -83,6 +91,10 @@ export const SummaryPanel = observer(({output, url, id}) => {
   const hasFailoverIncidents = Boolean(
     failoverState && (failoverState.last_failover_at || failoverState.failover_count)
   );
+  // Which input is actively feeding the output right now.
+  const activeStream = failoverState?.active_stream;
+  const primaryConnected = Boolean(activeStream) && activeStream === output?.input?.stream;
+  const failoverConnected = Boolean(activeStream) && activeStream === failoverStream;
 
   return (
     <Box pt={16}>
@@ -117,6 +129,7 @@ export const SummaryPanel = observer(({output, url, id}) => {
             <DetailCard
               flex={1}
               title="Input Primary"
+              titleBadge={primaryConnected && <ConnectedBadge />}
               titleRightSection={
                 <StatusIndicator
                   status={output?.input?.status}
@@ -143,6 +156,7 @@ export const SummaryPanel = observer(({output, url, id}) => {
           <DetailCard
             flex={1}
             title="Input Failover"
+            titleBadge={failoverConnected && <ConnectedBadge />}
             titleRightSection={
               <StatusIndicator
                 status={failover?.status}

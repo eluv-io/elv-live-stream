@@ -135,6 +135,41 @@ describe("SummaryPanel - Input Failover card", () => {
     expect(screen.getByText("Running")).toBeInTheDocument();
   });
 
+  // DOCUMENT_POSITION_FOLLOWING (4) => b comes after a in document order.
+  const isAfter = (a, b) => Boolean(a.compareDocumentPosition(b) & 4);
+
+  it("should badge the primary card CONNECTED when it is the active_stream", () => {
+    renderPanel(
+      makeOutput({
+        input: {stream: "iq__primary", failover: {after: "5s", input: {stream: "iq__failover"}}},
+        state: {failover: {active_stream: "iq__primary"}}
+      })
+    );
+
+    expect(screen.getAllByText("Connected").length).toBe(1);
+    // Primary badge precedes the Input Failover card header.
+    expect(isAfter(screen.getByText("Connected"), screen.getByText("Input Failover"))).toBe(true);
+  });
+
+  it("should badge the failover card CONNECTED when it is the active_stream", () => {
+    renderPanel(
+      makeOutput({
+        ...withFailover(),
+        state: {failover: {active_stream: "iq__failover"}}
+      })
+    );
+
+    expect(screen.getAllByText("Connected").length).toBe(1);
+    // Failover badge follows the Input Failover card header.
+    expect(isAfter(screen.getByText("Input Failover"), screen.getByText("Connected"))).toBe(true);
+  });
+
+  it("should not badge either card when there is no failover state", () => {
+    renderPanel(makeOutput(withFailover()));
+
+    expect(screen.queryByText("Connected")).not.toBeInTheDocument();
+  });
+
   it("should still render the failover card when the primary stream is unavailable", () => {
     const output = makeOutput({
       input: {

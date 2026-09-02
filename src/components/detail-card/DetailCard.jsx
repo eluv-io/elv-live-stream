@@ -40,11 +40,12 @@ const ValueSection = ({
   }
 };
 
-export const DetailCardHeader = ({title, titleRightSection}) => {
+export const DetailCardHeader = ({title, titleBadge, titleRightSection}) => {
   return (
     <>
-      <Group>
+      <Group gap={8}>
         <Text fw={600} fz="0.875rem" c="elv-gray.7">{ title }</Text>
+        { titleBadge ?? null }
         <Flex ml="auto">
           { titleRightSection ?? null }
         </Flex>
@@ -84,6 +85,7 @@ export const SubDetailCard = ({title, titleRightSection, data=[]}) => {
 
 const DetailCard = ({
   title,
+  titleBadge,
   titleRightSection,
   data,
   children,
@@ -99,7 +101,7 @@ const DetailCard = ({
           style={labelWidth ? {gridTemplateColumns: `${typeof labelWidth === "number" ? `${labelWidth}px` : labelWidth} 1fr`} : undefined}
         >
           <div className={styles.fullWidth}>
-            <DetailCardHeader title={title} titleRightSection={titleRightSection} />
+            <DetailCardHeader title={title} titleBadge={titleBadge} titleRightSection={titleRightSection} />
           </div>
           {data && <DetailCardBody id={title} data={data} />}
           {children}
