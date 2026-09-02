@@ -23,7 +23,8 @@ import {
 import {Fragment, useCallback, useEffect, useRef, useState} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCopy} from "@tabler/icons-react";
-import DetailCard, {ConditionalDetailCard} from "@/components/detail-card/DetailCard.jsx";
+import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.jsx";
+import detailCardStyles from "@/components/detail-card/DetailCard.module.css";
 import GeneralConfig from "@/pages/outputs/details/general/GeneralConfig.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
@@ -81,18 +82,21 @@ export const SummaryPanel = observer(({output, url, id}) => {
         }
         {
           streamUnavailable ?
-            <ConditionalDetailCard show={false} title="Input Primary" flex={1}>
-              <Stack p="44px 100px" align="center" gap={12}>
-                <Text c="dimmed" ta="center">
-                  The mapped stream no longer exists. Unmap it and select another stream.
-                </Text>
-                <Button onClick={() => outputModalStore.OpenModal("map", [id])}>Map to a Stream</Button>
-              </Stack>
-            </ConditionalDetailCard> :
-            <ConditionalDetailCard
-              show={Boolean(output?.input?.stream)}
-              title="Input Primary"
+            <Box flex={1} bd="1px solid elv-gray.2" radius={5} className={detailCardStyles.boxWrapper}>
+              <Box p={12}>
+                <DetailCardHeader title="Input Primary" />
+                <Stack p="44px 100px" align="center" gap={12}>
+                  <Text c="dimmed" ta="center">
+                    The mapped stream no longer exists. Unmap it and select another stream.
+                  </Text>
+                  <Button onClick={() => outputModalStore.OpenModal("map", [id])}>Map to a Stream</Button>
+                </Stack>
+              </Box>
+            </Box> :
+          output?.input?.stream ?
+            <DetailCard
               flex={1}
+              title="Input Primary"
               titleRightSection={
                 <StatusIndicator
                   status={output?.input?.status}
@@ -101,14 +105,18 @@ export const SummaryPanel = observer(({output, url, id}) => {
               }
               data={[
                 {label: "Name", value: output?.input?.name},
-                {label: "Stream ID", value: output?.input?.stream, copyable: true},
+                {label: "Stream ID", value: output?.input?.stream, copyable: true, lineClamp: 1},
                 ...InputStatRows(output?.input)
               ]}
-            >
-              <Box p="44px 100px" align="center">
-                <Button onClick={() => outputModalStore.OpenModal("map", [id])}>Map to a Stream</Button>
+            /> :
+            <Box flex={1} bd="1px solid elv-gray.2" radius={5} className={detailCardStyles.boxWrapper}>
+              <Box p={12}>
+                <DetailCardHeader title="Input Primary" />
+                <Box p="44px 100px" align="center">
+                  <Button onClick={() => outputModalStore.OpenModal("map", [id])}>Map to a Stream</Button>
+                </Box>
               </Box>
-            </ConditionalDetailCard>
+            </Box>
         }
         {
           failoverStream &&
@@ -122,8 +130,8 @@ export const SummaryPanel = observer(({output, url, id}) => {
               />
             }
             data={[
-              {label: "Failover Stream", value: failover?.name || failoverStream},
-              {label: "Stream ID", value: failoverStream, copyable: true},
+              {label: "Failover Stream", value: failover?.name || failoverStream, lineClamp: 1},
+              {label: "Stream ID", value: failoverStream, copyable: true, lineClamp: 1},
               ...InputStatRows(failover)
             ]}
           />

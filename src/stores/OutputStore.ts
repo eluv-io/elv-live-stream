@@ -364,16 +364,25 @@ class OutputStore {
         includeState
       });
 
-      // OutputsListItem's `input` is sparse (stream/name/status) - merge onto the
-      // existing input so the live fields from LoadOutputStreamInfo survive a
-      // reload. A null/undefined input (unmapped) passes through.
+      // OutputsListItem's `input` is sparse (stream/name/status) and its
+      // `failover` is the bare fabric block ({after, input}) - client-js never
+      // enriches it. Merge onto the existing input, and deep-merge `failover`,
+      // so the live fields from LoadOutputStreamInfo / LoadFailoverStreamInfo
+      // survive a reload. A null/undefined input (unmapped) passes through.
+      const existingInput = this.outputs[outputId]?.input;
       this.UpdateOutput({
         slug: outputId,
         updates: {
           ...CLEARED_TRANSPORT_KEYS,
           ...output,
           input: output?.input
-            ? {...this.outputs[outputId]?.input, ...output.input}
+            ? {
+              ...existingInput,
+              ...output.input,
+              ...(output.input.failover && {
+                failover: {...existingInput?.failover, ...output.input.failover}
+              })
+            }
             : output?.input
         }
       });

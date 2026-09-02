@@ -82,41 +82,6 @@ export const SubDetailCard = ({title, titleRightSection, data=[]}) => {
   );
 };
 
-// A DetailCard that falls back to an empty-state shell - the same bordered box
-// and header, with a caller-supplied body (children) - when `show` is false.
-export const ConditionalDetailCard = ({
-  show,
-  title,
-  titleRightSection,
-  data,
-  width,
-  flex,
-  style,
-  children
-}) => {
-  if(show) {
-    return (
-      <DetailCard
-        width={width}
-        flex={flex}
-        style={style}
-        title={title}
-        titleRightSection={titleRightSection}
-        data={data}
-      />
-    );
-  }
-
-  return (
-    <Box w={width} flex={flex} style={style} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
-      <Box p={12}>
-        <DetailCardHeader title={title} titleRightSection={titleRightSection} />
-        { children }
-      </Box>
-    </Box>
-  );
-};
-
 const DetailCard = ({
   title,
   titleRightSection,

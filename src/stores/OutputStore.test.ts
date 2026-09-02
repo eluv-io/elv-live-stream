@@ -1196,3 +1196,47 @@ describe("LoadFailoverStreamInfo", () => {
     consoleSpy.mockRestore();
   });
 });
+
+describe("LoadOutputItem", () => {
+  it("should preserve client-resolved failover fields when re-merging the bare fabric block", async () => {
+    const {store} = makeStore({
+      OutputsListItem: vi.fn().mockResolvedValue({
+        name: "Out",
+        // client-js never enriches failover - it returns the bare fabric block
+        input: {stream: "iq__primary", name: "Primary", status: "running", failover: {after: "5s", input: {stream: "iq__failover"}}},
+        state: {}
+      })
+    });
+    store.outputs = {"out-1": {
+      name: "Out",
+      input: {
+        stream: "iq__primary",
+        quality: 0.9,
+        stats: {ts: {packets_received: 5}},
+        failover: {after: "5s", input: {stream: "iq__failover"}, name: "Failover", status: "running", quality: 0.75, stats: {ts: {packets_received: 10}}}
+      }
+    }};
+
+    await store.LoadOutputItem({outputId: "out-1"});
+
+    const {input} = store.outputs["out-1"];
+    // top-level primary enrichment survives (absent from the sparse payload)
+    expect(input.stats).toEqual({ts: {packets_received: 5}});
+    // nested failover enrichment survives the deep merge
+    expect(input.failover.name).toBe("Failover");
+    expect(input.failover.quality).toBe(0.75);
+    expect(input.failover.stats).toEqual({ts: {packets_received: 10}});
+    expect(input.failover.input.stream).toBe("iq__failover");
+  });
+
+  it("should pass a null input through untouched (unmapped output)", async () => {
+    const {store} = makeStore({
+      OutputsListItem: vi.fn().mockResolvedValue({name: "Out", input: null, state: {}})
+    });
+    store.outputs = {"out-1": {name: "Out", input: {stream: "iq__old"}}};
+
+    await store.LoadOutputItem({outputId: "out-1"});
+
+    expect(store.outputs["out-1"].input).toBeNull();
+  });
+});
