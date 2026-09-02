@@ -16,7 +16,6 @@ import {
 import {IconCheck, IconChevronRight, IconCopy} from "@tabler/icons-react";
 import CollapsibleSection from "@/components/collapsible-section/CollapsibleSection.jsx";
 import {SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
-import {rootStore} from "@/stores/index.ts";
 import sharedStyles from "@/assets/shared.module.css";
 
 const URL_MODES = [
@@ -32,24 +31,17 @@ const PACKAGING_OPTIONS = [
 // Renames "playlist" -> "playlist-{type}" (client-js's playoutType convention); no-op for DASH.
 const ApplyPackaging = (url, packaging) => url ? url.replace("playlist", `playlist-${packaging}`) : url;
 
-// Mirrors DataStore.SrtPlayoutUrl
-const SRT_PORTS = {main: 11080, demo: 11090, test: 11091};
-
-const SrtPlayoutUrl = (objectId) => {
-  const network = rootStore.networkInfo?.name || "main";
-  const port = SRT_PORTS[network] || SRT_PORTS.main;
-  return `srt://${network}.glb.contentfabric.io:${port}?streamid=live-ts.${objectId}.${network}`;
-};
-
 // Flattens one stream's output URLs into rows
-const UrlRows = (output, mode, packaging, objectId) => {
+const UrlRows = (output, mode, packaging) => {
   if(!output) { return []; }
 
-  if(packaging === "ts") {
-    return objectId ? [{label: "Playout URL", url: SrtPlayoutUrl(objectId)}] : [];
-  }
-
   const isPublic = mode === "public";
+
+  // TS packaging is served over SRT only
+  if(packaging === "ts") {
+    const url = isPublic ? output.publicSrtPlayoutUrl : output.srtPlayoutUrl;
+    return url ? [{label: "Playout URL", url}] : [];
+  }
 
   const rows = [];
   if(output.embedUrl) { rows.push({label: "Embeddable URL", url: output.embedUrl}); }
@@ -100,7 +92,7 @@ const AllStreamsUrlsJson = ({streams, outputUrls, mode, packaging}) => {
   const urlsByTitle = {};
 
   streams.forEach(stream => {
-    const urlByLabel = UrlsByLabel(UrlRows(outputUrls[stream.objectId], mode, packaging, stream.objectId));
+    const urlByLabel = UrlsByLabel(UrlRows(outputUrls[stream.objectId], mode, packaging));
     if(Object.keys(urlByLabel).length === 0) { return; }
 
     const base = stream.title || stream.slug || stream.objectId;
@@ -288,7 +280,7 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
             (loading ? <Loader /> : <Text fz={14} c="elv-gray.6">No sources.</Text>)
           }
           {streams.map(stream => {
-            const rows = UrlRows(outputUrls[stream.objectId], mode, packaging, stream.objectId);
+            const rows = UrlRows(outputUrls[stream.objectId], mode, packaging);
             const open = !collapsed[stream.objectId];
             const allUrls = AllUrlsJson(rows);
 

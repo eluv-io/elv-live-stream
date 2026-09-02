@@ -232,7 +232,13 @@ export interface StreamOutputUrls {
   playoutUrl?: string;
   publicPlayoutUrl?: string;
   playoutMethods: OutputUrlRow[];
+  srtPlayoutUrl?: string;
+  publicSrtPlayoutUrl?: string;
 }
+
+// SRT playout is served from a global load-balanced host per network, on a
+// network-specific port. Mirrors DataStore.SrtPlayoutUrl's port table.
+const SRT_PLAYOUT_PORTS: Record<string, number> = {main: 11080, demo: 11090, test: 11091};
 
 class StreamStore {
   streams: StreamMap;
@@ -1478,6 +1484,9 @@ class StreamStore {
       {noAuth: true, queryParams: {authorization: signedToken}} :
       {channelAuth: true};
 
+    result.srtPlayoutUrl = signedToken ? this._SrtPlayoutUrl({objectId, token: signedToken}) : undefined;
+    result.publicSrtPlayoutUrl = this._SrtPlayoutUrl({objectId});
+
     try {
       result.embedUrl = yield this.EmbedUrl({objectId});
     } catch(error) {
@@ -1570,6 +1579,19 @@ class StreamStore {
     }
 
     return result;
+  }
+
+  /**
+   * SRT playout URL for TS packaging. The fabric reads authorization from the
+   * streamid's trailing segment (live-ts.<objectId>.<token>), not a query param.
+   * Mirrors DataStore.SrtPlayoutUrl.
+   */
+  _SrtPlayoutUrl({objectId, token}: {objectId: string, token?: string}): string | undefined {
+    if(!objectId) { return undefined; }
+    const network = this.rootStore.networkInfo?.name || "main";
+    const port = SRT_PLAYOUT_PORTS[network] || SRT_PLAYOUT_PORTS.main;
+    const streamId = `live-ts.${objectId}${token ? `.${token}` : ""}`;
+    return `srt://${network}.glb.contentfabric.io:${port}?streamid=${streamId}`;
   }
 
   /**
