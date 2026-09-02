@@ -22,7 +22,7 @@ import {
 } from "@mantine/core";
 import {Fragment, useCallback, useEffect, useRef, useState} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {IconCopy} from "@tabler/icons-react";
+import {IconCopy, IconSwitchHorizontal} from "@tabler/icons-react";
 import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.jsx";
 import detailCardStyles from "@/components/detail-card/DetailCard.module.css";
 import GeneralConfig from "@/pages/outputs/details/general/GeneralConfig.jsx";
@@ -95,10 +95,29 @@ export const SummaryPanel = observer(({output, url, id}) => {
   const activeStream = failoverState?.active_stream;
   const primaryConnected = Boolean(activeStream) && activeStream === output?.input?.stream;
   const failoverConnected = Boolean(activeStream) && activeStream === failoverStream;
+  const showActiveSource = Boolean(failoverStream) && (primaryConnected || failoverConnected);
+  const activeSourceLabel = primaryConnected ? "Input Primary" : "Input Failover";
+  const inactiveSourceLabel = primaryConnected ? "Failover" : "Primary";
 
   return (
     <Box pt={16}>
-      <SectionTitle mb={12}>Key Stats</SectionTitle>
+      <Group mb={12}>
+        <SectionTitle>Key Stats</SectionTitle>
+        {
+          showActiveSource &&
+          <Group ml="auto" gap={12}>
+            <Text c="elv-gray.7" fz="0.875rem" fw={600}>
+              Active Source: {activeSourceLabel}
+            </Text>
+            <Button
+              variant="outline"
+              leftSection={<IconSwitchHorizontal size={16} />}
+            >
+              Switch to {inactiveSourceLabel}
+            </Button>
+          </Group>
+        }
+      </Group>
       <Flex direction="row" mb={36} gap={videoGap}>
         {
           output?.input?.stream && !streamUnavailable &&
