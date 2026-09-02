@@ -49,7 +49,7 @@ const PackagingBadges = ({items}) => (
 );
 
 const FailoverStreamRow = ({record}) => (
-  <Flex align="center" gap={16} px={12} py={12} mt={8} wrap="nowrap"  bd="1px solid #dadada">
+  <Flex align="center" gap={16} px={12} py={12} mt={8} wrap="nowrap" bd="1px solid elv-gray.2">
     <Stack gap={3} style={{flex: "2 1 0", minWidth: 0}}>
       <Text fw={600} fz="0.875rem" c="elv-gray.9" lineClamp={1} style={{wordBreak: "break-all"}} lh={1}>
         {record.title || record.slug}

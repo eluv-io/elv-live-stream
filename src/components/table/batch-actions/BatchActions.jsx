@@ -3,7 +3,7 @@ import {Box, Button, Divider, Flex, Group, Text, UnstyledButton} from "@mantine/
 import styles from "./BatchActions.module.css";
 
 const Separator = () => (
-  <Divider orientation="vertical" size={1} color="#dadada" h="50%" style={{alignSelf: "center"}} />
+  <Divider orientation="vertical" size={1} color="elv-gray.2" h="50%" style={{alignSelf: "center"}} />
 );
 
 const BatchActions = ({

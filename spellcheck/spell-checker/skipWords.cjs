@@ -65,6 +65,7 @@ module.exports = [
   "ge",
   "geo",
   "geos",
+  "glb",
   "gzip",
   "helvetica",
   "hls",
