@@ -158,6 +158,10 @@ export const SanitizeUrl = ({url, removeQueryParams=[]}: {url?: string, removeQu
   }
 };
 
+// srt_push output URLs use the srt:// scheme; every other output type's scheme
+// matches its type name.
+export const OutputUrlProtocol = (type?: string): string => type === "srt_push" ? "srt" : (type ?? "");
+
 export const CheckExpiration = (date: number): boolean => {
   const today = new Date();
   const inputDate = new Date(date);

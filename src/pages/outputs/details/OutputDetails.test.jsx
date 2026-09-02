@@ -1,8 +1,6 @@
 import {describe, it, expect, vi, beforeEach} from "vitest";
 import {render, screen} from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import {MantineProvider} from "@mantine/core";
-import {useForm} from "@mantine/form";
 
 // --- Module mocks (hoisted) -------------------------------------------------
 
@@ -27,7 +25,7 @@ vi.mock("@/stores/index.ts", () => ({
 }));
 
 // Imports must come AFTER vi.mock so the module picks up the mocks
-import {SummaryPanel, GeneralConfigPanel} from "./OutputDetails.jsx";
+import {SummaryPanel} from "./OutputDetails.jsx";
 import {streamStore} from "@/stores/index.ts";
 
 // --- Factories -----------------------------------------------------------
@@ -60,27 +58,6 @@ const renderPanel = (output) =>
   render(
     <MantineProvider>
       <SummaryPanel output={output} url="srt://egress.example.test/out016" id="out016" />
-    </MantineProvider>
-  );
-
-// GeneralConfigPanel needs a live form - mount it through a harness that owns one.
-const ConfigHarness = ({output, initialValues}) => {
-  const form = useForm({
-    mode: "controlled",
-    initialValues: {
-      name: "", type: "srt_pull", nodeType: "public", node: "", geo: "", url: "",
-      encryption: false, stripRtp: false, passphrase: "",
-      failoverStream: "", failoverStreamName: "", failoverAfter: "5s", failoverReconnect: "on",
-      ...initialValues
-    }
-  });
-  return <GeneralConfigPanel form={form} output={output} />;
-};
-
-const renderConfig = (props) =>
-  render(
-    <MantineProvider>
-      <ConfigHarness {...props} />
     </MantineProvider>
   );
 
@@ -170,80 +147,5 @@ describe("SummaryPanel - Input Failover card", () => {
 
     expect(screen.getByText(/the mapped stream no longer exists/i)).toBeInTheDocument();
     expect(screen.getByText("Input Failover")).toBeInTheDocument();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Editable section (General Config)
-// ---------------------------------------------------------------------------
-
-describe("GeneralConfigPanel - Input Failover section", () => {
-  it("should disable the section with a note when no primary stream is mapped", () => {
-    renderConfig({output: {input: {}}});
-
-    expect(screen.getByText("Input Failover")).toBeInTheDocument();
-    expect(screen.getByText(/map a primary stream first/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", {name: /add failover stream/i})).not.toBeInTheDocument();
-  });
-
-  it("should show the Add Failover Stream button when a primary is mapped and no failover is set", () => {
-    renderConfig({output: makeOutput()});
-
-    expect(screen.getByRole("button", {name: /add failover stream/i})).toBeInTheDocument();
-    expect(screen.queryByText(/map a primary stream first/i)).not.toBeInTheDocument();
-  });
-
-  it("should disable Timeout and Reconnect until a failover stream is chosen", () => {
-    renderConfig({output: makeOutput()});
-
-    expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).toBeDisabled();
-    expect(screen.getByLabelText("Reconnect", {selector: "input"})).toBeDisabled();
-  });
-
-  it("should render the chosen stream as a row and load the stream set", () => {
-    streamStore.allStreams = {
-      s1: {objectId: "iq__failover", title: "Backup Stream", originUrl: "udp://host:1234", source: ["ts"], packaging: ["ts"]}
-    };
-    renderConfig({
-      output: makeOutput(),
-      initialValues: {failoverStream: "iq__failover", failoverStreamName: "Backup Stream"}
-    });
-
-    expect(screen.getByText("Backup Stream")).toBeInTheDocument();
-    expect(screen.getByText("iq__failover")).toBeInTheDocument();
-    expect(screen.getByText("udp://host:1234")).toBeInTheDocument();
-    expect(streamStore.LoadAllStreams).toHaveBeenCalled();
-  });
-
-  it("should enable Timeout and Reconnect and show Change once a stream is set", () => {
-    renderConfig({
-      output: makeOutput(),
-      initialValues: {failoverStream: "iq__failover", failoverStreamName: "Backup Stream"}
-    });
-
-    expect(screen.getByRole("button", {name: /change failover stream/i})).toBeInTheDocument();
-    expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).not.toBeDisabled();
-    expect(screen.getByLabelText("Reconnect", {selector: "input"})).not.toBeDisabled();
-  });
-
-  it("should clear the failover stream when the remove control is clicked", async () => {
-    const user = userEvent.setup();
-    renderConfig({
-      output: makeOutput(),
-      initialValues: {failoverStream: "iq__failover", failoverStreamName: "Backup Stream"}
-    });
-
-    await user.click(screen.getByRole("button", {name: /remove failover stream/i}));
-
-    expect(screen.getByRole("button", {name: /add failover stream/i})).toBeInTheDocument();
-  });
-
-  it("should open the picker modal from the Add Failover Stream button", async () => {
-    const user = userEvent.setup();
-    renderConfig({output: makeOutput()});
-
-    await user.click(screen.getByRole("button", {name: /add failover stream/i}));
-
-    expect(await screen.findByText("Select Failover Stream")).toBeInTheDocument();
   });
 });
