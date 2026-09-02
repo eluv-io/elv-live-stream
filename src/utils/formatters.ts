@@ -66,17 +66,24 @@ export const Pluralize = ({base, suffix="s", count}: {base: string, suffix?: str
 
 const DEFAULT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true};
 
-export const DateFormat = ({time, format="sec", options=DEFAULT_DATE_OPTIONS}: {time: number | string, format?: "sec" | "iso" | "ms", options?: Intl.DateTimeFormatOptions}): string => {
+export const DateFormat = ({time, format="sec", options=DEFAULT_DATE_OPTIONS}: {time: number | string, format?: "sec" | "iso" | "ms" | "iso-minute", options?: Intl.DateTimeFormatOptions}): string => {
   if(format === "sec") {
     time = (time as number) * 1000;
   }
 
-  if(format === "iso") {
+  if(format === "iso" || format === "iso-minute") {
     time = Date.parse(time as string);
   }
 
-  if(!["sec", "iso", "ms"].includes(format)) {
+  if(!["sec", "iso", "ms", "iso-minute"].includes(format)) {
     throw Error("Invalid format type provided.");
+  }
+
+  // Local-time "YYYY-MM-DD HH:mm", 24h, no seconds.
+  if(format === "iso-minute") {
+    const d = new Date(time);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   return new Date(time).toLocaleString(navigator.language, options);

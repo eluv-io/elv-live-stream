@@ -61,14 +61,14 @@ const FailoverState = (output) => output?.state?.failover;
 // feeding the output, per output.state.failover.active_stream.
 const ConnectedBadge = () => (
   <Badge radius={4} bg="elv-green.1" c="elv-green.9" tt="uppercase" fz={12} fw={600}>
-    Connected
+    Active
   </Badge>
 );
 
 // Read-only summary of the most recent failover incident (no hop-by-hop chain).
 const FailoverIncidentRows = (failoverState) => {
   return [
-    {label: "Last Failover", value: failoverState?.last_failover_at ? DateFormat({time: failoverState.last_failover_at, format: "iso"}) : ""},
+    {label: "Last Failover", value: failoverState?.last_failover_at ? DateFormat({time: failoverState.last_failover_at, format: "iso-minute"}) : ""},
     {label: "Reason", value: failoverState?.last_failover_reason ?? ""},
     {label: "No. Switches", value: failoverState?.failover_count ?? ""},
     {label: "Active Stream", value: failoverState?.active_stream ?? "", copyable: Boolean(failoverState?.active_stream), lineClamp: 1},
