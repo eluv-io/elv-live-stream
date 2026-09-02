@@ -164,31 +164,8 @@ describe("SummaryPanel - Input Failover card", () => {
     expect(isAfter(screen.getByText("Input Failover"), screen.getByText("Connected"))).toBe(true);
   });
 
-  it("should badge the failover card CONNECTED when state.stream reports a failover trigger", () => {
-    renderPanel(
-      makeOutput({
-        ...withFailover(),
-        state: {stream: {status: "error", error: "failover triggered"}}
-      })
-    );
-
-    expect(screen.getAllByText("Connected").length).toBe(1);
-    expect(isAfter(screen.getByText("Input Failover"), screen.getByText("Connected"))).toBe(true);
-  });
-
   it("should not badge either card when there is no failover state", () => {
     renderPanel(makeOutput(withFailover()));
-
-    expect(screen.queryByText("Connected")).not.toBeInTheDocument();
-  });
-
-  it("should not badge the failover card for an unrelated state.stream error", () => {
-    renderPanel(
-      makeOutput({
-        ...withFailover(),
-        state: {stream: {status: "error", error: "input disconnected"}}
-      })
-    );
 
     expect(screen.queryByText("Connected")).not.toBeInTheDocument();
   });
