@@ -19,9 +19,6 @@ import {SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
 import {rootStore} from "@/stores/index.ts";
 import sharedStyles from "@/assets/shared.module.css";
 
-const SUBROW_BG = "#F5F5F5";
-const SELECTED_COLOR = "#4489df";
-
 const URL_MODES = [
   {label: "Authorized", value: "authorized"},
   {label: "Public", value: "public"}
@@ -44,9 +41,7 @@ const SrtPlayoutUrl = (objectId) => {
   return `srt://${network}.glb.contentfabric.io:${port}?streamid=live-ts.${objectId}.${network}`;
 };
 
-// Flattens one stream's output URLs into rows. A DRM method with a license server becomes a
-// parent row with two sub-rows (playout URL, license server URL). TS packaging is served over
-// SRT only, so it shows a single synthesized Playout URL instead.
+// Flattens one stream's output URLs into rows
 const UrlRows = (output, mode, packaging, objectId) => {
   if(!output) { return []; }
 
@@ -123,14 +118,14 @@ const PackagingSwitch = ({options, value, onChange}) => (
       <UnstyledButton
         key={option.value}
         onClick={() => onChange(option.value)}
+        c={option.value ? "elv-blue.3" : "var(--mantine-color-elv-gray-6)"}
         style={{
           fontSize: "0.8125rem",
           fontWeight: 600,
           lineHeight: 1,
           paddingBottom: 3,
           cursor: "pointer",
-          color: value === option.value ? SELECTED_COLOR : "var(--mantine-color-elv-gray-6)",
-          borderBottom: `2px solid ${value === option.value ? SELECTED_COLOR : "transparent"}`,
+          borderBottom: `2px solid ${value === option.value ? "var(--mantine-color-elv-blue-3)" : "transparent"}`,
           borderRadius: 2
         }}
       >
@@ -238,16 +233,16 @@ const DataRow = ({row}) => (
     </Table.Tr>
     {
       (row.children || []).map(child => (
-        <Table.Tr key={child.label} style={{background: SUBROW_BG}}>
-          <Table.Td style={{background: SUBROW_BG}} />
-          <Table.Td style={{background: SUBROW_BG}}>
+        <Table.Tr key={child.label} bg="elv-gray.1">
+          <Table.Td />
+          <Table.Td bg="elv-gray.1">
             <Group gap={8} wrap="nowrap" pl={20}>
               <Text fz="0.875rem" c="elv-gray.9">•</Text>
               <LabelText>{child.label}</LabelText>
             </Group>
           </Table.Td>
-          <Table.Td style={{maxWidth: 0, background: SUBROW_BG}}><UrlText url={child.url} /></Table.Td>
-          <CopyCell url={child.url} background={SUBROW_BG} />
+          <Table.Td bg="elv-gray.1" maw={0}><UrlText url={child.url} /></Table.Td>
+          <CopyCell url={child.url} background="var(--mantine-color-elv-gray-1)" />
         </Table.Tr>
       ))
     }
