@@ -54,9 +54,8 @@ const InputStatRows = (data) => {
   ];
 };
 
-// Live failover state from output.state (live/outputs/<id>/state, verbatim).
-// TODO(failover): path within `state` unconfirmed by the fabric team.
-const FailoverState = (output) => output?.state?.input?.failover;
+// Live failover state, off output.state (live/outputs/<id>/state, verbatim).
+const FailoverState = (output) => output?.state?.failover;
 
 // Read-only summary of the most recent failover incident (no hop-by-hop chain).
 const FailoverIncidentRows = (failoverState) => {

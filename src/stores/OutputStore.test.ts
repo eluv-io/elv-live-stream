@@ -1157,6 +1157,69 @@ describe("ModifyOutput — input failover", () => {
   });
 });
 
+describe("LoadOutputStreamInfo", () => {
+  it("should merge url, source, packaging, quality and stats onto the output input", async () => {
+    const {store} = makeStore({
+      ContentObjectMetadata: vi.fn().mockResolvedValue({url: "srt://host:9000", recording_config: {input_cfg: {}}}),
+      StreamStatus: vi.fn().mockResolvedValue({quality: 0.8, input_stats: {ts: {packets_received: 5}}})
+    });
+    store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary", name: "Primary"}}};
+
+    await store.LoadOutputStreamInfo({slug: "out-1", streamObjectId: "iq__primary"});
+
+    expect(store.outputs["out-1"].input.url).toBe("srt://host:9000");
+    expect(store.outputs["out-1"].input.quality).toBe(0.8);
+    expect(store.outputs["out-1"].input.stats).toEqual({ts: {packets_received: 5}});
+    // existing fields untouched
+    expect(store.outputs["out-1"].input.stream).toBe("iq__primary");
+    expect(store.outputs["out-1"].input.name).toBe("Primary");
+  });
+
+  it("should still merge quality and stats when EmbedUrl fails", async () => {
+    const {store} = makeStore({
+      StreamStatus: vi.fn().mockResolvedValue({quality: 0.6, input_stats: {ts: {packets_received: 9}}}),
+      EmbedUrl: vi.fn().mockRejectedValue(new Error("boom"))
+    });
+    store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await store.LoadOutputStreamInfo({slug: "out-1", streamObjectId: "iq__primary"});
+
+    expect(store.outputs["out-1"].input.quality).toBe(0.6);
+    expect(store.outputs["out-1"].input.stats).toEqual({ts: {packets_received: 9}});
+    consoleSpy.mockRestore();
+  });
+
+  it("should still merge quality and stats when the config read fails", async () => {
+    const {store} = makeStore({
+      ContentObjectMetadata: vi.fn().mockRejectedValue(new Error("boom")),
+      StreamStatus: vi.fn().mockResolvedValue({quality: 0.55, input_stats: {ts: {}}})
+    });
+    store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await store.LoadOutputStreamInfo({slug: "out-1", streamObjectId: "iq__primary"});
+
+    expect(store.outputs["out-1"].input.quality).toBe(0.55);
+    consoleSpy.mockRestore();
+  });
+
+  it("should merge url and packaging even when the status read fails", async () => {
+    const {store} = makeStore({
+      ContentObjectMetadata: vi.fn().mockResolvedValue({url: "srt://host:9000"}),
+      StreamStatus: vi.fn().mockRejectedValue(new Error("boom"))
+    });
+    store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await store.LoadOutputStreamInfo({slug: "out-1", streamObjectId: "iq__primary"});
+
+    expect(store.outputs["out-1"].input.url).toBe("srt://host:9000");
+    expect(store.outputs["out-1"].input.source).toEqual(["srt"]);
+    consoleSpy.mockRestore();
+  });
+});
+
 describe("LoadFailoverStreamInfo", () => {
   const failoverInput = {
     stream: "iq__primary",

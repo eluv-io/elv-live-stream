@@ -392,10 +392,22 @@ class OutputStore {
     }
   }
 
-  *LoadOutputStreamInfo({slug, streamObjectId}: {slug: string, streamObjectId: string}): Generator<any, {url: string, embedUrl: string, source: StreamSource[] | undefined, packaging: StreamPackaging[], quality: string, stats: any}, any> {
+  *LoadOutputStreamInfo({slug, streamObjectId}: {slug: string, streamObjectId: string}): Generator<any, {url?: string, embedUrl?: string, source?: StreamSource[], packaging?: StreamPackaging[], quality?: string, stats?: any}, any> {
+    const streamInfo: {url?: string, embedUrl?: string, source?: StreamSource[], packaging?: StreamPackaging[], quality?: string, stats?: any} = {};
+
+    // Each fetch is isolated so one failure (e.g. EmbedUrl) can't discard the
+    // others - the live quality/stats must land even if the URL derivation fails.
+    let libraryId;
+    try {
+      libraryId = yield this.client.ContentObjectLibraryId({objectId: streamObjectId});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to resolve stream library for output.", error);
+    }
+
     try {
       const metadata = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId: streamObjectId}),
+        libraryId,
         objectId: streamObjectId,
         metadataSubtree: "live_recording_config",
         select: [
@@ -403,40 +415,44 @@ class OutputStore {
           "recording_config/input_cfg",
         ]
       });
-
-      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
-
-      const url = metadata?.url;
-      const {source, packaging} = DeriveSourceAndPackaging({url, inputCfg: metadata?.recording_config?.input_cfg});
-
-      const embedUrl = yield this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
-
-      const streamInfo = {
-        url,
-        embedUrl,
-        source,
-        packaging,
-        quality: streamStatus?.quality,
-        stats: streamStatus?.input_stats
-      };
-
-      if(slug) {
-        this.UpdateOutput({
-          slug,
-          updates: {
-            input: {
-              ...this.outputs[slug]?.input,
-              ...streamInfo
-            }
-          }
-        });
-      }
-
-      return streamInfo;
+      streamInfo.url = metadata?.url;
+      const {source, packaging} = DeriveSourceAndPackaging({url: metadata?.url, inputCfg: metadata?.recording_config?.input_cfg});
+      streamInfo.source = source;
+      streamInfo.packaging = packaging;
     } catch(error) {
       // eslint-disable-next-line no-console
-      console.error("Failed to load stream info for output.", error);
+      console.error("Failed to load stream config for output.", error);
     }
+
+    try {
+      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
+      streamInfo.quality = streamStatus?.quality;
+      streamInfo.stats = streamStatus?.input_stats;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load stream status for output.", error);
+    }
+
+    try {
+      streamInfo.embedUrl = yield this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load embed url for output.", error);
+    }
+
+    if(slug) {
+      this.UpdateOutput({
+        slug,
+        updates: {
+          input: {
+            ...this.outputs[slug]?.input,
+            ...streamInfo
+          }
+        }
+      });
+    }
+
+    return streamInfo;
   }
 
   /**

@@ -15,8 +15,8 @@ const ValueSection = ({
 
   if(typeof value === "string" || typeof value === "number") {
     return (
-      <Flex gap={4} align="center" miw={0}>
-        <Text c="elv-gray.7" fw={fw} fz="0.875rem" truncate={lineClamp ? "end" : ""} flex={1} miw={0}>{ value }</Text>
+      <Flex gap={2} align="center" miw={0}>
+        <Text c="elv-gray.7" fw={fw} fz="0.875rem" truncate={lineClamp ? "end" : ""} flex="0 1 auto" miw={0}>{ value }</Text>
         {
           copyable ?
             <Tooltip
@@ -26,7 +26,7 @@ const ValueSection = ({
               <ActionIcon
                 variant="transparent"
                 c="elv-gray.6"
-                size={18}
+                size={16}
                 onClick={() => clipboard.copy(value)}
               >
                 <IconCopy size={16} />
