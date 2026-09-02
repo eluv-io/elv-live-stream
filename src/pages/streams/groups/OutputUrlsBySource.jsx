@@ -34,14 +34,18 @@ const UrlRows = (output, mode, packaging) => {
 
   const isPublic = mode === "public";
 
-  // TS packaging is served over SRT only. FMP4 is the regular fabric playout URL,
-  // used as-is (the manifest path is not rewritten).
+  const rows = [];
+
+  // TS packaging: the embeddable-URL slot is relabeled "Global SRT URL", followed by
+  // the SRT "Playout URL". FMP4 is the regular fabric playout URL, used as-is (the
+  // manifest path is not rewritten).
   if(packaging === "ts") {
+    if(output.embedUrl) { rows.push({label: "Global SRT URL", url: output.embedUrl}); }
     const url = isPublic ? output.publicSrtPlayoutUrl : output.srtPlayoutUrl;
-    return url ? [{label: "Playout URL", url}] : [];
+    if(url) { rows.push({label: "Playout URL", url}); }
+    return rows;
   }
 
-  const rows = [];
   if(output.embedUrl) { rows.push({label: "Embeddable URL", url: output.embedUrl}); }
 
   (output.playoutMethods || []).forEach(method => {
