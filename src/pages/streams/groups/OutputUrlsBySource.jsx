@@ -16,6 +16,7 @@ import {
 import {IconCheck, IconChevronRight, IconCopy} from "@tabler/icons-react";
 import CollapsibleSection from "@/components/collapsible-section/CollapsibleSection.jsx";
 import {SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
+import {rootStore} from "@/stores/index.ts";
 import sharedStyles from "@/assets/shared.module.css";
 
 const SUBROW_BG = "#F5F5F5";
@@ -34,17 +35,29 @@ const PACKAGING_OPTIONS = [
 // Renames "playlist" -> "playlist-{type}" (client-js's playoutType convention); no-op for DASH.
 const ApplyPackaging = (url, packaging) => url ? url.replace("playlist", `playlist-${packaging}`) : url;
 
+// Mirrors DataStore.SrtPlayoutUrl
+const SRT_PORTS = {main: 11080, demo: 11090, test: 11091};
+
+const SrtPlayoutUrl = (objectId) => {
+  const network = rootStore.networkInfo?.name || "main";
+  const port = SRT_PORTS[network] || SRT_PORTS.main;
+  return `srt://${network}.glb.contentfabric.io:${port}?streamid=live-ts.${objectId}.${network}`;
+};
+
 // Flattens one stream's output URLs into rows. A DRM method with a license server becomes a
-// parent row with two sub-rows (playout URL, license server URL).
-const UrlRows = (output, mode, packaging) => {
+// parent row with two sub-rows (playout URL, license server URL). TS packaging is served over
+// SRT only, so it shows a single synthesized Playout URL instead.
+const UrlRows = (output, mode, packaging, objectId) => {
   if(!output) { return []; }
+
+  if(packaging === "ts") {
+    return objectId ? [{label: "Playout URL", url: SrtPlayoutUrl(objectId)}] : [];
+  }
+
   const isPublic = mode === "public";
 
   const rows = [];
   if(output.embedUrl) { rows.push({label: "Embeddable URL", url: output.embedUrl}); }
-
-  const playoutUrl = isPublic ? output.publicPlayoutUrl : output.playoutUrl;
-  if(playoutUrl) { rows.push({label: "Playout Options URL", url: playoutUrl}); }
 
   (output.playoutMethods || []).forEach(method => {
     const url = ApplyPackaging(isPublic ? method.publicUrl : method.url, packaging);
@@ -65,8 +78,6 @@ const UrlRows = (output, mode, packaging) => {
   return rows;
 };
 
-// label -> url for one stream's rows. Sub-rows carry their method-qualified label
-// ("HLS Widevine Playout URL"), so keying off it directly can't collide across protocols.
 const UrlsByLabel = (rows) => {
   const urlByLabel = {};
 
@@ -94,7 +105,7 @@ const AllStreamsUrlsJson = ({streams, outputUrls, mode, packaging}) => {
   const urlsByTitle = {};
 
   streams.forEach(stream => {
-    const urlByLabel = UrlsByLabel(UrlRows(outputUrls[stream.objectId], mode, packaging));
+    const urlByLabel = UrlsByLabel(UrlRows(outputUrls[stream.objectId], mode, packaging, stream.objectId));
     if(Object.keys(urlByLabel).length === 0) { return; }
 
     const base = stream.title || stream.slug || stream.objectId;
@@ -282,7 +293,7 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
             (loading ? <Loader /> : <Text fz={14} c="elv-gray.6">No sources.</Text>)
           }
           {streams.map(stream => {
-            const rows = UrlRows(outputUrls[stream.objectId], mode, packaging);
+            const rows = UrlRows(outputUrls[stream.objectId], mode, packaging, stream.objectId);
             const open = !collapsed[stream.objectId];
             const allUrls = AllUrlsJson(rows);
 
