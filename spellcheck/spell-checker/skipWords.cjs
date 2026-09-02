@@ -52,6 +52,7 @@ module.exports = [
   "embeddable",
   "eu",
   "evenodd",
+  "failover",
   "fairplay",
   "falsey",
   "fc",

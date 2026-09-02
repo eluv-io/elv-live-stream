@@ -1022,3 +1022,177 @@ describe("DeleteOutputBatch", () => {
     consoleSpy.mockRestore();
   });
 });
+
+describe("ModifyOutput — input failover", () => {
+  const makeModifyStore = (existingOutput: Record<string, unknown>) => {
+    const {store, mockClient} = makeStore({
+      OutputsListItem: vi.fn()
+        .mockResolvedValueOnce(existingOutput)
+        .mockResolvedValueOnce(existingOutput)
+    });
+    store.outputs = {"out-1": existingOutput};
+    return {store, mockClient};
+  };
+
+  const baseExisting = {
+    name: "Out",
+    rtp: {url: "rtp://host:5004"},
+    input: {stream: "iq__primary", name: "Primary", status: "running"}
+  };
+
+  it("should write a failover block when a failover stream is provided", async () => {
+    const {store, mockClient} = makeModifyStore(baseExisting);
+
+    await store.ModifyOutput({
+      outputId: "out-1",
+      failoverStream: "iq__failover",
+      failoverAfter: "10s",
+      failoverReconnect: true
+    });
+
+    const {input} = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(input.failover).toEqual({
+      after: "10s",
+      disconnect_outputs: false, // reconnect on => not disconnected
+      input: {stream: "iq__failover"}
+    });
+    expect(input.stream).toBe("iq__primary");
+  });
+
+  it("should set disconnect_outputs true when reconnect is off", async () => {
+    const {store, mockClient} = makeModifyStore(baseExisting);
+
+    await store.ModifyOutput({
+      outputId: "out-1",
+      failoverStream: "iq__failover",
+      failoverAfter: "5s",
+      failoverReconnect: false
+    });
+
+    expect(mockClient.OutputsModify.mock.calls[0][0].output.input.failover.disconnect_outputs).toBe(true);
+  });
+
+  it("should clear failover with an explicit null when failoverStream is empty", async () => {
+    const existing = {
+      ...baseExisting,
+      input: {...baseExisting.input, failover: {after: "5s", disconnect_outputs: true, input: {stream: "iq__old"}}}
+    };
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", failoverStream: "", failoverReconnect: true});
+
+    expect(mockClient.OutputsModify.mock.calls[0][0].output.input.failover).toBeNull();
+  });
+
+  it("should leave an existing failover block untouched when no failover param is passed", async () => {
+    const existing = {
+      ...baseExisting,
+      input: {...baseExisting.input, failover: {after: "15s", disconnect_outputs: false, input: {stream: "iq__keep"}}}
+    };
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", name: "Renamed"});
+
+    expect(mockClient.OutputsModify.mock.calls[0][0].output.input.failover).toEqual({
+      after: "15s", disconnect_outputs: false, input: {stream: "iq__keep"}
+    });
+  });
+
+  it("should strip client-resolved failover display fields before writing", async () => {
+    const existing = {
+      ...baseExisting,
+      input: {...baseExisting.input, failover: {after: "5s", name: "Resolved Name", status: "running", quality: 0.9, stats: {ts: {}}, input: {stream: "iq__keep"}}}
+    };
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", name: "Renamed"});
+
+    const {failover} = mockClient.OutputsModify.mock.calls[0][0].output.input;
+    expect(failover.name).toBeUndefined();
+    expect(failover.status).toBeUndefined();
+    expect(failover.quality).toBeUndefined();
+    expect(failover.stats).toBeUndefined();
+    expect(failover.input.stream).toBe("iq__keep");
+  });
+});
+
+describe("LoadFailoverStreamInfo", () => {
+  const failoverInput = {
+    stream: "iq__primary",
+    failover: {after: "5s", disconnect_outputs: true, input: {stream: "iq__failover"}}
+  };
+
+  it("should write the resolved name, status, quality and stats onto input.failover", async () => {
+    const {store, mockClient} = makeStore({
+      ContentObjectMetadata: vi.fn().mockResolvedValue("Failover Stream Name"),
+      StreamStatus: vi.fn().mockResolvedValue({state: "running", quality: 0.75, input_stats: {ts: {packets_received: 10}}})
+    });
+    store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
+
+    await store.LoadFailoverStreamInfo({outputId: "out-1", streamObjectId: "iq__failover"});
+
+    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({objectId: "iq__failover", metadataSubtree: "public/name"})
+    );
+    expect(mockClient.StreamStatus).toHaveBeenCalledWith(
+      expect.objectContaining({name: "iq__failover"})
+    );
+    expect(store.outputs["out-1"].input.failover.name).toBe("Failover Stream Name");
+    expect(store.outputs["out-1"].input.failover.status).toBe("running");
+    expect(store.outputs["out-1"].input.failover.quality).toBe(0.75);
+    expect(store.outputs["out-1"].input.failover.stats).toEqual({ts: {packets_received: 10}});
+    // primary input untouched
+    expect(store.outputs["out-1"].input.stream).toBe("iq__primary");
+    expect(store.outputs["out-1"].input.failover.after).toBe("5s");
+  });
+
+  it("should no-op when the output has no failover block", async () => {
+    const {store, mockClient} = makeStore();
+    store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
+
+    await store.LoadFailoverStreamInfo({outputId: "out-1", streamObjectId: "iq__failover"});
+
+    expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
+    expect(mockClient.StreamStatus).not.toHaveBeenCalled();
+    expect(store.outputs["out-1"].input.failover).toBeUndefined();
+  });
+
+  it("should leave failover.name unset when the metadata read returns nothing", async () => {
+    const {store} = makeStore({ContentObjectMetadata: vi.fn().mockResolvedValue(null)});
+    store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
+
+    await store.LoadFailoverStreamInfo({outputId: "out-1", streamObjectId: "iq__failover"});
+
+    expect(store.outputs["out-1"].input.failover.name).toBeUndefined();
+  });
+
+  it("should still merge stats when the name read fails", async () => {
+    const {store} = makeStore({
+      ContentObjectMetadata: vi.fn().mockRejectedValue(new Error("boom")),
+      StreamStatus: vi.fn().mockResolvedValue({quality: 0.5, input_stats: {ts: {}}})
+    });
+    store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      store.LoadFailoverStreamInfo({outputId: "out-1", streamObjectId: "iq__failover"})
+    ).resolves.toBeUndefined();
+
+    expect(store.outputs["out-1"].input.failover.quality).toBe(0.5);
+    consoleSpy.mockRestore();
+  });
+
+  it("should swallow errors from the stats read", async () => {
+    const {store} = makeStore({
+      StreamStatus: vi.fn().mockRejectedValue(new Error("boom"))
+    });
+    store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      store.LoadFailoverStreamInfo({outputId: "out-1", streamObjectId: "iq__failover"})
+    ).resolves.toBeUndefined();
+
+    consoleSpy.mockRestore();
+  });
+});

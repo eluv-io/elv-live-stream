@@ -105,6 +105,13 @@ export const RECONNECTION_TIMEOUT_OPTIONS = [
   {label: "4 Hours", value: "14400"}
 ];
 
+// Output input-failover "wait for reconnection" timeout. Stored on
+// input.failover.after as a Go-style duration string.
+export const FAILOVER_TIMEOUT_OPTIONS = [5, 10, 15, 20].map(n => ({
+  label: `${n} seconds`,
+  value: `${n}s`
+}));
+
 // Human-readable text
 
 export const STATUS_TEXT = {

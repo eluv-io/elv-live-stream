@@ -4,6 +4,18 @@ import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/s
 import {SortTable} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
 
+// Passed through verbatim from the fabric. `name`/`quality`/`stats` are
+// resolved client-side by LoadFailoverStreamInfo. Never nests.
+interface OutputInputFailover {
+  after?: string;
+  disconnect_outputs?: boolean;
+  name?: string;
+  status?: string;
+  quality?: string;
+  stats?: any;
+  input?: {stream?: string};
+}
+
 interface OutputInput {
   stream?: string;
   name?: string;
@@ -14,6 +26,7 @@ interface OutputInput {
   packaging?: StreamPackaging[];
   quality?: string;
   stats?: any;
+  failover?: OutputInputFailover;
 }
 
 interface OutputSrtPull {
@@ -417,6 +430,58 @@ class OutputStore {
     }
   }
 
+  /**
+   * Enrich input.failover for the Summary card: client-js leaves it a bare
+   * object id, so resolve name (public/name) and status/quality/stats
+   * (StreamStatus). Name and stats are resolved independently so one failing
+   * doesn't suppress the other.
+   */
+  *LoadFailoverStreamInfo({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void> {
+    const existingInput = this.outputs[outputId]?.input;
+    if(!existingInput?.failover) { return; }
+
+    const MergeFailover = (updates: Partial<OutputInputFailover>) => {
+      const current = this.outputs[outputId]?.input;
+      if(!current?.failover) { return; }
+      this.UpdateOutput({
+        slug: outputId,
+        updates: {input: {...current, failover: {...current.failover, ...updates}}}
+      });
+    };
+
+    let libraryId;
+    try {
+      libraryId = yield this.client.ContentObjectLibraryId({objectId: streamObjectId});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to resolve failover stream library.", error);
+    }
+
+    try {
+      const name = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId: streamObjectId,
+        metadataSubtree: "public/name"
+      });
+      if(name) { MergeFailover({name}); }
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load failover stream name for output.", error);
+    }
+
+    try {
+      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
+      MergeFailover({
+        status: streamStatus?.state,
+        quality: streamStatus?.quality,
+        stats: streamStatus?.input_stats
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load failover stream stats for output.", error);
+    }
+  }
+
   *CreateOutput({
     name,
     externalId,
@@ -661,8 +726,11 @@ class OutputStore {
     node,
     region,
     url,
+    failoverStream,
+    failoverAfter,
+    failoverReconnect,
     // tags
-  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverReconnect?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -670,6 +738,20 @@ class OutputStore {
       const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
+
+      // Input failover. Only touched when the caller passes failoverStream;
+      // otherwise the existing block round-trips untouched. "" clears it (sent as
+      // explicit null). "Reconnect on" => disconnect_outputs false.
+      if(failoverStream !== undefined) {
+        cleanInput.failover = failoverStream
+          ? {after: failoverAfter, disconnect_outputs: !failoverReconnect, input: {stream: failoverStream}}
+          : null;
+      } else if(cleanInput.failover) {
+        // Drop client-resolved display fields before the fabric write.
+        // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+        const {name: _resolvedName, status: _resolvedStatus, quality: _resolvedQuality, stats: _resolvedStats, ...cleanFailover} = cleanInput.failover;
+        cleanInput.failover = cleanFailover;
+      }
       // Strip transient runtime `state` and every transport block - the applicable
       // one is rebuilt fresh below so a type change can't carry the old shape over.
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
