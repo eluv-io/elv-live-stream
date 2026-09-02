@@ -91,10 +91,14 @@ export const SummaryPanel = observer(({output, url, id}) => {
   const hasFailoverIncidents = Boolean(
     failoverState && (failoverState.last_failover_at || failoverState.failover_count)
   );
-  // Which input is actively feeding the output right now.
+  // Which input is actively feeding the output right now. `active_stream` is the
+  // reliable signal; `state.stream.error === "failover triggered"` is a fallback
+  // for when the failover block hasn't populated but egress has already hopped.
   const activeStream = failoverState?.active_stream;
+  const failoverTriggered = output?.state?.stream?.error === "failover triggered";
   const primaryConnected = Boolean(activeStream) && activeStream === output?.input?.stream;
-  const failoverConnected = Boolean(activeStream) && activeStream === failoverStream;
+  const failoverConnected =
+    (Boolean(activeStream) && activeStream === failoverStream) || failoverTriggered;
 
   return (
     <Box pt={16}>
