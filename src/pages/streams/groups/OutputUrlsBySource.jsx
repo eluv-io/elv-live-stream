@@ -28,16 +28,14 @@ const PACKAGING_OPTIONS = [
   {label: "TS", value: "ts"}
 ];
 
-// Renames "playlist" -> "playlist-{type}" (client-js's playoutType convention); no-op for DASH.
-const ApplyPackaging = (url, packaging) => url ? url.replace("playlist", `playlist-${packaging}`) : url;
-
 // Flattens one stream's output URLs into rows
 const UrlRows = (output, mode, packaging) => {
   if(!output) { return []; }
 
   const isPublic = mode === "public";
 
-  // TS packaging is served over SRT only
+  // TS packaging is served over SRT only. FMP4 is the regular fabric playout URL,
+  // used as-is (the manifest path is not rewritten).
   if(packaging === "ts") {
     const url = isPublic ? output.publicSrtPlayoutUrl : output.srtPlayoutUrl;
     return url ? [{label: "Playout URL", url}] : [];
@@ -47,7 +45,7 @@ const UrlRows = (output, mode, packaging) => {
   if(output.embedUrl) { rows.push({label: "Embeddable URL", url: output.embedUrl}); }
 
   (output.playoutMethods || []).forEach(method => {
-    const url = ApplyPackaging(isPublic ? method.publicUrl : method.url, packaging);
+    const url = isPublic ? method.publicUrl : method.url;
 
     if(method.licenseServerUrl) {
       rows.push({
