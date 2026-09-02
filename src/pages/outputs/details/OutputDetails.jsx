@@ -54,16 +54,18 @@ const InputStatRows = (data) => {
   ];
 };
 
-// Rows for the Summary "Failover" card. Values come off output.state (the
-// live/outputs/<id>/state bitcode response); these are placeholders.
-// TODO(failover): wire to the real output.state fields.
-const FailoverIncidentRows = (output) => {
-  const incidents = output?.state?.failover;
+// Live failover state from output.state (live/outputs/<id>/state, verbatim).
+// TODO(failover): path within `state` unconfirmed by the fabric team.
+const FailoverState = (output) => output?.state?.input?.failover;
+
+// Read-only summary of the most recent failover incident (no hop-by-hop chain).
+const FailoverIncidentRows = (failoverState) => {
   return [
-    {label: "Last Failover", value: incidents?.last_failover ? DateFormat({time: incidents.last_failover, format: "iso"}) : ""},
-    {label: "Reconnect", value: incidents?.reconnect === undefined ? "" : incidents.reconnect ? "On" : "Off"},
-    {label: "No. Switches", value: incidents?.num_switches ?? ""},
-    {label: "Reason", value: incidents?.reason ?? ""}
+    {label: "Last Failover", value: failoverState?.last_failover_at ? DateFormat({time: failoverState.last_failover_at, format: "iso"}) : ""},
+    {label: "Reason", value: failoverState?.last_failover_reason ?? ""},
+    {label: "No. Switches", value: failoverState?.failover_count ?? ""},
+    {label: "Active Stream", value: failoverState?.active_stream ?? "", copyable: Boolean(failoverState?.active_stream), lineClamp: 1},
+    {label: "Active Hop", value: failoverState?.hop_count ? `${(failoverState.active_hop ?? 0) + 1} of ${failoverState.hop_count}` : ""}
   ];
 };
 
@@ -78,9 +80,9 @@ export const SummaryPanel = observer(({output, url, id}) => {
   const failoverStream = failover?.input?.stream;
   // Show the section only on an actual reported incident, not just a configured
   // failover stream.
-  const failoverIncidents = output?.state?.failover;
+  const failoverState = FailoverState(output);
   const hasFailoverIncidents = Boolean(
-    failoverIncidents && (failoverIncidents.last_failover || failoverIncidents.num_switches)
+    failoverState && (failoverState.last_failover_at || failoverState.failover_count)
   );
 
   return (
@@ -183,7 +185,7 @@ export const SummaryPanel = observer(({output, url, id}) => {
           <DetailCard
             mb={36}
             title="Failover"
-            data={FailoverIncidentRows(output)}
+            data={FailoverIncidentRows(failoverState)}
           />
         </>
       }
