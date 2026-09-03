@@ -321,15 +321,27 @@ class StreamStore {
   }
 
   /**
+   * The search box holds a full or partial object id ("iq__…") rather than a name.
+   * The TenantContent query has no object-id filter (only group / tag / query-field
+   * names), so an id search is resolved client-side against the loaded list - and
+   * DataStore.LoadStreamList loads the full set (no date scope, no paging) when true.
+   */
+  get tableFilterIsObjectId(): boolean {
+    return /^iq__[A-Za-z0-9]*$/.test(this.tableFilter.trim());
+  }
+
+  /**
    * Tag filtering (always client-side) plus text filtering. Date scoping is server-side
    * (LoadTenantLiveStreamContent's date-tag filter) - streams carry no real createdAt to
-   * filter on client-side. On the content-group path the text search is also server-side
+   * filter on client-side. On the content-group path the name search is also server-side
    * (name:co: on the tenant query), so skip the client-side text match there and let the
-   * re-queried list stand on its own.
+   * re-queried list stand on its own - except an object-id search, which the tenant query
+   * can't express, so filter that client-side against the full loaded set.
    */
   get filteredStreams(): StreamInfo[] {
-    const serverSideText = this.rootStore.dataStore.useContentGroup;
-    const filter = serverSideText ? "" : this.tableFilter.toLowerCase();
+    const objectIdSearch = this.tableFilterIsObjectId;
+    const serverSideText = this.rootStore.dataStore.useContentGroup && !objectIdSearch;
+    const filter = serverSideText ? "" : this.tableFilter.toLowerCase().trim();
     const tagFilter = this.activeTagFilter;
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||

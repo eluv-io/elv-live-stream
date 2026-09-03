@@ -235,17 +235,22 @@ class DataStore {
         yield this.LoadTenantSiteData();
       }
 
+      // An object-id search ("iq__…") can't be expressed as a TenantContent filter,
+      // so load the full set - no date scope, no paging - and let filteredStreams
+      // narrow it client-side.
+      const objectIdSearch = this.rootStore.streamStore.tableFilterIsObjectId;
+
       // Date scoping only applies when the site opts into it (useDateFilter).
       const dateRange: [Date | null, Date | null] =
-        scoped && this.useDateFilter ? this.rootStore.streamStore.dateRangeFilter : [null, null];
+        scoped && this.useDateFilter && !objectIdSearch ? this.rootStore.streamStore.dateRangeFilter : [null, null];
 
       // useContentGroup picks the source of truth outright - no fall-through between the two.
       let streamMetadata;
       if(this.useContentGroup) {
         // Tenant-wide content-group query. Scoped (streams page) loads one page at a
         // time; LoadMoreStreamList pulls the rest.
-        const nameFilter = scoped ? this.rootStore.streamStore.tableFilter : "";
-        streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, nameFilter, force: reload, paged: scoped});
+        const nameFilter = scoped && !objectIdSearch ? this.rootStore.streamStore.tableFilter : "";
+        streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, nameFilter, force: reload, paged: scoped && !objectIdSearch});
       } else {
         // Legacy: the site object's registered stream list.
         if(!this.streamMetadata || reload) {

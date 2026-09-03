@@ -200,6 +200,24 @@ describe("StreamStore.filteredStreams", () => {
 
     expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["a", "b"]);
   });
+
+  it("filters by object id client-side even on the content-group path", () => {
+    const {store} = makeStore({streams});
+    store.rootStore.dataStore.useContentGroup = true;
+    store.SetTableFilter("iq__a");
+
+    expect(store.tableFilterIsObjectId).toBe(true);
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["a"]);
+  });
+
+  it("treats a partial 'iq__' term (and surrounding whitespace) as an object-id search", () => {
+    const {store} = makeStore({streams});
+    store.SetTableFilter("  iq__  ");
+    expect(store.tableFilterIsObjectId).toBe(true);
+
+    store.SetTableFilter("Final Match");
+    expect(store.tableFilterIsObjectId).toBe(false);
+  });
 });
 
 describe("StreamStore active-set maintenance", () => {
