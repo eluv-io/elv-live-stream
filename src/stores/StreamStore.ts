@@ -1517,8 +1517,8 @@ class StreamStore {
         rep: "playout/default/options.json",
         ...authArgs
       });
-      result.playoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, versionHash});
-      result.publicPlayoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, versionHash, dropAuthorization: true});
+      result.playoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId});
+      result.publicPlayoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, dropAuthorization: true});
     } catch(error) {
 
       console.error(`Unable to load playout options URL for ${objectId}`, error);
@@ -1583,9 +1583,9 @@ class StreamStore {
 
       result.playoutMethods.push({
         label,
-        url: this._NamedNetworkUrl({url: rawUrl, versionHash}),
+        url: this._NamedNetworkUrl({url: rawUrl, objectId}),
         licenseServerUrl,
-        publicUrl: this._NamedNetworkUrl({url: rawUrl, versionHash, dropAuthorization: true}),
+        publicUrl: this._NamedNetworkUrl({url: rawUrl, objectId, dropAuthorization: true}),
         publicLicenseServerUrl: licenseServerUrl ?
           this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
           undefined
@@ -1628,10 +1628,11 @@ class StreamStore {
   /**
    * Rebuild a fabric URL against a named-network host instead of the specific node
    * that served the original, so the link resolves close to whichever viewer opens it.
-   * dropAuthorization strips the auth token for the "public" variant; omitted, the
-   * URL's own token is kept.
+   * The path is anchored to the object id (`/q/iq__...`), not the version hash, so the
+   * link always resolves the latest version. dropAuthorization strips the auth token
+   * for the "public" variant; omitted, the URL's own token is kept.
    */
-  _NamedNetworkUrl({url, versionHash, dropAuthorization=false}: {url: string, versionHash: string, dropAuthorization?: boolean}): string | undefined {
+  _NamedNetworkUrl({url, objectId, dropAuthorization=false}: {url: string, objectId: string, dropAuthorization?: boolean}): string | undefined {
     try {
       const network = this.rootStore.networkInfo?.name || "main";
       const networkHost = NETWORK_HOSTS[network] || NETWORK_HOSTS.main;
@@ -1643,7 +1644,7 @@ class StreamStore {
       }
 
       const namedNetworkUrl = new URL(`https://${networkHost}`);
-      namedNetworkUrl.pathname = UrlJoin("s", network, "q", versionHash, path);
+      namedNetworkUrl.pathname = UrlJoin("s", network, "q", objectId, path);
       originalUrl.searchParams.forEach((value, key) => {
         if(key !== "authorization") { namedNetworkUrl.searchParams.set(key, value); }
       });
