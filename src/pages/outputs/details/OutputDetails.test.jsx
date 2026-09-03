@@ -159,7 +159,7 @@ describe("SummaryPanel - Input Failover card", () => {
   // DOCUMENT_POSITION_FOLLOWING (4) => b comes after a in document order.
   const isAfter = (a, b) => Boolean(a.compareDocumentPosition(b) & 4);
 
-  it("should badge the primary card CONNECTED when it is the active_stream", () => {
+  it("should badge the primary card ACTIVE when it is the active_stream", () => {
     renderPanel(
       makeOutput({
         input: {stream: "iq__primary", failover: {after: "5s", input: {stream: "iq__failover"}}},
@@ -167,12 +167,12 @@ describe("SummaryPanel - Input Failover card", () => {
       })
     );
 
-    expect(screen.getAllByText("Connected").length).toBe(1);
+    expect(screen.getAllByText("Active").length).toBe(1);
     // Primary badge precedes the Input Failover card header.
-    expect(isAfter(screen.getByText("Connected"), screen.getByText("Input Failover"))).toBe(true);
+    expect(isAfter(screen.getByText("Active"), screen.getByText("Input Failover"))).toBe(true);
   });
 
-  it("should badge the failover card CONNECTED when it is the active_stream", () => {
+  it("should badge the failover card ACTIVE when it is the active_stream", () => {
     renderPanel(
       makeOutput({
         ...withFailover(),
@@ -180,15 +180,15 @@ describe("SummaryPanel - Input Failover card", () => {
       })
     );
 
-    expect(screen.getAllByText("Connected").length).toBe(1);
+    expect(screen.getAllByText("Active").length).toBe(1);
     // Failover badge follows the Input Failover card header.
-    expect(isAfter(screen.getByText("Input Failover"), screen.getByText("Connected"))).toBe(true);
+    expect(isAfter(screen.getByText("Input Failover"), screen.getByText("Active"))).toBe(true);
   });
 
   it("should not badge either card when there is no failover state", () => {
     renderPanel(makeOutput(withFailover()));
 
-    expect(screen.queryByText("Connected")).not.toBeInTheDocument();
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
   });
 
   it("should offer 'Switch to Primary' and open the switchInput modal when failover is active", () => {

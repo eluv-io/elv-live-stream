@@ -489,10 +489,11 @@ describe("Outputs — interactions", () => {
     const user = userEvent.setup();
     renderOutputs();
 
-    // Act — the external link icon lives in the stream cell of a mapped row
+    // Act — the external link icon is the only button in the stream cell of a
+    // mapped row (it sits beside the stream id, in a Group below the name).
     const streamNode = screen.getByText(byTextContent("Mapped Stream"));
     const externalLinkBtn = streamNode
-      .closest("div")
+      .closest("td")
       .querySelector("button");
     await user.click(externalLinkBtn);
 
