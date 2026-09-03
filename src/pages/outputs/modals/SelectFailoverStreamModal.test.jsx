@@ -70,6 +70,14 @@ describe("SelectFailoverStreamModal", () => {
     expect(screen.getByRole("button", {name: "row-Bravo"})).toBeDisabled();
   });
 
+  it("should disable the row matching primaryStreamId", () => {
+    state.streams = {a: eligible("iq__a", "Alpha"), b: eligible("iq__b", "Bravo")};
+    renderModal({primaryStreamId: "iq__a"});
+
+    expect(screen.getByRole("button", {name: "row-Alpha"})).toBeDisabled();
+    expect(screen.getByRole("button", {name: "row-Bravo"})).not.toBeDisabled();
+  });
+
   it("should return {objectId, title} to onSelect and close on Select", async () => {
     state.streams = {a: eligible("iq__a", "Alpha")};
     const onSelect = vi.fn();

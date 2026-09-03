@@ -194,7 +194,9 @@ class OutputStore {
       enabled: output.enabled,
       streamId: output.input?.stream,
       streamName: output.input?.name,
-      streamStatus: output.input?.status,
+      // Live status from the streams map (updated on start/stop) beats
+      // output.input.status, only as fresh as the last outputs load.
+      streamStatus: streams?.[streamSlug]?.status ?? output.input?.status,
       url,
       type: DeriveOutputType(output, streams?.[streamSlug]?.source ?? output.input?.source),
       packaging: streams?.[streamSlug]?.packaging ?? output.input?.packaging,
@@ -1143,6 +1145,22 @@ class OutputStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to delete output.", error);
+      throw error;
+    }
+  }
+
+  // Switch the active input hop (0 = primary, 1 = failover), then re-read
+  // runtime state. active_stream can lag one fabric poll after the call.
+  *SwitchOutputInput({outputId, hop}: {outputId: string, hop: number}): Generator<any, void> {
+    const objectId = this.outputSettingsId;
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
+    try {
+      yield this.client.OutputsHop({libraryId, objectId, outputId, hop});
+      yield this.CheckOutputState({outputId, update: true});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to switch output input.", error);
       throw error;
     }
   }

@@ -1,5 +1,5 @@
 import {describe, it, expect, vi, beforeEach} from "vitest";
-import {render, screen} from "@testing-library/react";
+import {render, screen, fireEvent} from "@testing-library/react";
 import {MantineProvider} from "@mantine/core";
 
 // --- Module mocks (hoisted) -------------------------------------------------
@@ -18,7 +18,7 @@ vi.mock("@/pages/streams/table/StreamsTable.jsx", () => ({
 
 vi.mock("@/stores/index.ts", () => ({
   dataStore: {dedicatedNodesList: [], loadedDedicatedNodes: true, dedicatedNodes: {}},
-  outputStore: {},
+  outputStore: {OutputItem: vi.fn(() => undefined)},
   outputSaveStore: {},
   outputModalStore: {OpenModal: vi.fn()},
   streamStore: {allStreams: {}, loadingAllStreams: false, LoadAllStreams: vi.fn()}
@@ -26,7 +26,7 @@ vi.mock("@/stores/index.ts", () => ({
 
 // Imports must come AFTER vi.mock so the module picks up the mocks
 import {SummaryPanel} from "./OutputDetails.jsx";
-import {streamStore} from "@/stores/index.ts";
+import {streamStore, outputModalStore, outputStore} from "@/stores/index.ts";
 
 // --- Factories -----------------------------------------------------------
 
@@ -70,6 +70,27 @@ const rowValue = (label) => {
 beforeEach(() => {
   vi.clearAllMocks();
   streamStore.allStreams = {};
+  outputStore.OutputItem = vi.fn(() => undefined);
+});
+
+// ---------------------------------------------------------------------------
+// Input Primary card - stream status
+// ---------------------------------------------------------------------------
+
+describe("SummaryPanel - Input Primary status", () => {
+  it("should show the live stream status from OutputItem over the stale output.input.status", () => {
+    outputStore.OutputItem = vi.fn(() => ({streamStatus: "running"}));
+    renderPanel(makeOutput({input: {stream: "iq__primary", name: "Primary Stream", status: "stopped"}}));
+
+    expect(screen.getByText("Running")).toBeInTheDocument();
+    expect(screen.queryByText("Stopped")).not.toBeInTheDocument();
+  });
+
+  it("should fall back to output.input.status when OutputItem has no resolved status", () => {
+    renderPanel(makeOutput({input: {stream: "iq__primary", name: "Primary Stream", status: "stopped"}}));
+
+    expect(screen.getByText("Stopped")).toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -168,6 +189,37 @@ describe("SummaryPanel - Input Failover card", () => {
     renderPanel(makeOutput(withFailover()));
 
     expect(screen.queryByText("Connected")).not.toBeInTheDocument();
+  });
+
+  it("should offer 'Switch to Primary' and open the switchInput modal when failover is active", () => {
+    renderPanel(
+      makeOutput({
+        ...withFailover(),
+        state: {failover: {active_stream: "iq__failover"}}
+      })
+    );
+
+    const button = screen.getByRole("button", {name: /switch to primary/i});
+    fireEvent.click(button);
+
+    expect(outputModalStore.OpenModal).toHaveBeenCalledWith("switchInput", ["out016"]);
+  });
+
+  it("should offer 'Switch to Failover' when the primary is the active_stream", () => {
+    renderPanel(
+      makeOutput({
+        input: {stream: "iq__primary", failover: {after: "5s", input: {stream: "iq__failover"}}},
+        state: {failover: {active_stream: "iq__primary"}}
+      })
+    );
+
+    expect(screen.getByRole("button", {name: /switch to failover/i})).toBeInTheDocument();
+  });
+
+  it("should not offer a switch button when there is no active failover state", () => {
+    renderPanel(makeOutput(withFailover()));
+
+    expect(screen.queryByRole("button", {name: /switch to/i})).not.toBeInTheDocument();
   });
 
   it("should still render the failover card when the primary stream is unavailable", () => {

@@ -40,6 +40,7 @@ const makeClient = (overrides: Record<string, unknown> = {}) => ({
   OutputsDelete: vi.fn().mockResolvedValue(undefined),
   OutputsDeleteBatch: vi.fn().mockResolvedValue(undefined),
   OutputsStop: vi.fn().mockResolvedValue(undefined),
+  OutputsHop: vi.fn().mockResolvedValue(undefined),
   StreamSiteSettings: vi.fn().mockResolvedValue({siteLibraryId: "ilib-site", siteObjectId: "iq__site"}),
   EmbedUrl: vi.fn().mockResolvedValue("https://embed.example.com/watch"),
   StreamStatus: vi.fn().mockResolvedValue({quality: 0.9, input_stats: {}}),
@@ -129,6 +130,23 @@ describe("FlattenOutput", () => {
     const {store} = makeStore();
     const flat = store.FlattenOutput("out-1", {});
     expect(flat.connectedClients).toBe(0);
+  });
+
+  it("should prefer the live stream status from the observable streams map over output.input.status", () => {
+    const {store} = makeStore({}, {
+      streams: {"my-stream": {slug: "my-stream", status: "running"}},
+      streamsByObjectId: {"iq__stream-1": "my-stream"}
+    });
+    const output = {name: "Out", input: {stream: "iq__stream-1", status: "stopped"}};
+    const flat = store.FlattenOutput("out-1", output);
+    expect(flat.streamStatus).toBe("running");
+  });
+
+  it("should fall back to output.input.status when the stream is not in the observable map", () => {
+    const {store} = makeStore();
+    const output = {name: "Out", input: {stream: "iq__stream-1", status: "stopped"}};
+    const flat = store.FlattenOutput("out-1", output);
+    expect(flat.streamStatus).toBe("stopped");
   });
 });
 
@@ -1342,5 +1360,38 @@ describe("LoadOutputItem", () => {
     await store.LoadOutputItem({outputId: "out-1"});
 
     expect(store.outputs["out-1"].input).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SwitchOutputInput
+// ---------------------------------------------------------------------------
+
+describe("SwitchOutputInput", () => {
+  it("should call OutputsHop with the target hop then merge the re-read state", async () => {
+    const {store, mockClient} = makeStore({
+      OutputsState: vi.fn().mockResolvedValue({state: {failover: {active_stream: "iq__failover"}}})
+    });
+    store.outputs = {"out-1": {name: "Out", state: {failover: {active_stream: "iq__primary"}}}};
+
+    await store.SwitchOutputInput({outputId: "out-1", hop: 1});
+
+    expect(mockClient.OutputsHop).toHaveBeenCalledWith({
+      libraryId: "ilib-outputs",
+      objectId: "iq__output-settings",
+      outputId: "out-1",
+      hop: 1
+    });
+    expect(store.outputs["out-1"].state).toEqual({failover: {active_stream: "iq__failover"}});
+  });
+
+  it("should rethrow and not touch state when OutputsHop rejects", async () => {
+    const {store} = makeStore({
+      OutputsHop: vi.fn().mockRejectedValue(new Error("hop failed"))
+    });
+    store.outputs = {"out-1": {name: "Out", state: {failover: {active_stream: "iq__primary"}}}};
+
+    await expect(store.SwitchOutputInput({outputId: "out-1", hop: 1})).rejects.toThrow("hop failed");
+    expect(store.outputs["out-1"].state).toEqual({failover: {active_stream: "iq__primary"}});
   });
 });

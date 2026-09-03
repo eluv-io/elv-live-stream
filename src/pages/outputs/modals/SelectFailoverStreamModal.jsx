@@ -11,7 +11,7 @@ import {useDebouncedValue} from "@mantine/hooks";
 // Picks an input failover stream for an output. Unlike MapToStreamModal (which
 // maps the primary and writes immediately), this returns the selection via
 // onSelect - the value is held in the output form and persisted on Save.
-const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, currentStreamId}) => {
+const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, currentStreamId, primaryStreamId}) => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
@@ -21,8 +21,11 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
     if(show) { streamStore.LoadAllStreams(); }
   }, [show]);
 
-  // Same eligibility as primary mapping - a failover input feeds the same output.
-  const CanSelectStream = record => !!record.inputCfg && !!record.packaging?.includes("ts");
+  // Same eligibility as primary mapping, minus the output's own primary stream.
+  const CanSelectStream = record =>
+    !!record.inputCfg &&
+    !!record.packaging?.includes("ts") &&
+    record.objectId !== primaryStreamId;
 
   const records = Object.values(streamStore.allStreams || {})
     .filter(record => (
@@ -47,7 +50,7 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
       title={
         <Stack gap={0} mb={20}>
           <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>Select Failover Stream</Title>
-          <Text fz="0.875rem" c="elv-gray.8">Select the stream to fail over to if the primary input disconnects (TS streams only).</Text>
+          <Text fz="0.875rem" c="elv-gray.8">Select the stream to fail over to if the primary input disconnects (TS streams only; the primary stream can&apos;t be selected).</Text>
         </Stack>
       }
       padding="24px"

@@ -13,9 +13,10 @@ interface ModalConfig {
   errorMessage?: string;
 }
 
-type ModalAction = "map" | "remap" | "unmap" | "enable" | "disable" | "delete" | "reset" | "tags" | "create";
+type ModalAction = "map" | "remap" | "unmap" | "enable" | "disable" | "delete" | "reset" | "tags" | "create" | "switchInput";
 
-type ModalConfigProps = Record<Exclude<ModalAction, "map" | "tags" | "create">, ModalConfig>
+// "switchInput" is excluded - confirmConfig builds its config from live state.
+type ModalConfigProps = Record<Exclude<ModalAction, "map" | "tags" | "create" | "switchInput">, ModalConfig>
 
 const MODAL_CONFIG: ModalConfigProps = {
   remap: {
@@ -93,7 +94,7 @@ class OutputModalStore {
   }
 
   get isConfirmModalOpen(): boolean {
-    return this.activeModal in MODAL_CONFIG;
+    return this.activeModal in MODAL_CONFIG || this.activeModal === "switchInput";
   }
 
   get outputName(): string {
@@ -101,7 +102,33 @@ class OutputModalStore {
     return this.outputStore.outputs[this.modalSlugs[0]]?.name ?? "";
   }
 
+  // Switch target from live state: hop 0 = primary, 1 = failover; always the inactive one.
+  get switchTarget(): { hop: number, targetLabel: string } {
+    const output = this.outputStore.outputs[this.modalSlugs[0]];
+    const activeStream = output?.state?.failover?.active_stream;
+    const primaryActive = Boolean(activeStream) && activeStream === output?.input?.stream;
+    return {
+      hop: primaryActive ? 1 : 0,
+      targetLabel: primaryActive ? "Failover" : "Primary"
+    };
+  }
+
   get confirmConfig(): (ModalConfig & { description: string } | null) {
+    if(this.activeModal === "switchInput") {
+      const {targetLabel} = this.switchTarget;
+      return {
+        title: "Switch Output Input",
+        description: `Switching the active input to ${targetLabel} may briefly interrupt downstream clients.`,
+        descriptionSingular: "",
+        descriptionPlural: "",
+        confirmLabel: `Switch to ${targetLabel}`,
+        closeOnConfirm: true,
+        successTitle: "Input switched",
+        successMessage: `Output input switched to ${targetLabel}`,
+        errorMessage: "Unable to switch output input"
+      };
+    }
+
     const config = MODAL_CONFIG[this.activeModal];
     if(!config) { return null; }
     return {
@@ -136,6 +163,12 @@ class OutputModalStore {
         break;
       case "reset":
         yield this.outputStore.ResetOutput({outputId: this.modalSlugs[0]});
+        break;
+      case "switchInput":
+        yield this.outputStore.SwitchOutputInput({
+          outputId: this.modalSlugs[0],
+          hop: this.switchTarget.hop
+        });
         break;
       case "enable":
         if(this.modalSlugs.length === 1) {

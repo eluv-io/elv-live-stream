@@ -49,7 +49,7 @@ const InputStatRows = (data) => {
   return [
     {label: "Quality", value: QUALITY_TEXT[data?.quality]},
     {label: "Packets Recv / Drop (%)", value: ts ? `${ts.packets_received?.toLocaleString()} / ${ts.packets_dropped?.toLocaleString()} (${ts.packets_received ? (ts.packets_dropped / ts.packets_received).toFixed(2) : "0.00"}%)` : ""},
-    {label: "Seq Errors Number / Total Gap", value: rtp ? `${rtp.seq_num_skip_tot?.toLocaleString()} / ${rtp.seq_num_skip_count?.toLocaleString()}` : ""},
+    {label: "Seq Errors Number / Total Gap", value: rtp ? `${rtp.seq_num_skip_tot?.toLocaleString()} / ${rtp.seq_num_skip_count?.toLocaleString()}` : "0 / 0"},
     {label: "Errors All / CC", value: `${([ts?.errors_cc, ts?.errors_incomplete_packets, ts?.errors_opening_output, ts?.errors_other, ts?.errors_writing].reduce((sum, val) => sum + (val ?? 0), 0))} / ${ts?.errors_cc ?? 0}`}
   ];
 };
@@ -70,8 +70,7 @@ const FailoverIncidentRows = (failoverState) => {
   return [
     {label: "Last Failover", value: failoverState?.last_failover_at ? DateFormat({time: failoverState.last_failover_at, format: "iso-minute"}) : ""},
     {label: "Reason", value: failoverState?.last_failover_reason ?? ""},
-    {label: "No. Switches", value: failoverState?.failover_count ?? ""},
-    {label: "Active Stream", value: failoverState?.active_stream ?? "", copyable: Boolean(failoverState?.active_stream), lineClamp: 1},
+    {label: "Switch Count", value: failoverState?.failover_count ?? ""},
     {label: "Active Hop", value: failoverState?.hop_count ? `${(failoverState.active_hop ?? 0) + 1} of ${failoverState.hop_count}` : ""}
   ];
 };
@@ -83,6 +82,9 @@ export const SummaryPanel = observer(({output, url, id}) => {
   // client-js (OutputsList/OutputsListItem) marks this when the mapped stream's
   // content object is gone - e.g. deleted without unmapping this output.
   const streamUnavailable = output?.input?.status === STATUS_MAP.UNAVAILABLE;
+  // Live status from the streams map (updated on start/stop) beats the
+  // fabric-enriched output.input.status, stale until the next outputs load.
+  const streamStatus = outputStore.OutputItem?.(id)?.streamStatus ?? output?.input?.status;
   const failover = output?.input?.failover;
   const failoverStream = failover?.input?.stream;
   // Show the section only on an actual reported incident, not just a configured
@@ -112,6 +114,8 @@ export const SummaryPanel = observer(({output, url, id}) => {
             <Button
               variant="outline"
               leftSection={<IconSwitchHorizontal size={16} />}
+              disabled={outputSaveStore.anyDirty}
+              onClick={() => outputModalStore.OpenModal("switchInput", [id])}
             >
               Switch to {inactiveSourceLabel}
             </Button>
@@ -126,7 +130,7 @@ export const SummaryPanel = observer(({output, url, id}) => {
               index={0}
               id={output?.input?.stream}
               showPreview
-              playable={output?.input?.status === STATUS_MAP.RUNNING}
+              playable={streamStatus === STATUS_MAP.RUNNING}
               borderRadius={16}
             />
           </Box>
@@ -135,7 +139,7 @@ export const SummaryPanel = observer(({output, url, id}) => {
           streamUnavailable ?
             <Box flex={1} bd="1px solid elv-gray.2" radius={5} className={detailCardStyles.boxWrapper}>
               <Box p={12}>
-                <DetailCardHeader title="Input Primary" />
+                <DetailCardHeader title={failoverStream ? "Input Primary" : "Input"} />
                 <Stack p="44px 100px" align="center" gap={12}>
                   <Text c="dimmed" ta="center">
                     The mapped stream no longer exists. Unmap it and select another stream.
@@ -151,7 +155,7 @@ export const SummaryPanel = observer(({output, url, id}) => {
               titleBadge={primaryConnected && <ConnectedBadge />}
               titleRightSection={
                 <StatusIndicator
-                  status={output?.input?.status}
+                  status={streamStatus}
                   fw={400}
                 />
               }

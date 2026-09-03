@@ -317,6 +317,7 @@ const GeneralConfig = observer(({form, output}) => {
           show={showFailoverModal}
           onCloseModal={() => setShowFailoverModal(false)}
           currentStreamId={failoverStream}
+          primaryStreamId={output?.input?.stream}
           onSelect={record => {
             form.setFieldValue("failoverStream", record.objectId);
             form.setFieldValue("failoverStreamName", record.title);
