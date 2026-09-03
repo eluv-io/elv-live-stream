@@ -415,6 +415,11 @@ const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
 
   const effectiveMaxHeight = useAutoHeight ? (autoMaxHeight ?? maxHeight) : maxHeight;
 
+  // Don't force `minHeight` when the rows already fit inside it - that leaves dead space
+  // below a short list (e.g. a single row).
+  const contentHeight = (scrollMargin || 44) + props.records.length * ROW_HEIGHT;
+  const effectiveMinHeight = props.records.length === 0 ? minHeight : Math.min(minHeight, contentHeight);
+
   // Rows start below the sticky header in the same scroll element; the virtualizer needs
   // that offset to map scrollTop -> row range.
   useLayoutEffect(() => {
@@ -482,7 +487,7 @@ const BoundedVirtualizedTable = ({maxHeight, minHeight, ...props}) => {
       headerRef={headerRef}
       scrollMargin={scrollMargin}
       loadingMore={loadingMore}
-      scrollContainerProps={{style: {maxHeight: effectiveMaxHeight, minHeight}}}
+      scrollContainerProps={{style: {maxHeight: effectiveMaxHeight, minHeight: effectiveMinHeight}}}
       scrollAreaProps={{ref: scrollRef}}
       virtualItems={virtualItems}
       totalSize={rowVirtualizer.getTotalSize()}
