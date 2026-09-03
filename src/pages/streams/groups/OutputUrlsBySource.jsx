@@ -36,17 +36,16 @@ const UrlRows = (output, mode, packaging) => {
 
   const rows = [];
 
-  // TS packaging: the embeddable-URL slot is relabeled "Global SRT URL", followed by
-  // the SRT "Playout URL". FMP4 is the regular fabric playout URL, used as-is (the
-  // manifest path is not rewritten).
+  // TS packaging: just the SRT playout URL, labeled "Global SRT URL". FMP4 is the
+  // regular fabric playout URL, used as-is (the manifest path is not rewritten).
   if(packaging === "ts") {
-    if(output.embedUrl) { rows.push({label: "Global SRT URL", url: output.embedUrl}); }
     const url = isPublic ? output.publicSrtPlayoutUrl : output.srtPlayoutUrl;
-    if(url) { rows.push({label: "Playout URL", url}); }
+    if(url) { rows.push({label: "Global SRT URL", url}); }
     return rows;
   }
 
-  if(output.embedUrl) { rows.push({label: "Embeddable URL", url: output.embedUrl}); }
+  const embedUrl = isPublic ? (output.publicEmbedUrl || output.embedUrl) : output.embedUrl;
+  if(embedUrl) { rows.push({label: "Embeddable URL", url: embedUrl}); }
 
   (output.playoutMethods || []).forEach(method => {
     const url = isPublic ? method.publicUrl : method.url;

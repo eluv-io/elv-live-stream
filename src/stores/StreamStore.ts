@@ -229,6 +229,7 @@ export interface OutputUrlRow {
 
 export interface StreamOutputUrls {
   embedUrl?: string;
+  publicEmbedUrl?: string;
   playoutUrl?: string;
   publicPlayoutUrl?: string;
   playoutMethods: OutputUrlRow[];
@@ -1501,6 +1502,7 @@ class StreamStore {
 
     try {
       result.embedUrl = yield this.EmbedUrl({objectId});
+      result.publicEmbedUrl = this._DropEmbedAuth(result.embedUrl);
     } catch(error) {
 
       console.error(`Unable to load embed URL for ${objectId}`, error);
@@ -1604,6 +1606,23 @@ class StreamStore {
     const port = SRT_PLAYOUT_PORTS[network] || SRT_PLAYOUT_PORTS.main;
     const streamId = `live-ts.${objectId}${token ? `.${token}` : ""}`;
     return `srt://${network}.glb.contentfabric.io:${port}?streamid=${streamId}`;
+  }
+
+  /**
+   * Strip the signed-token query param (`ath`) from an embed URL for the "public"
+   * variant. Returns the URL unchanged if it has no token or can't be parsed.
+   */
+  _DropEmbedAuth(url?: string): string | undefined {
+    if(!url) { return undefined; }
+    try {
+      const embedUrl = new URL(url);
+      embedUrl.searchParams.delete("ath");
+      return embedUrl.toString();
+    } catch(error) {
+
+      console.error(`Unable to strip auth from embed URL ${url}`, error);
+      return url;
+    }
   }
 
   /**
