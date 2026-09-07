@@ -174,9 +174,6 @@ const LoadPersistedDateFilter = (): {preset: DateRangePreset, referenceDate: Dat
 const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
 const STREAM_STATUS_TIMEOUT_MS = 10000;
 const TENANT_CONTENT_PAGE_SIZE = 100;
-// TenantContent must be served by this fabric node - the client is pinned to it
-// per query and the region is reset afterward.
-const TENANT_CONTENT_NODE_URI = "https://host-154-14-243-34.contentfabric.io";
 // Meta paths needed to build StreamInfo from a tenant query version without a per-object fetch.
 const TENANT_CONTENT_SELECT = [
   "public/name",
@@ -1047,16 +1044,10 @@ class StreamStore {
 
   /** Run a TenantContent query pinned to the fixed fabric node, always releasing the region afterward. */
   async _TenantContent(params: Record<string, any>): Promise<any> {
-    this.client.SetNodes({fabricURIs: [TENANT_CONTENT_NODE_URI]});
     try {
       return await this.client.TenantContent(params);
-    } finally {
-      try {
-        await this.client.ResetRegion();
-      } catch(error) {
-
-        console.error("Unable to reset region after TenantContent", error);
-      }
+    } catch(error) {
+      console.error("Unable to reset region after TenantContent", error);
     }
   }
 
