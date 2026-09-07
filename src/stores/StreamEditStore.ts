@@ -1,6 +1,7 @@
 // Handles stream configuration writes: create, delete, metadata, recording config, playout (watermarks, DRM, audio), profiles, permissions, and VOD copy.
 import {makeAutoObservable, toJS} from "mobx";
 import {
+  AlternateTranscode,
   DeriveCopyMode,
   DeriveCopyPackaging,
   FinalizeContentObjectResponse,
@@ -9,6 +10,7 @@ import {
   LadderSpec,
   LiveRecordingConfigProfile,
   ParseLiveConfigData,
+  ProgramPidSelection,
   RecordingInputCfg,
   RecordingPeriod,
   SimpleWatermark,
@@ -90,6 +92,16 @@ interface UpdateConfigMetadataParams {
   customReadLoop?: boolean;
   audioData?: AudioDataMap;
   multiPathEnabled?: boolean;
+  // Assumed shape, pending fabric-team confirmation - see the Alternate
+  // Transcodes / Program-PID-Selection design note in CLAUDE.md. Written via
+  // the same ReplaceMetadata call as the fields above, so it won't hard-
+  // reject, but may be silently ignored by the recording pipeline until it's
+  // extended to read these fields (same risk already documented for ats_ts).
+  copyPackagingFormats?: string[];
+  alternateTranscodeEnabled?: boolean;
+  alternateTranscodes?: AlternateTranscode[];
+  programPidSelection?: ProgramPidSelection;
+  advancedEncodingParams?: Record<string, unknown> | null;
 }
 
 interface UpdateGeneralConfigParams {
@@ -180,8 +192,10 @@ interface UpdateRecordingConfigParams {
     "retention" | "persistent" | "connectionTimeout" | "reconnectionTimeout"
   >;
   tsFormData: Pick<UpdateConfigMetadataParams,
-    "copyMpegTs" | "inputPackaging" | "copyPackaging" | "customReadLoop" | "fabricPackagingFMP4" | "fabricPackagingMpegTs"
+    "copyMpegTs" | "inputPackaging" | "copyPackaging" | "customReadLoop" | "fabricPackagingFMP4" | "fabricPackagingMpegTs" |
+    "copyPackagingFormats" | "alternateTranscodeEnabled" | "alternateTranscodes"
   >;
+  fmp4FormData?: Pick<UpdateConfigMetadataParams, "programPidSelection" | "advancedEncodingParams">;
   multiPathEnabled?: boolean;
 }
 
@@ -655,6 +669,11 @@ class StreamEditStore {
     fabricPackagingMpegTs,
     inputPackaging,
     copyPackaging,
+    copyPackagingFormats,
+    alternateTranscodeEnabled,
+    alternateTranscodes,
+    programPidSelection,
+    advancedEncodingParams,
     audioData,
     multiPathEnabled
   }: UpdateConfigMetadataParams) : Generator<any, {writeToken: string}> {
@@ -690,6 +709,14 @@ class StreamEditStore {
         custom_read_loop_enabled: true
       } : {};
     }
+
+    // New fields, additive to the legacy input_cfg above - see the comment
+    // on UpdateConfigMetadataParams for the pending-confirmation caveat.
+    if(copyPackagingFormats !== undefined) recordingConfig.copy_packaging_formats = copyPackagingFormats;
+    if(alternateTranscodeEnabled !== undefined) recordingConfig.alternate_transcode_enabled = alternateTranscodeEnabled;
+    if(alternateTranscodes !== undefined) recordingConfig.alternate_transcodes = alternateTranscodes;
+    if(programPidSelection !== undefined) recordingConfig.program_pid_selection = programPidSelection;
+    if(advancedEncodingParams !== undefined) recordingConfig.advanced_encoding_params = advancedEncodingParams;
 
     const recordingStreamConfig = {...existingConfig?.recording_stream_config};
     if(audioData !== undefined) {
@@ -865,6 +892,7 @@ class StreamEditStore {
     audioFormData,
     configFormData,
     tsFormData,
+    fmp4FormData,
     multiPathEnabled
   }: UpdateRecordingConfigParams): Generator<any, void> {
     if(!libraryId) {
@@ -879,7 +907,11 @@ class StreamEditStore {
     }
 
     const {retention, persistent, connectionTimeout, reconnectionTimeout} = configFormData;
-    const {copyMpegTs, inputPackaging, copyPackaging, fabricPackagingFMP4, fabricPackagingMpegTs} = tsFormData;
+    const {
+      copyMpegTs, inputPackaging, copyPackaging, fabricPackagingFMP4, fabricPackagingMpegTs,
+      copyPackagingFormats, alternateTranscodeEnabled, alternateTranscodes
+    } = tsFormData;
+    const {programPidSelection, advancedEncodingParams} = fmp4FormData ?? {};
 
     if(fabricPackagingFMP4 === true || !copyMpegTs) {
       yield this.UpdateStreamAudioSettings({
@@ -903,6 +935,11 @@ class StreamEditStore {
       fabricPackagingMpegTs,
       inputPackaging,
       copyPackaging,
+      copyPackagingFormats,
+      alternateTranscodeEnabled,
+      alternateTranscodes,
+      programPidSelection,
+      advancedEncodingParams,
       audioData: audioFormData,
       multiPathEnabled,
       writeToken,

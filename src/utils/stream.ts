@@ -62,6 +62,49 @@ interface RecordingConfig {
   persistent?: boolean;
 }
 
+// Probe-derived MPEG-TS program/PID structure. NOTE: no SDK/fabric support
+// exists for this today (no `programs` array anywhere in client-js's probe
+// or InputStreamInfo typedefs, confirmed against @eluvio/elv-client-js
+// 4.2.14) - the program list surfaced to the UI is a temporary mock
+// (src/utils/mockProbeProgramData.ts) until the fabric team exposes real
+// multiprogram probe data. This shape is a design-time assumption.
+export interface ProbePid {
+  pid: number;
+  type: "video" | "audio" | "data";
+  codec: string;
+  description: string;
+}
+
+export interface ProbeProgram {
+  id: string;
+  number: number;
+  name: string;
+  pids: ProbePid[];
+}
+
+// Only the active program's selection is persisted - see ProgramPidSelector.jsx.
+export interface ProgramPidSelection {
+  activeProgramId: string | null;
+  selections: Record<string, number[]>;
+}
+
+// Assumed shape, pending fabric-team confirmation of whether/how a
+// recording-side transcode rendition (distinct from live_outputs egress) can
+// be represented - see CLAUDE.md's Alternate Transcodes note.
+export interface AlternateTranscode {
+  id: string;
+  name: string;
+  nodeType: "dedicated" | "public";
+  node?: string;
+  geo?: string;
+  protocol: string;
+  resolution?: string;
+  videoBitrate?: string;
+  streamBitrate?: string;
+  advancedEncodingParams?: Record<string, unknown> | null;
+  programPidSelection?: ProgramPidSelection;
+}
+
 export interface RecordingPeriod {
   id: number;
   audio_mez_duration_ts: number;

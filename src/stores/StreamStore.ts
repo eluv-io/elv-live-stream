@@ -4,7 +4,9 @@ import UrlJoin from "url-join";
 import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET, type DateRangePreset} from "@/utils/helpers";
 import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {
+  AlternateTranscode,
   DeriveSourceAndPackaging,
+  ProgramPidSelection,
   StreamMetadata, ProbeStream, RecordingInputCfg
 } from "@/utils/stream";
 import type RootStore from "@/stores/RootStore";
@@ -29,6 +31,13 @@ type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persisten
     stream_names: string[]
   };
   retention: string;
+  // Assumed shape, pending fabric-team confirmation - see the note on
+  // StreamEditStore's UpdateConfigMetadataParams.
+  copyPackagingFormats: string[];
+  alternateTranscodeEnabled: boolean;
+  alternateTranscodes: AlternateTranscode[];
+  programPidSelection: ProgramPidSelection;
+  advancedEncodingParams: Record<string, unknown> | null;
 };
 
 export interface AudioDataEntry {
@@ -955,6 +964,15 @@ class StreamStore {
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
       const reconnectionTimeout = liveRecordingConfigMeta?.reconnect_timeout ?? liveRecordingMeta?.recording_params?.reconnect_timeout;
 
+      // Assumed shape, pending fabric-team confirmation - see the note on
+      // StreamEditStore's UpdateConfigMetadataParams. Existing streams
+      // predate these fields, hence the defaults.
+      const copyPackagingFormats = liveRecordingConfigMeta?.copy_packaging_formats ?? [];
+      const alternateTranscodeEnabled = liveRecordingConfigMeta?.alternate_transcode_enabled ?? false;
+      const alternateTranscodes = liveRecordingConfigMeta?.alternate_transcodes ?? [];
+      const programPidSelection = liveRecordingConfigMeta?.program_pid_selection ?? {activeProgramId: null, selections: {}};
+      const advancedEncodingParams = liveRecordingConfigMeta?.advanced_encoding_params ?? null;
+
       const recordingData = {
         audioStreams,
         audioData,
@@ -964,7 +982,12 @@ class StreamStore {
         multiPath,
         persistent,
         reconnectionTimeout,
-        retention
+        retention,
+        copyPackagingFormats,
+        alternateTranscodeEnabled,
+        alternateTranscodes,
+        programPidSelection,
+        advancedEncodingParams
       };
 
       this.UpdateStream({key: slug, value: recordingData});

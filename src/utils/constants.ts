@@ -82,6 +82,22 @@ export const RETENTION_OPTIONS = [
   // {label: "Indefinitely", value: "indefinite"}
 ];
 
+// Alternate transcode "Protocol" select - only MPEG-TS is wired today since
+// alternate transcodes live under Transport Stream Packaging, but this stays
+// a real option list (not a hardcoded value) so FMP4/CMAF protocol support
+// can be added later without restructuring the field.
+export const ALTERNATE_TRANSCODE_PROTOCOLS = [
+  {label: "MPEG-TS", value: "mpeg_ts"}
+];
+
+export const RESOLUTION_OPTIONS = [
+  {label: "2160p", value: "2160p"},
+  {label: "1080p", value: "1080p"},
+  {label: "720p", value: "720p"},
+  {label: "480p", value: "480p"},
+  {label: "360p", value: "360p"}
+];
+
 export const DVR_DURATION_OPTIONS = [
   {label: "10 Minutes", value: "600"},
   {label: "30 Minutes", value: "1800"},
