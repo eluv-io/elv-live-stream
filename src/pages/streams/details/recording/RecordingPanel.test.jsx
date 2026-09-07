@@ -71,7 +71,7 @@ const renderRecordingPanel = (props = {}) => {
         <Routes>
           <Route
             path="/streams/:id"
-            element={<RecordingPanel slug="test-slug" status={STATUS_MAP.INACTIVE} {...props} />}
+            element={<RecordingPanel slug="test-slug" status={STATUS_MAP.INACTIVE} active {...props} />}
           />
         </Routes>
       </MemoryRouter>
@@ -114,7 +114,7 @@ describe("RecordingPanel", () => {
           <Routes>
             <Route
               path="/streams/:id"
-              element={<RecordingPanel slug="test-slug" status={STATUS_MAP.INACTIVE} />}
+              element={<RecordingPanel slug="test-slug" status={STATUS_MAP.INACTIVE} active />}
             />
           </Routes>
         </MemoryRouter>

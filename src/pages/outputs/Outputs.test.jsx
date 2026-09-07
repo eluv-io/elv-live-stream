@@ -87,13 +87,14 @@ vi.mock("mantine-datatable", () => ({
 // The Outputs component reads outputStore / outputModalStore / rootStore from here.
 vi.mock("@/stores/index.ts", () => ({
   // The Outputs page gates its records on dataStore.streamsLoaded and calls
-  // dataStore.LoadSiteStreams in LoadData, so the mock must provide both.
+  // dataStore.LoadStreamList in LoadData, so the mock must provide both.
   dataStore: {
     streamsLoaded: true,
-    LoadSiteStreams: vi.fn().mockResolvedValue(undefined)
+    LoadStreamList: vi.fn().mockResolvedValue(undefined)
   },
   outputStore: {
     state: "pending",
+    outputSettingsId: "iq__output-settings",
     outputList: [],
     tableFilter: "",
     tableTagFilter: [],
@@ -175,6 +176,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 
   outputStore.state = "pending";
+  outputStore.outputSettingsId = "iq__output-settings";
   outputStore.outputList = [];
   outputStore.tableFilter = "";
   outputStore.tableTagFilter = [];
@@ -252,6 +254,28 @@ describe("Outputs — error state", () => {
     ).toBeInTheDocument();
     expect(outputStore.LoadOutputs).toHaveBeenCalledTimes(1);
     expect(outputStore.state).toBe("error");
+  });
+
+  it("should show an error banner when no output settings object exists after loading", async () => {
+    outputStore.state = "error";
+    outputStore.outputSettingsId = "";
+
+    renderOutputs();
+
+    expect(
+      await screen.findByText(/outputs are not set up for this tenant/i)
+    ).toBeInTheDocument();
+  });
+
+  it("should NOT show the error banner while outputs are still loading (pending)", () => {
+    outputStore.state = "pending";
+    outputStore.outputSettingsId = "";
+
+    renderOutputs();
+
+    expect(
+      screen.queryByText(/outputs are not set up for this tenant/i)
+    ).not.toBeInTheDocument();
   });
 
   it("should render an empty table without crashing when outputList is empty", () => {
@@ -465,10 +489,11 @@ describe("Outputs — interactions", () => {
     const user = userEvent.setup();
     renderOutputs();
 
-    // Act — the external link icon lives in the stream cell of a mapped row
+    // Act — the external link icon is the only button in the stream cell of a
+    // mapped row (it sits beside the stream id, in a Group below the name).
     const streamNode = screen.getByText(byTextContent("Mapped Stream"));
     const externalLinkBtn = streamNode
-      .closest("div")
+      .closest("td")
       .querySelector("button");
     await user.click(externalLinkBtn);
 

@@ -7,15 +7,12 @@ import {
   Badge,
   Box,
   Button,
-  Checkbox,
   Divider,
   Flex,
   Group,
   Indicator,
   Input,
-  Loader, PasswordInput,
-  Select,
-  SimpleGrid,
+  Loader,
   Stack,
   Tabs,
   Text,
@@ -25,13 +22,15 @@ import {
 } from "@mantine/core";
 import {Fragment, useCallback, useEffect, useRef, useState} from "react";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {IconCopy} from "@tabler/icons-react";
+import {IconCopy, IconSwitchHorizontal} from "@tabler/icons-react";
 import DetailCard, {DetailCardHeader} from "@/components/detail-card/DetailCard.jsx";
+import detailCardStyles from "@/components/detail-card/DetailCard.module.css";
+import GeneralConfig from "@/pages/outputs/details/general/GeneralConfig.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
-import {FABRIC_NODE_REGIONS, OUTPUT_TYPE_COLOR_MAP, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
-import styles from "@/components/detail-card/DetailCard.module.css";
+import {FABRIC_NODE_REGIONS, FAILOVER_TIMEOUT_OPTIONS, OUTPUT_TYPE_COLOR_MAP, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
+import {OutputUrlProtocol} from "@/utils/helpers.ts";
 import sharedStyles from "@/assets/shared.module.css";
 import {outputModalStore} from "@/stores/index.ts";
 import {DateFormat, BytesToMb} from "@/utils/formatters.ts";
@@ -41,19 +40,88 @@ import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 
-const OutputUrlProtocol = (type) => type === "srt_push" ? "srt" : type;
+// Quality + input-stat rows shared by the Input Primary and Input Failover
+// Summary cards. `data` is an enriched input object (output.input or
+// output.input.failover) carrying `quality` and `stats` (StreamStatus.input_stats).
+const InputStatRows = (data) => {
+  const ts = data?.stats?.ts;
+  const rtp = data?.stats?.rtp;
+  return [
+    {label: "Quality", value: QUALITY_TEXT[data?.quality]},
+    {label: "Packets Recv / Drop (%)", value: ts ? `${ts.packets_received?.toLocaleString()} / ${ts.packets_dropped?.toLocaleString()} (${ts.packets_received ? (ts.packets_dropped / ts.packets_received).toFixed(2) : "0.00"}%)` : ""},
+    {label: "Seq Errors Number / Total Gap", value: rtp ? `${rtp.seq_num_skip_tot?.toLocaleString()} / ${rtp.seq_num_skip_count?.toLocaleString()}` : "0 / 0"},
+    {label: "Errors All / CC", value: `${([ts?.errors_cc, ts?.errors_incomplete_packets, ts?.errors_opening_output, ts?.errors_other, ts?.errors_writing].reduce((sum, val) => sum + (val ?? 0), 0))} / ${ts?.errors_cc ?? 0}`}
+  ];
+};
 
-const SummaryPanel = observer(({output, url, id}) => {
+// Live failover state, off output.state (live/outputs/<id>/state, verbatim).
+const FailoverState = (output) => output?.state?.failover;
+
+// Badge marking whichever input card (Primary or Failover) is the one currently
+// feeding the output, per output.state.failover.active_stream.
+const ConnectedBadge = () => (
+  <Badge radius={4} bg="elv-green.1" c="elv-green.9" tt="uppercase" fz={12} fw={600}>
+    Active
+  </Badge>
+);
+
+// Read-only summary of the most recent failover incident (no hop-by-hop chain).
+const FailoverIncidentRows = (failoverState) => {
+  return [
+    {label: "Last Failover", value: failoverState?.last_failover_at ? DateFormat({time: failoverState.last_failover_at, format: "iso-minute"}) : ""},
+    {label: "Reason", value: failoverState?.last_failover_reason ?? ""},
+    {label: "Switch Count", value: failoverState?.failover_count ?? ""},
+    {label: "Active Hop", value: failoverState?.hop_count ? `${(failoverState.active_hop ?? 0) + 1} of ${failoverState.hop_count}` : ""}
+  ];
+};
+
+export const SummaryPanel = observer(({output, url, id}) => {
   const clipboard = useClipboard();
   const videoWidth = "355px";
   const videoGap = "20px";
   // client-js (OutputsList/OutputsListItem) marks this when the mapped stream's
   // content object is gone - e.g. deleted without unmapping this output.
   const streamUnavailable = output?.input?.status === STATUS_MAP.UNAVAILABLE;
+  // Live status from the streams map (updated on start/stop) beats the
+  // fabric-enriched output.input.status, stale until the next outputs load.
+  const streamStatus = outputStore.OutputItem?.(id)?.streamStatus ?? output?.input?.status;
+  const failover = output?.input?.failover;
+  const failoverStream = failover?.input?.stream;
+  // Show the section only on an actual reported incident, not just a configured
+  // failover stream.
+  const failoverState = FailoverState(output);
+  const hasFailoverIncidents = Boolean(
+    failoverState && (failoverState.last_failover_at || failoverState.failover_count)
+  );
+  // Which input is actively feeding the output right now.
+  const activeStream = failoverState?.active_stream;
+  const primaryConnected = Boolean(activeStream) && activeStream === output?.input?.stream;
+  const failoverConnected = Boolean(activeStream) && activeStream === failoverStream;
+  const showActiveSource = Boolean(failoverStream) && (primaryConnected || failoverConnected);
+  const activeSourceLabel = primaryConnected ? "Input Primary" : "Input Failover";
+  const inactiveSourceLabel = primaryConnected ? "Failover" : "Primary";
 
   return (
     <Box pt={16}>
-      <SectionTitle mb={12}>Key Stats</SectionTitle>
+      <Group mb={12}>
+        <SectionTitle>Key Stats</SectionTitle>
+        {
+          showActiveSource &&
+          <Group ml="auto" gap={12}>
+            <Text c="elv-gray.7" fz="0.875rem" fw={600}>
+              Active Source: {activeSourceLabel}
+            </Text>
+            <Button
+              variant="outline"
+              leftSection={<IconSwitchHorizontal size={16} />}
+              disabled={outputSaveStore.anyDirty}
+              onClick={() => outputModalStore.OpenModal("switchInput", [id])}
+            >
+              Switch to {inactiveSourceLabel}
+            </Button>
+          </Group>
+        }
+      </Group>
       <Flex direction="row" mb={36} gap={videoGap}>
         {
           output?.input?.stream && !streamUnavailable &&
@@ -62,16 +130,16 @@ const SummaryPanel = observer(({output, url, id}) => {
               index={0}
               id={output?.input?.stream}
               showPreview
-              playable={output?.input?.status === STATUS_MAP.RUNNING}
+              playable={streamStatus === STATUS_MAP.RUNNING}
               borderRadius={16}
             />
           </Box>
         }
         {
           streamUnavailable ?
-            <Box style={{width: "100%"}} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
+            <Box flex={1} bd="1px solid elv-gray.2" radius={5} className={detailCardStyles.boxWrapper}>
               <Box p={12}>
-                <DetailCardHeader title="Input" />
+                <DetailCardHeader title={failoverStream ? "Input Primary" : "Input"} />
                 <Stack p="44px 100px" align="center" gap={12}>
                   <Text c="dimmed" ta="center">
                     The mapped stream no longer exists. Unmap it and select another stream.
@@ -81,31 +149,49 @@ const SummaryPanel = observer(({output, url, id}) => {
               </Box>
             </Box> :
           output?.input?.stream ?
-          <DetailCard
-            style={{width: `calc(100% - ${videoWidth} - ${videoGap})`}}
-            title="Input"
-            titleRightSection={
-              <StatusIndicator
-                status={output?.input?.status}
-                fw={400}
-              />
-            }
-            data={[
-              {label: "Name", value: output?.input?.name},
-              {label: "Quality", value: QUALITY_TEXT[output?.input?.quality]},
-              {label: "Packets Recv / Drop (%)", value: output?.input?.stats?.ts ? `${output.input.stats.ts.packets_received?.toLocaleString()} / ${output.input.stats.ts.packets_dropped?.toLocaleString()} (${output.input.stats.ts.packets_received ? (output.input.stats.ts.packets_dropped / output.input.stats.ts.packets_received).toFixed(2) : "0.00"}%)` : ""},
-              {label: "Seq Errors Number / Total Gap", value: output?.input?.stats?.rtp ? `${output.input.stats.rtp.seq_num_skip_tot?.toLocaleString()} / ${output.input.stats.rtp.seq_num_skip_count?.toLocaleString()}` : ""},
-              {label: "Errors All / CC", value: `${([output?.input?.stats?.ts?.errors_cc, output?.input?.stats?.ts?.errors_incomplete_packets, output?.input?.stats?.ts?.errors_opening_output, output?.input?.stats?.ts?.errors_other, output?.input?.stats?.ts?.errors_writing].reduce((sum, val) => sum + (val ?? 0), 0))} / ${output?.input?.stats?.ts?.errors_cc ?? 0}`}
-            ]}
-          /> :
-            <Box style={{width: "calc(100% - 355px - 20px)"}} bd="1px solid elv-gray.2" radius={5} className={styles.boxWrapper}>
+            <DetailCard
+              flex={1}
+              title="Input Primary"
+              titleBadge={primaryConnected && <ConnectedBadge />}
+              titleRightSection={
+                <StatusIndicator
+                  status={streamStatus}
+                  fw={400}
+                />
+              }
+              data={[
+                {label: "Name", value: output?.input?.name},
+                {label: "Stream ID", value: output?.input?.stream, copyable: true, lineClamp: 1},
+                ...InputStatRows(output?.input)
+              ]}
+            /> :
+            <Box flex={1} bd="1px solid elv-gray.2" radius={5} className={detailCardStyles.boxWrapper}>
               <Box p={12}>
-                <DetailCardHeader title="Input" />
+                <DetailCardHeader title="Input Primary" />
                 <Box p="44px 100px" align="center">
                   <Button onClick={() => outputModalStore.OpenModal("map", [id])}>Map to a Stream</Button>
                 </Box>
               </Box>
             </Box>
+        }
+        {
+          failoverStream &&
+          <DetailCard
+            flex={1}
+            title="Input Failover"
+            titleBadge={failoverConnected && <ConnectedBadge />}
+            titleRightSection={
+              <StatusIndicator
+                status={failover?.status}
+                fw={400}
+              />
+            }
+            data={[
+              {label: "Failover Stream", value: failover?.name || failoverStream, lineClamp: 1},
+              {label: "Stream ID", value: failoverStream, copyable: true, lineClamp: 1},
+              ...InputStatRows(failover)
+            ]}
+          />
         }
       </Flex>
 
@@ -127,6 +213,19 @@ const SummaryPanel = observer(({output, url, id}) => {
           </Tooltip>
         </Group>
       <TextInput value={url ?? ""} readOnly />
+      <Divider mb={20} mt={30} />
+
+      {
+        hasFailoverIncidents &&
+        <>
+          <SectionTitle mb={12}>Failover Incidents</SectionTitle>
+          <DetailCard
+            mb={36}
+            title="Failover"
+            data={FailoverIncidentRows(failoverState)}
+          />
+        </>
+      }
 
       {
         output?.state?.clients?.map((client, i) => (
@@ -151,149 +250,7 @@ const SummaryPanel = observer(({output, url, id}) => {
   );
 });
 
-const GeneralConfigPanel = observer(({form}) => {
-  const {type, nodeType} = form.getValues();
-  const isDedicated = nodeType === "dedicated";
-  // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
-  // so it has no editable Target URL.
-  const isPush = type !== "srt_pull";
-  const isSrt = type?.includes("srt");
-  // Protocol-specific example shown in the Target URL field
-  const urlPlaceholder = `${OutputUrlProtocol(type)}://example.com:1234`;
-
-  return (
-    <Box pt={16}>
-      <SectionTitle mb={12}>General</SectionTitle>
-      <Box mb={20}>
-        <TextInput
-          label="Name"
-          key={form.key("name")}
-          {...form.getInputProps("name")}
-        />
-      </Box>
-        {/*<SimpleGrid cols={2} spacing={150}>*/}
-        {/*  <TagsInput*/}
-        {/*    label="Tags"*/}
-        {/*    description="Add tags to organize and quickly find outputs."*/}
-        {/*    placeholder="Type and press Enter to add a tag"*/}
-        {/*    data={outputStore.allOutputTags.filter(t => !(form.getValues().tags || []).includes(t))}*/}
-        {/*    key={form.key("tags")}*/}
-        {/*    {...form.getInputProps("tags")}*/}
-        {/*    clearable*/}
-        {/*  />*/}
-        {/*</SimpleGrid>*/}
-
-        <Divider mb={20} mt={30} />
-
-        <Box>
-          <SectionTitle mb={12}>Output</SectionTitle>
-          <Select
-            label="Output Type"
-            description="Defines the output type"
-            placeholder="Output Type"
-            allowDeselect={false}
-            data={[
-              {label: "SRT PULL", value: "srt_pull"},
-              {label: "SRT PUSH", value: "srt_push"},
-              {label: "RTP", value: "rtp"},
-              {label: "UDP", value: "udp"}
-            ]}
-            key={form.key("type")}
-            {...form.getInputProps("type")}
-            onChange={(value) => {
-              form.setFieldValue("type", value);
-              form.setFieldValue("url", "");
-            }}
-            mb={20}
-          />
-          <Stack gap={20}>
-            <Select
-              label="Node Type"
-              data={[
-                ...(dataStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
-                {label: "Public", value: "public"}
-              ]}
-              allowDeselect={false}
-              key={form.key("nodeType")}
-              {...form.getInputProps("nodeType")}
-              onChange={(value) => {
-                form.setFieldValue("nodeType", value);
-                form.setFieldValue("url", "");
-              }}
-            />
-            {
-              isDedicated ?
-                <Select
-                  label="Node"
-                  placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
-                  data={dataStore.dedicatedNodesList}
-                  allowDeselect={false}
-                  withAsterisk
-                  key={form.key("node")}
-                  {...form.getInputProps("node")}
-                /> :
-                <Select
-                  label="Fabric Geo"
-                  withAsterisk
-                  data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
-                  placeholder="Select Geo"
-                  clearable
-                  key={form.key("geo")}
-                  {...form.getInputProps("geo")}
-                />
-            }
-            {
-              isPush &&
-              <TextInput
-                label="Target URL"
-                placeholder={urlPlaceholder}
-                key={form.key("url")}
-                withAsterisk
-                {...form.getInputProps("url")}
-              />
-            }
-          </Stack>
-        </Box>
-
-        {
-          isSrt &&
-          <>
-            <Divider mb={20} mt={30} />
-
-            <SectionTitle mb={12}>Encryption</SectionTitle>
-            <Checkbox
-              label="Enable Encryption"
-              description="If encryption is enabled, a passphrase is required to decrypt the stream. If not provided, one will be auto-generated."
-              key={form.key("encryption")}
-              {...form.getInputProps("encryption", {type: "checkbox"})}
-            />
-            {
-              form.getValues().encryption &&
-              <SimpleGrid cols={2} spacing={150} mt={20} pl={28}>
-                <PasswordInput
-                  label="Passphrase"
-                  key={form.key("passphrase")}
-                  {...form.getInputProps("passphrase")}
-                />
-              </SimpleGrid>
-            }
-
-            <Divider mb={20} mt={30} />
-
-            <SectionTitle mb={12}>Strip RTP</SectionTitle>
-            <Checkbox
-              label="Enable Strip RTP"
-              description="Remove RTP encapsulation from the incoming stream"
-              key={form.key("stripRtp")}
-              {...form.getInputProps("stripRtp", {type: "checkbox"})}
-            />
-          </>
-        }
-    </Box>
-  );
-});
-
-// Owns the form shared by SummaryPanel and GeneralConfigPanel, so edits from
+// Owns the form shared by SummaryPanel and GeneralConfig, so edits from
 // either tab share the "generalConfig" dirty state. Mounted only once output
 // data has loaded, so initialValues below are always real.
 const OutputPanels = observer(({output, id, url}) => {
@@ -316,7 +273,12 @@ const OutputPanels = observer(({output, id, url}) => {
       url: initialTargetUrl ?? "",
       encryption: output?.[initialType]?.connection?.enforced_encryption,
       stripRtp: output?.[initialType]?.strip_rtp,
-      passphrase: output?.[initialType]?.passphrase
+      passphrase: output?.[initialType]?.passphrase,
+      // Input failover. "Reset Clients" maps directly to disconnect_outputs.
+      failoverStream: output?.input?.failover?.input?.stream ?? "",
+      failoverStreamName: output?.input?.failover?.name ?? "",
+      failoverAfter: output?.input?.failover?.after ?? FAILOVER_TIMEOUT_OPTIONS[0].value,
+      failoverResetClients: output?.input?.failover?.disconnect_outputs ? "on" : "off"
       // tags: output?.tags || []
     },
     validate: {
@@ -350,6 +312,9 @@ const OutputPanels = observer(({output, id, url}) => {
     const {name, type, node, geo, encryption, stripRtp, passphrase, url} = values;
     const isDedicated = values.nodeType === "dedicated";
     const isPush = type !== "srt_pull";
+    // Only persist failover once a primary stream exists (the section is disabled
+    // otherwise). "" clears it; ModifyOutput leaves it alone when undefined.
+    const hasPrimary = Boolean(output?.input?.stream);
 
     await outputStore.ModifyOutput({
       outputId: id,
@@ -365,6 +330,9 @@ const OutputPanels = observer(({output, id, url}) => {
       node: isDedicated ? node : "",
       region: !isDedicated ? geo : "",
       url: isPush ? url : undefined,
+      failoverStream: hasPrimary ? values.failoverStream : undefined,
+      failoverAfter: values.failoverAfter,
+      failoverResetClients: values.failoverResetClients === "on"
       // tags
     });
 
@@ -395,7 +363,7 @@ const OutputPanels = observer(({output, id, url}) => {
         <SummaryPanel output={output} url={url} id={id} />
       </Tabs.Panel>
       <Tabs.Panel value="generalConfig">
-        <GeneralConfigPanel form={form} />
+        <GeneralConfig form={form} output={output} />
       </Tabs.Panel>
     </>
   );
@@ -470,6 +438,10 @@ const OutputDetails = observer(() => {
       if(output?.input?.stream && output?.input?.status !== STATUS_MAP.UNAVAILABLE) {
         await outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output.input.stream});
       }
+      const failoverStream = output?.input?.failover?.input?.stream;
+      if(failoverStream) {
+        await outputStore.LoadFailoverStreamInfo({outputId: id, streamObjectId: failoverStream});
+      }
     } finally {
       setLoading(false);
     }
@@ -501,6 +473,15 @@ const OutputDetails = observer(() => {
 
     LoadData();
   }, [output?.input?.stream, output?.input?.status]);
+
+  // client-js enriches only the primary input - resolve the failover stream's
+  // name + quality/stats ourselves so the Summary card matches Input Primary.
+  useEffect(() => {
+    const failoverStream = output?.input?.failover?.input?.stream;
+    if(!failoverStream) { return; }
+
+    outputStore.LoadFailoverStreamInfo({outputId: id, streamObjectId: failoverStream});
+  }, [id, output?.input?.failover?.input?.stream]);
 
   const HandleSaveAll = async () => {
     try {
@@ -591,6 +572,14 @@ const OutputDetails = observer(() => {
   return (
     <PageContainer
       title={outputStore?.outputs?.[id]?.name ?? ""}
+      titleBadge={
+        <LabeledIndicator
+          label={output?.enabled ? "Enabled" : "Disabled"}
+          color={output?.enabled ? "elv-green.5" : "elv-red.4"}
+          size="md"
+          withBorder
+        />
+      }
       subtitle={id}
       subtitleRightSection={
         subtitleItems.length > 0 &&
@@ -610,19 +599,11 @@ const OutputDetails = observer(() => {
         </Group>
       }
       actions={actions}
-      titleRightSection={
-        <LabeledIndicator
-          label={output?.enabled ? "Enabled" : "Disabled"}
-          color={output?.enabled ? "elv-green.5" : "elv-red.4"}
-          size="md"
-          withBorder
-        />
-      }
     >
       {/* keepMountedMode="display-none": avoids Mantine's default Activity-based
           unmount on tab switch, which would wipe OutputPanels' outputSaveStore
           registration. Mirrors StreamDetailsPage. */}
-      <Tabs defaultValue="summary" keepMountedMode="display-none">
+      <Tabs defaultValue="summary" keepMountedMode="display-none" mb={50}>
         <Flex justify="space-between" align="center" mb={22}>
           <Tabs.List>
             {

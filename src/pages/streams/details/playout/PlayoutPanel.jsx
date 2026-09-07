@@ -28,10 +28,12 @@ import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
 const PlayoutPanel = observer(({
   status,
   slug,
+  active,
   checkVersion
 }) => {
   const [loading, setLoading] = useState(false);
   const params = useParams();
+  const loadedRef = useRef(null);
 
   const currentDrm = streamStore.streams?.[slug].drm;
   const simpleWatermark = streamStore.streams?.[slug].simpleWatermark;
@@ -95,11 +97,15 @@ const PlayoutPanel = observer(({
   };
 
   useEffect(() => {
-    if(params.id) {
+    // Defer until this tab is first shown - every detail panel is mounted at
+    // once (keepMountedMode="display-none"), so an unconditional load fires
+    // all panels' fetches on page open.
+    const loadKey = `${params.id}:${checkVersion}`;
+    if(params.id && active && loadedRef.current !== loadKey) {
+      loadedRef.current = loadKey;
       LoadConfigData();
     }
-
-  }, [params.id, checkVersion]);
+  }, [params.id, active, checkVersion]);
 
   const Save = async () => {
     const objectId = params.id;

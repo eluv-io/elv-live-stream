@@ -23,7 +23,7 @@ import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/Disabl
 import {STATUS_MAP} from "@/utils/constants.ts";
 import {IconInfoCircle} from "@tabler/icons-react";
 
-const GeneralPanel = observer(({slug, status, Refresh}) => {
+const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) => {
   const currentConfigProfile = streamStore.streams?.[slug].configProfile;
   const [applyingProfileChanges, setApplyingProfileChanges] = useState(false);
   const [currentSettings, setCurrentSettings] = useState({
@@ -33,6 +33,7 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
 
   const [loading, setLoading] = useState(true);
   const params = useParams();
+  const loadedRef = useRef(null);
 
   const form = useForm({
     mode: "uncontrolled",
@@ -101,10 +102,15 @@ const GeneralPanel = observer(({slug, status, Refresh}) => {
       }
     };
 
-    if(params.id) {
+    // Defer the load until this tab is first shown - all detail panels are
+    // mounted at once (keepMountedMode="display-none"), so an unconditional
+    // load here would fire every panel's fetches on page open.
+    const loadKey = `${params.id}:${checkVersion}`;
+    if(params.id && active && loadedRef.current !== loadKey) {
+      loadedRef.current = loadKey;
       LoadData();
     }
-  }, [params.id]);
+  }, [params.id, active, checkVersion]);
 
   const Save = async() => {
     const {hasErrors} = form.validate();

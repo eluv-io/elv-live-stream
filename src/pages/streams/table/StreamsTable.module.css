@@ -1,0 +1,56 @@
+.scrollArea {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.loadingMore {
+  position: sticky;
+  left: 0;
+  padding: 12px 0;
+  border-top: 1px solid var(--mantine-datatable-row-border-color, var(--mantine-color-gray-3));
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid var(--mantine-datatable-row-border-color, var(--mantine-color-gray-3));
+  background-color: var(--mantine-color-white);
+}
+
+.headerCell {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.row {
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid var(--mantine-datatable-row-border-color, var(--mantine-color-gray-3));
+
+  &:hover {
+    background-color: var(--mantine-color-elv-gray-0);
+  }
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Stream rows nested under an expanded group */
+.groupChildRow {
+  background: rgb(60 60 60 / 5%);
+}
+
+.lastRow {
+  border-bottom: none;
+}

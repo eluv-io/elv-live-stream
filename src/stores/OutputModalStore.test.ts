@@ -13,10 +13,11 @@ import OutputModalStore from "./OutputModalStore";
 // Factory helpers
 // ---------------------------------------------------------------------------
 
-const makeOutputStore = (outputs: Record<string, {name: string; input?: {stream?: string}}> = {}) => ({
+const makeOutputStore = (outputs: Record<string, {name: string; input?: {stream?: string; failover?: {input?: {stream?: string}}}; state?: any}> = {}) => ({
   outputs,
   UnmapStreamBatch: vi.fn().mockResolvedValue(undefined),
   ResetOutput: vi.fn().mockResolvedValue(undefined),
+  SwitchOutputInput: vi.fn().mockResolvedValue(undefined),
   EnableOutput: vi.fn().mockResolvedValue(undefined),
   EnableOutputBatch: vi.fn().mockResolvedValue(undefined),
   DisableOutput: vi.fn().mockResolvedValue(undefined),
@@ -84,6 +85,16 @@ describe("confirmConfig", () => {
     const {store} = makeStore({"a": {name: "A"}, "b": {name: "B"}});
     store.OpenModal("unmap", ["a", "b"], vi.fn());
     expect(store.confirmConfig?.description).toContain("these outputs");
+  });
+
+  it("should build a dynamic switchInput config targeting the inactive input", () => {
+    const {store} = makeStore({
+      "a": {name: "A", input: {stream: "iq__primary"}, state: {failover: {active_stream: "iq__primary"}}}
+    });
+    store.OpenModal("switchInput", ["a"], vi.fn());
+    expect(store.isConfirmModalOpen).toBe(true);
+    expect(store.confirmConfig?.confirmLabel).toBe("Switch to Failover");
+    expect(store.confirmConfig?.title).toBe("Switch Output Input");
   });
 });
 
@@ -237,6 +248,32 @@ describe("Confirm", () => {
 
     expect(outputStore.DeleteOutputBatch).toHaveBeenCalledWith({outputs: ["out-1", "out-2"]});
     expect(outputStore.DeleteOutput).not.toHaveBeenCalled();
+  });
+
+  it("should call SwitchOutputInput with hop 1 when primary is active", async () => {
+    const {store, outputStore} = makeStore({
+      "out-1": {name: "O", input: {stream: "iq__primary"}, state: {failover: {active_stream: "iq__primary"}}}
+    });
+    store.OpenModal("switchInput", ["out-1"], vi.fn());
+
+    await store.Confirm();
+
+    expect(outputStore.SwitchOutputInput).toHaveBeenCalledWith({outputId: "out-1", hop: 1});
+  });
+
+  it("should call SwitchOutputInput with hop 0 when failover is active", async () => {
+    const {store, outputStore} = makeStore({
+      "out-1": {
+        name: "O",
+        input: {stream: "iq__primary", failover: {input: {stream: "iq__failover"}}},
+        state: {failover: {active_stream: "iq__failover"}}
+      }
+    });
+    store.OpenModal("switchInput", ["out-1"], vi.fn());
+
+    await store.Confirm();
+
+    expect(outputStore.SwitchOutputInput).toHaveBeenCalledWith({outputId: "out-1", hop: 0});
   });
 
   it("should call onSuccess after the action completes", async () => {

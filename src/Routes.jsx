@@ -10,6 +10,7 @@ const StreamDetailsPage = lazyWithReload(() => import("@/pages/streams/details/S
 const Settings = lazyWithReload(() => import("@/pages/settings/Settings.jsx"), "settings");
 const Outputs = lazyWithReload(() => import("@/pages/outputs/Outputs.jsx"), "outputs");
 const OutputDetails = lazyWithReload(() => import("@/pages/outputs/details/OutputDetails.jsx"), "output-details");
+const GroupSummary = lazyWithReload(() => import("@/pages/streams/groups/GroupSummary.jsx"), "group-summary");
 
 const routes = [
   {
@@ -20,6 +21,7 @@ const routes = [
       {path: "monitor", element: <Monitor />},
 
       {path: "streams/create", element: <Create />},
+      {path: "streams/groups/:id", element: <GroupSummary />},
       {path: "streams/:id", element: <StreamDetailsPage />},
       {path: "streams", element: <Streams />},
       {path: "streams/:id/preview", element: <StreamPreview />},

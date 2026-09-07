@@ -11,11 +11,12 @@ vi.mock("react-router-dom", async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-const { mockDataStore, mockStreamStore, mockModalStore } = vi.hoisted(() => {
+const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } = vi.hoisted(() => {
   return {
+    mockStreamGroupStore: { groups: {}, LoadGroupData: vi.fn() },
     mockDataStore: {
       streamsLoaded: true,
-      LoadSiteStreams: vi.fn(),
+      LoadStreamList: vi.fn(),
       LoadStreamUrls: vi.fn().mockResolvedValue([]),
       loadedDedicatedNodes: true,
       LoadDedicatedNodes: vi.fn().mockResolvedValue([]),
@@ -30,65 +31,33 @@ const { mockDataStore, mockStreamStore, mockModalStore } = vi.hoisted(() => {
       },
       get filteredStreams() { return Object.values(this.streams); },
       get allTags() { return []; },
+      datePreset: "day",
+      referenceDate: new Date(),
       SetTableFilter: vi.fn(),
       SetTableTagFilter: vi.fn(),
+      SetDateFilter: vi.fn(),
       CheckStatus: vi.fn().mockResolvedValue({}),
     },
     mockModalStore: { SetBatchModal: vi.fn() }
   };
 });
 
-// mantine-datatable relies on layout measurement that jsdom cannot provide,
-// so rows are never rendered. This minimal mock calls each column's render()
-// so cell content actually reaches the DOM.
-vi.mock("mantine-datatable", () => ({
-  DataTable: ({records = [], columns = [], selectedRecords = [], onSelectedRecordsChange}) => {
-    const selectedIds = new Set((selectedRecords || []).map(r => r.slug));
-    return (
-      <table>
-        <thead>
-          <tr>
-            <th>
-              <input
-                type="checkbox"
-                aria-label="select-all-rows"
-                checked={records.length > 0 && selectedIds.size === records.length}
-                onChange={e => onSelectedRecordsChange?.(e.target.checked ? records : [])}
-              />
-            </th>
-            {columns.map(c => <th key={c.accessor}>{c.title}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {records.map(record => (
-            <tr key={record.slug} data-record-slug={record.slug}>
-              <td>
-                <input
-                  type="checkbox"
-                  aria-label={`select-row-${record.slug}`}
-                  checked={selectedIds.has(record.slug)}
-                  onChange={e => {
-                    if(e.target.checked) {
-                      onSelectedRecordsChange?.([...(selectedRecords || []), record]);
-                    } else {
-                      onSelectedRecordsChange?.((selectedRecords || []).filter(r => r.slug !== record.slug));
-                    }
-                  }}
-                />
-              </td>
-              {columns.map(c => <td key={c.accessor}>{c.render ? c.render(record) : record[c.accessor]}</td>)}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    );
-  }
+// jsdom doesn't lay out real elements, so the scroll container always measures as 0px and
+// @tanstack/react-virtual would compute an empty visible range. This mock bypasses windowing
+// entirely and just returns every row, so StreamsTable's actual column/selection/sort markup
+// renders and is exercised for real.
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({count}) => ({
+    getVirtualItems: () => Array.from({length: count}, (_, index) => ({index, key: index, start: index * 51, size: 51})),
+    getTotalSize: () => count * 51
+  })
 }));
 
 vi.mock("@/stores", () => ({
   dataStore: mockDataStore,
   streamStore: mockStreamStore,
   modalStore: mockModalStore,
+  streamGroupStore: mockStreamGroupStore,
 }));
 // -------------------------------------------------------------------------------
 
@@ -109,12 +78,12 @@ describe("Streams Dashboard Component", () => {
     mockStreamStore.tableFilter = "";
   });
 
-  it("should trigger LoadSiteStreams on mount if streams are not loaded", () => {
+  it("should trigger LoadStreamList on mount if streams are not loaded", () => {
     mockDataStore.streamsLoaded = false;
 
     renderWithProviders(<Streams />);
 
-    expect(mockDataStore.LoadSiteStreams).toHaveBeenCalledTimes(1);
+    expect(mockDataStore.LoadStreamList).toHaveBeenCalledTimes(1);
   });
 
   it("should display the records passed from the stream store", async () => {
@@ -167,5 +136,25 @@ describe("Streams Dashboard Component", () => {
     fireEvent.click(createButton);
 
     expect(mockNavigate).toHaveBeenCalledWith("/streams/create");
+  });
+
+  it("group row count reflects the members actually shown, not the full group", () => {
+    // Group declares 3 streams, but only 2 are present in the current (filtered) list.
+    mockStreamStore.streams = {
+      "stream-1": { objectId: "111", slug: "stream-1", title: "A", titleId: "grp" },
+      "stream-2": { objectId: "222", slug: "stream-2", title: "B", titleId: "grp" },
+    };
+    mockStreamGroupStore.groups = {
+      grp: { titleId: "grp", streamIds: ["111", "222", "333"] },
+    };
+
+    renderWithProviders(<Streams />);
+
+    // Group header row renders the titleId + a count badge of the shown members.
+    expect(screen.getByText("grp")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.queryByText("3")).not.toBeInTheDocument();
+
+    mockStreamGroupStore.groups = {};
   });
 });

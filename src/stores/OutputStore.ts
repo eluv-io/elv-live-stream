@@ -4,6 +4,18 @@ import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/s
 import {SortTable} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
 
+// Passed through verbatim from the fabric. `name`/`quality`/`stats` are
+// resolved client-side by LoadFailoverStreamInfo. Never nests.
+interface OutputInputFailover {
+  after?: string;
+  disconnect_outputs?: boolean;
+  name?: string;
+  status?: string;
+  quality?: string;
+  stats?: any;
+  input?: {stream?: string};
+}
+
 interface OutputInput {
   stream?: string;
   name?: string;
@@ -14,6 +26,7 @@ interface OutputInput {
   packaging?: StreamPackaging[];
   quality?: string;
   stats?: any;
+  failover?: OutputInputFailover;
 }
 
 interface OutputSrtPull {
@@ -64,8 +77,7 @@ type Outputs = Record<string, Output>;
 
 export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
 
-// UpdateOutput's merge is shallow, so it never drops a key missing from a fresh
-// fetch - spread this first to clear the old transport block on a type change.
+// Spread first to clear stale transport blocks on a type change - UpdateOutput merges shallow.
 const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, srt_pull: undefined, srt_push: undefined};
 
 const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
@@ -98,13 +110,14 @@ interface FlatOutput {
   input?: OutputInput;
 }
 
-// elvgeo/elvgeos are a create-time-only convenience: elv-client-js's OutputsCreate
-// resolves them to a concrete node_id/node_ids and deletes them before ever hitting
-// the fabric - the fabric's output config schema doesn't have an elvgeo field at all.
-// OutputsModify has no such resolution step (it PUTs the raw output object as-is), so
-// a region picked in the edit UI must be resolved to a node ID client-side first, or
-// the fabric rejects the request with "unknown field \"elvgeo\"". This mirrors the
-// resolution elv-client-js does internally (LiveStream.js's private RetrieveOutputNodeId).
+/**
+ * Resolve a fabric region (elvgeo) to a concrete egress node ID.
+ *
+ * elvgeo is a create-time convenience: OutputsCreate resolves and strips it before
+ * hitting the fabric, whose output schema has no elvgeo field. OutputsModify does no
+ * such resolution, so edits must resolve region -> node ID client-side or the fabric
+ * rejects the request. Mirrors elv-client-js's private LiveStream.RetrieveOutputNodeId.
+ */
 const ResolveEgressNodeId = async ({client, geo}: {client: any, geo?: string}): Promise<string> => {
   const configUrl = new URL(await client.ConfigUrl());
   configUrl.pathname = "/config";
@@ -166,11 +179,11 @@ class OutputStore {
     return Array.from(tags).sort();
   }
 
-  // Flatten a raw output into the derived shape used by tables and detail views.
+  /** Flatten a raw output into the derived shape used by tables and detail views. */
   FlattenOutput = (slug: string, output: Output): FlatOutput => {
     const {streamsByObjectId, streams} = this.rootStore.streamStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
-    // srt_pull.urls is an array of strings; other output types store a single url string.
+    // srt_pull stores urls as an array; other types store a single url string.
     const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
 
     return {
@@ -181,7 +194,9 @@ class OutputStore {
       enabled: output.enabled,
       streamId: output.input?.stream,
       streamName: output.input?.name,
-      streamStatus: output.input?.status,
+      // Live status from the streams map (updated on start/stop) beats
+      // output.input.status, only as fresh as the last outputs load.
+      streamStatus: streams?.[streamSlug]?.status ?? output.input?.status,
       url,
       type: DeriveOutputType(output, streams?.[streamSlug]?.source ?? output.input?.source),
       packaging: streams?.[streamSlug]?.packaging ?? output.input?.packaging,
@@ -191,7 +206,7 @@ class OutputStore {
     };
   };
 
-  // Individualized version of outputList for a single output by slug.
+  /** outputList's single-item equivalent, keyed by slug. */
   OutputItem = (slug: string): FlatOutput | undefined => {
     const output = this.outputs[slug];
     if(!output) { return undefined; }
@@ -243,9 +258,7 @@ class OutputStore {
   };
 
   UpdateOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
-    // Guard against creating a phantom entry keyed by a slug that isn't a real
-    // output (e.g. a stream slug passed in error) - that would surface as a
-    // bogus row in outputList with an undefined name, sorting to the top.
+    // Ignore slugs that aren't real outputs, or we'd add a phantom row to outputList.
     if(!this.outputs[slug]) { return; }
 
     this.outputs[slug] = {...this.outputs[slug], ...updates};
@@ -291,11 +304,12 @@ class OutputStore {
     }
   }
 
-  // Fetch a single output's live egress state. Mirrors StreamStore.CheckStatus:
-  // pass update=true to merge the fresh state onto the stored output so derived
-  // table columns (connected_clients, etc.) react without a full OutputsList
-  // reload. Only `state` is merged so the enriched input fields added by
-  // LoadOutputStreamInfo and the persisted config aren't clobbered.
+  /**
+   * Fetch a single output's live egress state (mirrors StreamStore.CheckStatus).
+   * With update=true, merges only `state` onto the stored output so derived table
+   * columns react without a full OutputsList reload and without clobbering the
+   * enriched input fields from LoadOutputStreamInfo or the persisted config.
+   */
   *CheckOutputState({outputId, update=false}: {outputId: string, update?: boolean}): Generator<any, any> {
     let response;
     try {
@@ -320,15 +334,15 @@ class OutputStore {
     return response;
   }
 
-  // Resilient per-output state refresh for polling. Unlike LoadOutputs (a single
-  // OutputsList call that replaces the whole map and is all-or-nothing — one
-  // thrown enrichment/route step leaves every output stale), this updates each
-  // output independently so one failure can't block the rest.
-  //
-  // MUST run sequentially: OutputsState reroutes the shared client to each
-  // output's egress node (RouteToLiveEgress / RouteToOutputNode) and restores
-  // afterward. Concurrent calls corrupt each other's routing and fail their
-  // state reads.
+  /**
+   * Resilient per-output state refresh for polling: updates each output
+   * independently so one failure can't block the rest (unlike the all-or-nothing
+   * LoadOutputs).
+   *
+   * MUST run sequentially - OutputsState reroutes the shared client to each
+   * output's egress node and restores afterward; concurrent calls corrupt each
+   * other's routing.
+   */
   *AllOutputsState(): Generator<any, void> {
     for(const outputId of Object.keys(this.outputs || {})) {
       try {
@@ -352,17 +366,25 @@ class OutputStore {
         includeState
       });
 
-      // OutputsListItem returns a sparse `input` (stream/name/status). Merge it
-      // onto the existing input so the live fields added by LoadOutputStreamInfo
-      // (source, packaging, quality, stats, url, embedUrl) aren't clobbered when
-      // the item is (re)loaded. A null/undefined input (unmapped) passes through.
+      // OutputsListItem's `input` is sparse (stream/name/status) and its
+      // `failover` is the bare fabric block ({after, input}) - client-js never
+      // enriches it. Merge onto the existing input, and deep-merge `failover`,
+      // so the live fields from LoadOutputStreamInfo / LoadFailoverStreamInfo
+      // survive a reload. A null/undefined input (unmapped) passes through.
+      const existingInput = this.outputs[outputId]?.input;
       this.UpdateOutput({
         slug: outputId,
         updates: {
           ...CLEARED_TRANSPORT_KEYS,
           ...output,
           input: output?.input
-            ? {...this.outputs[outputId]?.input, ...output.input}
+            ? {
+              ...existingInput,
+              ...output.input,
+              ...(output.input.failover && {
+                failover: {...existingInput?.failover, ...output.input.failover}
+              })
+            }
             : output?.input
         }
       });
@@ -372,10 +394,22 @@ class OutputStore {
     }
   }
 
-  *LoadOutputStreamInfo({slug, streamObjectId}: {slug: string, streamObjectId: string}): Generator<any, {url: string, embedUrl: string, source: StreamSource[] | undefined, packaging: StreamPackaging[], quality: string, stats: any}, any> {
+  *LoadOutputStreamInfo({slug, streamObjectId}: {slug: string, streamObjectId: string}): Generator<any, {url?: string, embedUrl?: string, source?: StreamSource[], packaging?: StreamPackaging[], quality?: string, stats?: any}, any> {
+    const streamInfo: {url?: string, embedUrl?: string, source?: StreamSource[], packaging?: StreamPackaging[], quality?: string, stats?: any} = {};
+
+    // Each fetch is isolated so one failure (e.g. EmbedUrl) can't discard the
+    // others - the live quality/stats must land even if the URL derivation fails.
+    let libraryId;
+    try {
+      libraryId = yield this.client.ContentObjectLibraryId({objectId: streamObjectId});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to resolve stream library for output.", error);
+    }
+
     try {
       const metadata = yield this.client.ContentObjectMetadata({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId: streamObjectId}),
+        libraryId,
         objectId: streamObjectId,
         metadataSubtree: "live_recording_config",
         select: [
@@ -383,39 +417,95 @@ class OutputStore {
           "recording_config/input_cfg",
         ]
       });
-
-      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
-
-      const url = metadata?.url;
-      const {source, packaging} = DeriveSourceAndPackaging({url, inputCfg: metadata?.recording_config?.input_cfg});
-
-      const embedUrl = yield this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
-
-      const streamInfo = {
-        url,
-        embedUrl,
-        source,
-        packaging,
-        quality: streamStatus?.quality,
-        stats: streamStatus?.input_stats
-      };
-
-      if(slug) {
-        this.UpdateOutput({
-          slug,
-          updates: {
-            input: {
-              ...this.outputs[slug]?.input,
-              ...streamInfo
-            }
-          }
-        });
-      }
-
-      return streamInfo;
+      streamInfo.url = metadata?.url;
+      const {source, packaging} = DeriveSourceAndPackaging({url: metadata?.url, inputCfg: metadata?.recording_config?.input_cfg});
+      streamInfo.source = source;
+      streamInfo.packaging = packaging;
     } catch(error) {
       // eslint-disable-next-line no-console
-      console.error("Failed to load stream info for output.", error);
+      console.error("Failed to load stream config for output.", error);
+    }
+
+    try {
+      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
+      streamInfo.quality = streamStatus?.quality;
+      streamInfo.stats = streamStatus?.input_stats;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load stream status for output.", error);
+    }
+
+    try {
+      streamInfo.embedUrl = yield this.client.EmbedUrl({objectId: streamObjectId, mediaType: "live_video"});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load embed url for output.", error);
+    }
+
+    if(slug) {
+      this.UpdateOutput({
+        slug,
+        updates: {
+          input: {
+            ...this.outputs[slug]?.input,
+            ...streamInfo
+          }
+        }
+      });
+    }
+
+    return streamInfo;
+  }
+
+  /**
+   * Enrich input.failover for the Summary card: client-js leaves it a bare
+   * object id, so resolve name (public/name) and status/quality/stats
+   * (StreamStatus). Name and stats are resolved independently so one failing
+   * doesn't suppress the other.
+   */
+  *LoadFailoverStreamInfo({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void> {
+    const existingInput = this.outputs[outputId]?.input;
+    if(!existingInput?.failover) { return; }
+
+    const MergeFailover = (updates: Partial<OutputInputFailover>) => {
+      const current = this.outputs[outputId]?.input;
+      if(!current?.failover) { return; }
+      this.UpdateOutput({
+        slug: outputId,
+        updates: {input: {...current, failover: {...current.failover, ...updates}}}
+      });
+    };
+
+    let libraryId;
+    try {
+      libraryId = yield this.client.ContentObjectLibraryId({objectId: streamObjectId});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to resolve failover stream library.", error);
+    }
+
+    try {
+      const name = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId: streamObjectId,
+        metadataSubtree: "public/name"
+      });
+      if(name) { MergeFailover({name}); }
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load failover stream name for output.", error);
+    }
+
+    try {
+      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
+      MergeFailover({
+        status: streamStatus?.state,
+        quality: streamStatus?.quality,
+        stats: streamStatus?.input_stats
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load failover stream stats for output.", error);
     }
   }
 
@@ -441,7 +531,7 @@ class OutputStore {
       }
 
       const isSrt = type === "srt_pull" || type === "srt_push";
-      // srt_pull accepts arrays of nodes/geos; srt_push/rtp/udp use a single node/geo.
+      // srt_pull takes arrays of nodes/geos; the other types take a single value.
       const isPull = type === "srt_pull";
 
       const settings: Record<string, any> = {};
@@ -499,11 +589,16 @@ class OutputStore {
         metadataSubtree: `live_outputs/${outputId}`
       }) || {};
 
+      // A failover config is tied to the primary it fails away from - drop it
+      // whenever the primary is (re)mapped.
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {failover: _failover, ...existingInput} = existing.input || {};
+
       const updatedOutput = {
         ...existing,
         enabled: !existing.input?.stream ? true : existing.enabled,
         input: {
-          ...(existing.input || {}),
+          ...existingInput,
           stream: streamObjectId
         }
       };
@@ -518,12 +613,15 @@ class OutputStore {
       const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
         .find(s => s.objectId === streamObjectId);
 
+      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+      const {failover: _localFailover, ...localInput} = this.outputs[outputId]?.input || {};
+
       this.UpdateOutput({
         slug: outputId,
         updates: {
           enabled: !existing.input?.stream ? true : existing.enabled,
           input: {
-            ...(this.outputs[outputId]?.input || {}),
+            ...localInput,
             stream: streamObjectId,
             name: stream?.title,
             status: stream?.status
@@ -550,13 +648,18 @@ class OutputStore {
             metadataSubtree: `live_outputs/${outputId}`
           }) || {};
 
+          // A failover config is tied to the primary it fails away from - drop
+          // it whenever the primary is (re)mapped.
+          // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+          const {failover: _failover, ...existingInput} = existing.input || {};
+
           return {
             outputId,
             output: {
               ...existing,
               enabled: !existing.input?.stream ? true : existing.enabled,
               input: {
-                ...(existing.input || {}),
+                ...existingInput,
                 stream: streamObjectId
               }
             }
@@ -578,12 +681,15 @@ class OutputStore {
         .find(s => s.objectId === streamObjectId);
 
       Object.entries(outputsMap).forEach(([outputId, output]) => {
+        // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+        const {failover: _localFailover, ...localInput} = this.outputs[outputId]?.input || {};
+
         this.UpdateOutput({
           slug: outputId,
           updates: {
             enabled: output.enabled,
             input: {
-              ...(this.outputs[outputId]?.input || {}),
+              ...localInput,
               stream: streamObjectId,
               name: stream?.title,
               status: stream?.status
@@ -648,6 +754,11 @@ class OutputStore {
     }
   }
 
+  /**
+   * Persist a config edit for one output. Strips transient runtime fields, rebuilds
+   * the applicable transport block fresh (so a type change drops the old one), and
+   * only re-resolves node/region when the pick actually changed.
+   */
   *ModifyOutput({
     outputId,
     name,
@@ -658,8 +769,11 @@ class OutputStore {
     node,
     region,
     url,
+    failoverStream,
+    failoverAfter,
+    failoverResetClients,
     // tags
-  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -667,41 +781,46 @@ class OutputStore {
       const existing = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
-      // reset/state are transient runtime fields surfaced by OutputsListItem; a config
-      // edit must not persist them back. rtp/udp/srt_pull/srt_push are stripped here too -
-      // whichever one applies is rebuilt fresh below, since switching output type means the
-      // old transport block(s) must not be carried over onto the new one.
+
+      // Input failover. Only touched when the caller passes failoverStream;
+      // otherwise the existing block round-trips untouched. "" clears it (sent as
+      // explicit null). "Reset Clients on" => disconnect_outputs true.
+      if(failoverStream !== undefined) {
+        cleanInput.failover = failoverStream
+          ? {after: failoverAfter, disconnect_outputs: Boolean(failoverResetClients), input: {stream: failoverStream}}
+          : null;
+      } else if(cleanInput.failover) {
+        // Drop client-resolved display fields before the fabric write.
+        // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+        const {name: _resolvedName, status: _resolvedStatus, quality: _resolvedQuality, stats: _resolvedStats, ...cleanFailover} = cleanInput.failover;
+        cleanInput.failover = cleanFailover;
+      }
+      // Strip transient runtime `state` and every transport block - the applicable
+      // one is rebuilt fresh below so a type change can't carry the old shape over.
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {state: _st, rtp: _rtp, udp: _udp, srt_pull: _srtPull, srt_push: _srtPush, ...cleanExisting} = existing;
 
       const existingTransportKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : existing.rtp ? "rtp" : existing.udp ? "udp" : undefined;
       const transportKey = type ?? existingTransportKey;
       const typeChanged = !!type && type !== existingTransportKey;
-      // Encryption/passphrase/strip_rtp live on the SRT block, which is keyed by
-      // srt_pull or srt_push depending on the output type. RTP/UDP outputs have no
-      // SRT block, so building one would pollute the payload.
+      // encryption/passphrase/strip_rtp live on the SRT block (srt_pull or srt_push);
+      // RTP/UDP outputs have none.
       const srtKey = transportKey === "srt_pull" || transportKey === "srt_push" ? transportKey : undefined;
-      // When the type changed, the old transport block's settings (node/region/url/SRT
-      // config) belong to a different shape and must not carry over onto the new one.
+      // On a type change the old blocks belong to a different shape - don't carry them over.
       const existingTransport = typeChanged ? undefined : (transportKey ? existing[transportKey] : undefined);
       const existingSrt = typeChanged ? undefined : (srtKey ? existing[srtKey] : undefined);
-      // node/region/url live on whichever transport block (rtp/udp/srt_pull/srt_push)
-      // the output actually uses. srt_pull stores node/region as arrays.
+      // srt_pull stores node/region as arrays; the other types store single values.
       const isPull = transportKey === "srt_pull";
 
-      // node/region arrive as raw picks from the edit form (one truthy, "" for the
-      // inactive one - see OutputDetails.jsx). Only actually touch node_id/node_ids
-      // when the pick differs from what's already pinned - existing.description holds
-      // the last node ID or geo string used (see CreateOutput) - or the transport type
-      // changed (which discards the old transport block, including its node_id). This
-      // avoids re-resolving, and potentially re-pinning to a different available node,
-      // on saves that don't touch node/geo at all, e.g. a plain rename.
+      // node/region are raw picks from the edit form (one truthy, "" for the inactive
+      // one). Only touch node_id/node_ids when the pick differs from what's pinned
+      // (existing.description holds the last node/geo used - see CreateOutput) or the
+      // type changed, so a plain rename doesn't re-resolve to a different node.
       const touchesNodeOrRegion = node !== undefined || region !== undefined;
       const nodeOrRegionTarget = node || region || "";
       const nodeOrRegionChanged = touchesNodeOrRegion && (typeChanged || nodeOrRegionTarget !== (existing.description || ""));
 
-      // elvgeo/elvgeos aren't real fabric fields (see ResolveEgressNodeId) - a chosen
-      // region must be resolved to a concrete node ID before it's written.
+      // A chosen region must be resolved to a node ID before writing (see ResolveEgressNodeId).
       const resolvedNodeId = nodeOrRegionChanged ?
         (node || (region ? yield ResolveEgressNodeId({client: this.client, geo: region}) : undefined)) :
         undefined;
@@ -723,10 +842,8 @@ class OutputStore {
               passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
               strip_rtp: stripRtp ?? existingSrt?.strip_rtp
             }),
-            // elvgeo/elvgeos are cleared unconditionally here (not just written as
-            // undefined-if-absent) so a stale value from existingTransport - e.g. from
-            // data that predates this resolution step - never survives a save that
-            // touches node/region.
+            // Clear elvgeo/elvgeos unconditionally so no stale value from
+            // existingTransport survives a save that touches node/region.
             ...(nodeOrRegionChanged && {
               [isPull ? "node_ids" : "node_id"]: resolvedNodeId ? (isPull ? [resolvedNodeId] : resolvedNodeId) : undefined,
               [isPull ? "elvgeos" : "elvgeo"]: undefined
@@ -1028,6 +1145,22 @@ class OutputStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to delete output.", error);
+      throw error;
+    }
+  }
+
+  // Switch the active input hop (0 = primary, 1 = failover), then re-read
+  // runtime state. active_stream can lag one fabric poll after the call.
+  *SwitchOutputInput({outputId, hop}: {outputId: string, hop: number}): Generator<any, void> {
+    const objectId = this.outputSettingsId;
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+
+    try {
+      yield this.client.OutputsHop({libraryId, objectId, outputId, hop});
+      yield this.CheckOutputState({outputId, update: true});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to switch output input.", error);
       throw error;
     }
   }

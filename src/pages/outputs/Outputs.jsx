@@ -2,6 +2,7 @@ import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {
   ActionIcon,
+  Alert,
   Badge,
   Box,
   Divider,
@@ -16,6 +17,7 @@ import {dataStore, outputModalStore, outputStore, rootStore} from "@/stores/inde
 import {DataTable} from "mantine-datatable";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {
+  IconAlertTriangle,
   IconCancel,
   IconCheck,
   IconCopy,
@@ -48,17 +50,19 @@ const Outputs = observer(() => {
       try {
         setLoading(true);
         // Outputs derive source/packaging from their mapped stream, so the
-        // stream map must be loaded too. LoadSiteStreams guards against
+        // stream map must be loaded too. LoadStreamList guards against
         // concurrent loads; skip it when streams are already loaded.
         //
         // These must run sequentially, not in parallel: OutputsList (inside
         // LoadOutputs) temporarily reroutes the shared client to a live-egress
         // node via RouteToLiveEgress. Any site-object read in flight during that
-        // window (LoadSiteStreams -> LoadTenantData) gets routed to the egress
+        // window (LoadStreamList -> LoadTenantSiteData/LoadTenantSiteStreams) gets routed to the egress
         // node and 403s ("token/auth not authorized"). Load streams first so the
         // site read completes against normal fabric nodes.
-        if(reload || !dataStore.streamsLoaded) {
-          await dataStore.LoadSiteStreams(reload);
+        // Reload when nothing is loaded or when the loaded set is the streams page's
+        // date-filtered view - outputs must resolve against every mapped stream.
+        if(reload || !dataStore.streamsLoaded || dataStore.streamsScoped) {
+          await dataStore.LoadStreamList({reload, scoped: false});
         }
         await outputStore.LoadOutputs();
       } finally {
@@ -85,6 +89,8 @@ const Outputs = observer(() => {
   const noSelectedRecords = selectedRecords.length === 0;
   const slugs = () => selectedRecords.map(r => r.slug);
 
+  const missingSettings = !loading && outputStore.state !== "pending" && !outputStore.outputSettingsId;
+
   const actions = [
     {icon: IconRoute, label: "Map to a stream", id: "batch-map-stream", onClick: () => outputModalStore.OpenModal("map", slugs()), disabled: noSelectedRecords},
     {icon: IconRouteOff, label: "Unmap", id: "batch-unmap-stream", onClick: () => outputModalStore.OpenModal("unmap", slugs()), disabled: noSelectedRecords},
@@ -100,6 +106,18 @@ const Outputs = observer(() => {
       <PageContainer
         title="Outputs"
       >
+        {
+          missingSettings &&
+          <Alert
+            variant="light"
+            color="yellow"
+            icon={<IconAlertTriangle />}
+            title="Outputs are not set up for this tenant"
+            mb={16}
+          >
+            No output settings object is configured for this site. Outputs cannot be loaded or created until one is set up.
+          </Alert>
+        }
         <Stack gap={0}>
           <Actions
             actions={[
@@ -129,7 +147,7 @@ const Outputs = observer(() => {
             ClearSelection={() => setSelectedSlugs([])}
           />
         </Stack>
-        <Box className={sharedStyles.tableWrapper}>
+        <Box className={`${sharedStyles.tableWrapper} outputs-table`}>
           <DataTable
             idAccessor="slug"
             minHeight={(!records || records.length === 0) ? 130 : 75}
@@ -178,16 +196,6 @@ const Outputs = observer(() => {
                         <BasicTableRowText title={record.streamName} lineClamp={1}>
                           { record.streamName }
                         </BasicTableRowText>
-                        <ActionIcon
-                          variant="transparent"
-                          c="elv-gray.6"
-                          size={18}
-                          onClick={() => rootStore.OpenInFabricBrowser({
-                            objectId: record.streamId
-                          })}
-                        >
-                          <IconExternalLink />
-                        </ActionIcon>
                       </Group>
                       <Group wrap="nowrap" gap={6}>
                         <StatusIndicator
@@ -201,6 +209,16 @@ const Outputs = observer(() => {
                           <Divider orientation="vertical" c="elv-gray.6" size="sm" h="100%" />
                         </Box>
                         <Text fz="0.75rem" fw={400} c="elv-gray.6">{ record.streamId }</Text>
+                        <ActionIcon
+                          variant="transparent"
+                          c="elv-gray.6"
+                          size={18}
+                          onClick={() => rootStore.OpenInFabricBrowser({
+                            objectId: record.streamId
+                          })}
+                        >
+                          <IconExternalLink />
+                        </ActionIcon>
                       </Group>
                     </Stack>
                   );

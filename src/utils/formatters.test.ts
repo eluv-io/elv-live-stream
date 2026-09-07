@@ -128,6 +128,14 @@ describe("DateFormat", () => {
     const resultMs = DateFormat({time: knownMs, format: "ms"});
     expect(resultIso).toBe(resultMs);
   });
+
+  it("formats an ISO string as local YYYY-MM-DD HH:mm with iso-minute", () => {
+    const d = new Date(knownMs);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const expected = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    expect(DateFormat({time: knownIso, format: "iso-minute"})).toBe(expected);
+    expect(DateFormat({time: knownIso, format: "iso-minute"})).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  });
 });
 
 describe("BytesToMb", () => {

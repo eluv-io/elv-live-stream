@@ -15,8 +15,8 @@ const ValueSection = ({
 
   if(typeof value === "string" || typeof value === "number") {
     return (
-      <Flex gap={4} align="center" miw={0}>
-        <Text c="elv-gray.7" fw={fw} fz="0.875rem" truncate={lineClamp ? "end" : ""} flex={1} miw={0}>{ value }</Text>
+      <Flex gap={2} align="center" miw={0}>
+        <Text c="elv-gray.7" fw={fw} fz="0.875rem" truncate={lineClamp ? "end" : ""} flex="0 1 auto" miw={0}>{ value }</Text>
         {
           copyable ?
             <Tooltip
@@ -26,7 +26,7 @@ const ValueSection = ({
               <ActionIcon
                 variant="transparent"
                 c="elv-gray.6"
-                size={18}
+                size={16}
                 onClick={() => clipboard.copy(value)}
               >
                 <IconCopy size={16} />
@@ -40,11 +40,12 @@ const ValueSection = ({
   }
 };
 
-export const DetailCardHeader = ({title, titleRightSection}) => {
+export const DetailCardHeader = ({title, titleBadge, titleRightSection}) => {
   return (
     <>
-      <Group>
+      <Group gap={8}>
         <Text fw={600} fz="0.875rem" c="elv-gray.7">{ title }</Text>
+        { titleBadge ?? null }
         <Flex ml="auto">
           { titleRightSection ?? null }
         </Flex>
@@ -84,6 +85,7 @@ export const SubDetailCard = ({title, titleRightSection, data=[]}) => {
 
 const DetailCard = ({
   title,
+  titleBadge,
   titleRightSection,
   data,
   children,
@@ -99,7 +101,7 @@ const DetailCard = ({
           style={labelWidth ? {gridTemplateColumns: `${typeof labelWidth === "number" ? `${labelWidth}px` : labelWidth} 1fr`} : undefined}
         >
           <div className={styles.fullWidth}>
-            <DetailCardHeader title={title} titleRightSection={titleRightSection} />
+            <DetailCardHeader title={title} titleBadge={titleBadge} titleRightSection={titleRightSection} />
           </div>
           {data && <DetailCardBody id={title} data={data} />}
           {children}

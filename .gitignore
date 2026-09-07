@@ -29,4 +29,7 @@ coverage/
 # AI
 tmp/
 .claude/
+.agents/
+skills-lock.json
 CLAUDE.md
+guidelines

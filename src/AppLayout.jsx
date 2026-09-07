@@ -11,12 +11,18 @@ import UpdateBanner from "@/components/version/UpdateBanner.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import OutputModals from "@/pages/outputs/OutputModals.jsx";
 
+const PageLoader = () => (
+  <Flex justify="center" align="center" h="100%" pt={48}>
+    <Loader />
+  </Flex>
+);
+
 // Required by useBlocker (StreamDetailsPage) for in-app nav guarding.
 const AppLayout = observer(() => {
   return (
     <AppShell
       padding="0"
-      navbar={{width: 200, breakpoint: "sm"}}
+      navbar={{width: 70, breakpoint: "sm"}}
     >
       <LeftNavigation />
       <AppShell.Main>
@@ -26,14 +32,10 @@ const AppLayout = observer(() => {
         <DataWrapper>
           {
             rootStore.loaded ?
-              <Suspense fallback={<Flex justify="center" align="center" h="100%"><Loader /></Flex>}>
+              <Suspense fallback={<PageLoader />}>
                 <Outlet />
               </Suspense> :
-              (
-                <Flex justify="center" align="center">
-                  <Loader />
-                </Flex>
-              )
+              <PageLoader />
           }
           <ConfirmModal
             {...rootStore.modalStore.modalData}

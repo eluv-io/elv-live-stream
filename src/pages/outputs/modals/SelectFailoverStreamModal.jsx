@@ -3,28 +3,29 @@ import {Box, Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/
 import styles from "./modals.module.css";
 import {SortTable} from "@/utils/helpers.ts";
 import {useEffect, useState} from "react";
-import {outputStore, streamStore} from "@/stores/index.ts";
-import {notifications} from "@mantine/notifications";
-import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import {streamStore} from "@/stores/index.ts";
 import {IconSearch} from "@tabler/icons-react";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import {useDebouncedValue} from "@mantine/hooks";
 
-const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
+// Picks an input failover stream for an output. Unlike MapToStreamModal (which
+// maps the primary and writes immediately), this returns the selection via
+// onSelect - the value is held in the output form and persisted on Save.
+const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, currentStreamId, primaryStreamId}) => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
   const [selectedRecords, setSelectedRecords] = useState([]);
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // OutputModals is mounted app-wide, so only load once the modal is actually opened.
-    // Uses its own full stream set so it neither disturbs nor is disturbed by the
-    // Streams page's date-scoped list.
     if(show) { streamStore.LoadAllStreams(); }
   }, [show]);
 
-  const CanMapStream = record => !!record.inputCfg && !!record.packaging?.includes("ts");
+  // Same eligibility as primary mapping, minus the output's own primary stream.
+  const CanSelectStream = record =>
+    !!record.inputCfg &&
+    !!record.packaging?.includes("ts") &&
+    record.objectId !== primaryStreamId;
 
   const records = Object.values(streamStore.allStreams || {})
     .filter(record => (
@@ -33,45 +34,23 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
     ))
     .sort(SortTable({sortStatus}));
 
-  const HandleSubmit = async() => {
-    try {
-      setIsSaving(true);
-      const streamObjectId = selectedRecords[0].record.objectId;
-      if(outputs.length === 1) {
-        await outputStore.MapStream({outputId: outputs[0], streamObjectId});
-      } else {
-        await outputStore.MapStreamBatch({outputs, streamObjectId});
-      }
+  const HandleSubmit = () => {
+    const record = selectedRecords[0]?.record;
+    if(!record) { return; }
 
-      notifications.show({
-        title: "New stream mapped",
-        message: <NotificationMessage>Successfully mapped stream to output</NotificationMessage>
-      });
-
-      onCloseModal();
-      setSelectedRecords([]);
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to map stream to output", error);
-
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: "Unable to map stream to output"
-      });
-    } finally {
-      setIsSaving(false);
-    }
+    onSelect({objectId: record.objectId, title: record.title});
+    onCloseModal();
+    setSelectedRecords([]);
   };
 
   return (
     <Modal
       opened={show}
-      onClose={onCloseModal}
+      onClose={() => { onCloseModal(); setSelectedRecords([]); }}
       title={
         <Stack gap={0} mb={20}>
-          <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>Select Input Stream</Title>
-          <Text fz="0.875rem" c="elv-gray.8">Select the stream you want to map to (TS streams only).</Text>
+          <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>Select Failover Stream</Title>
+          <Text fz="0.875rem" c="elv-gray.8">Select the stream to fail over to if the primary input disconnects (TS streams only; the primary stream can&apos;t be selected).</Text>
         </Stack>
       }
       padding="24px"
@@ -98,24 +77,25 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
           <StreamsTable
             records={records}
             fetching={streamStore.loadingAllStreams && records.length === 0}
-            isRecordSelectable={CanMapStream}
+            isRecordSelectable={CanSelectStream}
             sortStatus={sortStatus}
             onSortStatusChange={setSortStatus}
-            onRowClick={record => { if(CanMapStream(record.record)) { setSelectedRecords([record]); } }}
+            onRowClick={record => { if(CanSelectStream(record.record)) { setSelectedRecords([record]); } }}
             rowStyle={record => {
-              if(!CanMapStream(record)) { return {opacity: 0.4, cursor: "not-allowed"}; }
-              if(selectedRecords?.[0]?.record?.objectId === record.objectId) { return {backgroundColor: "var(--mantine-color-elv-blue-0)"}; }
+              if(!CanSelectStream(record)) { return {opacity: 0.4, cursor: "not-allowed"}; }
+              const selectedId = selectedRecords?.[0]?.record?.objectId ?? currentStreamId;
+              if(selectedId === record.objectId) { return {backgroundColor: "var(--mantine-color-elv-blue-0)"}; }
             }}
             showActions={false}
             maxHeight="100%"
           />
         </Box>
         <Flex direction="row" align="center" pt="1.5rem" justify="flex-end">
-          <Button onClick={HandleSubmit} loading={isSaving} disabled={isSaving}>Map</Button>
+          <Button onClick={HandleSubmit} disabled={selectedRecords.length === 0}>Select</Button>
         </Flex>
       </Stack>
     </Modal>
   );
 });
 
-export default MapToStreamModal;
+export default SelectFailoverStreamModal;

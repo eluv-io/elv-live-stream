@@ -1,8 +1,8 @@
 // Manages runtime stream state: the streams map, status polling, live control (start, stop, deactivate), and frame preview.
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
-import {slugify} from "@/utils/helpers";
-import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
+import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET, type DateRangePreset} from "@/utils/helpers";
+import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {
   DeriveSourceAndPackaging,
   StreamMetadata, ProbeStream, RecordingInputCfg
@@ -50,7 +50,7 @@ export interface ProbeData {
   audioData: AudioDataMap;
 }
 
-type StreamListData = Pick<StreamMetadata, "title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags">;
+type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags">;
 
 type GeneralConfigData = Pick<StreamMetadata,
   "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
@@ -67,18 +67,234 @@ interface StreamFrameUrl {
 
 type StreamMap = Record<string, StreamInfo>;
 
+interface TenantContentVersion {
+  id: string;
+  hash: string;
+  type: string;
+  object_version: number;
+  error: string;
+  // Indexed query fields returned by the tenant query (versions[].query_fields).
+  // A value may be single or an array, depending on the index definition.
+  query_fields?: Record<string, unknown>;
+  // Selected metadata subtree returned inline by the tenant query (versions[].meta),
+  // keyed by path exactly like ContentObjectMetadata's response. Present when the query
+  // requests the streams-list paths (public/name, public/asset_metadata/tags,
+  // live_recording_config/url, ...input_cfg).
+  meta?: Record<string, any>;
+}
+
+/** Pull a single value out of a query field (arrays -> first entry). */
+const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: string): string | undefined => {
+  const value = Array.isArray(fields?.[key]) ? (fields?.[key] as unknown[])[0] : fields?.[key];
+  return value == null || value === "" ? undefined : String(value);
+};
+
+/**
+ * Derive the streams-list fields from an object's metadata subtree. Shared by the
+ * per-object fetch (LoadStreamListData) and the tenant query's `meta` so the two
+ * never drift.
+ */
+const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamListData => {
+  const url = meta?.live_recording_config?.url;
+  const inputCfg =
+    meta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg ??
+    meta?.live_recording_config?.recording_config?.input_cfg;
+  const {source, packaging} = DeriveSourceAndPackaging({url, inputCfg});
+
+  return {
+    title: meta?.public?.name,
+    display_title: meta?.public?.asset_metadata?.display_title,
+    tags: meta?.public?.asset_metadata?.tags ?? [],
+    originUrl: url,
+    source,
+    packaging,
+    inputCfg
+  };
+};
+
+/**
+ * Build the StreamInfo fields from a tenant query version: name/date/title_id from
+ * query_fields, plus the streams-list fields from `meta` when present (letting the
+ * content-group path skip the per-object metadata fetch entirely).
+ */
+const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<StreamInfo> => {
+  const name = QueryFieldValue(version.query_fields, "name");
+  const date = QueryFieldValue(version.query_fields, "date");
+  const titleId = QueryFieldValue(version.query_fields, "title_id");
+
+  const info: Partial<StreamInfo> = {versionHash: version.hash};
+
+  if(version.meta) {
+    const listData = StreamListDataFromMeta(version.meta);
+    if(listData.title != null) { info.title = listData.title; }
+    if(listData.display_title != null) { info.display_title = listData.display_title; }
+    if(listData.tags?.length) { info.tags = listData.tags; }
+    if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
+    if(listData.source?.length) { info.source = listData.source; }
+    if(listData.packaging?.length) { info.packaging = listData.packaging; }
+    // inputCfg isn't on StreamInfo's type but _EnrichStreams already attaches it the same way.
+    if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
+  }
+
+  if(name != null) {
+    info.name = name;
+    if(info.title == null) { info.title = name; }
+  }
+  if(date != null) { info.date = date; }
+  if(titleId != null) { info.titleId = titleId; }
+
+  return info;
+};
+
+interface TenantContentPaging {
+  start?: number;
+  limit?: number;
+  total?: number;
+  items?: number;
+  pages?: number;
+  next?: number | null;
+  more?: boolean;
+}
+
+// Streams-page date filter, persisted so it survives navigating to a stream detail
+// page and back (and a page reload) - mirrors StreamGroupStore's expandedGroups.
+const STREAMS_DATE_FILTER_KEY = "elv-streams-date-filter";
+
+const LoadPersistedDateFilter = (): {preset: DateRangePreset, referenceDate: Date} => {
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(STREAMS_DATE_FILTER_KEY) || "null");
+    if(raw?.preset) {
+      const date = raw.referenceDate ? new Date(raw.referenceDate) : new Date();
+      return {preset: raw.preset, referenceDate: isNaN(date.getTime()) ? new Date() : date};
+    }
+  } catch { /* sessionStorage unavailable / malformed - fall through to default */ }
+  return {preset: DEFAULT_DATE_PRESET, referenceDate: new Date()};
+};
+
+const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
+const STREAM_STATUS_TIMEOUT_MS = 10000;
+const TENANT_CONTENT_PAGE_SIZE = 100;
+// Meta paths needed to build StreamInfo from a tenant query version without a per-object fetch.
+const TENANT_CONTENT_SELECT = [
+  "public/name",
+  "public/asset_metadata/display_title",
+  "public/asset_metadata/tags",
+  "live_recording/recording_config/recording_params/xc_params/input_cfg",
+  "live_recording_config/url",
+  "live_recording_config/recording_config/input_cfg"
+];
+
+// All DRM schemes we ask PlayoutOptions about, so the response carries every
+// available protocol/method the stream offers.
+const ALL_DRMS = ["clear", "aes-128", "sample-aes", "widevine", "fairplay", "playready"];
+
+// Configured playout-format keys (constants.ts PLAYOUT_FORMAT_OPTIONS) mapped to the
+// manifest filename plus the {protocol, drm} pair PlayoutOptions returns - so each row
+// can be built deterministically (works before the stream has ever run) and then
+// enriched with a license-server URL when the stream is live.
+const PLAYOUT_FORMATS: Record<string, {label: string, manifest: string, protocol: string, drm: string}> = {
+  "hls-clear":          {label: "HLS Clear",      manifest: "playlist.m3u8", protocol: "hls",  drm: "clear"},
+  "hls-aes128":         {label: "HLS AES-128",    manifest: "playlist.m3u8", protocol: "hls",  drm: "aes-128"},
+  "hls-sample-aes":     {label: "HLS Sample AES", manifest: "playlist.m3u8", protocol: "hls",  drm: "sample-aes"},
+  "hls-fairplay":       {label: "HLS FairPlay",   manifest: "playlist.m3u8", protocol: "hls",  drm: "fairplay"},
+  "hls-widevine-cenc":  {label: "HLS Widevine",   manifest: "playlist.m3u8", protocol: "hls",  drm: "widevine"},
+  "hls-playready-cenc": {label: "HLS PlayReady",  manifest: "playlist.m3u8", protocol: "hls",  drm: "playready"},
+  "dash-clear":         {label: "Dash Clear",     manifest: "dash.mpd",      protocol: "dash", drm: "clear"},
+  "dash-widevine":      {label: "Dash Widevine",  manifest: "dash.mpd",      protocol: "dash", drm: "widevine"}
+};
+
+// Named-network hostname map for building public playout URLs - mirrors elv-client-js's
+// internal NetworkUrls table. A public URL resolves to a fabric node close to the viewer
+// rather than the node that happened to serve the (private, token-bound) playout URL.
+const NETWORK_HOSTS: Record<string, string> = {
+  main: "main.net955305.contentfabric.io",
+  demo: "demov3.net955210.contentfabric.io",
+  test: "test.net955203.contentfabric.io"
+};
+
+export interface OutputUrlRow {
+  label: string;
+  url: string;
+  // DRM methods (e.g. Widevine): the license server URL. When present the UI shows
+  // the playout + license URLs as sub-rows and leaves the parent row's URL blank.
+  licenseServerUrl?: string;
+  // Named-network variant of url/licenseServerUrl, authorized with an anonymous
+  // (qspace_id-only) token instead of the stream's own channel-auth token.
+  publicUrl?: string;
+  publicLicenseServerUrl?: string;
+}
+
+export interface StreamOutputUrls {
+  embedUrl?: string;
+  publicEmbedUrl?: string;
+  playoutUrl?: string;
+  publicPlayoutUrl?: string;
+  playoutMethods: OutputUrlRow[];
+  srtPlayoutUrl?: string;
+  publicSrtPlayoutUrl?: string;
+}
+
+// SRT playout is served from a global load-balanced host per network, on a
+// network-specific port. Mirrors DataStore.SrtPlayoutUrl's port table.
+const SRT_PLAYOUT_PORTS: Record<string, number> = {main: 11080, demo: 11090, test: 11091};
+
 class StreamStore {
   streams: StreamMap;
+  // Streams with a live edge write token - the only ones polled for full status.
+  // Rebuilt each poll by _ClassifyStreams; nudged by start/deactivate.
+  activeStreamSlugs = new Set<string>();
   streamFrameUrls: Record<string, StreamFrameUrl> = {};
   showMonitorPreviews = false;
   loadingStatus = false;
   tableFilter = "";
   tableTagFilter: string[] = [];
+  // Streams-page date filter (preset + anchor date). Persisted via SetDateFilter so
+  // it isn't lost when the page unmounts on navigation. dateRangeFilter is derived.
+  datePreset: DateRangePreset;
+  referenceDate: Date;
+  dateRangeFilter: [Date | null, Date | null];
+  tenantLiveStreamContent: StreamMap = {};
+  loadingTenantLiveStreamContent = false;
+  // Full, unscoped stream set for the map-to-stream modal. Kept separate from `streams`
+  // (the streams page's date-scoped list) so neither one clobbers the other.
+  allStreams: StreamMap = {};
+  allStreamsLoaded = false;
+  loadingAllStreams = false;
+  _allStreamsPromise: Promise<void> | null = null;
+  // Paged tenant query state (streams page): whether another page is available,
+  // whether a page fetch is in flight, and the resume cursor / query params.
+  tenantContentHasMore = false;
+  loadingMoreTenantContent = false;
+  _tenantContentPromise: Promise<void> | null = null;
+  _tenantContentFilterKey: string | null = null;
+  _tenantContentCursor = 0;
+  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string} | null = null;
+  // Bumped whenever the paged tenant query is (re)started or the date filter changes.
+  // In-flight "load more" fetches compare against it and discard stale results.
+  _tenantContentEpoch = 0;
+  // Bumped whenever `streams` is replaced (e.g. date-filter change). An in-flight
+  // status/classify pass over the previous list checks this and stops early so it
+  // doesn't keep hammering per-object metadata for streams no longer displayed.
+  _streamListEpoch = 0;
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
-    makeAutoObservable(this, {}, {autoBind: true});
+
+    const persisted = LoadPersistedDateFilter();
+    this.datePreset = persisted.preset;
+    this.referenceDate = persisted.referenceDate;
+    this.dateRangeFilter = GetDateRangePreset(persisted.preset, persisted.referenceDate);
+
+    makeAutoObservable(this, {
+      _tenantContentPromise: false,
+      _tenantContentFilterKey: false,
+      _tenantContentCursor: false,
+      _tenantContentQuery: false,
+      _tenantContentEpoch: false,
+      _streamListEpoch: false,
+      _allStreamsPromise: false
+    }, {autoBind: true});
   }
 
   get client() {
@@ -102,8 +318,28 @@ class StreamStore {
     return this.tableTagFilter.filter(t => available.has(t));
   }
 
+  /**
+   * The search box holds a full or partial object id ("iq__…") rather than a name.
+   * The TenantContent query has no object-id filter (only group / tag / query-field
+   * names), so an id search is resolved client-side against the loaded list - and
+   * DataStore.LoadStreamList loads the full set (no date scope, no paging) when true.
+   */
+  get tableFilterIsObjectId(): boolean {
+    return /^iq__[A-Za-z0-9]*$/.test(this.tableFilter.trim());
+  }
+
+  /**
+   * Tag filtering (always client-side) plus text filtering. Date scoping is server-side
+   * (LoadTenantLiveStreamContent's date-tag filter) - streams carry no real createdAt to
+   * filter on client-side. On the content-group path the name search is also server-side
+   * (name:co: on the tenant query), so skip the client-side text match there and let the
+   * re-queried list stand on its own - except an object-id search, which the tenant query
+   * can't express, so filter that client-side against the full loaded set.
+   */
   get filteredStreams(): StreamInfo[] {
-    const filter = this.tableFilter.toLowerCase();
+    const objectIdSearch = this.tableFilterIsObjectId;
+    const serverSideText = this.rootStore.dataStore.useContentGroup && !objectIdSearch;
+    const filter = serverSideText ? "" : this.tableFilter.toLowerCase().trim();
     const tagFilter = this.activeTagFilter;
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||
@@ -131,6 +367,16 @@ class StreamStore {
 
   UpdateStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
+    // Stop any in-flight status/classify pass over the previous list.
+    this._streamListEpoch++;
+    // Drop active slugs for streams no longer listed.
+    this.activeStreamSlugs.forEach(slug => {
+      if(!this.streams[slug]) { this.activeStreamSlugs.delete(slug); }
+    });
+    // The scoped list was (re)built or a stream was added/removed - the modal's full
+    // set may now be stale, so refetch it the next time the modal opens.
+    this.allStreamsLoaded = false;
+    this._allStreamsPromise = null;
     const remaining = this.allTags;
     this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
   };
@@ -148,6 +394,103 @@ class StreamStore {
     this.tableTagFilter = tags;
   };
 
+  /** Set the streams-page date filter and persist it (session-scoped) so it survives navigation. */
+  SetDateFilter = ({preset, referenceDate}: {preset: DateRangePreset, referenceDate?: Date}) => {
+    const ref = referenceDate ?? new Date();
+    this.datePreset = preset;
+    this.referenceDate = ref;
+    this.dateRangeFilter = GetDateRangePreset(preset, ref);
+    // Invalidate any in-flight paged "load more" from the previous range.
+    this._tenantContentEpoch++;
+
+    try {
+      sessionStorage.setItem(STREAMS_DATE_FILTER_KEY, JSON.stringify({preset, referenceDate: ref.toISOString()}));
+    } catch { /* sessionStorage unavailable - filter is still held in memory */ }
+  };
+
+  /**
+   * Add/remove a slug from the active-poll set. On removal, `state` is written
+   * straight to the stream since the poll skips it.
+   */
+  _SetStreamActive = ({slug, active, state}: {slug: string, active: boolean, state?: StreamStatus}) => {
+    if(!slug) { return; }
+
+    if(active) {
+      this.activeStreamSlugs.add(slug);
+    } else {
+      this.activeStreamSlugs.delete(slug);
+      if(state && this.streams?.[slug]) {
+        this.UpdateStream({key: slug, value: {status: state}});
+      }
+    }
+  };
+
+  /**
+   * Cheap classification from local metadata, mirroring client-js StreamStatus's
+   * pre-bitcode branch: no url -> unconfigured; no fabric/playout/recording config
+   * -> uninitialized; no edge write token -> inactive; else active. Updates
+   * activeStreamSlugs, writes inactive states, and returns the slugs to poll.
+   */
+  *_ClassifyStreams({slugs, listEpoch}: {slugs: string[], listEpoch?: number}): Generator<any, string[]> {
+    yield this.client.utils.LimitedMap(
+      15,
+      slugs,
+      async (slug: string) => {
+        // The list was replaced mid-pass - stop issuing per-object reads.
+        if(listEpoch !== undefined && listEpoch !== this._streamListEpoch) { return; }
+        const stream = this.streams?.[slug];
+        if(!stream?.objectId) { return; }
+
+        try {
+          const libraryId = stream.libraryId ||
+            await this.client.ContentObjectLibraryId({objectId: stream.objectId});
+
+          const meta = await this.client.ContentObjectMetadata({
+            libraryId,
+            objectId: stream.objectId,
+            select: [
+              "live_recording_config/url",
+              "live_recording/fabric_config/ingress_node_api",
+              "live_recording/fabric_config/edge_write_token",
+              "live_recording/playout_config",
+              "live_recording/recording_config",
+              "live_recording/status/edge_write_token"
+            ]
+          });
+
+          const liveRecording = meta?.live_recording;
+          const edgeWriteToken = liveRecording?.status?.edge_write_token ||
+            liveRecording?.fabric_config?.edge_write_token;
+
+          if(edgeWriteToken) {
+            this._SetStreamActive({slug, active: true});
+            return;
+          }
+
+          let state: StreamStatus;
+          if(!meta?.live_recording_config?.url) {
+            state = STATUS_MAP.UNCONFIGURED;
+          } else if(
+            !liveRecording?.fabric_config?.ingress_node_api ||
+            !liveRecording?.playout_config ||
+            !liveRecording?.recording_config
+          ) {
+            state = STATUS_MAP.UNINITIALIZED;
+          } else {
+            state = STATUS_MAP.INACTIVE;
+          }
+
+          this._SetStreamActive({slug, active: false, state});
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error(`Unable to classify stream ${slug}`, error);
+        }
+      }
+    );
+
+    return slugs.filter(slug => this.activeStreamSlugs.has(slug));
+  }
+
   *CheckStatus({
     objectId,
     slug,
@@ -156,10 +499,11 @@ class StreamStore {
   }: {objectId: string, slug?: string, showParams?: boolean, update?: boolean}): Generator<any, void | {}> {
     let response;
     try {
-      response = yield this.client.StreamStatus({
-        name: objectId,
-        showParams
-      });
+      response = yield WithTimeout(
+        this.client.StreamStatus({name: objectId, showParams}),
+        STREAM_STATUS_TIMEOUT_MS,
+        `StreamStatus(${objectId})`
+      );
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(`Failed to load status for ${objectId || "object"}`, error);
@@ -187,17 +531,33 @@ class StreamStore {
     return response;
   }
 
-  *AllStreamsStatus(reload=false): Generator<any, void> {
+  /**
+   * Classify streams from local metadata, then poll full status for the active
+   * ones only. `slugs` limits the refresh (e.g. a newly-loaded page).
+   */
+  *AllStreamsStatus(reload=false, slugs: string[] | null = null): Generator<any, void> {
     if(this.loadingStatus && !reload) { return; }
+
+    // Snapshot the list generation - bail if `streams` is replaced mid-run.
+    const listEpoch = this._streamListEpoch;
 
     try {
       this.loadingStatus = true;
 
+      const targetSlugs = slugs ?? Object.keys(this.streams || {});
+
+      // Cheap pass: resolve inactive states locally, narrow the poll to active streams.
+      const activeSlugs: string[] = yield this._ClassifyStreams({slugs: targetSlugs, listEpoch});
+
+      if(listEpoch !== this._streamListEpoch) { return; }
+
       yield this.client.utils.LimitedMap(
         15,
-        Object.keys(this.streams || {}),
+        activeSlugs,
         async slug => {
+          if(listEpoch !== this._streamListEpoch) { return; }
           const streamMeta = this.streams?.[slug];
+          if(!streamMeta) { return; }
           try {
             await this.CheckStatus({
               objectId: streamMeta.objectId,
@@ -256,6 +616,9 @@ class StreamStore {
       yield this.client.StreamStartRecording({name: objectId, start});
     }
 
+    // Write token exists now - start polling without waiting for the next classify pass.
+    this._SetStreamActive({slug, active: true});
+
     yield this.OperateLRO({
       objectId,
       slug,
@@ -298,6 +661,8 @@ class StreamStore {
 
       if(!response) { return; }
 
+      // Edge write token is gone - stop polling this stream.
+      this._SetStreamActive({slug, active: false});
       this.UpdateStream({key: slug, value: { status: response.state }});
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -677,50 +1042,648 @@ class StreamStore {
     }
   }
 
-  *LoadStreams({streamMetadata}: {streamMetadata: StreamMap}) {
+  /** Run a TenantContent query pinned to the fixed fabric node, always releasing the region afterward. */
+  async _TenantContent(params: Record<string, any>): Promise<any> {
+    try {
+      return await this.client.TenantContent(params);
+    } catch(error) {
+      console.error("Unable to reset region after TenantContent", error);
+    }
+  }
+
+  /**
+   * Build the TenantContent filter array for the given site + optional date range +
+   * optional name search. `nameFilter` is matched against the `name` query field with
+   * a contains match, so the streams-page search box narrows server-side rather
+   * than only client-side.
+   */
+  _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string): string[] {
+    const [startDate, endDate] = dateRange || [null, null];
+    const filter = [`group:eq:${siteId}`];
+
+    const name = (nameFilter || "").trim();
+    if(name) { filter.push(`name:co:${name}`); }
+
+    if(startDate && endDate && FormatDateFilter(startDate) === FormatDateFilter(endDate)) {
+      // Single day - one exact-match tag rather than a redundant ge/le pair.
+      filter.push(`tag:eq:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`);
+    } else if(startDate || endDate) {
+      filter.push(`tag:co:${LIVE_STREAM_DATE_TAG_KEY}`);
+      if(startDate) { filter.push(`tag:ge:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`); }
+      if(endDate) { filter.push(`tag:le:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(endDate)}`); }
+    }
+
+    return filter;
+  }
+
+  /**
+   * Start index of the next page, or null when none are left. The tenant query's
+   * paging shape has varied (next / more / total), so fall back to "was this page full?".
+   */
+  _NextTenantPageStart({paging, start, received, limit}: {paging?: TenantContentPaging, start: number, received: number, limit: number}): number | null {
+    const nextStart = start + limit;
+
+    if(paging) {
+      if(paging.next != null) { return paging.next > start ? paging.next : null; }
+      if(paging.more === true) { return nextStart; }
+      if(paging.more === false) { return null; }
+      if(typeof paging.pages === "number" && limit > 0) {
+        return Math.floor(start / limit) + 1 < paging.pages ? nextStart : null;
+      }
+      if(typeof paging.total === "number") { return nextStart < paging.total ? nextStart : null; }
+    }
+
+    return received >= limit && received > 0 ? nextStart : null;
+  }
+
+  /**
+   * paged=true fetches only the first page and records a resume cursor; callers pull
+   * further pages via LoadMoreTenantLiveStreamContent. paged=false (default) loops
+   * through every page in one call.
+   */
+  *LoadTenantLiveStreamContent({siteId, dateRange, nameFilter, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], nameFilter?: string, force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
+    if(!siteId) {
+      // No registered site id - skip the tenant query and let the caller fall back
+      // to the site object's stream list.
+      console.warn("LoadTenantLiveStreamContent: no siteId, skipping tenant query");
+      this.tenantLiveStreamContent = {};
+      this.tenantContentHasMore = false;
+      return this.tenantLiveStreamContent;
+    }
+
+    const [startDate, endDate] = dateRange || [null, null];
+    const name = (nameFilter || "").trim();
+    const filterKey = JSON.stringify([
+      siteId,
+      startDate ? FormatDateFilter(startDate) : null,
+      endDate ? FormatDateFilter(endDate) : null,
+      name,
+      paged
+    ]);
+
+    if(!force && this._tenantContentPromise && this._tenantContentFilterKey === filterKey) {
+      yield this._tenantContentPromise;
+      return this.tenantLiveStreamContent;
+    }
+
+    this._tenantContentFilterKey = filterKey;
+    let resolve: () => void;
+    this._tenantContentPromise = new Promise(res => { resolve = res; });
+    this.loadingTenantLiveStreamContent = true;
+
+    // Reset the accumulated set and paging cursor for this fresh query.
+    this.tenantLiveStreamContent = {};
+    this.tenantContentHasMore = false;
+    this._tenantContentCursor = 0;
+    this._tenantContentQuery = {siteId, dateRange, nameFilter: name};
+    // Any "load more" still in flight from a prior query is now stale.
+    this._tenantContentEpoch++;
+
+    try {
+      const filter = this._TenantContentFilter(siteId, dateRange, name);
+      let start = 0;
+      let versions: TenantContentVersion[] = [];
+
+      while(true) {
+        const {versions: page, paging} = yield this._TenantContent({
+          filter,
+          start,
+          limit: TENANT_CONTENT_PAGE_SIZE,
+          select: TENANT_CONTENT_SELECT
+        });
+
+        const received = (page ?? []).length;
+        versions = versions.concat(page ?? []);
+
+        const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+
+        if(paged) {
+          // One page per call - remember where to resume and stop.
+          this._tenantContentCursor = next ?? start;
+          this.tenantContentHasMore = next !== null;
+          break;
+        }
+
+        if(next === null) { break; }
+        start = next;
+      }
+
+      this.tenantLiveStreamContent = Object.fromEntries(
+        versions
+          .filter(({id, hash}) => id && hash)
+          .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
+      );
+    } catch(error) {
+      console.error("Unable to load tenant live stream content", error);
+      this._tenantContentFilterKey = null;
+    } finally {
+      this.loadingTenantLiveStreamContent = false;
+      resolve();
+    }
+
+    return this.tenantLiveStreamContent;
+  }
+
+  /**
+   * Fetch the next page of the current paged tenant query, merge it into
+   * tenantLiveStreamContent, and return only the newly-added entries.
+   */
+  *LoadMoreTenantLiveStreamContent(): Generator<any, StreamMap> {
+    if(!this.tenantContentHasMore || this.loadingMoreTenantContent || !this._tenantContentQuery) {
+      return {};
+    }
+
+    this.loadingMoreTenantContent = true;
+    const added: StreamMap = {};
+    const epoch = this._tenantContentEpoch;
+
+    try {
+      const {siteId, dateRange, nameFilter} = this._tenantContentQuery;
+      const filter = this._TenantContentFilter(siteId, dateRange, nameFilter);
+      const start = this._tenantContentCursor;
+
+      const {versions, paging} = yield this._TenantContent({
+        filter,
+        start,
+        limit: TENANT_CONTENT_PAGE_SIZE,
+        select: TENANT_CONTENT_SELECT
+      });
+
+      // Query restarted while this page was in flight - drop stale rows.
+      if(epoch !== this._tenantContentEpoch) { return {}; }
+
+      const received = (versions ?? []).length;
+      (versions ?? [])
+        .filter(({id, hash}: TenantContentVersion) => id && hash && !this.tenantLiveStreamContent[id])
+        .forEach((version: TenantContentVersion) => { added[version.id] = StreamInfoFromTenantVersion(version) as StreamInfo; });
+
+      this.tenantLiveStreamContent = {...this.tenantLiveStreamContent, ...added};
+
+      const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+      this._tenantContentCursor = next ?? start;
+      this.tenantContentHasMore = next !== null;
+    } catch(error) {
+      console.error("Unable to load more tenant live stream content", error);
+    } finally {
+      this.loadingMoreTenantContent = false;
+    }
+
+    return added;
+  }
+
+  /**
+   * Enrich a raw stream-metadata map with per-object data (decoded objectId,
+   * libraryId, title, tags, source/packaging, inputCfg) and return it without
+   * touching store state.
+   *
+   * fetchObjectData=false skips the per-object metadata fetch, keeping only what's
+   * in the map plus the decoded objectId - used for the tenant content-group query,
+   * whose list data is loaded separately.
+   */
+  *_EnrichStreams({streamMetadata, fetchObjectData=true}: {streamMetadata: StreamMap, fetchObjectData?: boolean}): Generator<any, StreamMap> {
+    const enriched: StreamMap = {};
+
+    Object.keys(streamMetadata).forEach(slug => {
+      const stream = streamMetadata[slug];
+
+      let versionHash = stream?.["."]?.source ?? stream.versionHash;
+
+      if(!versionHash) {
+        try {
+          const match = stream?.["/"]?.match(/(hq__[^/]+)/);
+          versionHash = match ? match[1] : undefined;
+        } catch { /* skip */ }
+      }
+
+      if(!versionHash) {
+        console.error(`No version hash for ${slug}`);
+        return;
+      }
+
+      let objectId: string;
+      try {
+        objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
+      } catch(error) {
+        console.error(`Failed to decode version hash for ${slug}`, error);
+        return;
+      }
+
+      enriched[slug] = {...stream, slug, objectId, versionHash};
+    });
+
+    if(!fetchObjectData) { return enriched; }
+
     yield this.client.utils.LimitedMap(
       10,
-      Object.keys(streamMetadata),
+      Object.keys(enriched),
       async slug => {
+        const {objectId, versionHash} = enriched[slug];
+        if(!objectId) { return; }
+
         try {
-          const stream = streamMetadata[slug];
+          const libraryId = await WithTimeout(
+            this.client.ContentObjectLibraryId({objectId}) as Promise<string>,
+            OBJECT_LOOKUP_TIMEOUT_MS,
+            `ContentObjectLibraryId(${objectId})`
+          );
 
-          let versionHash = stream?.["."]?.source ?? stream.versionHash;
+          enriched[slug].libraryId = libraryId;
 
-          if(!versionHash) {
-            const match = stream?.["/"].match(/(hq__[^/]+)/);
-            versionHash = match ? match[1] : undefined;
-          }
+          const streamDetails = await WithTimeout(
+            this.LoadStreamListData({objectId, libraryId}) as unknown as Promise<StreamListData | undefined>,
+            OBJECT_LOOKUP_TIMEOUT_MS,
+            `LoadStreamListData(${objectId})`
+          ) || {};
 
-          if(versionHash) {
-            const objectId = this.client.utils.DecodeVersionHash(versionHash).objectId;
-            const libraryId = await this.client.ContentObjectLibraryId({objectId});
-
-            streamMetadata[slug].slug = slug;
-            streamMetadata[slug].objectId = objectId;
-            streamMetadata[slug].versionHash = versionHash;
-            streamMetadata[slug].libraryId = libraryId;
-
-            const streamDetails = await this.LoadStreamListData({
-              objectId,
-              libraryId
-            }) || {};
-
-            Object.keys(streamDetails).forEach(detail => {
-              streamMetadata[slug][detail] = streamDetails[detail];
-            });
-          } else {
-
-            console.error(`No version hash for ${slug}`);
-          }
+          // Query-field name is the fallback title when the metadata fetch returns none.
+          const queryFieldName = enriched[slug].name;
+          Object.assign(enriched[slug], streamDetails);
+          enriched[slug].title = enriched[slug].title || queryFieldName;
         } catch(error) {
-
-          console.error(`Failed to load stream ${slug}`, error);
+          console.error(`Failed to load stream ${slug} (${versionHash})`, error);
         }
       }
     );
 
-    this.UpdateStreams({streams: streamMetadata});
+    return enriched;
+  }
+
+  /**
+   * append=true merges into the existing scoped list (additional pages); otherwise
+   * replaces it. fetchObjectData=false skips per-object metadata fetches (see _EnrichStreams).
+   */
+  *LoadStreams({streamMetadata, append=false, fetchObjectData=true}: {streamMetadata: StreamMap, append?: boolean, fetchObjectData?: boolean}): Generator<any, void> {
+    const enriched: StreamMap = yield this._EnrichStreams({streamMetadata, fetchObjectData});
+    this.UpdateStreams({streams: append ? {...this.streams, ...enriched} : enriched});
+    this.rootStore.streamGroupStore.BuildGroups(this.streams);
+  }
+
+  /**
+   * Load the full, unscoped stream set for the map-to-stream modal. Kept independent
+   * of the streams page's date-scoped query so neither list clobbers the other. No
+   * status polling - the modal only needs inputCfg / title / objectId to pick a stream.
+   */
+  *LoadAllStreams({force=false}: {force?: boolean} = {}): Generator<any, StreamMap> {
+    if(this.allStreamsLoaded && !force) { return this.allStreams; }
+    if(this._allStreamsPromise && !force) {
+      yield this._allStreamsPromise;
+      return this.allStreams;
+    }
+
+    let resolve: () => void;
+    this._allStreamsPromise = new Promise(res => { resolve = res; });
+    this.loadingAllStreams = true;
+
+    try {
+      const siteId = this.rootStore.dataStore.siteId;
+      let streamMetadata: StreamMap = {};
+
+      if(siteId && this.rootStore.dataStore.useContentGroup) {
+        const filter = this._TenantContentFilter(siteId); // no date range - full set
+        let start = 0;
+        let versions: TenantContentVersion[] = [];
+
+        while(true) {
+          const {versions: page, paging} = yield this._TenantContent({
+            filter,
+            start,
+            limit: TENANT_CONTENT_PAGE_SIZE
+          });
+
+          const received = (page ?? []).length;
+          versions = versions.concat(page ?? []);
+
+          const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+          if(next === null) { break; }
+          start = next;
+        }
+
+        streamMetadata = Object.fromEntries(
+          versions
+            .filter(({id, hash}) => id && hash)
+            .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
+        );
+      }
+
+      // Legacy sites (no content-group query) use the site object's registered list.
+      if(!this.rootStore.dataStore.useContentGroup) {
+        streamMetadata = yield this.rootStore.dataStore.LoadTenantSiteStreams();
+      }
+
+      // Full per-object enrichment here on purpose: the map-to-stream modal needs
+      // inputCfg / source / packaging to pick a stream, and it's opened on demand.
+      this.allStreams = yield this._EnrichStreams({streamMetadata});
+      this.allStreamsLoaded = true;
+    } catch(error) {
+      console.error("Unable to load all streams", error);
+      this._allStreamsPromise = null;
+    } finally {
+      this.loadingAllStreams = false;
+      resolve();
+    }
+
+    return this.allStreams;
+  }
+
+  /**
+   * Load and enrich only the streams in one group (query_fields.title_id). The tenant
+   * query only narrows by site + date tag, so version metadata is still paged in full,
+   * but per-object enrichment runs for the group's streams alone. Returns the map
+   * without touching store state.
+   *
+   * TODO: use a server-side title_id filter once the group-data source lands.
+   */
+  *LoadStreamsByTitleId(titleId: string): Generator<any, StreamMap> {
+    const siteId = this.rootStore.dataStore.siteId;
+    if(!siteId || !titleId) { return {}; }
+
+    const filter = this._TenantContentFilter(siteId);
+    let start = 0;
+    let versions: TenantContentVersion[] = [];
+
+    while(true) {
+      const {versions: page, paging} = yield this._TenantContent({
+        filter,
+        start,
+        limit: TENANT_CONTENT_PAGE_SIZE
+      });
+
+      const received = (page ?? []).length;
+      versions = versions.concat(page ?? []);
+
+      const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+      if(next === null) { break; }
+      start = next;
+    }
+
+    const streamMetadata: StreamMap = Object.fromEntries(
+      versions
+        .filter(({id, hash}) => id && hash)
+        .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
+        .filter(([, info]) => (info as StreamInfo).titleId === titleId)
+    );
+
+    return yield this._EnrichStreams({streamMetadata});
+  }
+
+  /**
+   * Fetch live status for the given objectIds, keyed by objectId. Pure - writes to no
+   * store map, so callers holding a local stream list can merge it themselves.
+   */
+  *StreamStatuses(objectIds: string[]): Generator<any, Record<string, Partial<StreamInfo>>> {
+    const result: Record<string, Partial<StreamInfo>> = {};
+
+    yield this.client.utils.LimitedMap(
+      15,
+      objectIds || [],
+      async (objectId: string) => {
+        if(!objectId) { return; }
+
+        try {
+          const response = await this.CheckStatus({objectId}) as any;
+          result[objectId] = {
+            status: response?.state,
+            warnings: response?.warnings,
+            quality: response?.quality,
+            embedUrl: response?.playoutUrls?.embedUrl
+          };
+        } catch(error) {
+
+          console.error(`Skipping status for ${objectId}.`, error);
+        }
+      }
+    );
+
+    return result;
+  }
+
+  /**
+   * Build the output URLs for one stream: the embeddable URL, the offering options
+   * URL, and one playout URL per available protocol/DRM method (e.g. "HLS Clear",
+   * "Dash Widevine"). All playout URLs carry the same week-long signed token.
+   */
+  *BuildStreamOutputUrls(objectId: string): Generator<any, StreamOutputUrls> {
+    const result: StreamOutputUrls = {playoutMethods: []};
+    if(!objectId) { return result; }
+
+    const versionHash = yield this.client.LatestVersionHash({objectId});
+    const anonymousToken = this.client.utils.B64(
+      JSON.stringify({qspace_id: this.rootStore.contentSpaceId})
+    );
+
+    let signedToken;
+    try {
+      signedToken = yield this.client.CreateSignedToken({
+        objectId,
+        subject: "elv-lsm",
+        duration: 7 * 86400000 // 1 week
+      });
+    } catch(error) {
+
+      console.error(`Unable to create signed token for ${objectId}`, error);
+    }
+
+    // Swap channel auth for the signed token when we have one
+    const authArgs = signedToken ?
+      {noAuth: true, queryParams: {authorization: signedToken}} :
+      {channelAuth: true};
+
+    result.srtPlayoutUrl = signedToken ? this._SrtPlayoutUrl({objectId, token: signedToken}) : undefined;
+    result.publicSrtPlayoutUrl = this._SrtPlayoutUrl({objectId});
+
+    try {
+      result.embedUrl = yield this.EmbedUrl({objectId});
+      result.publicEmbedUrl = this._DropEmbedAuth(result.embedUrl);
+    } catch(error) {
+
+      console.error(`Unable to load embed URL for ${objectId}`, error);
+    }
+
+    let libraryId;
+    try {
+      libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      const rawPlayoutUrl = yield this.client.FabricUrl({
+        libraryId,
+        objectId,
+        rep: "playout/default/options.json",
+        ...authArgs
+      });
+      result.playoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId});
+      result.publicPlayoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, dropAuthorization: true});
+    } catch(error) {
+
+      console.error(`Unable to load playout options URL for ${objectId}`, error);
+    }
+
+    // Configured playout formats, in the precedence order the stream details page uses
+    // (overrides -> config -> applied -> keys of the applied "default" offering).
+    let formats: string[] = [];
+    try {
+      const [overrides, config, applied, offering] = yield Promise.all([
+        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_overrides/playout_config/playout_formats"}),
+        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_config/playout_config/playout_formats"}),
+        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording/playout_config/playout_formats"}),
+        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "offerings/default/playout/playout_formats"})
+      ]);
+      const configured = overrides ?? config ?? applied ?? Object.keys(offering || {});
+      formats = (Array.isArray(configured) ? configured : []).filter(format => PLAYOUT_FORMATS[format]);
+    } catch(error) {
+
+      console.error(`Unable to load playout formats for ${objectId}`, error);
+    }
+
+    // License servers only exist for a running stream; when PlayoutOptions fails
+    // (no finalized offering yet) the deterministic playout URLs below still stand.
+    const liveMethods: Record<string, any> = {};
+    try {
+      const playoutOptions = yield this.client.PlayoutOptions({
+        objectId,
+        protocols: ["hls", "dash"],
+        drms: ALL_DRMS,
+        offering: "default"
+      });
+      Object.keys(playoutOptions || {}).forEach(protocol => {
+        Object.keys(playoutOptions[protocol]?.playoutMethods || {}).forEach(drm => {
+          liveMethods[`${protocol}-${drm}`] = playoutOptions[protocol].playoutMethods[drm];
+        });
+      });
+    } catch(error) {
+
+      console.error(`Unable to load live playout options for ${objectId}`, error);
+    }
+
+    for(const format of formats) {
+      const {label, manifest, protocol, drm} = PLAYOUT_FORMATS[format];
+
+      let rawUrl;
+      try {
+        rawUrl = yield this.client.FabricUrl({
+          libraryId,
+          objectId,
+          rep: `playout/default/${format}/${manifest}`,
+          ...authArgs
+        });
+      } catch(error) {
+
+        console.error(`Unable to build playout URL for ${objectId} (${format})`, error);
+        continue;
+      }
+
+      const licenseServers = liveMethods[`${protocol}-${drm}`]?.drms?.[drm]?.licenseServers;
+      const licenseServerUrl = Array.isArray(licenseServers) && licenseServers.length > 0 ? licenseServers[0] : undefined;
+
+      result.playoutMethods.push({
+        label,
+        url: this._NamedNetworkUrl({url: rawUrl, objectId}),
+        licenseServerUrl,
+        publicUrl: this._NamedNetworkUrl({url: rawUrl, objectId, dropAuthorization: true}),
+        publicLicenseServerUrl: licenseServerUrl ?
+          this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
+          undefined
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * SRT playout URL for TS packaging. The fabric reads authorization from the
+   * streamid's trailing segment (live-ts.<objectId>.<token>), not a query param.
+   * Mirrors DataStore.SrtPlayoutUrl.
+   */
+  _SrtPlayoutUrl({objectId, token}: {objectId: string, token?: string}): string | undefined {
+    if(!objectId) { return undefined; }
+    const network = this.rootStore.networkInfo?.name || "main";
+    const port = SRT_PLAYOUT_PORTS[network] || SRT_PLAYOUT_PORTS.main;
+    const streamId = `live-ts.${objectId}${token ? `.${token}` : ""}`;
+    return `srt://${network}.glb.contentfabric.io:${port}?streamid=${streamId}`;
+  }
+
+  /**
+   * Strip the signed-token query param (`ath`) from an embed URL for the "public"
+   * variant. Returns the URL unchanged if it has no token or can't be parsed.
+   */
+  _DropEmbedAuth(url?: string): string | undefined {
+    if(!url) { return undefined; }
+    try {
+      const embedUrl = new URL(url);
+      embedUrl.searchParams.delete("ath");
+      return embedUrl.toString();
+    } catch(error) {
+
+      console.error(`Unable to strip auth from embed URL ${url}`, error);
+      return url;
+    }
+  }
+
+  /**
+   * Rebuild a fabric URL against a named-network host instead of the specific node
+   * that served the original, so the link resolves close to whichever viewer opens it.
+   * The path is anchored to the object id (`/q/iq__...`), not the version hash, so the
+   * link always resolves the latest version. dropAuthorization strips the auth token
+   * for the "public" variant; omitted, the URL's own token is kept.
+   */
+  _NamedNetworkUrl({url, objectId, dropAuthorization=false}: {url: string, objectId: string, dropAuthorization?: boolean}): string | undefined {
+    try {
+      const network = this.rootStore.networkInfo?.name || "main";
+      const networkHost = NETWORK_HOSTS[network] || NETWORK_HOSTS.main;
+
+      const originalUrl = new URL(url);
+      let path = UrlJoin("rep", originalUrl.pathname.split("/rep")[1] || "");
+      if(originalUrl.pathname.includes("/meta")) {
+        path = UrlJoin("meta", originalUrl.pathname.split("/meta")[1]);
+      }
+
+      const namedNetworkUrl = new URL(`https://${networkHost}`);
+      namedNetworkUrl.pathname = UrlJoin("s", network, "q", objectId, path);
+      originalUrl.searchParams.forEach((value, key) => {
+        if(key !== "authorization") { namedNetworkUrl.searchParams.set(key, value); }
+      });
+      if(!dropAuthorization) {
+        namedNetworkUrl.searchParams.set("authorization", originalUrl.searchParams.get("authorization") || "");
+      }
+
+      return namedNetworkUrl.toString();
+    } catch(error) {
+
+      console.error(`Unable to build named-network URL for ${url}`, error);
+      return undefined;
+    }
+  }
+
+  /**
+   * License servers are a separate DRM proxy service, not a fabric node - keep their
+   * host/path as-is and just swap the auth token (plus qhash, which the proxy needs
+   * to look up the object).
+   */
+  _PublicLicenseServerUrl({url, versionHash, authorizationToken}: {url: string, versionHash: string, authorizationToken: string}): string | undefined {
+    try {
+      const licenseServerUrl = new URL(url);
+      licenseServerUrl.searchParams.set("qhash", versionHash);
+      licenseServerUrl.searchParams.set("authorization", authorizationToken);
+
+      return licenseServerUrl.toString();
+    } catch(error) {
+
+      console.error(`Unable to build public license server URL for ${url}`, error);
+      return undefined;
+    }
+  }
+
+  /** Output URLs for several streams, keyed by objectId. Pure - returned to the caller. */
+  *StreamOutputUrls(objectIds: string[]): Generator<any, Record<string, StreamOutputUrls>> {
+    const result: Record<string, StreamOutputUrls> = {};
+
+    yield this.client.utils.LimitedMap(
+      5,
+      objectIds || [],
+      async (objectId: string) => {
+        if(!objectId) { return; }
+        result[objectId] = await this.BuildStreamOutputUrls(objectId) as unknown as StreamOutputUrls;
+      }
+    );
+
+    return result;
   }
 
   *LoadStreamListData({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, StreamListData | undefined> {
@@ -734,6 +1697,7 @@ class StreamStore {
         objectId,
         select: [
           "public/name",
+          "public/asset_metadata/display_title",
           "public/asset_metadata/tags",
           "live_recording/recording_config/recording_params/xc_params/input_cfg",
           "live_recording_config/url",
@@ -741,21 +1705,7 @@ class StreamStore {
         ]
       });
 
-      const url = meta?.live_recording_config?.url;
-      const inputCfg = meta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg ?? meta?.live_recording_config?.recording_config?.input_cfg;
-      const {source, packaging} = DeriveSourceAndPackaging({
-        url,
-        inputCfg
-      });
-
-      return {
-        title: meta?.public?.name,
-        tags: meta?.public?.asset_metadata?.tags ?? [],
-        originUrl: url,
-        source,
-        packaging,
-        inputCfg
-      };
+      return StreamListDataFromMeta(meta);
     } catch(error) {
 
       console.error("Unable to load stream list data", error);

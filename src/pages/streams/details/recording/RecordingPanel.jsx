@@ -29,11 +29,13 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 const RecordingPanel = observer(({
   slug,
   status,
+  active,
   checkVersion
 }) => {
   const params = useParams();
   const [audioTracks, setAudioTracks] = useState([]);
   const [loading, setLoading] = useState(false);
+  const loadedRef = useRef(null);
 
   const form = useForm({
     mode: "uncontrolled",
@@ -105,11 +107,15 @@ const RecordingPanel = observer(({
   };
 
   useEffect(() => {
-    if(params.id) {
+    // Defer until this tab is first shown - every detail panel is mounted at
+    // once (keepMountedMode="display-none"), so an unconditional load fires
+    // all panels' fetches on page open.
+    const loadKey = `${params.id}:${checkVersion}`;
+    if(params.id && active && loadedRef.current !== loadKey) {
+      loadedRef.current = loadKey;
       LoadConfigData();
     }
-
-  }, [params.id, checkVersion]);
+  }, [params.id, active, checkVersion]);
 
   const Save = async() => {
     const values = form.getValues();

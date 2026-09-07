@@ -1,3 +1,4 @@
+import CalendarMonthIcon from "@/assets/icons/CalendarMonthIcon.jsx";
 import EndIcon from "@/assets/icons/EndIcon.jsx";
 import ExternalLinkIcon from "@/assets/icons/ExternalLinkIcon.jsx";
 import PlayCircleIcon from "@/assets/icons/PlayCircleIcon.jsx";
@@ -6,6 +7,7 @@ import TrashIcon from "@/assets/icons/TrashIcon.jsx";
 import VideoPlusIcon from "@/assets/icons/VideoPlusIcon.jsx";
 
 export {
+  CalendarMonthIcon,
   EndIcon,
   ExternalLinkIcon,
   PlayCircleIcon,

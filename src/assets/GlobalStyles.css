@@ -65,3 +65,16 @@ body {
 tr[data-selected] .mantine-datatable-row-selector-cell::before {
   background: var(--mantine-color-elv-blue-0) !important;
 }
+
+/* Outputs table: keep the sort icon next to the column label rather than pushed to the
+   cell's far edge. The datatable renders the label wrapper at width:100% (inline style,
+   hence !important) inside a justify:space-between group. */
+.outputs-table .mantine-datatable-header-cell-sortable-group {
+  justify-content: flex-start !important;
+  gap: 0.25rem;
+}
+
+.outputs-table .mantine-datatable-header-cell-sortable-group > *:first-child {
+  width: auto !important;
+  flex: 0 1 auto;
+}
