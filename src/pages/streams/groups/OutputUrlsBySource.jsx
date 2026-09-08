@@ -242,7 +242,7 @@ const DataRow = ({row}) => (
   </>
 );
 
-const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) => {
+const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false, pendingIds = new Set()}) => {
   const [collapsed, setCollapsed] = useState({});
   const [mode, setMode] = useState("authorized");
   const [packaging, setPackaging] = useState("fmp4");
@@ -318,7 +318,7 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false}) =>
                             <Table.Td />
                             <Table.Td colSpan={3}>
                               {
-                                loading ?
+                                pendingIds.has(stream.objectId) ?
                                   <Text fz="0.875rem" c="elv-gray.6">Loading URLs...</Text> :
                                   <Text fz="0.875rem" c="elv-gray.6">No output URLs available.</Text>
                               }

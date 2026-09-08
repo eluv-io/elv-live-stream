@@ -37,12 +37,15 @@ const GroupSummary = observer(() => {
   const [loading, setLoading] = useState(true);
   const [outputUrls, setOutputUrls] = useState({});
   const [loadingUrls, setLoadingUrls] = useState(true);
+  const [pendingUrlIds, setPendingUrlIds] = useState(() => new Set());
   const loadId = useRef(0);
 
   const LoadData = async () => {
     const runId = ++loadId.current;
     setLoading(true);
     setLoadingUrls(true);
+    setOutputUrls({});
+    setPendingUrlIds(new Set());
     streamGroupStore.LoadGroupData({titleId});
 
     // Load + enrich only this group's streams, not the whole tenant.
@@ -54,28 +57,44 @@ const GroupSummary = observer(() => {
     const objectIds = Object.values(map).map(stream => stream.objectId).filter(Boolean);
     if(objectIds.length === 0) { setLoadingUrls(false); return; }
 
-    const statuses = await streamStore.StreamStatuses(objectIds);
-    if(runId !== loadId.current) { return; }
-    setStreams(current => {
-      const next = {...current};
-      Object.keys(next).forEach(slug => {
-        const status = statuses[next[slug].objectId];
-        if(status) { next[slug] = {...next[slug], ...status}; }
-      });
-      return next;
-    });
+    setPendingUrlIds(new Set(objectIds));
 
-    const urls = await streamStore.StreamOutputUrls(objectIds);
-    if(runId !== loadId.current) { return; }
-    setOutputUrls(urls);
-    setLoadingUrls(false);
+    await Promise.all([
+      (async () => {
+        const statuses = await streamStore.StreamStatuses(objectIds);
+        if(runId !== loadId.current) { return; }
+        setStreams(current => {
+          const next = {...current};
+          Object.keys(next).forEach(slug => {
+            const status = statuses[next[slug].objectId];
+            if(status) { next[slug] = {...next[slug], ...status}; }
+          });
+          return next;
+        });
+      })(),
+      (async () => {
+        await streamStore.StreamOutputUrls(objectIds, {
+          onStreamUrls: (objectId, urls) => {
+            if(runId !== loadId.current) { return; }
+            setOutputUrls(current => ({...current, [objectId]: urls}));
+            setPendingUrlIds(current => {
+              const next = new Set(current);
+              next.delete(objectId);
+              return next;
+            });
+          }
+        });
+        if(runId !== loadId.current) { return; }
+        setLoadingUrls(false);
+      })()
+    ]);
   };
 
   const DebouncedRefresh = useDebouncedCallback(LoadData, 500);
 
   useEffect(() => {
     LoadData();
-     
+
   }, [titleId]);
 
   const actions = [
@@ -143,6 +162,7 @@ const GroupSummary = observer(() => {
         streams={records}
         outputUrls={outputUrls}
         loading={loadingUrls}
+        pendingIds={pendingUrlIds}
       />
     </PageContainer>
   );

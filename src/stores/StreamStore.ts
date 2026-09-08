@@ -1489,22 +1489,30 @@ class StreamStore {
     const result: StreamOutputUrls = {playoutMethods: []};
     if(!objectId) { return result; }
 
-    const versionHash = yield this.client.LatestVersionHash({objectId});
     const anonymousToken = this.client.utils.B64(
       JSON.stringify({qspace_id: this.rootStore.contentSpaceId})
     );
 
-    let signedToken;
-    try {
-      signedToken = yield this.client.CreateSignedToken({
+    const Guard = (promise: any, message: string, fallback?: any) =>
+      Promise.resolve(promise).catch(error => { console.error(message, error); return fallback; });
+
+    // Part 1 - everything that needs only the objectId, in parallel.
+    const [versionHash, signedToken, embedUrl, libraryId, playoutOptions] = yield Promise.all([
+      Guard(this.client.LatestVersionHash({objectId}), `Unable to load version hash for ${objectId}`),
+      Guard(this.client.CreateSignedToken({
         objectId,
         subject: "elv-lsm",
         duration: 7 * 86400000 // 1 week
-      });
-    } catch(error) {
-
-      console.error(`Unable to create signed token for ${objectId}`, error);
-    }
+      }), `Unable to create signed token for ${objectId}`),
+      Guard(this.EmbedUrl({objectId}), `Unable to load embed URL for ${objectId}`),
+      Guard(this.client.ContentObjectLibraryId({objectId}), `Unable to load library id for ${objectId}`),
+      Guard(this.client.PlayoutOptions({
+        objectId,
+        protocols: ["hls", "dash"],
+        drms: ALL_DRMS,
+        offering: "default"
+      }), `Unable to load live playout options for ${objectId}`)
+    ]);
 
     // Swap channel auth for the signed token when we have one
     const authArgs = signedToken ?
@@ -1514,73 +1522,52 @@ class StreamStore {
     result.srtPlayoutUrl = signedToken ? this._SrtPlayoutUrl({objectId, token: signedToken}) : undefined;
     result.publicSrtPlayoutUrl = this._SrtPlayoutUrl({objectId});
 
-    try {
-      result.embedUrl = yield this.EmbedUrl({objectId});
-      result.publicEmbedUrl = this._DropEmbedAuth(result.embedUrl);
-    } catch(error) {
-
-      console.error(`Unable to load embed URL for ${objectId}`, error);
+    if(embedUrl) {
+      result.embedUrl = embedUrl;
+      result.publicEmbedUrl = this._DropEmbedAuth(embedUrl);
     }
 
-    let libraryId;
-    try {
-      libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      const rawPlayoutUrl = yield this.client.FabricUrl({
+    const liveMethods: Record<string, any> = {};
+    Object.keys(playoutOptions || {}).forEach(protocol => {
+      Object.keys(playoutOptions[protocol]?.playoutMethods || {}).forEach(drm => {
+        liveMethods[`${protocol}-${drm}`] = playoutOptions[protocol].playoutMethods[drm];
+      });
+    });
+
+    // Part 2 - needs libraryId, in parallel.
+    const [rawPlayoutUrl, formatsMeta] = yield Promise.all([
+      Guard(this.client.FabricUrl({
         libraryId,
         objectId,
         rep: "playout/default/options.json",
         ...authArgs
-      });
-      result.playoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId});
-      result.publicPlayoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, dropAuthorization: true});
-    } catch(error) {
-
-      console.error(`Unable to load playout options URL for ${objectId}`, error);
-    }
-
-    // Configured playout formats, in the precedence order the stream details page uses
-    // (overrides -> config -> applied -> keys of the applied "default" offering).
-    let formats: string[] = [];
-    try {
-      const [overrides, config, applied, offering] = yield Promise.all([
+      }), `Unable to load playout options URL for ${objectId}`),
+      // Configured playout formats, in the precedence order the stream details page uses
+      // (overrides -> config -> applied -> keys of the applied "default" offering).
+      Guard(Promise.all([
         this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_overrides/playout_config/playout_formats"}),
         this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_config/playout_config/playout_formats"}),
         this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording/playout_config/playout_formats"}),
         this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "offerings/default/playout/playout_formats"})
-      ]);
-      const configured = overrides ?? config ?? applied ?? Object.keys(offering || {});
-      formats = (Array.isArray(configured) ? configured : []).filter(format => PLAYOUT_FORMATS[format]);
-    } catch(error) {
+      ]), `Unable to load playout formats for ${objectId}`, [])
+    ]);
 
-      console.error(`Unable to load playout formats for ${objectId}`, error);
+    if(rawPlayoutUrl) {
+      result.playoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId});
+      result.publicPlayoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, dropAuthorization: true});
     }
 
-    // License servers only exist for a running stream; when PlayoutOptions fails
-    // (no finalized offering yet) the deterministic playout URLs below still stand.
-    const liveMethods: Record<string, any> = {};
-    try {
-      const playoutOptions = yield this.client.PlayoutOptions({
-        objectId,
-        protocols: ["hls", "dash"],
-        drms: ALL_DRMS,
-        offering: "default"
-      });
-      Object.keys(playoutOptions || {}).forEach(protocol => {
-        Object.keys(playoutOptions[protocol]?.playoutMethods || {}).forEach(drm => {
-          liveMethods[`${protocol}-${drm}`] = playoutOptions[protocol].playoutMethods[drm];
-        });
-      });
-    } catch(error) {
+    const [overrides, config, applied, offering] = formatsMeta || [];
+    const configured = overrides ?? config ?? applied ?? Object.keys(offering || {});
+    const formats: string[] = (Array.isArray(configured) ? configured : []).filter(format => PLAYOUT_FORMATS[format]);
 
-      console.error(`Unable to load live playout options for ${objectId}`, error);
-    }
-
-    for(const format of formats) {
+    // Part 3 - one FabricUrl per format, in parallel, kept in `formats` order.
+    const methods = yield Promise.all(formats.map(async format => {
       const {label, manifest, protocol, drm} = PLAYOUT_FORMATS[format];
 
       let rawUrl;
       try {
-        rawUrl = yield this.client.FabricUrl({
+        rawUrl = await this.client.FabricUrl({
           libraryId,
           objectId,
           rep: `playout/default/${format}/${manifest}`,
@@ -1589,13 +1576,13 @@ class StreamStore {
       } catch(error) {
 
         console.error(`Unable to build playout URL for ${objectId} (${format})`, error);
-        continue;
+        return undefined;
       }
 
       const licenseServers = liveMethods[`${protocol}-${drm}`]?.drms?.[drm]?.licenseServers;
       const licenseServerUrl = Array.isArray(licenseServers) && licenseServers.length > 0 ? licenseServers[0] : undefined;
 
-      result.playoutMethods.push({
+      return {
         label,
         url: this._NamedNetworkUrl({url: rawUrl, objectId}),
         licenseServerUrl,
@@ -1603,8 +1590,10 @@ class StreamStore {
         publicLicenseServerUrl: licenseServerUrl ?
           this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
           undefined
-      });
-    }
+      };
+    }));
+
+    result.playoutMethods.push(...methods.filter(Boolean));
 
     return result;
   }
@@ -1693,8 +1682,14 @@ class StreamStore {
     }
   }
 
-  /** Output URLs for several streams, keyed by objectId. Pure - returned to the caller. */
-  *StreamOutputUrls(objectIds: string[]): Generator<any, Record<string, StreamOutputUrls>> {
+  /**
+   * Output URLs for several streams, keyed by objectId. `onStreamUrls`, if given, fires
+   * per stream as each resolves so callers can render incrementally.
+   */
+  *StreamOutputUrls(
+    objectIds: string[],
+    {onStreamUrls}: {onStreamUrls?: (objectId: string, urls: StreamOutputUrls) => void} = {}
+  ): Generator<any, Record<string, StreamOutputUrls>> {
     const result: Record<string, StreamOutputUrls> = {};
 
     yield this.client.utils.LimitedMap(
@@ -1702,7 +1697,9 @@ class StreamStore {
       objectIds || [],
       async (objectId: string) => {
         if(!objectId) { return; }
-        result[objectId] = await this.BuildStreamOutputUrls(objectId) as unknown as StreamOutputUrls;
+        const urls = await this.BuildStreamOutputUrls(objectId) as unknown as StreamOutputUrls;
+        result[objectId] = urls;
+        onStreamUrls?.(objectId, urls);
       }
     );
 
