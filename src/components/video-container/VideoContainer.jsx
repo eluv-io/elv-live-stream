@@ -30,7 +30,11 @@ const VideoContent = observer(({allowClose, setPlay, slug, borderRadius, capLeve
           </ActionIcon>
         }
       </Box>
-      <Suspense fallback={<Loader />}>
+      <Suspense fallback={
+        <Box pos="absolute" inset={0} style={{display: "flex", alignItems: "center", justifyContent: "center"}}>
+          <Loader />
+        </Box>
+      }>
         <Video
           objectId={streamStore.streams[slug].objectId}
           playerOptions={{
