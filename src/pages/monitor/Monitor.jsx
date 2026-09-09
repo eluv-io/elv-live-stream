@@ -30,6 +30,7 @@ import styles from "./Monitor.module.css";
 const COLS = 4;
 
 const OverflowMenu = observer(({stream}) => {
+  const [opened, setOpened] = useState(false);
   const clipboard = useClipboard({timeout: 400});
   const navigate = useNavigate();
 
@@ -127,7 +128,7 @@ const OverflowMenu = observer(({stream}) => {
   ];
 
   return (
-    <Menu ml="auto" position="bottom-end">
+    <Menu ml="auto" position="bottom-end" opened={opened} onChange={setOpened}>
       <Menu.Target>
         <ActionIcon variant="white" color="elv-gray.9" size="xs">
           <IconDotsVertical height={"100%"} />
@@ -144,7 +145,7 @@ const OverflowMenu = observer(({stream}) => {
                 key={item.id}
                 leftSection={item.Icon}
                 color="var(--mantine-color-elv-gray-9)"
-                onClick={() => item.onClick()}
+                onClick={() => { setOpened(false); item.onClick(); }}
                 disabled={item.disabled}
               >
                 { item.label }
