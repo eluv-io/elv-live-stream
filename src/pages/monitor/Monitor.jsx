@@ -157,20 +157,22 @@ const OverflowMenu = observer(({stream}) => {
 });
 
 const GridItem = observer(({stream, index}) => {
+  const record = streamStore.streams?.[stream.slug] ?? stream;
+
   return (
     <Flex direction="column" w="100%" style={{minWidth: 0}}>
       <VideoContainer
         index={index}
-        slug={stream.slug}
+        slug={record.slug}
         showPreview={streamStore.showMonitorPreviews}
-        playable={stream.status === "running"}
+        playable={record.status === "running"}
         capLevelToPlayerSize
       />
       <Flex flex={1} p="0.5rem 0 0.5rem" w="100%">
         <Flex direction="column" w="100%" gap={0}>
           <Group mb={5} gap={10} w="100%" maw="100%" wrap="nowrap">
             {
-              stream.status && [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(stream.status) &&
+              record.status && [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status) &&
               <Button
                 classNames={{root: styles.buttonInput, section: styles.buttonSection}}
                 size="xs"
@@ -180,11 +182,11 @@ const GridItem = observer(({stream, index}) => {
                 onClick={() => {
                   modalStore.SetModal({
                     data: {
-                      objectId: stream.objectId,
-                      name: stream.title
+                      objectId: record.objectId,
+                      name: record.title
                     },
                     op: "START",
-                    slug: stream.slug,
+                    slug: record.slug,
                     notifications
                   });
                 }}
@@ -197,20 +199,20 @@ const GridItem = observer(({stream, index}) => {
               </Button>
             }
             <Title order={3} lineClamp={1} c="elv-gray.9" lh={1}>
-              { stream.title }
+              { record.title }
             </Title>
-            <OverflowMenu stream={stream} />
+            <OverflowMenu stream={record} />
           </Group>
           <Text c="elv-gray.6" fz={12} fw={500} mb={5} truncate="end" lh={1}>
-            { stream.objectId || "" }
+            { record.objectId || "" }
           </Text>
           <Flex align="flex-end" justify="space-between">
             {
-              stream.status &&
+              record.status &&
               <StatusIndicator
-                status={stream.status}
+                status={record.status}
                 size="sm"
-                showWarning={stream.status?.quality && stream.status.quality !== QUALITY_MAP.GOOD}
+                showWarning={record.status?.quality && record.status.quality !== QUALITY_MAP.GOOD}
               />
             }
           </Flex>
