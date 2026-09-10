@@ -9,7 +9,9 @@ import {
   IconExternalLink,
   IconListCheck,
   IconPlayerPlay,
-  IconPlayerStop, IconTrash
+  IconPlayerStop,
+  IconRefresh,
+  IconTrash
 } from "@tabler/icons-react";
 import {Link} from "react-router-dom";
 import {EndIcon} from "@/assets/icons/index.js";
@@ -133,6 +135,27 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
             name: record.title
           },
           op: "STOP",
+          slug: record.slug,
+          notifications
+        });
+      }
+    },
+    {
+      label: "Restart",
+      title: "Restart Recording",
+      icon: <IconRefresh />,
+      iconVariant: "subtle",
+      buttonVariant: "outline",
+      iconColor: "gray.6",
+      mutatesStream: true,
+      hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED, STATUS_MAP.STOPPED].includes(record.status),
+      onClick: () => {
+        modalStore.SetModal({
+          data: {
+            objectId: record.objectId,
+            name: record.title
+          },
+          op: "RESTART",
           slug: record.slug,
           notifications
         });

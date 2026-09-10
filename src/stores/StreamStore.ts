@@ -655,6 +655,24 @@ class StreamStore {
     }
   }
 
+  *RestartRecording({objectId, slug}: {objectId: string, slug: string}): Generator<any, void> {
+    try {
+      const response = yield this.client.StreamRestartRecording({name: objectId});
+
+      if(response?.error) {
+        throw new Error(response.error);
+      }
+
+      // New edge write token - keep polling the fresh session.
+      this._SetStreamActive({slug, active: true});
+      this.UpdateStream({key: slug, value: {status: response.state}});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to restart stream recording", error);
+      throw error;
+    }
+  }
+
   *DeactivateStream({objectId, slug}: {objectId: string, slug: string}): Generator<any, void> {
     try {
       const response = yield this.client.StreamStopRecording({name: objectId});
