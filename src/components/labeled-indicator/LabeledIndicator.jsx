@@ -36,7 +36,7 @@ const LabeledIndicator = ({
       <Box className={withBorder ? styles.box : ""} ml="-3px">
         <Group gap={5}>
           <IconAlertCircle color="var(--mantine-color-elv-orange-3)" width={14} />
-          <Text fz={14} fw={500} c="elv-gray.9" lh={1}>
+          <Text fz={14} fw={fw} c={c} lh={1}>
             { label }
           </Text>
         </Group>
