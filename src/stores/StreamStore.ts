@@ -1,4 +1,4 @@
-// Manages runtime stream state: the streams map, status polling, live control (start, stop, deactivate), and frame preview.
+// Runtime stream state: streams map, status polling, live control (start/stop/deactivate), frame preview.
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET, type DateRangePreset} from "@/utils/helpers";
@@ -15,7 +15,7 @@ type SummaryData = Pick<StreamMetadata,
   "videoStreamProbe" | "publishingVideo" | "publishingAudio" | "partTtl" | "persistent"
 > & ProbeData;
 
-// Processed shape for the UI — camelCase, populated by LoadPlayoutConfigData
+// UI shape (camelCase), populated by LoadPlayoutConfigData.
 type PlayoutConfigData = Pick<StreamMetadata,
   "drm" | "dvrEnabled" | "dvrMaxDuration" | "dvrStartTime" |
   "forensicWatermark" | "imageWatermark" | "simpleWatermark" | "watermarkType"
@@ -73,13 +73,9 @@ interface TenantContentVersion {
   type: string;
   object_version: number;
   error: string;
-  // Indexed query fields returned by the tenant query (versions[].query_fields).
-  // A value may be single or an array, depending on the index definition.
+  // versions[].query_fields - a value may be scalar or array per the index definition.
   query_fields?: Record<string, unknown>;
-  // Selected metadata subtree returned inline by the tenant query (versions[].meta),
-  // keyed by path exactly like ContentObjectMetadata's response. Present when the query
-  // requests the streams-list paths (public/name, public/asset_metadata/tags,
-  // live_recording_config/url, ...input_cfg).
+  // versions[].meta - selected subtree, keyed by path like ContentObjectMetadata's response.
   meta?: Record<string, any>;
 }
 
@@ -89,11 +85,7 @@ const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: strin
   return value == null || value === "" ? undefined : String(value);
 };
 
-/**
- * Derive the streams-list fields from an object's metadata subtree. Shared by the
- * per-object fetch (LoadStreamListData) and the tenant query's `meta` so the two
- * never drift.
- */
+/** Streams-list fields from a metadata subtree. Shared by LoadStreamListData and the tenant query's `meta`. */
 const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamListData => {
   const url = meta?.live_recording_config?.url;
   const inputCfg =
@@ -112,11 +104,7 @@ const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamLi
   };
 };
 
-/**
- * Build the StreamInfo fields from a tenant query version: name/date/title_id from
- * query_fields, plus the streams-list fields from `meta` when present (letting the
- * content-group path skip the per-object metadata fetch entirely).
- */
+/** StreamInfo fields from a tenant query version: name/date/title_id from query_fields, list fields from `meta` when present. */
 const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<StreamInfo> => {
   const name = QueryFieldValue(version.query_fields, "name");
   const date = QueryFieldValue(version.query_fields, "date");
@@ -132,7 +120,7 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
     if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
     if(listData.source?.length) { info.source = listData.source; }
     if(listData.packaging?.length) { info.packaging = listData.packaging; }
-    // inputCfg isn't on StreamInfo's type but _EnrichStreams already attaches it the same way.
+    // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
     if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
   }
 
@@ -156,8 +144,7 @@ interface TenantContentPaging {
   more?: boolean;
 }
 
-// Streams-page date filter, persisted so it survives navigating to a stream detail
-// page and back (and a page reload) - mirrors StreamGroupStore's expandedGroups.
+// Persisted so it survives navigation and reload - mirrors StreamGroupStore's expandedGroups.
 const STREAMS_DATE_FILTER_KEY = "elv-streams-date-filter";
 
 const LoadPersistedDateFilter = (): {preset: DateRangePreset, referenceDate: Date} => {
@@ -184,14 +171,11 @@ const TENANT_CONTENT_SELECT = [
   "live_recording_config/recording_config/input_cfg"
 ];
 
-// All DRM schemes we ask PlayoutOptions about, so the response carries every
-// available protocol/method the stream offers.
+// All DRM schemes to ask PlayoutOptions about, so the response covers every method.
 const ALL_DRMS = ["clear", "aes-128", "sample-aes", "widevine", "fairplay", "playready"];
 
-// Configured playout-format keys (constants.ts PLAYOUT_FORMAT_OPTIONS) mapped to the
-// manifest filename plus the {protocol, drm} pair PlayoutOptions returns - so each row
-// can be built deterministically (works before the stream has ever run) and then
-// enriched with a license-server URL when the stream is live.
+// Playout-format keys (PLAYOUT_FORMAT_OPTIONS) -> manifest filename + {protocol, drm},
+// so each row builds deterministically (before first run) and gets a license URL when live.
 const PLAYOUT_FORMATS: Record<string, {label: string, manifest: string, protocol: string, drm: string}> = {
   "hls-clear":          {label: "HLS Clear",      manifest: "playlist.m3u8", protocol: "hls",  drm: "clear"},
   "hls-aes128":         {label: "HLS AES-128",    manifest: "playlist.m3u8", protocol: "hls",  drm: "aes-128"},
@@ -203,9 +187,8 @@ const PLAYOUT_FORMATS: Record<string, {label: string, manifest: string, protocol
   "dash-widevine":      {label: "Dash Widevine",  manifest: "dash.mpd",      protocol: "dash", drm: "widevine"}
 };
 
-// Named-network hostname map for building public playout URLs - mirrors elv-client-js's
-// internal NetworkUrls table. A public URL resolves to a fabric node close to the viewer
-// rather than the node that happened to serve the (private, token-bound) playout URL.
+// Named-network hosts for public playout URLs - mirrors elv-client-js's NetworkUrls.
+// Resolves close to the viewer rather than the node that served the original URL.
 const NETWORK_HOSTS: Record<string, string> = {
   main: "main.net955305.contentfabric.io",
   demo: "demov3.net955210.contentfabric.io",
@@ -215,11 +198,9 @@ const NETWORK_HOSTS: Record<string, string> = {
 export interface OutputUrlRow {
   label: string;
   url: string;
-  // DRM methods (e.g. Widevine): the license server URL. When present the UI shows
-  // the playout + license URLs as sub-rows and leaves the parent row's URL blank.
+  // License server URL for DRM methods. When present the UI shows playout + license as sub-rows.
   licenseServerUrl?: string;
-  // Named-network variant of url/licenseServerUrl, authorized with an anonymous
-  // (qspace_id-only) token instead of the stream's own channel-auth token.
+  // Named-network variant, authorized with an anonymous (qspace_id-only) token.
   publicUrl?: string;
   publicLicenseServerUrl?: string;
 }
@@ -234,47 +215,40 @@ export interface StreamOutputUrls {
   publicSrtPlayoutUrl?: string;
 }
 
-// SRT playout is served from a global load-balanced host per network, on a
-// network-specific port. Mirrors DataStore.SrtPlayoutUrl's port table.
+// Per-network SRT port table. Mirrors DataStore.SrtPlayoutUrl.
 const SRT_PLAYOUT_PORTS: Record<string, number> = {main: 11080, demo: 11090, test: 11091};
 
 class StreamStore {
   streams: StreamMap;
   // Streams with a live edge write token - the only ones polled for full status.
-  // Rebuilt each poll by _ClassifyStreams; nudged by start/deactivate.
+  // Rebuilt each poll by _ClassifyStreams.
   activeStreamSlugs = new Set<string>();
   streamFrameUrls: Record<string, StreamFrameUrl> = {};
   showMonitorPreviews = false;
   loadingStatus = false;
   tableFilter = "";
   tableTagFilter: string[] = [];
-  // Streams-page date filter (preset + anchor date). Persisted via SetDateFilter so
-  // it isn't lost when the page unmounts on navigation. dateRangeFilter is derived.
+  // Date filter (preset + anchor date). Persisted via SetDateFilter. dateRangeFilter is derived.
   datePreset: DateRangePreset;
   referenceDate: Date;
   dateRangeFilter: [Date | null, Date | null];
   tenantLiveStreamContent: StreamMap = {};
   loadingTenantLiveStreamContent = false;
-  // Full, unscoped stream set for the map-to-stream modal. Kept separate from `streams`
-  // (the streams page's date-scoped list) so neither one clobbers the other.
+  // Full, unscoped set for the map-to-stream modal. Separate from `streams` so neither clobbers the other.
   allStreams: StreamMap = {};
   allStreamsLoaded = false;
   loadingAllStreams = false;
   _allStreamsPromise: Promise<void> | null = null;
-  // Paged tenant query state (streams page): whether another page is available,
-  // whether a page fetch is in flight, and the resume cursor / query params.
+  // Paged tenant query state: has-more, fetch-in-flight, resume cursor, query params.
   tenantContentHasMore = false;
   loadingMoreTenantContent = false;
   _tenantContentPromise: Promise<void> | null = null;
   _tenantContentFilterKey: string | null = null;
   _tenantContentCursor = 0;
   _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string} | null = null;
-  // Bumped whenever the paged tenant query is (re)started or the date filter changes.
-  // In-flight "load more" fetches compare against it and discard stale results.
+  // Bumped when the paged query restarts or the date filter changes; stale "load more" fetches discard against it.
   _tenantContentEpoch = 0;
-  // Bumped whenever `streams` is replaced (e.g. date-filter change). An in-flight
-  // status/classify pass over the previous list checks this and stops early so it
-  // doesn't keep hammering per-object metadata for streams no longer displayed.
+  // Bumped whenever `streams` is replaced; an in-flight status/classify pass checks this and stops early.
   _streamListEpoch = 0;
   rootStore: RootStore;
 
@@ -319,22 +293,18 @@ class StreamStore {
   }
 
   /**
-   * The search box holds a full or partial object id ("iq__…") rather than a name.
-   * The TenantContent query has no object-id filter (only group / tag / query-field
-   * names), so an id search is resolved client-side against the loaded list - and
-   * DataStore.LoadStreamList loads the full set (no date scope, no paging) when true.
+   * Search term is a full/partial object id ("iq__…"). TenantContent can't filter on it,
+   * so LoadStreamList loads the full set (no date scope, no paging) and filteredStreams
+   * matches it client-side.
    */
   get tableFilterIsObjectId(): boolean {
     return /^iq__[A-Za-z0-9]*$/.test(this.tableFilter.trim());
   }
 
   /**
-   * Tag filtering (always client-side) plus text filtering. Date scoping is server-side
-   * (LoadTenantLiveStreamContent's date-tag filter) - streams carry no real createdAt to
-   * filter on client-side. On the content-group path the name search is also server-side
-   * (name:co: on the tenant query), so skip the client-side text match there and let the
-   * re-queried list stand on its own - except an object-id search, which the tenant query
-   * can't express, so filter that client-side against the full loaded set.
+   * Client-side tag + text filtering (date scoping is server-side). On the content-group
+   * path the name search is also server-side, so skip the client-side text match there -
+   * except an object-id search, which the tenant query can't express.
    */
   get filteredStreams(): StreamInfo[] {
     const objectIdSearch = this.tableFilterIsObjectId;
@@ -373,8 +343,7 @@ class StreamStore {
     this.activeStreamSlugs.forEach(slug => {
       if(!this.streams[slug]) { this.activeStreamSlugs.delete(slug); }
     });
-    // The scoped list was (re)built or a stream was added/removed - the modal's full
-    // set may now be stale, so refetch it the next time the modal opens.
+    // Scoped list changed - the modal's full set may be stale; refetch on next open.
     this.allStreamsLoaded = false;
     this._allStreamsPromise = null;
     const remaining = this.allTags;
@@ -408,10 +377,7 @@ class StreamStore {
     } catch { /* sessionStorage unavailable - filter is still held in memory */ }
   };
 
-  /**
-   * Add/remove a slug from the active-poll set. On removal, `state` is written
-   * straight to the stream since the poll skips it.
-   */
+  /** Add/remove a slug from the active-poll set. On removal, `state` is written straight to the stream. */
   _SetStreamActive = ({slug, active, state}: {slug: string, active: boolean, state?: StreamStatus}) => {
     if(!slug) { return; }
 
@@ -427,9 +393,8 @@ class StreamStore {
 
   /**
    * Cheap classification from local metadata, mirroring client-js StreamStatus's
-   * pre-bitcode branch: no url -> unconfigured; no fabric/playout/recording config
-   * -> uninitialized; no edge write token -> inactive; else active. Updates
-   * activeStreamSlugs, writes inactive states, and returns the slugs to poll.
+   * pre-bitcode branch: no url -> unconfigured; missing fabric/playout/recording config
+   * -> uninitialized; no edge write token -> inactive; else active. Returns the slugs to poll.
    */
   *_ClassifyStreams({slugs, listEpoch}: {slugs: string[], listEpoch?: number}): Generator<any, string[]> {
     yield this.client.utils.LimitedMap(
@@ -616,7 +581,7 @@ class StreamStore {
       yield this.client.StreamStartRecording({name: objectId, start});
     }
 
-    // Write token exists now - start polling without waiting for the next classify pass.
+    // Write token exists now - start polling immediately.
     this._SetStreamActive({slug, active: true});
 
     yield this.OperateLRO({
@@ -1001,7 +966,7 @@ class StreamStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      // Special case: playoutFormatMeta is a fallback when profile has no playout_formats specified
+      // playoutFormatMeta is the fallback when the profile specifies no playout_formats.
       const [liveRecordingMeta, liveRecordingConfigMeta, liveRecordingOverridesMeta, playoutFormatMeta] = yield Promise.all([
         this.client.ContentObjectMetadata({
           libraryId,
@@ -1069,12 +1034,7 @@ class StreamStore {
     }
   }
 
-  /**
-   * Build the TenantContent filter array for the given site + optional date range +
-   * optional name search. `nameFilter` is matched against the `name` query field with
-   * a contains match, so the streams-page search box narrows server-side rather
-   * than only client-side.
-   */
+  /** TenantContent filter array: site + optional date range + optional name (contains match on the `name` query field). */
   _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string): string[] {
     const [startDate, endDate] = dateRange || [null, null];
     const filter = [`group:eq:${siteId}`];
@@ -1121,8 +1081,7 @@ class StreamStore {
    */
   *LoadTenantLiveStreamContent({siteId, dateRange, nameFilter, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], nameFilter?: string, force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
     if(!siteId) {
-      // No registered site id - skip the tenant query and let the caller fall back
-      // to the site object's stream list.
+      // No site id - skip the tenant query; caller falls back to the site object's list.
       console.warn("LoadTenantLiveStreamContent: no siteId, skipping tenant query");
       this.tenantLiveStreamContent = {};
       this.tenantContentHasMore = false;
@@ -1250,13 +1209,9 @@ class StreamStore {
   }
 
   /**
-   * Enrich a raw stream-metadata map with per-object data (decoded objectId,
-   * libraryId, title, tags, source/packaging, inputCfg) and return it without
-   * touching store state.
-   *
-   * fetchObjectData=false skips the per-object metadata fetch, keeping only what's
-   * in the map plus the decoded objectId - used for the tenant content-group query,
-   * whose list data is loaded separately.
+   * Enrich a raw stream-metadata map with per-object data (objectId, libraryId, title,
+   * tags, source/packaging, inputCfg); returns it without touching store state.
+   * fetchObjectData=false skips the per-object fetch (content-group query loads list data separately).
    */
   *_EnrichStreams({streamMetadata, fetchObjectData=true}: {streamMetadata: StreamMap, fetchObjectData?: boolean}): Generator<any, StreamMap> {
     const enriched: StreamMap = {};
@@ -1336,11 +1291,7 @@ class StreamStore {
     this.rootStore.streamGroupStore.BuildGroups(this.streams);
   }
 
-  /**
-   * Load the full, unscoped stream set for the map-to-stream modal. Kept independent
-   * of the streams page's date-scoped query so neither list clobbers the other. No
-   * status polling - the modal only needs inputCfg / title / objectId to pick a stream.
-   */
+  /** Full, unscoped stream set for the map-to-stream modal. Independent of the date-scoped query; no status polling. */
   *LoadAllStreams({force=false}: {force?: boolean} = {}): Generator<any, StreamMap> {
     if(this.allStreamsLoaded && !force) { return this.allStreams; }
     if(this._allStreamsPromise && !force) {
@@ -1388,8 +1339,7 @@ class StreamStore {
         streamMetadata = yield this.rootStore.dataStore.LoadTenantSiteStreams();
       }
 
-      // Full per-object enrichment here on purpose: the map-to-stream modal needs
-      // inputCfg / source / packaging to pick a stream, and it's opened on demand.
+      // Full per-object enrichment on purpose - the modal needs inputCfg/source/packaging.
       this.allStreams = yield this._EnrichStreams({streamMetadata});
       this.allStreamsLoaded = true;
     } catch(error) {
@@ -1404,12 +1354,9 @@ class StreamStore {
   }
 
   /**
-   * Load and enrich only the streams in one group (query_fields.title_id). The tenant
-   * query only narrows by site + date tag, so version metadata is still paged in full,
-   * but per-object enrichment runs for the group's streams alone. Returns the map
-   * without touching store state.
-   *
-   * TODO: use a server-side title_id filter once the group-data source lands.
+   * Load and enrich only the streams in one group (query_fields.title_id). Version
+   * metadata is still paged in full; per-object enrichment runs for the group alone.
+   * TODO: server-side title_id filter once the group-data source lands.
    */
   *LoadStreamsByTitleId(titleId: string): Generator<any, StreamMap> {
     const siteId = this.rootStore.dataStore.siteId;
@@ -1444,10 +1391,7 @@ class StreamStore {
     return yield this._EnrichStreams({streamMetadata});
   }
 
-  /**
-   * Fetch live status for the given objectIds, keyed by objectId. Pure - writes to no
-   * store map, so callers holding a local stream list can merge it themselves.
-   */
+  /** Live status for the given objectIds, keyed by objectId. Pure - writes to no store map. */
   *StreamStatuses(objectIds: string[]): Generator<any, Record<string, Partial<StreamInfo>>> {
     const result: Record<string, Partial<StreamInfo>> = {};
 
@@ -1476,9 +1420,8 @@ class StreamStore {
   }
 
   /**
-   * Build the output URLs for one stream: the embeddable URL, the offering options
-   * URL, and one playout URL per available protocol/DRM method (e.g. "HLS Clear",
-   * "Dash Widevine"). All playout URLs carry the same week-long signed token.
+   * Output URLs for one stream: embed URL, options URL, one playout URL per available
+   * protocol/DRM method. All playout URLs carry the same week-long signed token.
    */
   *BuildStreamOutputUrls(objectId: string): Generator<any, StreamOutputUrls> {
     const result: StreamOutputUrls = {playoutMethods: []};
@@ -1537,8 +1480,7 @@ class StreamStore {
         rep: "playout/default/options.json",
         ...authArgs
       }), `Unable to load playout options URL for ${objectId}`),
-      // Configured playout formats, in the precedence order the stream details page uses
-      // (overrides -> config -> applied -> keys of the applied "default" offering).
+      // Playout formats in precedence order: overrides -> config -> applied -> keys of the "default" offering.
       Guard(Promise.all([
         this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_overrides/playout_config/playout_formats"}),
         this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_config/playout_config/playout_formats"}),
@@ -1606,10 +1548,7 @@ class StreamStore {
     return `srt://${network}.glb.contentfabric.io:${port}?streamid=${streamId}`;
   }
 
-  /**
-   * Strip the signed-token query param (`ath`) from an embed URL for the "public"
-   * variant. Returns the URL unchanged if it has no token or can't be parsed.
-   */
+  /** Strip the signed-token param (`ath`) from an embed URL for the "public" variant. */
   _DropEmbedAuth(url?: string): string | undefined {
     if(!url) { return undefined; }
     try {
@@ -1624,11 +1563,9 @@ class StreamStore {
   }
 
   /**
-   * Rebuild a fabric URL against a named-network host instead of the specific node
-   * that served the original, so the link resolves close to whichever viewer opens it.
-   * The path is anchored to the object id (`/q/iq__...`), not the version hash, so the
-   * link always resolves the latest version. dropAuthorization strips the auth token
-   * for the "public" variant; omitted, the URL's own token is kept.
+   * Rebuild a fabric URL against a named-network host so it resolves close to the viewer.
+   * Path is anchored to the object id (not the version hash) so it always resolves latest.
+   * dropAuthorization strips the auth token for the "public" variant.
    */
   _NamedNetworkUrl({url, objectId, dropAuthorization=false}: {url: string, objectId: string, dropAuthorization?: boolean}): string | undefined {
     try {
@@ -1658,11 +1595,7 @@ class StreamStore {
     }
   }
 
-  /**
-   * License servers are a separate DRM proxy service, not a fabric node - keep their
-   * host/path as-is and just swap the auth token (plus qhash, which the proxy needs
-   * to look up the object).
-   */
+  /** License servers are a separate DRM proxy, not a fabric node - keep host/path, swap the auth token (plus qhash for object lookup). */
   _PublicLicenseServerUrl({url, versionHash, authorizationToken}: {url: string, versionHash: string, authorizationToken: string}): string | undefined {
     try {
       const licenseServerUrl = new URL(url);
