@@ -5,18 +5,9 @@ import {IconChevronRight} from "@tabler/icons-react";
 import {MOCK_PROBE_PROGRAMS} from "@/utils/mockProbeProgramData.ts";
 import sharedStyles from "@/assets/shared.module.css";
 
-// Reusable controlled component: used both directly in the FMP4/CMAF
-// Packaging section (the implicit primary output) and embedded inside
-// AlternateTranscodeModal - both contexts share the exact same shape.
-//
-// Only one program is "active" (radio-selected) at a time. Switching
-// programs keeps the other programs' checkbox state in this component's own
-// local memory (so switching back restores it within this session), but
-// only the active program's selection is surfaced to the parent via
-// onChange - that's the only one that gets saved.
-//
-// Program list is sourced from a temporary mock (see mockProbeProgramData.ts)
-// until real multiprogram probe data exists on the fabric side.
+// Component in the FMP4/CMAF Packaging section (the implicit primary output) and
+// inside AlternateTranscodeModal (same shape).
+// TODO: Program list is sourced from a temporary mock (see mockProbeProgramData.ts). Update per metadata
 const ProgramPidSelector = ({value, onChange, disabled}) => {
   const programs = MOCK_PROBE_PROGRAMS;
 
