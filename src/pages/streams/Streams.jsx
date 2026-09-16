@@ -14,8 +14,10 @@ import Actions from "@/components/table/actions/Actions.jsx";
 import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {notifications} from "@mantine/notifications";
-import {IconArrowsMaximize, IconArrowsMinimize, IconChevronLeft, IconChevronRight, IconCopy, IconLabel, IconPlayerPlay, IconPlayerStop, IconTrash} from "@tabler/icons-react";
-import {CalendarMonthIcon} from "@/assets/icons/index.js";
+import {IconArrowsMaximize, IconArrowsMinimize, IconChevronLeft, IconChevronRight, IconCopy, IconLabel, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
+import {CalendarMonthIcon, EndIcon} from "@/assets/icons/index.js";
+
+const EndRecordingIcon = (props) => <EndIcon width={16} height={16} {...props} />;
 
 const Streams = observer(() => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "date", direction: "desc"});
@@ -116,6 +118,20 @@ const Streams = observer(() => {
       id: "stop-batch-action",
       icon: IconPlayerStop,
       onClick: () => openBatchModal("STOP"),
+      disabled: selectedRecords.length === 0
+    },
+    {
+      label: "Restart",
+      id: "restart-batch-action",
+      icon: IconRefresh,
+      onClick: () => openBatchModal("RESTART"),
+      disabled: selectedRecords.length === 0
+    },
+    {
+      label: "Deactivate",
+      id: "deactivate-batch-action",
+      icon: EndRecordingIcon,
+      onClick: () => openBatchModal("DEACTIVATE"),
       disabled: selectedRecords.length === 0
     },
     {

@@ -113,7 +113,7 @@ describe("Streams Dashboard Component", () => {
 
     renderWithProviders(<Streams />);
 
-    const startButton = screen.getByRole("button", { name: /start/i });
+    const startButton = screen.getByRole("button", { name: /^start$/i });
     const duplicateButton = screen.getByRole("button", { name: /duplicate/i });
 
     expect(startButton).toBeDisabled();

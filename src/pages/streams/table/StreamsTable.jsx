@@ -139,7 +139,7 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) 
   ...(showActions ? [{
     accessor: "actions",
     title: "",
-    width: "140px",
+    width: "200px",
     renderGroup: record => (
       <Group justify="right" wrap="nowrap" w="100%">
         <Button
