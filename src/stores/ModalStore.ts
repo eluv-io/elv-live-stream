@@ -3,7 +3,7 @@ import {STATUS_MAP, StreamStatus} from "@/utils/constants";
 import type RootStore from "@/stores/RootStore";
 import {StreamRecord} from "@/utils/stream";
 
-export type StreamOp = "CHECK" | "START" | "STOP" | "DEACTIVATE" | "DELETE";
+export type StreamOp = "CHECK" | "START" | "STOP" | "RESTART" | "DEACTIVATE" | "DELETE";
 
 interface BatchActionProps {
   statuses: StreamStatus[];
@@ -91,6 +91,7 @@ interface SetModalParams {
 const BATCH_READY_STATUSES: Record<BatchOp, BatchActionProps> = {
   START: {statuses: [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED], skipLabel: "already active or not configured"},
   STOP: {statuses: [STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED], skipLabel: "not currently running"},
+  RESTART: {statuses: [STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED, STATUS_MAP.STOPPED], skipLabel: "has no active recording session"},
   DEACTIVATE: {statuses: [STATUS_MAP.STOPPED], skipLabel: "not in a stopped state"},
   DELETE: {statuses: [STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED, STATUS_MAP.UNCONFIGURED, STATUS_MAP.INITIALIZED], skipLabel: "currently active"}
 };
@@ -165,6 +166,24 @@ class ModalStore {
       batchNotification: (count) => ({
         success: {title: "Stopped Streams", message: `${count} ${count === 1 ? "stream" : "streams"} successfully stopped`},
         error: {title: "Error", message: "Unable to stop one or more streams"}
+      }),
+      errorMessage: ""
+    },
+    "RESTART": {
+      title: "Restart Recording Confirmation",
+      message: "Are you sure you want to restart the recording? The current recording session will be stopped and a new one started with a new edge write token.",
+      confirmText: "Restart Recording",
+      Method: ({objectId, slug}) => this.rootStore.streamStore.RestartRecording({
+        objectId,
+        slug
+      }),
+      notification: () => ({
+        success: {title: "Restarted Recording", message: "Stream recording was successfully restarted"},
+        error: {title: "Error", message: "Unable to restart stream recording"}
+      }),
+      batchNotification: (count) => ({
+        success: {title: "Restarted Recordings", message: `${count} ${count === 1 ? "stream" : "streams"} successfully restarted`},
+        error: {title: "Error", message: "Unable to restart one or more recordings"}
       }),
       errorMessage: ""
     },
