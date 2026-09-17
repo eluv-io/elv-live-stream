@@ -4,7 +4,6 @@ import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import AudioTracksTable from "@/pages/streams/details/recording/audio-tracks-table/AudioTracksTable.jsx";
 import AlternateTranscodesTable from "@/pages/streams/details/recording/alternate-transcodes/AlternateTranscodesTable.jsx";
-import ProgramPidSelector from "@/pages/streams/details/recording/program-pid-selector/ProgramPidSelector.jsx";
 import JsonEditorCard from "@/components/json-editor-card/JsonEditorCard.jsx";
 import {outputStore, streamEditStore, streamStore, streamSaveStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
@@ -18,7 +17,6 @@ import {
   Select,
   SimpleGrid,
   Collapse,
-  Input,
   Stack,
   Text
 } from "@mantine/core";
@@ -65,7 +63,6 @@ const RecordingPanel = observer(({
     copyMpegTs,
     fabricPackagingFMP4,
     alternateTranscodes,
-    programPidSelection,
     advancedEncodingParams
   } = form.getValues();
 
@@ -186,7 +183,9 @@ const RecordingPanel = observer(({
         copyPackagingFormats: values.copyPackagingFormats
       },
       fmp4FormData: {
-        programPidSelection: values.programPidSelection,
+        // Disabled - not saved/updated until fabric support for program/PID
+        // selection is exposed. See ProgramPidSelector.
+        // programPidSelection: values.programPidSelection,
         advancedEncodingParams: values.advancedEncodingParams
       },
       edit: true,
@@ -368,6 +367,7 @@ const RecordingPanel = observer(({
 
             <Collapse expanded={fabricPackagingFMP4}>
               <Box ml={34} mb={29}>
+                {/* Disabled - see fmp4FormData comment in Save() above.
                 <Stack gap={4} mb={12}>
                   <Input.Label>Program</Input.Label>
                   <Input.Description>Choose a program (if multiprogram) and select the video/audio PIDs to include in the output.</Input.Description>
@@ -376,6 +376,7 @@ const RecordingPanel = observer(({
                   value={programPidSelection}
                   onChange={(value) => form.setFieldValue("programPidSelection", value)}
                 />
+                */}
 
                 <Box mt={16}>
                   <JsonEditorCard

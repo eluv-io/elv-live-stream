@@ -550,11 +550,21 @@ class StreamEditStore {
 
       const {writeToken} = yield this.client.EditContentObject({libraryId, objectId});
 
+      const existingConfig = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording_config",
+        select: ["ingress_node_id", "probe_info"]
+      });
+
       // Same dedicated/public resolution as CreateAlternateTranscode - see
       // ResolveIngestNodeId above.
       const resolvedNodeId = nodeType === "dedicated" ?
         node :
         (geo ? yield ResolveIngestNodeId({client: this.client, geo}) : undefined);
+
+      const nodeChanged = (resolvedNodeId ?? null) !== (existingConfig?.ingress_node_id ?? null);
 
       yield this.client.MergeMetadata({
         libraryId,
@@ -569,6 +579,20 @@ class StreamEditStore {
           }
         }
       });
+
+      // Re-derive live_recording's fabric_config (ingress_node_api/id) for
+      // the new node - otherwise start/stop/restart keep targeting the old
+      // one. Only when there's already probe data to reuse; without it
+      // StreamConfig would try (and likely fail) to probe this object's own,
+      // probably inactive, url.
+      if(nodeChanged && resolvedNodeId && existingConfig?.probe_info) {
+        yield this.client.StreamConfig({
+          name: objectId,
+          writeToken,
+          finalize: false,
+          inputStreamInfo: existingConfig.probe_info
+        });
+      }
 
       yield this.UpdateConfigMetadata({
         objectId,
