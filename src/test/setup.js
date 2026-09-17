@@ -45,6 +45,15 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 };
 
+// jsdom doesn't implement document.fonts (needed by Mantine's autosize Textarea/JsonInput)
+Object.defineProperty(document, "fonts", {
+  writable: true,
+  value: {
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  },
+});
+
 // jsdom doesn't implement matchMedia
 Object.defineProperty(window, "matchMedia", {
   writable: true,

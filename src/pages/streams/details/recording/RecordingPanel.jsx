@@ -52,7 +52,6 @@ const RecordingPanel = observer(({
       inputPackaging: "raw_ts",
       fabricPackagingFMP4: true,
       copyPackagingFormats: [],
-      alternateTranscodeEnabled: false,
       alternateTranscodes: [],
       programPidSelection: {activeProgramId: null, selections: {}},
       advancedEncodingParams: null,
@@ -65,7 +64,6 @@ const RecordingPanel = observer(({
     audioFormData,
     copyMpegTs,
     fabricPackagingFMP4,
-    alternateTranscodeEnabled,
     alternateTranscodes,
     programPidSelection,
     advancedEncodingParams
@@ -86,7 +84,6 @@ const RecordingPanel = observer(({
         inputCfg,
         multiPath: multiPathMeta,
         copyPackagingFormats: copyPackagingFormatsMeta,
-        alternateTranscodeEnabled: alternateTranscodeEnabledMeta,
         alternateTranscodes: alternateTranscodesMeta,
         programPidSelection: programPidSelectionMeta,
         advancedEncodingParams: advancedEncodingParamsMeta
@@ -113,7 +110,6 @@ const RecordingPanel = observer(({
         inputPackaging: inputCfg?.input_packaging ?? "raw_ts",
         fabricPackagingFMP4: inputCfg?.copy_mode ? inputCfg?.copy_mode === "raw" : true,
         copyPackagingFormats: copyPackagingFormatsMeta?.length ? copyPackagingFormatsMeta : legacyPackagingFormats,
-        alternateTranscodeEnabled: alternateTranscodeEnabledMeta ?? false,
         alternateTranscodes: alternateTranscodesMeta ?? [],
         programPidSelection: programPidSelectionMeta ?? {activeProgramId: null, selections: {}},
         advancedEncodingParams: advancedEncodingParamsMeta ?? null
@@ -188,7 +184,6 @@ const RecordingPanel = observer(({
         fabricPackagingMpegTs,
         copyPackaging,
         copyPackagingFormats: values.copyPackagingFormats,
-        alternateTranscodeEnabled: values.alternateTranscodeEnabled,
         alternateTranscodes: values.alternateTranscodes
       },
       fmp4FormData: {
@@ -267,6 +262,22 @@ const RecordingPanel = observer(({
         </SimpleGrid>
       </DisabledTooltipWrapper>
 
+
+      <DisabledTooltipWrapper
+        disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
+        tooltipLabel="Network configuration is disabled when the stream is running"
+      >
+        <SectionTitle mb={16}>Network</SectionTitle>
+        <SimpleGrid cols={2} spacing={150} mb={29}>
+          <Checkbox
+            label="Enable Multi-Path Distribution"
+            description="Distribute content across multiple delivery paths"
+            key={form.key("multiPathEnabled")}
+            {...form.getInputProps("multiPathEnabled", {type: "checkbox"})}
+          />
+        </SimpleGrid>
+      </DisabledTooltipWrapper>
+
       {
         !(streamStore.streams?.[slug].originUrl || "").includes("rtmp") &&
         <>
@@ -320,22 +331,14 @@ const RecordingPanel = observer(({
               </SimpleGrid>
 
               <Box ml={34} mb={29}>
-                <Checkbox
-                  label="Enable Alternate Transcode"
-                  description="Enable for alternate video/audio transcodes of this transport stream"
-                  key={form.key("alternateTranscodeEnabled")}
-                  {...form.getInputProps("alternateTranscodeEnabled", {type: "checkbox"})}
-                />
-                <Collapse expanded={alternateTranscodeEnabled}>
-                  <Box mt={16}>
-                    <Text fz="0.875rem" fw={600} c="elv-black.3" mb={4}>Alternate Transcodes</Text>
-                    <Text fz="0.875rem" c="elv-gray.8" mb={12}>Management of alternate transcodes</Text>
-                    <AlternateTranscodesTable
-                      records={alternateTranscodes}
-                      onChange={(value) => form.setFieldValue("alternateTranscodes", value)}
-                    />
-                  </Box>
-                </Collapse>
+                <Box mt={16}>
+                  <Text fz="0.875rem" fw={600} c="elv-black.3" mb={4}>Alternate Transcodes</Text>
+                  <Text fz="0.875rem" c="elv-gray.8" mb={12}>Management of alternate transcodes</Text>
+                  <AlternateTranscodesTable
+                    records={alternateTranscodes}
+                    onChange={(value) => form.setFieldValue("alternateTranscodes", value)}
+                  />
+                </Box>
               </Box>
             </Collapse>
             <Divider mb={29} />
@@ -365,11 +368,12 @@ const RecordingPanel = observer(({
                   onChange={(value) => form.setFieldValue("programPidSelection", value)}
                 />
 
-                <Text fz="0.875rem" fw={500} c="elv-black.3" mt={20} mb={8}>Advanced</Text>
-                <JsonEditorCard
-                  value={advancedEncodingParams}
-                  onChange={(value) => form.setFieldValue("advancedEncodingParams", value)}
-                />
+                <Box mt={16}>
+                  <JsonEditorCard
+                    value={advancedEncodingParams}
+                    onChange={(value) => form.setFieldValue("advancedEncodingParams", value)}
+                  />
+                </Box>
               </Box>
             </Collapse>
             <Divider mb={29} />
@@ -394,21 +398,6 @@ const RecordingPanel = observer(({
           </DisabledTooltipWrapper>
         </>
       }
-
-      <DisabledTooltipWrapper
-        disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
-        tooltipLabel="Network configuration is disabled when the stream is running"
-      >
-        <SectionTitle mb={16}>Network</SectionTitle>
-        <SimpleGrid cols={2} spacing={150} mb={29}>
-          <Checkbox
-            label="Enable Multi-Path Distribution"
-            description="Distribute content across multiple delivery paths"
-            key={form.key("multiPathEnabled")}
-            {...form.getInputProps("multiPathEnabled", {type: "checkbox"})}
-          />
-        </SimpleGrid>
-      </DisabledTooltipWrapper>
     </Box>
   );
 });
