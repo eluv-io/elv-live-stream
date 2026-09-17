@@ -3,7 +3,7 @@ import {useForm} from "@mantine/form";
 import {observer} from "mobx-react-lite";
 import {dataStore} from "@/stores/index.ts";
 import {ALTERNATE_TRANSCODE_PROTOCOLS, FABRIC_NODE_REGIONS, RESOLUTION_OPTIONS} from "@/utils/constants.ts";
-import {Button, Flex, Modal, Select, Stack, Tabs, Text, TextInput, Title} from "@mantine/core";
+import {Button, Flex, Modal, NumberInput, Select, Stack, Tabs, Text, TextInput, Title} from "@mantine/core";
 import JsonEditorCard from "@/components/json-editor-card/JsonEditorCard.jsx";
 import modalStyles from "@/pages/outputs/modals/modals.module.css";
 
@@ -29,7 +29,11 @@ const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) 
       name: (value) => value ? null : "Name is required",
       node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
       geo: (value, values) => values.nodeType === "public" ? (value ? null : "Geo is required") : null,
-      protocol: (value) => value ? null : "Protocol is required"
+      protocol: (value) => value ? null : "Protocol is required",
+      streamBitrate: (value, values) =>
+        (value && values.videoBitrate && Number(value) <= Number(values.videoBitrate)) ?
+          "Stream bitrate must be larger than video bitrate" :
+          null
     }
   });
 
@@ -155,15 +159,19 @@ const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) 
               key={form.key("resolution")}
               {...form.getInputProps("resolution")}
             />
-            <TextInput
+            <NumberInput
               label="Video bitrate"
               placeholder="Enter video bitrate (e.g., 9500000)"
+              min={0}
+              hideControls
               key={form.key("videoBitrate")}
               {...form.getInputProps("videoBitrate")}
             />
-            <TextInput
+            <NumberInput
               label="Stream bitrate"
               placeholder="Enter stream bitrate (e.g., 192000)"
+              min={0}
+              hideControls
               key={form.key("streamBitrate")}
               {...form.getInputProps("streamBitrate")}
             />

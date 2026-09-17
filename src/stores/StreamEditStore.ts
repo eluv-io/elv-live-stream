@@ -23,6 +23,27 @@ import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/StreamStore";
 import {PermissionLevel} from "@/stores/DataStore";
 
+// Resolve a fabric region (elvgeo) to a concrete node ID
+const ResolveIngestNodeId = async({client, geo}: {client: any, geo?: string}): Promise<string> => {
+  const configUrl = new URL(await client.ConfigUrl());
+  configUrl.pathname = "/config";
+  if(geo) { configUrl.searchParams.set("elvgeo", geo); }
+
+  const fabricInfo = await (await fetch(configUrl.toString())).json();
+  const fabricApiUrls = fabricInfo?.network?.services?.fabric_api;
+  if(!fabricApiUrls?.length) {
+    throw new Error("No fabric_api endpoints found in fabric config");
+  }
+
+  const hostname = new URL(fabricApiUrls[0]).hostname;
+  const nodes = await client.SpaceNodes({matchEndpoint: hostname});
+  if(!nodes?.length) {
+    throw new Error(`No node found matching fabric_api endpoint: ${hostname}`);
+  }
+
+  return nodes[0].id;
+};
+
 // Thrown when a live recording copy's content object can no longer be reached
 // (most likely deleted from the Fabric) while attempting to edit it. The UI
 // uses this to offer a "remove from list" remediation instead of a raw error.
@@ -376,6 +397,7 @@ class StreamEditStore {
     name,
     nodeType,
     node,
+    geo,
     protocol,
     resolution,
     videoBitrate,
@@ -389,6 +411,25 @@ class StreamEditStore {
       }
 
       const {contentTypes} = yield this.rootStore.dataStore.LoadTenantSiteData();
+
+      // alternate_transcodes is appended to below; probe_info seeds
+      // input_stream_info below.
+      const parentConfig = yield this.client.ContentObjectMetadata({
+        libraryId: parentLibraryId,
+        objectId: parentObjectId,
+        metadataSubtree: "live_recording_config",
+        select: ["alternate_transcodes", "probe_info"]
+      });
+      const existingIds: string[] = parentConfig?.alternate_transcodes ?? [];
+      const parentProbeInfo = parentConfig?.probe_info;
+
+      // Dedicated nodes use the node picked in the modal directly; public
+      // nodes resolve one from the chosen geo the same way Outputs do
+      // (OutputStore's ResolveEgressNodeId), but against fabric_api instead
+      // of live_egress - see ResolveIngestNodeId above.
+      const resolvedNodeId = nodeType === "dedicated" ?
+        node :
+        (geo ? yield ResolveIngestNodeId({client: this.client, geo}) : undefined);
 
       const createResponse = yield this.client.CreateContentObject({
         libraryId: parentLibraryId,
@@ -404,23 +445,29 @@ class StreamEditStore {
         commitMessage: "Reserve alternate transcode object"
       });
 
+      const configProfile = (resolvedNodeId && parentProbeInfo) ?
+        {...defaultConfigProfile, input_stream_info: parentProbeInfo} :
+        defaultConfigProfile;
+
       yield this.client.StreamCreate({
         libraryId: parentLibraryId,
         objectId,
         url: `${protocol}://${objectId}`,
         // Base config from the built-in profile; per-transcode fields
         // (bitrate, resolution) are overwritten below in UpdateConfigMetadata.
-        liveRecordingConfig: ParseLiveConfigData({configProfile: defaultConfigProfile}),
+        // With a resolved node and a probed parent, input_stream_info above
+        // makes StreamCreate run its internal StreamConfig pass.
+        liveRecordingConfig: ParseLiveConfigData({configProfile}),
         options: {
           name,
           displayTitle: name,
           permission: "editable",
-          ingressNodeId: nodeType === "dedicated" ? node : undefined,
+          ingressNodeId: resolvedNodeId,
           linkToSite: false
         }
       });
 
-      // Also write ingress_node_id directly (like UpdateAlternateTranscode),
+      // Also write ingress_node_id/geo directly (like UpdateAlternateTranscode),
       // since StreamCreate's own write goes through several merge layers.
       const {writeToken: nodeWriteToken} = yield this.client.EditContentObject({libraryId: parentLibraryId, objectId});
       yield this.client.MergeMetadata({
@@ -430,7 +477,8 @@ class StreamEditStore {
         metadataSubtree: "live_recording_config",
         metadata: {
           url: `${protocol}://${objectId}`,
-          ingress_node_id: nodeType === "dedicated" ? node : null
+          ingress_node_id: resolvedNodeId ?? null,
+          geo: nodeType === "public" ? geo : null
         }
       });
       yield this.client.FinalizeContentObject({
@@ -451,14 +499,6 @@ class StreamEditStore {
         programPidSelection
       });
 
-      const existingConfig = yield this.client.ContentObjectMetadata({
-        libraryId: parentLibraryId,
-        objectId: parentObjectId,
-        metadataSubtree: "live_recording_config",
-        select: ["alternate_transcodes"]
-      });
-      const existingIds: string[] = existingConfig?.alternate_transcodes ?? [];
-
       yield this.UpdateConfigMetadata({
         objectId: parentObjectId,
         libraryId: parentLibraryId,
@@ -471,7 +511,8 @@ class StreamEditStore {
         name,
         nodeType,
         node,
-        geo: undefined,
+        geo,
+        resolvedNodeId,
         protocol,
         resolution,
         videoBitrate,
@@ -494,6 +535,7 @@ class StreamEditStore {
     name,
     nodeType,
     node,
+    geo,
     protocol,
     resolution,
     videoBitrate,
@@ -508,6 +550,12 @@ class StreamEditStore {
 
       const {writeToken} = yield this.client.EditContentObject({libraryId, objectId});
 
+      // Same dedicated/public resolution as CreateAlternateTranscode - see
+      // ResolveIngestNodeId above.
+      const resolvedNodeId = nodeType === "dedicated" ?
+        node :
+        (geo ? yield ResolveIngestNodeId({client: this.client, geo}) : undefined);
+
       yield this.client.MergeMetadata({
         libraryId,
         objectId,
@@ -516,7 +564,8 @@ class StreamEditStore {
           public: {name},
           live_recording_config: {
             url: `${protocol}://${objectId}`,
-            ingress_node_id: nodeType === "dedicated" ? node : null
+            ingress_node_id: resolvedNodeId ?? null,
+            geo: nodeType === "public" ? geo : null
           }
         }
       });
@@ -538,7 +587,8 @@ class StreamEditStore {
         name,
         nodeType,
         node,
-        geo: undefined,
+        geo,
+        resolvedNodeId,
         protocol,
         resolution,
         videoBitrate,

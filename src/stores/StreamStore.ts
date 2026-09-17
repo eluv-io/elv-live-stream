@@ -921,6 +921,7 @@ class StreamStore {
       let name = id;
       let url = "";
       let ingressNodeId;
+      let geo;
       let recordingConfig: Record<string, any> = {};
       let xcParams: Record<string, any> = {};
 
@@ -941,10 +942,11 @@ class StreamStore {
           libraryId,
           objectId: id,
           metadataSubtree: "live_recording_config",
-          select: ["url", "ingress_node_id", "recording_config"]
+          select: ["url", "ingress_node_id", "geo", "recording_config"]
         });
         url = liveRecordingConfigMeta?.url || "";
         ingressNodeId = liveRecordingConfigMeta?.ingress_node_id;
+        geo = liveRecordingConfigMeta?.geo;
         recordingConfig = liveRecordingConfigMeta?.recording_config || {};
       } catch(error) {
         console.error(`Unable to load config for alternate transcode ${id}`, error);
@@ -965,11 +967,12 @@ class StreamStore {
       return {
         id,
         name,
-        nodeType: ingressNodeId ? "dedicated" : "public",
-        node: ingressNodeId,
-        // Public node's geo can't be recovered from an existing object -
-        // only dedicated-vs-public.
-        geo: undefined,
+        // geo (only ever set on public transcodes) distinguishes the two,
+        // since both now carry a resolved ingress_node_id.
+        nodeType: geo ? "public" : "dedicated",
+        node: geo ? undefined : ingressNodeId,
+        geo,
+        resolvedNodeId: ingressNodeId,
         protocol,
         resolution: xcParams.enc_height ? `${xcParams.enc_height}p` : undefined,
         videoBitrate: xcParams.video_bitrate,

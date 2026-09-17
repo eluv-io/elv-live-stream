@@ -94,6 +94,9 @@ export interface AlternateTranscode {
   nodeType: "dedicated" | "public";
   node?: string;
   geo?: string;
+  // The node id actually placed in ingress_node_id - the dedicated pick for
+  // dedicated transcodes, or geo's resolved node for public ones.
+  resolvedNodeId?: string;
   protocol: string;
   resolution?: string;
   videoBitrate?: string;

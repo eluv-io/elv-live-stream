@@ -18,7 +18,14 @@ const GeoNodeLabel = (record) => {
     return dataStore.dedicatedNodesList.find(n => n.value === record.node)?.label || record.node;
   }
 
-  return FABRIC_NODE_REGIONS.find(g => g.value === record.geo)?.label || record.geo || "-";
+  if(record.geo) {
+    const geoLabel = FABRIC_NODE_REGIONS.find(g => g.value === record.geo)?.label || record.geo;
+    const nodeLabel = record.resolvedNodeId &&
+      (dataStore.dedicatedNodesList.find(n => n.value === record.resolvedNodeId)?.label || record.resolvedNodeId);
+    return nodeLabel ? `${geoLabel} / ${nodeLabel}` : geoLabel;
+  }
+
+  return "-";
 };
 
 // Controlled component like AudioTracksTable.jsx, but each row action is an
