@@ -8,8 +8,9 @@ import {IconCheck, IconCopy, IconPencil, IconTrash} from "@tabler/icons-react";
 // overlay), without the DataTable, since this always edits a single field
 // rather than a list of records. Reused wherever a free-form JSON blob
 // needs editing - e.g. Advanced Encoding Parameters in FMP4/CMAF Packaging
-// and per Alternate Transcode.
-const JsonEditorCard = ({value, onChange, title="Advanced Encoding Parameters", disabled}) => {
+// and per Alternate Transcode. `shaded` toggles the header background off
+// for recording-panel usages.
+const JsonEditorCard = ({value, onChange, title="Advanced Encoding Parameters", disabled, shaded=true}) => {
   const [expanded, setExpanded] = useState(!!value);
   const [localValue, setLocalValue] = useState(() => JSON.stringify(value ?? {}, null, 2));
   const [error, setError] = useState(null);
@@ -21,7 +22,7 @@ const JsonEditorCard = ({value, onChange, title="Advanced Encoding Parameters", 
         wrap="nowrap"
         px={16}
         py={10}
-        style={{backgroundColor: "var(--mantine-color-elv-gray-0)"}}
+        style={shaded ? {backgroundColor: "var(--mantine-color-elv-gray-0)"} : undefined}
       >
         <Text fz="0.875rem" fw={600} c="elv-gray.9">{title}</Text>
         <Group gap={12} wrap="nowrap">

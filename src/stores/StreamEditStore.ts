@@ -16,7 +16,8 @@ import {
   SimpleWatermark,
   StreamRecord
 } from "@/utils/stream";
-import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
+import {defaultConfigProfile} from "@/utils/defaultProfile";
+import {PlayoutFormat, RESOLUTION_DIMENSIONS, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/StreamStore";
@@ -46,6 +47,30 @@ interface InitLiveStreamObjectParams {
   retention: number | string;
   persistent: boolean;
   url: string;
+}
+
+interface AlternateTranscodeFormParams {
+  name: string;
+  nodeType: "dedicated" | "public";
+  node?: string;
+  geo?: string;
+  protocol: string;
+  resolution?: string;
+  videoBitrate?: string;
+  streamBitrate?: string;
+  advancedEncodingParams?: Record<string, unknown> | null;
+  programPidSelection?: ProgramPidSelection;
+}
+
+interface CreateAlternateTranscodeParams extends AlternateTranscodeFormParams {
+  parentObjectId: string;
+  parentLibraryId?: string;
+  parentSlug: string;
+}
+
+interface UpdateAlternateTranscodeParams extends AlternateTranscodeFormParams {
+  objectId: string;
+  libraryId?: string;
 }
 
 interface DuplicateStreamParams {
@@ -99,8 +124,17 @@ interface UpdateConfigMetadataParams {
   // extended to read these fields (same risk already documented for ats_ts).
   copyPackagingFormats?: string[];
   alternateTranscodeEnabled?: boolean;
-  alternateTranscodes?: AlternateTranscode[];
+  // Ids of the alternate transcodes' own content objects - see
+  // CreateAlternateTranscode/UpdateAlternateTranscode below.
+  alternateTranscodes?: string[];
+  // Only used when objectId targets an alternate transcode's own object.
+  resolution?: string;
+  // Written to live_recording/recording_config/recording_params/xc_params,
+  // not the recording_config above.
+  videoBitrate?: string;
+  streamBitrate?: string;
   programPidSelection?: ProgramPidSelection;
+  // Merged into xc_params; unnamed existing keys are left untouched.
   advancedEncodingParams?: Record<string, unknown> | null;
 }
 
@@ -327,6 +361,234 @@ class StreamEditStore {
       // eslint-disable-next-line no-console
       console.error("Failed to create stream", error);
       throw error;
+    }
+  }
+
+  // Creates a content object for one alternate transcode (self-referential
+  // url `<protocol>://<objectId>`) and appends its id to the parent's
+  // alternate_transcodes array, instead of linking it into the site. The
+  // object is reserved (Create+Finalize) before StreamCreate since the url
+  // needs the objectId, which StreamCreate only returns after completing.
+  *CreateAlternateTranscode({
+    parentObjectId,
+    parentLibraryId,
+    parentSlug,
+    name,
+    nodeType,
+    node,
+    protocol,
+    resolution,
+    videoBitrate,
+    streamBitrate,
+    advancedEncodingParams,
+    programPidSelection
+  }: CreateAlternateTranscodeParams): Generator<any, AlternateTranscode> {
+    try {
+      if(!parentLibraryId) {
+        parentLibraryId = yield this.client.ContentObjectLibraryId({objectId: parentObjectId});
+      }
+
+      const {contentTypes} = yield this.rootStore.dataStore.LoadTenantSiteData();
+
+      const createResponse = yield this.client.CreateContentObject({
+        libraryId: parentLibraryId,
+        options: contentTypes?.live_stream ? {type: contentTypes.live_stream} : {}
+      });
+      const objectId = createResponse.id;
+
+      yield this.client.FinalizeContentObject({
+        libraryId: parentLibraryId,
+        objectId,
+        writeToken: createResponse.writeToken,
+        awaitCommitConfirmation: true,
+        commitMessage: "Reserve alternate transcode object"
+      });
+
+      yield this.client.StreamCreate({
+        libraryId: parentLibraryId,
+        objectId,
+        url: `${protocol}://${objectId}`,
+        // Base config from the built-in profile; per-transcode fields
+        // (bitrate, resolution) are overwritten below in UpdateConfigMetadata.
+        liveRecordingConfig: ParseLiveConfigData({configProfile: defaultConfigProfile}),
+        options: {
+          name,
+          displayTitle: name,
+          permission: "editable",
+          ingressNodeId: nodeType === "dedicated" ? node : undefined,
+          linkToSite: false
+        }
+      });
+
+      // Also write ingress_node_id directly (like UpdateAlternateTranscode),
+      // since StreamCreate's own write goes through several merge layers.
+      const {writeToken: nodeWriteToken} = yield this.client.EditContentObject({libraryId: parentLibraryId, objectId});
+      yield this.client.MergeMetadata({
+        libraryId: parentLibraryId,
+        objectId,
+        writeToken: nodeWriteToken,
+        metadataSubtree: "live_recording_config",
+        metadata: {
+          url: `${protocol}://${objectId}`,
+          ingress_node_id: nodeType === "dedicated" ? node : null
+        }
+      });
+      yield this.client.FinalizeContentObject({
+        libraryId: parentLibraryId,
+        objectId,
+        writeToken: nodeWriteToken,
+        awaitCommitConfirmation: true,
+        commitMessage: "Set alternate transcode node"
+      });
+
+      yield this.UpdateConfigMetadata({
+        objectId,
+        libraryId: parentLibraryId,
+        resolution,
+        videoBitrate,
+        streamBitrate,
+        advancedEncodingParams,
+        programPidSelection
+      });
+
+      const existingConfig = yield this.client.ContentObjectMetadata({
+        libraryId: parentLibraryId,
+        objectId: parentObjectId,
+        metadataSubtree: "live_recording_config",
+        select: ["alternate_transcodes"]
+      });
+      const existingIds: string[] = existingConfig?.alternate_transcodes ?? [];
+
+      yield this.UpdateConfigMetadata({
+        objectId: parentObjectId,
+        libraryId: parentLibraryId,
+        slug: parentSlug,
+        alternateTranscodes: [...existingIds, objectId]
+      });
+
+      return {
+        id: objectId,
+        name,
+        nodeType,
+        node,
+        geo: undefined,
+        protocol,
+        resolution,
+        videoBitrate,
+        streamBitrate,
+        advancedEncodingParams: advancedEncodingParams ?? null,
+        programPidSelection
+      };
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to create alternate transcode", error);
+      throw error;
+    }
+  }
+
+  // Rewrites an alternate transcode's own object (name, node/url,
+  // recording_config); doesn't touch the parent's alternate_transcodes array.
+  *UpdateAlternateTranscode({
+    objectId,
+    libraryId,
+    name,
+    nodeType,
+    node,
+    protocol,
+    resolution,
+    videoBitrate,
+    streamBitrate,
+    advancedEncodingParams,
+    programPidSelection
+  }: UpdateAlternateTranscodeParams): Generator<any, AlternateTranscode> {
+    try {
+      if(!libraryId) {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId});
+      }
+
+      const {writeToken} = yield this.client.EditContentObject({libraryId, objectId});
+
+      yield this.client.MergeMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadata: {
+          public: {name},
+          live_recording_config: {
+            url: `${protocol}://${objectId}`,
+            ingress_node_id: nodeType === "dedicated" ? node : null
+          }
+        }
+      });
+
+      yield this.UpdateConfigMetadata({
+        objectId,
+        libraryId,
+        writeToken,
+        resolution,
+        videoBitrate,
+        streamBitrate,
+        advancedEncodingParams,
+        programPidSelection,
+        finalize: true
+      });
+
+      return {
+        id: objectId,
+        name,
+        nodeType,
+        node,
+        geo: undefined,
+        protocol,
+        resolution,
+        videoBitrate,
+        streamBitrate,
+        advancedEncodingParams: advancedEncodingParams ?? null,
+        programPidSelection
+      };
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to update alternate transcode", error);
+      throw error;
+    }
+  }
+
+  // Removes the id from the parent's alternate_transcodes array first (so a
+  // failed delete never leaves a broken reference), then deletes the object;
+  // delete failures are logged and swallowed.
+  *RemoveAlternateTranscode({
+    parentObjectId,
+    parentLibraryId,
+    parentSlug,
+    id
+  }: {parentObjectId: string, parentLibraryId?: string, parentSlug: string, id: string}): Generator<any, void> {
+    if(!parentLibraryId) {
+      parentLibraryId = yield this.client.ContentObjectLibraryId({objectId: parentObjectId});
+    }
+
+    const existingConfig = yield this.client.ContentObjectMetadata({
+      libraryId: parentLibraryId,
+      objectId: parentObjectId,
+      metadataSubtree: "live_recording_config",
+      select: ["alternate_transcodes"]
+    });
+    const existingIds: string[] = existingConfig?.alternate_transcodes ?? [];
+
+    yield this.UpdateConfigMetadata({
+      objectId: parentObjectId,
+      libraryId: parentLibraryId,
+      slug: parentSlug,
+      alternateTranscodes: existingIds.filter(existingId => existingId !== id)
+    });
+
+    try {
+      yield this.client.DeleteContentObject({
+        libraryId: yield this.client.ContentObjectLibraryId({objectId: id}),
+        objectId: id
+      });
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.log(`Content object ${id} has already been deleted. Removed from the alternate transcodes list.`, error);
     }
   }
 
@@ -672,6 +934,9 @@ class StreamEditStore {
     copyPackagingFormats,
     alternateTranscodeEnabled,
     alternateTranscodes,
+    resolution,
+    videoBitrate,
+    streamBitrate,
     programPidSelection,
     advancedEncodingParams,
     audioData,
@@ -714,7 +979,6 @@ class StreamEditStore {
     // on UpdateConfigMetadataParams for the pending-confirmation caveat.
     if(copyPackagingFormats !== undefined) recordingConfig.copy_packaging_formats = copyPackagingFormats;
     if(alternateTranscodeEnabled !== undefined) recordingConfig.alternate_transcode_enabled = alternateTranscodeEnabled;
-    if(alternateTranscodes !== undefined) recordingConfig.alternate_transcodes = alternateTranscodes;
     if(programPidSelection !== undefined) recordingConfig.program_pid_selection = programPidSelection;
     if(advancedEncodingParams !== undefined) recordingConfig.advanced_encoding_params = advancedEncodingParams;
 
@@ -735,12 +999,21 @@ class StreamEditStore {
       }
     }
 
+    const liveRecordingConfigUpdate: Record<string, any> = {
+      ...existingConfig,
+      recording_config: recordingConfig,
+      playout_config: playoutConfig,
+      recording_stream_config: recordingStreamConfig
+    };
+    // Sibling of recording_config on live_recording_config - see CreateAlternateTranscode.
+    if(alternateTranscodes !== undefined) liveRecordingConfigUpdate.alternate_transcodes = alternateTranscodes;
+
     yield this.client.ReplaceMetadata({
       libraryId,
       objectId,
       writeToken,
       metadataSubtree: "live_recording_config",
-      metadata: {...existingConfig, recording_config: recordingConfig, playout_config: playoutConfig, recording_stream_config: recordingStreamConfig}
+      metadata: liveRecordingConfigUpdate
     });
 
     if(retention !== undefined) {
@@ -791,6 +1064,55 @@ class StreamEditStore {
           custom_read_loop_enabled: true,
           input_packaging: inputPackaging
         } : {}
+      });
+    }
+
+    // xc_params fields for the applied live_recording tree (unlike
+    // recording_config above). streamBitrate is written as a leaf under
+    // input_cfg - note the copyMpegTs block above replaces all of input_cfg
+    // wholesale, so passing both together would wipe this (not currently
+    // possible: alternate transcode callers never pass copyMpegTs).
+    if(videoBitrate !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_bitrate",
+        metadata: parseInt(videoBitrate)
+      });
+    }
+
+    if(streamBitrate !== undefined) {
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg/stream_bitrate",
+        metadata: parseInt(streamBitrate)
+      });
+    }
+
+    if(resolution !== undefined) {
+      const dimensions = RESOLUTION_DIMENSIONS[resolution] ?? null;
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/enc_height",
+        metadata: dimensions?.height ?? null
+      });
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params/enc_width",
+        metadata: dimensions?.width ?? null
+      });
+    }
+
+    // Merge-only: overlay explicit keys onto current xc_params so unrelated
+    // fields aren't clobbered; empty/null is a no-op, not a clear.
+    if(advancedEncodingParams && Object.keys(advancedEncodingParams).length > 0) {
+      const existingXcParams = (yield this.client.ContentObjectMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
+      })) || {};
+      yield this.client.ReplaceMetadata({
+        libraryId, objectId, writeToken,
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
+        metadata: {...existingXcParams, ...advancedEncodingParams}
       });
     }
 

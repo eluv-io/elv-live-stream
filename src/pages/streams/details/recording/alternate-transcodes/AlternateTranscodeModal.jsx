@@ -1,11 +1,10 @@
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useForm} from "@mantine/form";
 import {observer} from "mobx-react-lite";
 import {dataStore} from "@/stores/index.ts";
 import {ALTERNATE_TRANSCODE_PROTOCOLS, FABRIC_NODE_REGIONS, RESOLUTION_OPTIONS} from "@/utils/constants.ts";
 import {Button, Flex, Modal, Select, Stack, Tabs, Text, TextInput, Title} from "@mantine/core";
 import JsonEditorCard from "@/components/json-editor-card/JsonEditorCard.jsx";
-import ProgramPidSelector from "@/pages/streams/details/recording/program-pid-selector/ProgramPidSelector.jsx";
 import modalStyles from "@/pages/outputs/modals/modals.module.css";
 
 const DEFAULT_VALUES = {
@@ -17,14 +16,12 @@ const DEFAULT_VALUES = {
   resolution: "",
   videoBitrate: "",
   streamBitrate: "",
-  advancedEncodingParams: null,
-  programPidSelection: {activeProgramId: null, selections: {}}
+  advancedEncodingParams: null
 };
 
-// Reused for both add and edit - the DedicatedNodes.jsx + NodeModal.jsx
-// pattern. Streaming Protocol tabs are lifted from CreateOutputModal.jsx's
-// Dedicated/Public block.
+// Reused for both add and edit - the DedicatedNodes.jsx + NodeModal.jsx pattern.
 const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) => {
+  const [saving, setSaving] = useState(false);
   const form = useForm({
     mode: "controlled",
     initialValues: DEFAULT_VALUES,
@@ -39,21 +36,32 @@ const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) 
   useEffect(() => {
     if(!opened) { return; }
 
-    form.setValues(transcode ? {...DEFAULT_VALUES, ...transcode} : DEFAULT_VALUES);
+    const knownFields = transcode ?
+      Object.fromEntries(Object.entries(transcode).filter(([, value]) => value !== undefined)) :
+      null;
+
+    form.setValues(knownFields ? {...DEFAULT_VALUES, ...knownFields} : DEFAULT_VALUES);
     form.resetDirty();
 
     if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
-     
+
   }, [opened, transcode]);
 
   const {nodeType} = form.getValues();
 
-  const HandleSubmit = (values) => {
-    onSave({
-      id: transcode?.id ?? crypto.randomUUID(),
-      ...values
-    });
-    onClose();
+  const HandleSubmit = async(values) => {
+    setSaving(true);
+    try {
+      await onSave({
+        id: transcode?.id,
+        ...values
+      });
+      onClose();
+    } catch(error) {
+      // Error already surfaced via notification; keep the modal open to retry.
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -149,13 +157,13 @@ const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) 
             />
             <TextInput
               label="Video bitrate"
-              placeholder="Enter stream bitrate (e.g., 4000k)"
+              placeholder="Enter video bitrate (e.g., 9500000)"
               key={form.key("videoBitrate")}
               {...form.getInputProps("videoBitrate")}
             />
             <TextInput
               label="Stream bitrate"
-              placeholder="Enter stream bitrate (e.g., 5000k)"
+              placeholder="Enter stream bitrate (e.g., 192000)"
               key={form.key("streamBitrate")}
               {...form.getInputProps("streamBitrate")}
             />
@@ -163,21 +171,13 @@ const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) 
             <JsonEditorCard
               value={form.getValues().advancedEncodingParams}
               onChange={(value) => form.setFieldValue("advancedEncodingParams", value)}
-            />
-          </Stack>
-
-          <Stack gap={8}>
-            <Text fz="1.125rem" fw={600} c="elv-blue.3">PID Selector</Text>
-            <Text fz="0.875rem" c="elv-gray.8">Select the program and PID to include in this alternate transcode.</Text>
-            <ProgramPidSelector
-              value={form.getValues().programPidSelection}
-              onChange={(value) => form.setFieldValue("programPidSelection", value)}
+              shaded={false}
             />
           </Stack>
         </Stack>
 
         <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
-          <Button type="submit">{transcode ? "Save" : "Create"}</Button>
+          <Button type="submit" loading={saving} disabled={saving}>{transcode ? "Save" : "Create"}</Button>
         </Flex>
       </form>
     </Modal>

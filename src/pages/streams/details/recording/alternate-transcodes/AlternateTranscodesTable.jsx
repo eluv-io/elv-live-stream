@@ -3,37 +3,65 @@ import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Button, Group, Tooltip} from "@mantine/core";
 import {DataTable} from "mantine-datatable";
 import {IconPencil, IconPlus, IconTrash} from "@tabler/icons-react";
-import {dataStore} from "@/stores/index.ts";
+import {notifications} from "@mantine/notifications";
+import {dataStore, streamEditStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
+import {AudioBitrateReadable} from "@/utils/formatters.ts";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import AlternateTranscodeModal from "@/pages/streams/details/recording/alternate-transcodes/AlternateTranscodeModal.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 
+// Resolves a node id to its name via dataStore.dedicatedNodesList; falls
+// back to the raw id when unregistered.
 const GeoNodeLabel = (record) => {
-  if(record.nodeType === "dedicated") {
-    const label = dataStore.dedicatedNodesList.find(n => n.value === record.node)?.label || record.node;
-    return `Dedicated • ${label || "-"}`;
+  if(record.node) {
+    return dataStore.dedicatedNodesList.find(n => n.value === record.node)?.label || record.node;
   }
 
-  const label = FABRIC_NODE_REGIONS.find(g => g.value === record.geo)?.label || record.geo;
-  return `Public • ${label || "-"}`;
+  return FABRIC_NODE_REGIONS.find(g => g.value === record.geo)?.label || record.geo || "-";
 };
 
-// Controlled component, same shape as AudioTracksTable.jsx - parent owns the
-// array via the panel's form field and passes it down with an onChange.
-const AlternateTranscodesTable = observer(({records, onChange, disabled}) => {
+// Controlled component like AudioTracksTable.jsx, but each row action is an
+// immediate fabric write, not a staged edit awaiting the panel's Save.
+const AlternateTranscodesTable = observer(({records, onChange, disabled, parentObjectId, parentLibraryId, parentSlug}) => {
   const [editingTranscode, setEditingTranscode] = useState(null);
   const [adding, setAdding] = useState(false);
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const HandleSave = (record) => {
-    const exists = (records || []).some(r => r.id === record.id);
-    onChange(exists ? records.map(r => r.id === record.id ? record : r) : [...(records || []), record]);
+  const HandleSave = async(values) => {
+    setSaving(true);
+    try {
+      const record = values.id ?
+        await streamEditStore.UpdateAlternateTranscode({objectId: values.id, ...values}) :
+        await streamEditStore.CreateAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, ...values});
+
+      const exists = (records || []).some(r => r.id === record.id);
+      onChange(exists ? records.map(r => r.id === record.id ? record : r) : [...(records || []), record]);
+    } catch(error) {
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: `Unable to save alternate transcode: ${error?.message || error}`
+      });
+      throw error;
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const HandleDelete = (id) => {
-    onChange((records || []).filter(r => r.id !== id));
+  const HandleDelete = async(id) => {
+    try {
+      await streamEditStore.RemoveAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, id});
+      onChange((records || []).filter(r => r.id !== id));
+    } catch(error) {
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: `Unable to remove alternate transcode: ${error?.message || error}`
+      });
+    }
   };
 
   return (
@@ -43,7 +71,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled}) => {
           variant="outline"
           leftSection={<IconPlus size={16} />}
           onClick={() => setAdding(true)}
-          disabled={disabled}
+          disabled={disabled || saving}
         >
           Add alternate transcode
         </Button>
@@ -59,7 +87,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled}) => {
             {accessor: "name", title: "Name"},
             {accessor: "geoNode", title: "Geo/Node", render: GeoNodeLabel},
             {accessor: "resolution", title: "Resolution", render: record => record.resolution || "-"},
-            {accessor: "streamBitrate", title: "Bitrate", render: record => record.streamBitrate || "-"},
+            {accessor: "streamBitrate", title: "Bitrate", render: record => AudioBitrateReadable(Number(record.streamBitrate)) || "-"},
             {
               accessor: "actions",
               title: "",
@@ -71,7 +99,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled}) => {
                       size={22}
                       variant="transparent"
                       color="elv-gray.6"
-                      disabled={disabled}
+                      disabled={disabled || saving}
                       onClick={() => setEditingTranscode(record)}
                     >
                       <IconPencil />
@@ -82,7 +110,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled}) => {
                       size={22}
                       variant="transparent"
                       color="elv-gray.6"
-                      disabled={disabled}
+                      disabled={disabled || saving}
                       onClick={(event) => {
                         event.stopPropagation();
                         setPendingDeleteItem(record);
@@ -108,7 +136,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled}) => {
         show={showDeleteModal}
         CloseCallback={() => setShowDeleteModal(false)}
         ConfirmCallback={async() => {
-          HandleDelete(pendingDeleteItem.id);
+          await HandleDelete(pendingDeleteItem.id);
           setPendingDeleteItem(null);
         }}
       />

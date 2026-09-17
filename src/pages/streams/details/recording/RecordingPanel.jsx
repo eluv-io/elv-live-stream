@@ -183,8 +183,7 @@ const RecordingPanel = observer(({
         fabricPackagingFMP4: values.fabricPackagingFMP4,
         fabricPackagingMpegTs,
         copyPackaging,
-        copyPackagingFormats: values.copyPackagingFormats,
-        alternateTranscodes: values.alternateTranscodes
+        copyPackagingFormats: values.copyPackagingFormats
       },
       fmp4FormData: {
         programPidSelection: values.programPidSelection,
@@ -333,10 +332,20 @@ const RecordingPanel = observer(({
               <Box ml={34} mb={29}>
                 <Box mt={16}>
                   <Text fz="0.875rem" fw={600} c="elv-black.3" mb={4}>Alternate Transcodes</Text>
-                  <Text fz="0.875rem" c="elv-gray.8" mb={12}>Management of alternate transcodes</Text>
+                  <Text fz="0.875rem" c="elv-gray.8" mb={12}>Create additional transcoded versions of this stream at different resolutions, bitrates, or nodes.</Text>
                   <AlternateTranscodesTable
                     records={alternateTranscodes}
-                    onChange={(value) => form.setFieldValue("alternateTranscodes", value)}
+                    onChange={(value) => {
+                      // Row actions are immediate fabric writes, not panel-dirty
+                      // state - reset only this field's baseline so other
+                      // unsaved fields stay dirty.
+                      form.setFieldValue("alternateTranscodes", value);
+                      form.resetDirty({...form.getInitialValues(), alternateTranscodes: value});
+                      streamSaveStore.SetDirty({id: "recording", isDirty: form.isDirty()});
+                    }}
+                    parentObjectId={params.id}
+                    parentLibraryId={streamStore.streams[slug]?.libraryId}
+                    parentSlug={slug}
                   />
                 </Box>
               </Box>
@@ -372,6 +381,7 @@ const RecordingPanel = observer(({
                   <JsonEditorCard
                     value={advancedEncodingParams}
                     onChange={(value) => form.setFieldValue("advancedEncodingParams", value)}
+                    shaded={false}
                   />
                 </Box>
               </Box>

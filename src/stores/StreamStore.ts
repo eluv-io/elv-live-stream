@@ -2,7 +2,7 @@
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET, type DateRangePreset} from "@/utils/helpers";
-import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
+import {ALTERNATE_TRANSCODE_PROTOCOLS, LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {
   AlternateTranscode,
   DeriveSourceAndPackaging,
@@ -35,6 +35,7 @@ type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persisten
   // StreamEditStore's UpdateConfigMetadataParams.
   copyPackagingFormats: string[];
   alternateTranscodeEnabled: boolean;
+  // Resolved from the id array stored on the fabric - see ResolveAlternateTranscodes.
   alternateTranscodes: AlternateTranscode[];
   programPidSelection: ProgramPidSelection;
   advancedEncodingParams: Record<string, unknown> | null;
@@ -910,6 +911,77 @@ class StreamStore {
     }
   }
 
+  // Each id is a separate content object; resolved in parallel with per-id
+  // failure isolation so a broken reference still renders (and stays
+  // removable) instead of vanishing from the table.
+  *ResolveAlternateTranscodes({libraryId, ids}: {libraryId: string, ids: string[]}): Generator<any, AlternateTranscode[]> {
+    if(!ids || ids.length === 0) { return []; }
+
+    const results = yield Promise.all(ids.map(async(id): Promise<AlternateTranscode> => {
+      let name = id;
+      let url = "";
+      let ingressNodeId;
+      let recordingConfig: Record<string, any> = {};
+      let xcParams: Record<string, any> = {};
+
+      try {
+        const generalMeta = await this.client.ContentObjectMetadata({
+          libraryId,
+          objectId: id,
+          metadataSubtree: "public",
+          select: ["name"]
+        });
+        name = generalMeta?.name || id;
+      } catch(error) {
+        console.error(`Unable to load name for alternate transcode ${id}`, error);
+      }
+
+      try {
+        const liveRecordingConfigMeta = await this.client.ContentObjectMetadata({
+          libraryId,
+          objectId: id,
+          metadataSubtree: "live_recording_config",
+          select: ["url", "ingress_node_id", "recording_config"]
+        });
+        url = liveRecordingConfigMeta?.url || "";
+        ingressNodeId = liveRecordingConfigMeta?.ingress_node_id;
+        recordingConfig = liveRecordingConfigMeta?.recording_config || {};
+      } catch(error) {
+        console.error(`Unable to load config for alternate transcode ${id}`, error);
+      }
+
+      try {
+        xcParams = (await this.client.ContentObjectMetadata({
+          libraryId,
+          objectId: id,
+          metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
+        })) || {};
+      } catch(error) {
+        console.error(`Unable to load applied encoding config for alternate transcode ${id}`, error);
+      }
+
+      const protocol = (url.split("://")[0]) || ALTERNATE_TRANSCODE_PROTOCOLS[0]?.value || "";
+
+      return {
+        id,
+        name,
+        nodeType: ingressNodeId ? "dedicated" : "public",
+        node: ingressNodeId,
+        // Public node's geo can't be recovered from an existing object -
+        // only dedicated-vs-public.
+        geo: undefined,
+        protocol,
+        resolution: xcParams.enc_height ? `${xcParams.enc_height}p` : undefined,
+        videoBitrate: xcParams.video_bitrate,
+        streamBitrate: xcParams.input_cfg?.stream_bitrate,
+        advancedEncodingParams: recordingConfig.advanced_encoding_params ?? null,
+        programPidSelection: recordingConfig.program_pid_selection ?? {activeProgramId: null, selections: {}}
+      };
+    }));
+
+    return results;
+  }
+
   *LoadRecordingConfigData({
     libraryId,
     objectId,
@@ -920,7 +992,7 @@ class StreamStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, {audioStreams, audioData}] = yield Promise.all([
+      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, liveRecordingConfigTopMeta, {audioStreams, audioData}] = yield Promise.all([
         this.client.ContentObjectMetadata({
           libraryId,
           objectId,
@@ -936,6 +1008,13 @@ class StreamStore {
           objectId,
           metadataSubtree: "live_recording_config/recording_config"
         }),
+        // Sibling of recording_config on live_recording_config - see CreateAlternateTranscode.
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config",
+          select: ["alternate_transcodes"]
+        }),
         this.LoadStreamProbeData({libraryId, objectId})
       ]);
 
@@ -947,12 +1026,11 @@ class StreamStore {
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
       const reconnectionTimeout = liveRecordingConfigMeta?.reconnect_timeout ?? liveRecordingMeta?.recording_params?.reconnect_timeout;
 
-      // Assumed shape, pending fabric-team confirmation - see the note on
-      // StreamEditStore's UpdateConfigMetadataParams. Existing streams
-      // predate these fields, hence the defaults.
+      // Existing streams predate these fields, hence the defaults.
       const copyPackagingFormats = liveRecordingConfigMeta?.copy_packaging_formats ?? [];
       const alternateTranscodeEnabled = liveRecordingConfigMeta?.alternate_transcode_enabled ?? false;
-      const alternateTranscodes = liveRecordingConfigMeta?.alternate_transcodes ?? [];
+      // alternate_transcodes is an id array; resolve to full rows for display/edit.
+      const alternateTranscodes = yield this.ResolveAlternateTranscodes({libraryId, ids: liveRecordingConfigTopMeta?.alternate_transcodes ?? []});
       const programPidSelection = liveRecordingConfigMeta?.program_pid_selection ?? {activeProgramId: null, selections: {}};
       const advancedEncodingParams = liveRecordingConfigMeta?.advanced_encoding_params ?? null;
 

@@ -51,6 +51,7 @@ export interface RecordingInputCfg {
   copy_packaging?: "raw_ts" | "rtp_ts" | "ats_ts";
   custom_read_loop_enabled?: boolean;
   input_packaging?: "rtp_ts" | "raw_ts";
+  stream_bitrate?: number;
 }
 
 interface RecordingConfig {
@@ -62,12 +63,9 @@ interface RecordingConfig {
   persistent?: boolean;
 }
 
-// Probe-derived MPEG-TS program/PID structure. NOTE: no SDK/fabric support
-// exists for this today (no `programs` array anywhere in client-js's probe
-// or InputStreamInfo typedefs, confirmed against @eluvio/elv-client-js
-// 4.2.14) - the program list surfaced to the UI is a temporary mock
-// (src/utils/mockProbeProgramData.ts) until the fabric team exposes real
-// multiprogram probe data. This shape is a design-time assumption.
+// Probe-derived MPEG-TS program/PID structure. No SDK/fabric support exists
+// for this yet (no `programs` array in client-js's probe/InputStreamInfo
+// typedefs) - a design-time assumption until the fabric team exposes it.
 export interface ProbePid {
   pid: number;
   type: "video" | "audio" | "data";
@@ -88,9 +86,8 @@ export interface ProgramPidSelection {
   selections: Record<string, number[]>;
 }
 
-// Assumed shape, pending fabric-team confirmation of whether/how a
-// recording-side transcode rendition (distinct from live_outputs egress) can
-// be represented - see CLAUDE.md's Alternate Transcodes note.
+// A resolved view of one alternate transcode - `id` is the objectId of its
+// own content object (the parent only stores an id array).
 export interface AlternateTranscode {
   id: string;
   name: string;
@@ -216,6 +213,7 @@ interface XcParams {
   filter_descriptor?: string;
   force_keyint?: number;
   format?: string;
+  input_cfg?: RecordingInputCfg;
   listen?: boolean;
   n_audio?: number;
   level?: number;

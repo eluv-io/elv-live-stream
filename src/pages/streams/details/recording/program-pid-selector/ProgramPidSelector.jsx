@@ -2,29 +2,33 @@ import {useState} from "react";
 import {Box, Checkbox, Group, Radio, Stack, Text} from "@mantine/core";
 import {DataTable} from "mantine-datatable";
 import {IconChevronRight} from "@tabler/icons-react";
-import {MOCK_PROBE_PROGRAMS} from "@/utils/mockProbeProgramData.ts";
 import sharedStyles from "@/assets/shared.module.css";
 
-// Component in the FMP4/CMAF Packaging section (the implicit primary output) and
-// inside AlternateTranscodeModal (same shape).
-// TODO: Program list is sourced from a temporary mock (see mockProbeProgramData.ts). Update per metadata
+// Used in FMP4/CMAF Packaging and AlternateTranscodeModal. No fabric support
+// yet for probe program/PID data - programs stays empty until exposed.
 const ProgramPidSelector = ({value, onChange, disabled}) => {
-  const programs = MOCK_PROBE_PROGRAMS;
+  const programs = value?.programs || [];
 
   const [localSelections, setLocalSelections] = useState({...(value?.selections || {})});
 
   if(!programs || programs.length === 0) {
     return (
-      <Text fs="italic" fz={14}>Connect the stream to detect programs.</Text>
+      <Text fs="italic" fz={14}>Configure the stream to detect programs.</Text>
     );
   }
 
   const activeProgramId = value?.activeProgramId ?? null;
 
   const SetActiveProgram = (programId) => {
+    const program = programs.find(p => p.id === programId);
+    const selected = localSelections[programId] !== undefined ?
+      localSelections[programId] :
+      (program?.pids || []).map(pid => pid.pid);
+
+    setLocalSelections(prev => ({...prev, [programId]: selected}));
     onChange({
       activeProgramId: programId,
-      selections: {[programId]: localSelections[programId] || []}
+      selections: {[programId]: selected}
     });
   };
 
@@ -82,6 +86,14 @@ const ProgramPidSelector = ({value, onChange, disabled}) => {
                           records={program.pids}
                           withColumnBorders
                           columns={[
+                            {accessor: "pid", title: "PID"},
+                            {
+                              accessor: "type",
+                              title: "Type",
+                              render: pid => pid.type.charAt(0).toUpperCase() + pid.type.slice(1)
+                            },
+                            {accessor: "codec", title: "Codec"},
+                            {accessor: "description", title: "Description / Name"},
                             {
                               accessor: "include",
                               title: "Include",
@@ -93,15 +105,7 @@ const ProgramPidSelector = ({value, onChange, disabled}) => {
                                   onChange={event => ToggleInclude(program.id, pid.pid, event.target.checked)}
                                 />
                               )
-                            },
-                            {accessor: "pid", title: "PID"},
-                            {
-                              accessor: "type",
-                              title: "Type",
-                              render: pid => pid.type.charAt(0).toUpperCase() + pid.type.slice(1)
-                            },
-                            {accessor: "codec", title: "Codec"},
-                            {accessor: "description", title: "Description / Name"}
+                            }
                           ]}
                         />
                       </Box>
