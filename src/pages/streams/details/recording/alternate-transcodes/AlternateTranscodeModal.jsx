@@ -169,7 +169,7 @@ const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) 
             />
             <NumberInput
               label="Stream bitrate"
-              placeholder="Enter stream bitrate (e.g., 192000)"
+              placeholder="Enter stream bitrate (e.g., 95000000)"
               min={0}
               hideControls
               key={form.key("streamBitrate")}

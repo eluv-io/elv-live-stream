@@ -327,13 +327,22 @@ const RecordingPanel = observer(({
                   </Stack>
                 </Checkbox.Group>
               </SimpleGrid>
+            </Collapse>
+            <Divider mb={29} />
+          </DisabledTooltipWrapper>
 
-              <Box ml={34} mb={29}>
+          <Collapse expanded={copyMpegTs}>
+            <Box ml={34} mb={29}>
+              <DisabledTooltipWrapper
+                disabled={status === STATUS_MAP.UNCONFIGURED}
+                tooltipLabel="Alternate Transcodes are unavailable until the stream is configured"
+              >
                 <Box mt={16}>
                   <Text fz="0.875rem" fw={600} c="elv-black.3" mb={4}>Alternate Transcodes</Text>
                   <Text fz="0.875rem" c="elv-gray.8" mb={12}>Create additional transcoded versions of this stream at different resolutions, bitrates, or nodes.</Text>
                   <AlternateTranscodesTable
                     records={alternateTranscodes}
+                    disabled={status === STATUS_MAP.UNCONFIGURED}
                     onChange={(value) => {
                       // Row actions are immediate fabric writes, not panel-dirty
                       // state - reset only this field's baseline so other
@@ -347,48 +356,42 @@ const RecordingPanel = observer(({
                     parentSlug={slug}
                   />
                 </Box>
-              </Box>
-            </Collapse>
-            <Divider mb={29} />
-          </DisabledTooltipWrapper>
+              </DisabledTooltipWrapper>
+            </Box>
+          </Collapse>
 
-          <DisabledTooltipWrapper
-            disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
-            tooltipLabel="FMP4/CMAF configuration is disabled when the stream is running"
-          >
-            <SectionTitle mb={16}>FMP4/CMAF Packaging</SectionTitle>
-            <SimpleGrid cols={2} spacing={150} mb={14}>
-              <Checkbox
-                label="Enable FMP4"
-                key={form.key("fabricPackagingFMP4")}
-                {...form.getInputProps("fabricPackagingFMP4", {type: "checkbox"})}
+          <SectionTitle mb={16}>FMP4/CMAF Packaging</SectionTitle>
+          <SimpleGrid cols={2} spacing={150} mb={14}>
+            <Checkbox
+              label="Enable FMP4"
+              key={form.key("fabricPackagingFMP4")}
+              {...form.getInputProps("fabricPackagingFMP4", {type: "checkbox"})}
+            />
+          </SimpleGrid>
+
+          <Collapse expanded={fabricPackagingFMP4}>
+            <Box ml={34} mb={29}>
+              {/* Disabled - see fmp4FormData comment in Save() above.
+              <Stack gap={4} mb={12}>
+                <Input.Label>Program</Input.Label>
+                <Input.Description>Choose a program (if multiprogram) and select the video/audio PIDs to include in the output.</Input.Description>
+              </Stack>
+              <ProgramPidSelector
+                value={programPidSelection}
+                onChange={(value) => form.setFieldValue("programPidSelection", value)}
               />
-            </SimpleGrid>
+              */}
 
-            <Collapse expanded={fabricPackagingFMP4}>
-              <Box ml={34} mb={29}>
-                {/* Disabled - see fmp4FormData comment in Save() above.
-                <Stack gap={4} mb={12}>
-                  <Input.Label>Program</Input.Label>
-                  <Input.Description>Choose a program (if multiprogram) and select the video/audio PIDs to include in the output.</Input.Description>
-                </Stack>
-                <ProgramPidSelector
-                  value={programPidSelection}
-                  onChange={(value) => form.setFieldValue("programPidSelection", value)}
+              <Box mt={16}>
+                <JsonEditorCard
+                  value={advancedEncodingParams}
+                  onChange={(value) => form.setFieldValue("advancedEncodingParams", value)}
+                  shaded={false}
                 />
-                */}
-
-                <Box mt={16}>
-                  <JsonEditorCard
-                    value={advancedEncodingParams}
-                    onChange={(value) => form.setFieldValue("advancedEncodingParams", value)}
-                    shaded={false}
-                  />
-                </Box>
               </Box>
-            </Collapse>
-            <Divider mb={29} />
-          </DisabledTooltipWrapper>
+            </Box>
+          </Collapse>
+          <Divider mb={29} />
 
           <DisabledTooltipWrapper
             disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
