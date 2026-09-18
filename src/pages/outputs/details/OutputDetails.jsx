@@ -40,6 +40,23 @@ import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 
+// Classifies an output's location pick (saved in `description`) as dedicated,
+// region-only, or region-with-node. Only region-only writes a singular region slug
+const ClassifyOutputLocation = ({description, dedicatedNodesList}) => {
+  if(!description) {
+    return {nodeType: "public", geo: "", node: "", geoNode: ""};
+  }
+
+  if(FABRIC_NODE_REGIONS.some(region => region.value === description)) {
+    return {nodeType: "public", geo: description, node: "", geoNode: ""};
+  }
+
+  const isDedicated = (dedicatedNodesList || []).some(n => n.value === description);
+  return isDedicated ?
+    {nodeType: "dedicated", geo: "", node: description, geoNode: ""} :
+    {nodeType: "public", geo: "", node: "", geoNode: description};
+};
+
 // Quality + input-stat rows shared by the Input Primary and Input Failover
 // Summary cards. `data` is an enriched input object (output.input or
 // output.input.failover) carrying `quality` and `stats` (StreamStatus.input_stats).
@@ -255,21 +272,22 @@ export const SummaryPanel = observer(({output, url, id}) => {
 // data has loaded, so initialValues below are always real.
 const OutputPanels = observer(({output, id, url}) => {
   const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
-  const initialHasDedicatedNode = output.description?.startsWith("inod");
+  // dedicatedNodesList is guaranteed loaded here - see the loader gate below.
+  const initialLocation = ClassifyOutputLocation({
+    description: output.description,
+    dedicatedNodesList: dataStore.dedicatedNodesList
+  });
   const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
-
-  useEffect(() => {
-    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
-  }, []);
 
   const form = useForm({
     mode: "controlled",
     initialValues: {
       name: output?.name,
       type: initialType, // rtp | srt_pull | srt_push | udp
-      nodeType: initialHasDedicatedNode ? "dedicated" : "public", // dedicated | public
-      node: initialHasDedicatedNode ? (output.description ?? "") : "",
-      geo: !initialHasDedicatedNode ? (output.description ?? "") : "",
+      nodeType: initialLocation.nodeType, // dedicated | public
+      node: initialLocation.node,
+      geo: initialLocation.geo,
+      geoNode: initialLocation.geoNode,
       url: initialTargetUrl ?? "",
       encryption: output?.[initialType]?.connection?.enforced_encryption,
       stripRtp: output?.[initialType]?.strip_rtp,
@@ -309,7 +327,7 @@ const OutputPanels = observer(({output, id, url}) => {
     if(hasErrors) { throw new Error("Please resolve validation errors before saving"); }
 
     const values = form.getValues();
-    const {name, type, node, geo, encryption, stripRtp, passphrase, url} = values;
+    const {name, type, node, geo, geoNode, encryption, stripRtp, passphrase, url} = values;
     const isDedicated = values.nodeType === "dedicated";
     const isPush = type !== "srt_pull";
     // Only persist failover once a primary stream exists (the section is disabled
@@ -327,8 +345,8 @@ const OutputPanels = observer(({output, id, url}) => {
       // treats undefined as "leave existing value alone", but switching between
       // dedicated node and public geo must clear whichever one is no longer active,
       // or the fabric rejects the update ("only one of elvgeos or node_ids can be set").
-      node: isDedicated ? node : "",
-      region: !isDedicated ? geo : "",
+      node: isDedicated ? node : (geoNode || ""),
+      region: !isDedicated ? (geoNode ? "" : geo) : "",
       url: isPush ? url : undefined,
       failoverStream: hasPrimary ? values.failoverStream : undefined,
       failoverAfter: values.failoverAfter,
@@ -405,15 +423,17 @@ const OutputDetails = observer(() => {
   const output = outputStore.outputs[id];
   const flatOutput = outputStore.OutputItem(id);
   const url = flatOutput?.url;
-  // "inod" is the Eluvio fabric's node-ID prefix (see elv-client-js's
-  // Utils.AddressToNodeId) - a dedicated node ID is stashed in description.
-  const hasDedicatedNode = output?.description?.startsWith("inod");
-  const geoLabel = !hasDedicatedNode ?
-    FABRIC_NODE_REGIONS.find(geo => geo.value === output?.description)?.label :
+  const outputLocation = ClassifyOutputLocation({
+    description: output?.description,
+    dedicatedNodesList: dataStore.dedicatedNodesList
+  });
+  const hasDedicatedNode = outputLocation.nodeType === "dedicated";
+  const geoLabel = outputLocation.geo ?
+    FABRIC_NODE_REGIONS.find(geo => geo.value === outputLocation.geo)?.label :
     undefined;
   const nodeLabel = hasDedicatedNode ?
     dataStore.dedicatedNodes?.[output.description]?.name :
-    undefined;
+    (outputLocation.geoNode || undefined);
   const typeBadges = flatOutput?.type?.length ?
     <Group gap={4} wrap="nowrap">
       {
@@ -453,6 +473,11 @@ const OutputDetails = observer(() => {
         .then(() => {});
     }
   }, [id]);
+
+  // Loaded here so it's ready in parallel with the output load
+  useEffect(() => {
+    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
+  }, []);
 
   useEffect(() => {
     // OutputsList/OutputsListItem (client-js) already mark input.status
@@ -567,7 +592,9 @@ const OutputDetails = observer(() => {
         action
     );
 
-  if(!output) { return <Loader />; }
+  // Wait on dedicatedNodesList - OutputPanels needs it to classify the
+  // output's node/region pick
+  if(!output || !dataStore.loadedDedicatedNodes) { return <Loader />; }
 
   return (
     <PageContainer

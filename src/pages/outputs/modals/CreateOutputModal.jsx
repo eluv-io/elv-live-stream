@@ -28,6 +28,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
     initialValues: {
       name: "",
       geo: "",
+      geoNode: "",
       node: "",
       encryption: false,
       stripRtp: false,
@@ -63,7 +64,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
   const HandleSubmit = async() => {
     try {
       setIsSaving(true);
-      const {name, geo, node, nodeType, encryption, stripRtp, passphrase, type, url} = form.getValues();
+      const {name, geo, geoNode, node, nodeType, encryption, stripRtp, passphrase, type, url} = form.getValues();
       const isDedicated = nodeType === "dedicated";
 
       await outputStore.CreateOutput({
@@ -74,14 +75,16 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
         stripRtp,
         // URL field is only shown for non-srt_pull types
         url: type === "srt_pull" ? undefined : url,
-        // public outputs target a fabric region; dedicated outputs target a node
-        region: isDedicated ? undefined : geo,
-        node: isDedicated ? node : undefined
+        // public outputs target a fabric region (or, if a specific node was picked
+        // within that region, the resolved node - same path a dedicated node uses);
+        // dedicated outputs target a curated node
+        region: isDedicated ? undefined : (geoNode ? undefined : geo),
+        node: isDedicated ? node : (geoNode || undefined)
       });
 
       const locationLabel = isDedicated ?
         (dataStore.dedicatedNodesList.find(data => data.value === node)?.label || "") :
-        (FABRIC_NODE_REGIONS.find(data => data.value === geo)?.label || "");
+        (geoNode || (FABRIC_NODE_REGIONS.find(data => data.value === geo)?.label || ""));
 
       notifications.show({
         title: "New output created",
@@ -151,6 +154,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             onChange={(value) => {
               form.setFieldValue("nodeType", value);
               form.setFieldValue("url", "");
+              form.setFieldValue("geoNode", "");
             }}
           >
             <Tabs.List w="fit-content" mb={20}>
@@ -196,6 +200,26 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
                   clearable
                   key={form.key("geo")}
                   {...form.getInputProps("geo")}
+                  onChange={(value) => {
+                    form.setFieldValue("geo", value);
+                    form.setFieldValue("geoNode", "");
+                    if(value) { outputStore.LoadNodesByRegion({region: value}); }
+                  }}
+                />
+                <Select
+                  label="Node"
+                  description="Pin the output to a specific node in this region"
+                  data={outputStore.nodesByRegion[form.getValues().geo] || []}
+                  disabled={!form.getValues().geo}
+                  clearable
+                  placeholder={
+                    !form.getValues().geo ? "Select a Fabric Geo first" :
+                      outputStore.loadingNodesRegion === form.getValues().geo ? "Loading Nodes..." :
+                        (outputStore.nodesByRegion[form.getValues().geo] || []).length === 0 ? "No specific nodes found" :
+                          "Select Node"
+                  }
+                  key={form.key("geoNode")}
+                  {...form.getInputProps("geoNode")}
                 />
                 {form.getValues().type !== "srt_pull" &&
                   <TextInput

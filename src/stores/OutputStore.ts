@@ -138,6 +138,31 @@ const ResolveEgressNodeId = async ({client, geo}: {client: any, geo?: string}): 
   return nodes[0].id;
 };
 
+/**
+ * List candidate egress nodes for a fabric region, for the optional "pick a
+ * specific node" dropdown under Public. Unlike ResolveEgressNodeId (which
+ * only resolves the first live_egress endpoint), this walks the whole array.
+ */
+const GetNodesForRegion = async ({client, region}: {client: any, region: string}): Promise<{value: string, label: string}[]> => {
+  const configUrl = new URL(await client.ConfigUrl());
+  configUrl.pathname = "/config";
+  configUrl.searchParams.set("elvgeo", region);
+
+  const fabricInfo = await (await fetch(configUrl.toString())).json();
+  const liveEgressUrls: string[] = fabricInfo?.network?.services?.live_egress || [];
+
+  const nodesById: Record<string, {value: string, label: string}> = {};
+  for(const url of liveEgressUrls) {
+    const hostname = new URL(url).hostname;
+    const nodes = await client.SpaceNodes({matchEndpoint: hostname});
+    (nodes || []).forEach((node: any) => {
+      if(node?.id) { nodesById[node.id] = {value: node.id, label: node.id}; }
+    });
+  }
+
+  return Object.values(nodesById);
+};
+
 interface CreateOutputParams {
   name?: string;
   externalId?: string;
@@ -159,12 +184,18 @@ class OutputStore {
   tableFilter = "";
   tableTagFilter: string[] = [];
   sortStatus = {columnAccessor: "name", direction: "asc"};
+  // Cache of region -> candidate egress nodes, for the optional "pick a
+  // specific node" dropdown under Public. Keyed by region since a user may
+  // browse several regions in one session.
+  nodesByRegion: Record<string, {value: string, label: string}[]> = {};
+  loadingNodesRegion: string | null = null;
+  _nodesByRegionRequestId = 0;
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
 
-    makeAutoObservable(this);
+    makeAutoObservable(this, {_nodesByRegionRequestId: false});
   }
 
   get client() {
@@ -506,6 +537,33 @@ class OutputStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to load failover stream stats for output.", error);
+    }
+  }
+
+  /**
+   * Load candidate egress nodes for a region, for the optional "pick a specific
+   * node" dropdown under Public. Only ever driven by one mounted form at a time,
+   * so this uses a request-id guard (rather than full promise-dedupe like
+   * DataStore.LoadAccessGroups) to drop stale responses if the user flips
+   * regions before the previous fetch resolves.
+   */
+  *LoadNodesByRegion({region, force = false}: {region: string, force?: boolean}): Generator<any, void> {
+    if(!region) { return; }
+    if(this.nodesByRegion[region] && !force) { return; }
+
+    const requestId = ++this._nodesByRegionRequestId;
+    this.loadingNodesRegion = region;
+
+    try {
+      const nodes = yield GetNodesForRegion({client: this.client, region});
+      if(requestId !== this._nodesByRegionRequestId) { return; }
+      this.nodesByRegion[region] = nodes;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Failed to load nodes for region.", error);
+      if(requestId === this._nodesByRegionRequestId) { this.nodesByRegion[region] = []; }
+    } finally {
+      if(requestId === this._nodesByRegionRequestId) { this.loadingNodesRegion = null; }
     }
   }
 
