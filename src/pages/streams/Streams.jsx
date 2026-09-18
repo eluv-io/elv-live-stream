@@ -2,11 +2,12 @@ import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
-import {ActionIcon, Group, Select, Text, Tooltip} from "@mantine/core";
+import {ActionIcon, Group, Popover, Select, Text, Tooltip} from "@mantine/core";
+import {DatePicker} from "@mantine/dates";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
 import {dataStore, modalStore, streamStore, streamGroupStore} from "@/stores/index.ts";
-import {DATE_RANGE_PRESET_OPTIONS, FormatDateRangeLabel, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
+import {DATE_RANGE_PRESET_OPTIONS, FormatDateFilter, FormatDateRangeLabel, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
@@ -24,6 +25,7 @@ const Streams = observer(() => {
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
   const [showEditTagsModal, {open: openEditTags, close: closeEditTags}] = useDisclosure(false);
+  const [showDatePicker, {toggle: toggleDatePicker, close: closeDatePicker}] = useDisclosure(false);
   const navigate = useNavigate();
 
   // Date filter lives in the store (session-persisted) so it survives navigating
@@ -39,6 +41,16 @@ const Streams = observer(() => {
     streamStore.SetDateFilter({preset});
     streamGroupStore.CollapseAllGroups();
     DebouncedRefresh();
+  };
+
+  const SelectDate = (value) => {
+    if(!value) { return; }
+
+    const [year, month, day] = value.split("-").map(Number);
+    streamStore.SetDateFilter({preset: "day", referenceDate: new Date(year, month - 1, day)});
+    streamGroupStore.CollapseAllGroups();
+    DebouncedRefresh();
+    closeDatePicker();
   };
 
   const ShiftDate = (direction) => {
@@ -201,12 +213,23 @@ const Streams = observer(() => {
               </ActionIcon>
             </Tooltip>
           </Group>
+          <Popover opened={showDatePicker} onClose={closeDatePicker} withinPortal position="bottom-end">
+            <Popover.Target>
+              <Tooltip label="Select a date">
+                <ActionIcon variant="subtle" color="elv-gray.6" onClick={toggleDatePicker}>
+                  <CalendarMonthIcon size={24} />
+                </ActionIcon>
+              </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <DatePicker value={datePreset === "day" ? FormatDateFilter(referenceDate) : null} onChange={SelectDate} />
+            </Popover.Dropdown>
+          </Popover>
           <Select
             data={DATE_RANGE_PRESET_OPTIONS}
             value={datePreset}
             onChange={SelectDatePreset}
             allowDeselect={false}
-            leftSection={<CalendarMonthIcon size={20} />}
             w={130}
           />
         </Group>
