@@ -7,6 +7,7 @@ import {
   AlternateTranscode,
   DeriveSourceAndPackaging,
   ProgramPidSelection,
+  ProbeProgram,
   StreamMetadata, ProbeStream, RecordingInputCfg
 } from "@/utils/stream";
 import type RootStore from "@/stores/RootStore";
@@ -1034,7 +1035,21 @@ class StreamStore {
       const alternateTranscodeEnabled = liveRecordingConfigMeta?.alternate_transcode_enabled ?? false;
       // alternate_transcodes is an id array; resolve to full rows for display/edit.
       const alternateTranscodes = yield this.ResolveAlternateTranscodes({libraryId, ids: liveRecordingConfigTopMeta?.alternate_transcodes ?? []});
-      const programPidSelection = liveRecordingConfigMeta?.program_pid_selection ?? {activeProgramId: null, selections: {}};
+
+      // Detected programs and PID list, read-only - not part of the saved
+      // selection. Fabric only exposes program numbers and a flat,
+      // program-unscoped PID list here, so every program shows the same list.
+      const mpegtsSelection = inputCfg?.mpegts_selection;
+      const programs: ProbeProgram[] = (mpegtsSelection?.program_ids ?? []).map(programId => ({
+        id: `${programId}`,
+        number: programId,
+        pids: (mpegtsSelection?.pids ?? []).map(pid => ({pid}))
+      }));
+
+      const programPidSelection: ProgramPidSelection = {
+        ...(liveRecordingConfigMeta?.program_pid_selection ?? {activeProgramId: null, selections: {}}),
+        programs
+      };
       const advancedEncodingParams = liveRecordingConfigMeta?.advanced_encoding_params ?? null;
 
       const recordingData = {

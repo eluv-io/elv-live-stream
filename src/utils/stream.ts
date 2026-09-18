@@ -52,6 +52,10 @@ export interface RecordingInputCfg {
   custom_read_loop_enabled?: boolean;
   input_packaging?: "rtp_ts" | "raw_ts";
   stream_bitrate?: number;
+  mpegts_selection?: {
+    program_ids?: number[];
+    pids?: number[];
+  };
 }
 
 interface RecordingConfig {
@@ -63,27 +67,31 @@ interface RecordingConfig {
   persistent?: boolean;
 }
 
-// Probe-derived MPEG-TS program/PID structure. No SDK/fabric support exists
-// for this yet (no `programs` array in client-js's probe/InputStreamInfo
-// typedefs) - a design-time assumption until the fabric team exposes it.
+// Probe-derived MPEG-TS program/PID structure. Fabric currently exposes only
+// program numbers and a flat, program-unscoped PID list at
+// input_cfg.mpegts_selection.{program_ids,pids} - no per-PID type/codec/
+// description and no per-program PID scoping yet, hence the optional fields.
 export interface ProbePid {
   pid: number;
-  type: "video" | "audio" | "data";
-  codec: string;
-  description: string;
+  type?: "video" | "audio" | "data";
+  codec?: string;
+  description?: string;
 }
 
 export interface ProbeProgram {
   id: string;
   number: number;
-  name: string;
+  name?: string;
   pids: ProbePid[];
 }
 
 // Only the active program's selection is persisted - see ProgramPidSelector.jsx.
+// `programs` is the read-only detected-program list used to populate the
+// picker; it's derived from input_cfg.mpegts_selection, not itself saved.
 export interface ProgramPidSelection {
   activeProgramId: string | null;
   selections: Record<string, number[]>;
+  programs?: ProbeProgram[];
 }
 
 // A resolved view of one alternate transcode - `id` is the objectId of its

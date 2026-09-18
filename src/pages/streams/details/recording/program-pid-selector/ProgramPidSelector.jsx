@@ -4,8 +4,10 @@ import {DataTable} from "mantine-datatable";
 import {IconChevronRight} from "@tabler/icons-react";
 import sharedStyles from "@/assets/shared.module.css";
 
-// Used in FMP4/CMAF Packaging and AlternateTranscodeModal. No fabric support
-// yet for probe program/PID data - programs stays empty until exposed.
+// Used in FMP4/CMAF Packaging and AlternateTranscodeModal. `programs` comes
+// from input_cfg.mpegts_selection (see StreamStore.LoadRecordingConfigData) -
+// fabric only exposes program numbers and a flat PID list there, so per-PID
+// type/codec/description aren't populated yet.
 const ProgramPidSelector = ({value, onChange, disabled}) => {
   const programs = value?.programs || [];
 
@@ -90,7 +92,7 @@ const ProgramPidSelector = ({value, onChange, disabled}) => {
                             {
                               accessor: "type",
                               title: "Type",
-                              render: pid => pid.type.charAt(0).toUpperCase() + pid.type.slice(1)
+                              render: pid => pid.type ? pid.type.charAt(0).toUpperCase() + pid.type.slice(1) : ""
                             },
                             {accessor: "codec", title: "Codec"},
                             {accessor: "description", title: "Description / Name"},
