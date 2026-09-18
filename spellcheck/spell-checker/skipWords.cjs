@@ -41,6 +41,7 @@ module.exports = [
   "decrypt",
   "demov3",
   "deterministically",
+  "disambiguated",
   "drm",
   "drms",
   "dropdown",
@@ -132,6 +133,7 @@ module.exports = [
   "reconnection",
   "recv",
   "rect",
+  "reselect",
   "resize",
   "retrans",
   "roboto",
@@ -190,6 +192,7 @@ module.exports = [
   "whitespace",
   "widevine",
   "wm",
+  "writeable",
   "xc",
   "xl"
 ];
