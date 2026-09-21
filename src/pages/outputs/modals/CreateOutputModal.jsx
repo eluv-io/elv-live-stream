@@ -8,6 +8,7 @@ import {
   Button,
   Checkbox,
   Input,
+  Loader,
   Flex,
   Modal,
   Select,
@@ -39,8 +40,6 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
     },
     validate: {
       node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
-      geo: (value, values) =>
-        values.nodeType === "public" ? (value ? null : "Geo is required") : null,
       passphrase: (value, values) => {
         if(!values.encryption) { return null; }
         if(value && (value.length < 10 || value.length > 79)) {
@@ -70,21 +69,22 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       await outputStore.CreateOutput({
         name,
         type,
+        nodeType,
         passphrase,
         encryption,
         stripRtp,
         // URL field is only shown for non-srt_pull types
         url: type === "srt_pull" ? undefined : url,
-        // public outputs target a fabric region (or, if a specific node was picked
-        // within that region, the resolved node - same path a dedicated node uses);
-        // dedicated outputs target a curated node
-        region: isDedicated ? undefined : (geoNode ? undefined : geo),
-        node: isDedicated ? node : (geoNode || undefined)
+        // public outputs target a fabric region, optionally pinned to a node within
+        // it; dedicated outputs target a curated node
+        region: isDedicated ? undefined : (geo || undefined),
+        node: isDedicated ? node : undefined,
+        nodeHost: isDedicated ? undefined : (geoNode || undefined)
       });
 
       const locationLabel = isDedicated ?
         (dataStore.dedicatedNodesList.find(data => data.value === node)?.label || "") :
-        (geoNode || (FABRIC_NODE_REGIONS.find(data => data.value === geo)?.label || ""));
+        (geoNode || (FABRIC_NODE_REGIONS.find(data => data.value === geo)?.label || "Automatic"));
 
       notifications.show({
         title: "New output created",
@@ -194,32 +194,31 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
               <Stack gap={20}>
                 <Select
                   label="Fabric Geo"
-                  withAsterisk
-                  data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
-                  placeholder="Select Geo"
-                  clearable
+                  description="Automatic lets the fabric choose a region"
+                  data={[{value: "", label: "Automatic"}, ...FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))]}
+                  allowDeselect={false}
                   key={form.key("geo")}
                   {...form.getInputProps("geo")}
                   onChange={(value) => {
-                    form.setFieldValue("geo", value);
+                    form.setFieldValue("geo", value || "");
                     form.setFieldValue("geoNode", "");
                     if(value) { outputStore.LoadNodesByRegion({region: value}); }
                   }}
                 />
                 <Select
                   label="Node"
-                  description="Pin the output to a specific node in this region"
-                  data={outputStore.nodesByRegion[form.getValues().geo] || []}
+                  description="Automatic lets the fabric choose a node"
+                  // "" is the Automatic option; specific nodes need a chosen geo
+                  data={[{value: "", label: "Automatic"}, ...(outputStore.nodesByRegion[form.getValues().geo] || [])]}
                   disabled={!form.getValues().geo}
-                  clearable
-                  placeholder={
-                    !form.getValues().geo ? "Select a Fabric Geo first" :
-                      outputStore.loadingNodesRegion === form.getValues().geo ? "Loading Nodes..." :
-                        (outputStore.nodesByRegion[form.getValues().geo] || []).length === 0 ? "No specific nodes found" :
-                          "Select Node"
-                  }
+                  allowDeselect={false}
                   key={form.key("geoNode")}
                   {...form.getInputProps("geoNode")}
+                  onChange={(value) => form.setFieldValue("geoNode", value || "")}
+                  rightSection={
+                    form.getValues().geo && outputStore.loadingNodesRegion === form.getValues().geo ?
+                      <Loader size={14} /> : undefined
+                  }
                 />
                 {form.getValues().type !== "srt_pull" &&
                   <TextInput

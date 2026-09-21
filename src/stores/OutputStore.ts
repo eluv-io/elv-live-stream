@@ -1,7 +1,8 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
 import {makeAutoObservable} from "mobx";
 import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/stream";
-import {SortTable} from "@/utils/helpers";
+import {GetOutputLocation, SortTable, WithOutputLocation} from "@/utils/helpers";
+import type {OutputLocation} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
 
 // Passed through verbatim from the fabric. `name`/`quality`/`stats` are
@@ -65,6 +66,8 @@ interface Output {
   input?: OutputInput;
   name?: string;
   description?: string;
+  // Front-end data stored as-is by the fabric; `location` is the geo/node pick.
+  custom?: {location?: OutputLocation, [key: string]: any};
   rtp?: OutputRtpUdp;
   udp?: OutputRtpUdp;
   srt_pull?: OutputSrtPull;
@@ -110,6 +113,16 @@ interface FlatOutput {
   input?: OutputInput;
 }
 
+// Resolve a live_egress hostname to its node ID.
+const NodeIdForHostname = async ({client, hostname}: {client: any, hostname: string}): Promise<string> => {
+  const nodes = await client.SpaceNodes({matchEndpoint: hostname});
+  if(!nodes?.length) {
+    throw new Error(`No node found matching live_egress endpoint: ${hostname}`);
+  }
+
+  return nodes[0].id;
+};
+
 /**
  * Resolve a fabric region (elvgeo) to a concrete egress node ID.
  *
@@ -129,19 +142,14 @@ const ResolveEgressNodeId = async ({client, geo}: {client: any, geo?: string}): 
     throw new Error("No live_egress endpoints found in fabric config");
   }
 
-  const hostname = new URL(liveEgressUrls[0]).hostname;
-  const nodes = await client.SpaceNodes({matchEndpoint: hostname});
-  if(!nodes?.length) {
-    throw new Error(`No node found matching live_egress endpoint: ${hostname}`);
-  }
-
-  return nodes[0].id;
+  return NodeIdForHostname({client, hostname: new URL(liveEgressUrls[0]).hostname});
 };
 
 /**
- * List candidate egress nodes for a fabric region, for the optional "pick a
- * specific node" dropdown under Public. Unlike ResolveEgressNodeId (which
- * only resolves the first live_egress endpoint), this walks the whole array.
+ * List candidate egress nodes (by hostname) for a fabric region, for the optional
+ * "pick a specific node" dropdown under Public. Unlike ResolveEgressNodeId (which
+ * only resolves the first live_egress endpoint), this walks the whole array. Node
+ * ids are resolved from the picked hostname at save time, not here.
  */
 const GetNodesForRegion = async ({client, region}: {client: any, region: string}): Promise<{value: string, label: string}[]> => {
   const configUrl = new URL(await client.ConfigUrl());
@@ -151,25 +159,23 @@ const GetNodesForRegion = async ({client, region}: {client: any, region: string}
   const fabricInfo = await (await fetch(configUrl.toString())).json();
   const liveEgressUrls: string[] = fabricInfo?.network?.services?.live_egress || [];
 
-  const nodesById: Record<string, {value: string, label: string}> = {};
-  for(const url of liveEgressUrls) {
-    const hostname = new URL(url).hostname;
-    const nodes = await client.SpaceNodes({matchEndpoint: hostname});
-    (nodes || []).forEach((node: any) => {
-      if(node?.id) { nodesById[node.id] = {value: node.id, label: node.id}; }
-    });
-  }
+  const hosts = new Set(liveEgressUrls.map(url => new URL(url).hostname));
 
-  return Object.values(nodesById);
+  return Array.from(hosts).map(host => ({value: host, label: host}));
 };
 
 interface CreateOutputParams {
   name?: string;
   externalId?: string;
   offering?: string;
-  // Public outputs target a fabric region; dedicated outputs target a specific node.
+  // Public outputs target a fabric region (optionally pinned to a node within it),
+  // or none for Automatic; dedicated outputs target a specific node.
+  nodeType?: "public" | "dedicated";
   region?: string;
+  // Node ID for a dedicated node. For a public pick, pass `nodeHost` instead - it's
+  // resolved to an ID here.
   node?: string;
+  nodeHost?: string;
   passphrase?: string;
   encryption?: string;
   stripRtp?: boolean;
@@ -571,8 +577,10 @@ class OutputStore {
     name,
     externalId,
     offering,
+    nodeType,
     region,
-    node,
+    node: dedicatedNode,
+    nodeHost,
     passphrase,
     encryption,
     stripRtp,
@@ -588,6 +596,8 @@ class OutputStore {
         name = `Output ${this.outputList?.length + 1}`;
       }
 
+      const node = nodeHost ? yield NodeIdForHostname({client: this.client, hostname: nodeHost}) : dedicatedNode;
+
       const isSrt = type === "srt_pull" || type === "srt_push";
       // srt_pull takes arrays of nodes/geos; the other types take a single value.
       const isPull = type === "srt_pull";
@@ -598,7 +608,9 @@ class OutputStore {
         settings[isPull ? "node_ids" : "node_id"] = isPull ? [node] : node;
       }
 
-      if(region) {
+      // A pinned node wins - the fabric rejects a node and a region together.
+      // With neither (Automatic), the SDK resolves a default node.
+      if(region && !node) {
         settings[isPull ? "elvgeos" : "elvgeo"] = isPull ? [region] : region;
       }
 
@@ -614,7 +626,6 @@ class OutputStore {
         objectId: this.outputSettingsId,
         offering,
         name,
-        description: node || region,
         externalId,
         enabled: false,
         delivery: {
@@ -624,7 +635,29 @@ class OutputStore {
       });
 
       const outputId = Object.keys(outputs || {})[0];
-      let outputData = Object.values(outputs || {})[0];
+      let outputData: Output = Object.values(outputs || {})[0] as Output;
+
+      // OutputsCreate can't set `custom`, so the location is written in a follow-up modify.
+      try {
+        const custom = WithOutputLocation(undefined, {
+          type: nodeType ?? (node && !region ? "dedicated" : "public"),
+          geo: region,
+          node,
+          host: nodeHost
+        });
+        const objectId = this.outputSettingsId;
+        const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+        const created = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
+        // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+        const {state: _state, ...createdOutput} = created;
+
+        yield this.client.OutputsModify({libraryId, objectId, outputId, output: {...createdOutput, custom}});
+        outputData = {...outputData, custom};
+      } catch(error) {
+        // The output exists and works; only its saved location is missing.
+        // eslint-disable-next-line no-console
+        console.error("Failed to save output location.", error);
+      }
 
       outputData = yield this.client.OutputsResolveSrtPullUrls({value: outputData});
 
@@ -824,14 +857,16 @@ class OutputStore {
     passphrase,
     encryption,
     stripRtp,
+    nodeType,
     node,
+    nodeHost,
     region,
     url,
     failoverStream,
     failoverAfter,
     failoverResetClients,
     // tags
-  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, node?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, nodeType?: "public" | "dedicated", node?: string, nodeHost?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -870,25 +905,43 @@ class OutputStore {
       // srt_pull stores node/region as arrays; the other types store single values.
       const isPull = transportKey === "srt_pull";
 
-      // node/region are raw picks from the edit form (one truthy, "" for the inactive
-      // one). Only touch node_id/node_ids when the pick differs from what's pinned
-      // (existing.description holds the last node/geo used - see CreateOutput) or the
+      // node/nodeHost/region are raw picks from the edit form ("" when unset). A public
+      // output has a region (none = Automatic) and optionally a pinned node, picked by
+      // hostname; a dedicated one has only a node ID. Only touch node_id/node_ids when
+      // the pick differs from what's saved (see GetOutputLocation) or the transport
       // type changed, so a plain rename doesn't re-resolve to a different node.
-      const touchesNodeOrRegion = node !== undefined || region !== undefined;
-      const nodeOrRegionTarget = node || region || "";
-      const nodeOrRegionChanged = touchesNodeOrRegion && (typeChanged || nodeOrRegionTarget !== (existing.description || ""));
+      const touchesNodeOrRegion = node !== undefined || nodeHost !== undefined || region !== undefined;
+      const locationType = nodeType ?? (node && !region ? "dedicated" : "public");
+      const dedicatedNodeIds = (this.rootStore.dataStore?.dedicatedNodesList || []).map((n: {value: string}) => n.value);
+      const savedLocation = GetOutputLocation(existing, dedicatedNodeIds);
+      const pickChanged = locationType === "dedicated" ?
+        (node || "") !== savedLocation.node :
+        (nodeHost || "") !== savedLocation.host;
+      const nodeOrRegionChanged = touchesNodeOrRegion && (
+        typeChanged || pickChanged || savedLocation.type !== locationType || (region || "") !== savedLocation.geo
+      );
 
-      // A chosen region must be resolved to a node ID before writing (see ResolveEgressNodeId).
-      const resolvedNodeId = nodeOrRegionChanged ?
-        (node || (region ? yield ResolveEgressNodeId({client: this.client, geo: region}) : undefined)) :
-        undefined;
+      // A pinned hostname, or a chosen region (or none, for Automatic), must be resolved
+      // to a node ID before writing (see ResolveEgressNodeId).
+      let resolvedNodeId: string | undefined;
+      if(nodeOrRegionChanged) {
+        resolvedNodeId = node || (nodeHost ?
+          yield NodeIdForHostname({client: this.client, hostname: nodeHost}) :
+          yield ResolveEgressNodeId({client: this.client, geo: region || undefined}));
+      }
 
       const output = {
         ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
         // ...(tags !== undefined && {tags}),
         input: cleanInput,
-        ...(nodeOrRegionChanged && {description: nodeOrRegionTarget}),
+        ...(nodeOrRegionChanged && {custom: WithOutputLocation(existing.custom, {
+          type: locationType,
+          geo: region,
+          // Automatic doesn't save its resolved node - only a dedicated or pinned pick does.
+          node: locationType === "dedicated" ? node : (nodeHost ? resolvedNodeId : undefined),
+          host: nodeHost
+        })}),
         ...(transportKey && {
           [transportKey]: {
             ...existingTransport,

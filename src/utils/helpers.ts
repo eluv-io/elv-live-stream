@@ -1,4 +1,5 @@
 import {FormatTime} from "@/utils/formatters";
+import {FABRIC_NODE_REGIONS} from "@/utils/constants";
 
 export type DateRangePreset = "day" | "week" | "month" | "year" | "all";
 
@@ -251,3 +252,53 @@ export const WithTimeout = <T>(promise: Promise<T>, ms: number, label: string): 
       setTimeout(() => reject(new Error(`Timed out after ${ms}ms: ${label}`)), ms)
     )
   ]);
+
+export type OutputLocationType = "public" | "dedicated";
+
+// `node` is always a node ID. `host` is the hostname a public pick was made from,
+// kept so the form can match its node list without looking the ID up again.
+export interface OutputLocation {
+  type?: OutputLocationType;
+  geo?: string;
+  node?: string;
+  host?: string;
+}
+
+// An output's saved location. Reads `custom.location`, falling back to the legacy
+// `description` (a region slug or a node id) until that's phased out. Legacy
+// outputs have no saved type, so it's inferred from `dedicatedNodeIds`. Public
+// with no geo is Automatic; an output with nothing saved reads as that.
+export const GetOutputLocation = (
+  output?: {custom?: {location?: OutputLocation}, description?: string},
+  dedicatedNodeIds: string[] = []
+): {type: OutputLocationType, geo: string, node: string, host: string} => {
+  const location = output?.custom?.location;
+  if(location) {
+    return {type: location.type ?? "public", geo: location.geo || "", node: location.node || "", host: location.host || ""};
+  }
+
+  const description = output?.description;
+  if(!description) { return {type: "public", geo: "", node: "", host: ""}; }
+
+  if(FABRIC_NODE_REGIONS.some(region => region.value === description)) {
+    return {type: "public", geo: description, node: "", host: ""};
+  }
+
+  return {type: dedicatedNodeIds.includes(description) ? "dedicated" : "public", geo: "", node: description, host: ""};
+};
+
+// `custom` with `location` replaced (or dropped when empty); undefined if nothing is left.
+export const WithOutputLocation = (custom: Record<string, any> | undefined, location: OutputLocation): Record<string, any> | undefined => {
+  const {location: _previous, ...rest} = custom || {}; // eslint-disable-line no-unused-vars, @typescript-eslint/no-unused-vars
+  const next = {
+    ...rest,
+    ...((location.type || location.geo || location.node || location.host) && {location: {
+      ...(location.type && {type: location.type}),
+      ...(location.geo && {geo: location.geo}),
+      ...(location.node && {node: location.node}),
+      ...(location.host && {host: location.host})
+    }})
+  };
+
+  return Object.keys(next).length ? next : undefined;
+};

@@ -10,6 +10,7 @@ import {
   Flex,
   Group,
   Input,
+  Loader,
   PasswordInput,
   Select,
   SimpleGrid,
@@ -182,32 +183,31 @@ const GeneralConfig = observer(({form, output}) => {
                 <>
                   <Select
                     label="Fabric Geo"
-                    withAsterisk
-                    data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
-                    placeholder="Select Geo"
-                    clearable
+                    description="Automatic lets the fabric choose a region"
+                    data={[{value: "", label: "Automatic"}, ...FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))]}
+                    allowDeselect={false}
                     key={form.key("geo")}
                     {...form.getInputProps("geo")}
                     onChange={(value) => {
-                      form.setFieldValue("geo", value);
+                      form.setFieldValue("geo", value || "");
                       form.setFieldValue("geoNode", "");
                       if(value) { outputStore.LoadNodesByRegion({region: value}); }
                     }}
                   />
                   <Select
-                    label="Node (optional)"
-                    description="Pin the output to a specific node in this region"
-                    data={outputStore.nodesByRegion[form.getValues().geo] || []}
+                    label="Node"
+                    description="Automatic lets the fabric choose a node"
+                    // "" is the Automatic option; specific nodes need a chosen geo
+                    data={[{value: "", label: "Automatic"}, ...(outputStore.nodesByRegion[form.getValues().geo] || [])]}
                     disabled={!form.getValues().geo}
-                    clearable
-                    placeholder={
-                      !form.getValues().geo ? "Select a Fabric Geo first" :
-                        outputStore.loadingNodesRegion === form.getValues().geo ? "Loading Nodes..." :
-                          (outputStore.nodesByRegion[form.getValues().geo] || []).length === 0 ? "No specific nodes found" :
-                            "Select Node"
+                    allowDeselect={false}
+                    rightSection={
+                      form.getValues().geo && outputStore.loadingNodesRegion === form.getValues().geo ?
+                        <Loader size={14} /> : undefined
                     }
                     key={form.key("geoNode")}
                     {...form.getInputProps("geoNode")}
+                    onChange={(value) => form.setFieldValue("geoNode", value || "")}
                   />
                 </>
             }

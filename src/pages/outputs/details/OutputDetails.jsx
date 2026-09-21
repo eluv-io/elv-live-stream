@@ -30,7 +30,7 @@ import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import {useClipboard, useDebouncedCallback} from "@mantine/hooks";
 import {FABRIC_NODE_REGIONS, FAILOVER_TIMEOUT_OPTIONS, OUTPUT_TYPE_COLOR_MAP, QUALITY_TEXT, STATUS_MAP} from "@/utils/constants.ts";
-import {OutputUrlProtocol} from "@/utils/helpers.ts";
+import {GetOutputLocation, OutputUrlProtocol} from "@/utils/helpers.ts";
 import sharedStyles from "@/assets/shared.module.css";
 import {outputModalStore} from "@/stores/index.ts";
 import {DateFormat, BytesToMb} from "@/utils/formatters.ts";
@@ -40,21 +40,16 @@ import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 
-// Classifies an output's location pick (saved in `description`) as dedicated,
-// region-only, or region-with-node. Only region-only writes a singular region slug
-const ClassifyOutputLocation = ({description, dedicatedNodesList}) => {
-  if(!description) {
-    return {nodeType: "public", geo: "", node: "", geoNode: ""};
-  }
+// Classifies an output's saved location (see GetOutputLocation) as dedicated or
+// public (Automatic, region-only, or region-with-node). `geoNode` is the public
+// node's hostname, matching the Node select's values; `nodeLabel` falls back to a
+// legacy pinned node's ID, which has no hostname saved.
+const ClassifyOutputLocation = ({output, dedicatedNodesList}) => {
+  const {type, geo, node, host} = GetOutputLocation(output, (dedicatedNodesList || []).map(n => n.value));
 
-  if(FABRIC_NODE_REGIONS.some(region => region.value === description)) {
-    return {nodeType: "public", geo: description, node: "", geoNode: ""};
-  }
-
-  const isDedicated = (dedicatedNodesList || []).some(n => n.value === description);
-  return isDedicated ?
-    {nodeType: "dedicated", geo: "", node: description, geoNode: ""} :
-    {nodeType: "public", geo: "", node: "", geoNode: description};
+  return type === "dedicated" ?
+    {nodeType: "dedicated", geo: "", node, geoNode: "", nodeLabel: undefined} :
+    {nodeType: "public", geo, node: "", geoNode: host, nodeLabel: host || node || undefined};
 };
 
 // Quality + input-stat rows shared by the Input Primary and Input Failover
@@ -274,7 +269,7 @@ const OutputPanels = observer(({output, id, url}) => {
   const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
   // dedicatedNodesList is guaranteed loaded here - see the loader gate below.
   const initialLocation = ClassifyOutputLocation({
-    description: output.description,
+    output,
     dedicatedNodesList: dataStore.dedicatedNodesList
   });
   const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
@@ -308,7 +303,6 @@ const OutputPanels = observer(({output, id, url}) => {
         return null;
       },
       node: (value, values) => values.nodeType === "dedicated" ? (value ? null : "Node is required") : null,
-      geo: (value, values) => values.nodeType === "public" ? (value ? null : "Geo is required") : null,
       url: (value, values) => {
         if(values.type === "srt_pull") { return null; }
         if(!value) { return "URL is required"; }
@@ -341,12 +335,16 @@ const OutputPanels = observer(({output, id, url}) => {
       encryption,
       stripRtp,
       passphrase: encryption ? passphrase : undefined,
+      nodeType: values.nodeType,
       // "" rather than undefined for the inactive one of node/region - ModifyOutput
       // treats undefined as "leave existing value alone", but switching between
       // dedicated node and public geo must clear whichever one is no longer active,
       // or the fabric rejects the update ("only one of elvgeos or node_ids can be set").
-      node: isDedicated ? node : (geoNode || ""),
-      region: !isDedicated ? (geoNode ? "" : geo) : "",
+      // A pinned public node keeps its geo and is passed by hostname (resolved to an ID
+      // when saved), so both are saved.
+      node: isDedicated ? node : "",
+      nodeHost: isDedicated ? "" : (geoNode || ""),
+      region: isDedicated ? "" : geo,
       url: isPush ? url : undefined,
       failoverStream: hasPrimary ? values.failoverStream : undefined,
       failoverAfter: values.failoverAfter,
@@ -424,16 +422,16 @@ const OutputDetails = observer(() => {
   const flatOutput = outputStore.OutputItem(id);
   const url = flatOutput?.url;
   const outputLocation = ClassifyOutputLocation({
-    description: output?.description,
+    output,
     dedicatedNodesList: dataStore.dedicatedNodesList
   });
   const hasDedicatedNode = outputLocation.nodeType === "dedicated";
   const geoLabel = outputLocation.geo ?
     FABRIC_NODE_REGIONS.find(geo => geo.value === outputLocation.geo)?.label :
-    undefined;
+    (!hasDedicatedNode && !outputLocation.nodeLabel ? "Automatic" : undefined);
   const nodeLabel = hasDedicatedNode ?
-    dataStore.dedicatedNodes?.[output.description]?.name :
-    (outputLocation.geoNode || undefined);
+    dataStore.dedicatedNodes?.[outputLocation.node]?.name :
+    outputLocation.nodeLabel;
   const typeBadges = flatOutput?.type?.length ?
     <Group gap={4} wrap="nowrap">
       {
