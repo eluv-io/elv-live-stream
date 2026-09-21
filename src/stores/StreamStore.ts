@@ -1546,7 +1546,7 @@ class StreamStore {
         console.error(message, error);
         return fallback;
       });
-    }
+    };
 
     // Part 1 - everything that needs only objectId, in parallel
     const [versionHash, signedToken, embedUrl, libraryId, playoutOptions] = yield Promise.all([
@@ -1665,7 +1665,7 @@ class StreamStore {
     return `srt://${network}.glb.contentfabric.io:${port}?streamid=${streamId}`;
   }
 
-  /** PlayoutOptions URL with the signed token swapped in, matching `authArgs`. Undefined when absent or unparsable. */
+  /** PlayoutOptions URL with the signed token swapped in, matching `authArgs`. Undefined when absent or not able to parse. */
   _SdkPlayoutUrl({url, signedToken}: {url?: string, signedToken?: string}): string | undefined {
     if(!url) { return undefined; }
     try {

@@ -143,6 +143,7 @@ module.exports = [
   "sandboxed",
   "scrollbar",
   "scroller",
+  "sdk",
   "searchable",
   "seg",
   "segoe",
