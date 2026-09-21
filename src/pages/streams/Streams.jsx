@@ -2,7 +2,7 @@ import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
-import {ActionIcon, Button, Group, Popover, Select, Text, Tooltip} from "@mantine/core";
+import {ActionIcon, Button, Divider, Group, Popover, Select, Text, Tooltip} from "@mantine/core";
 import {DatePicker} from "@mantine/dates";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
@@ -200,9 +200,12 @@ const Streams = observer(() => {
           <Popover opened={showDatePicker} onChange={opened => !opened && closeDatePicker()} withinPortal position="bottom-end">
             <Popover.Target>
               <Tooltip label="Select a date">
-                <ActionIcon variant="subtle" color="elv-gray.6" onClick={toggleDatePicker}>
-                  <CalendarMonthIcon size={24} />
-                </ActionIcon>
+                <Button variant="subtle" color="elv-gray.6" px={12} onClick={toggleDatePicker}>
+                  <Group gap={12} wrap="nowrap">
+                    <CalendarMonthIcon size={16} color="elv-neutral.4" />
+                    <Text fw={500} fz={16} c="elv-black.9" style={{whiteSpace: "nowrap"}}>{dateRangeLabel}</Text>
+                  </Group>
+                </Button>
               </Tooltip>
             </Popover.Target>
             <Popover.Dropdown>
@@ -214,12 +217,7 @@ const Streams = observer(() => {
               />
             </Popover.Dropdown>
           </Popover>
-          {dateRangeLabel && (
-            <Text fz="1.25rem" fw={400} style={{whiteSpace: "nowrap"}}>
-              {dateRangeLabel}
-            </Text>
-          )}
-          <Group gap={8} wrap="nowrap">
+          <Group gap={8} wrap="nowrap" align="center">
             <Tooltip label={`Previous ${datePresetLabel}`} disabled={datePreset === "all"}>
               <ActionIcon variant="subtle" color="elv-gray.6" disabled={datePreset === "all"} onClick={() => ShiftDate(-1)}>
                 <IconChevronLeft size={24} />
@@ -231,7 +229,9 @@ const Streams = observer(() => {
               </ActionIcon>
             </Tooltip>
           </Group>
-          <Button variant="outline" maw={80} miw={0} p="0 14px" onClick={() => SelectDatePreset(datePreset)}>Today</Button>
+          <Divider orientation="vertical" size={1} color="elv-gray.3" h={18} style={{alignSelf: "center"}} />
+          <Button variant="outline" maw={80} miw={0} p="0 12px" onClick={() => SelectDatePreset(datePreset)}>Today</Button>
+          <Divider orientation="vertical" size={1} color="elv-gray.3" h={18} style={{alignSelf: "center"}} />
           <Select
             data={DATE_RANGE_PRESET_OPTIONS}
             value={datePreset}
