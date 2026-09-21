@@ -1541,10 +1541,14 @@ class StreamStore {
       JSON.stringify({qspace_id: this.rootStore.contentSpaceId})
     );
 
-    const Guard = (promise: any, message: string, fallback?: any) =>
-      Promise.resolve(promise).catch(error => { console.error(message, error); return fallback; });
+    const Guard = (promise: any, message: string, fallback?: any) => {
+      return Promise.resolve(promise).catch(error => {
+        console.error(message, error);
+        return fallback;
+      });
+    }
 
-    // Part 1 - everything that needs only the objectId, in parallel.
+    // Part 1 - everything that needs only objectId, in parallel
     const [versionHash, signedToken, embedUrl, libraryId, playoutOptions] = yield Promise.all([
       Guard(this.client.LatestVersionHash({objectId}), `Unable to load version hash for ${objectId}`),
       Guard(this.client.CreateSignedToken({
@@ -1582,7 +1586,7 @@ class StreamStore {
       });
     });
 
-    // Part 2 - needs libraryId, in parallel.
+    // Part 2 - needs libraryId, in parallel
     const [rawPlayoutUrl, formatsMeta] = yield Promise.all([
       Guard(this.client.FabricUrl({
         libraryId,
@@ -1608,22 +1612,25 @@ class StreamStore {
     const configured = overrides ?? config ?? applied ?? Object.keys(offering || {});
     const formats: string[] = (Array.isArray(configured) ? configured : []).filter(format => PLAYOUT_FORMATS[format]);
 
-    // Part 3 - one FabricUrl per format, in parallel, kept in `formats` order.
+    // Part 3 - one URL per format, in parallel, kept in `formats` order.
+    // Prefer the URL from PlayoutOptions; fall back to the expected path when it's absent
     const methods = yield Promise.all(formats.map(async format => {
       const {label, manifest, protocol, drm} = PLAYOUT_FORMATS[format];
 
-      let rawUrl;
-      try {
-        rawUrl = await this.client.FabricUrl({
-          libraryId,
-          objectId,
-          rep: `playout/default/${format}/${manifest}`,
-          ...authArgs
-        });
-      } catch(error) {
+      let rawUrl = this._SdkPlayoutUrl({url: liveMethods[`${protocol}-${drm}`]?.playoutUrl, signedToken});
+      if(!rawUrl) {
+        try {
+          rawUrl = await this.client.FabricUrl({
+            libraryId,
+            objectId,
+            rep: `playout/default/${format}/${manifest}`,
+            ...authArgs
+          });
+        } catch(error) {
 
-        console.error(`Unable to build playout URL for ${objectId} (${format})`, error);
-        return undefined;
+          console.error(`Unable to build playout URL for ${objectId} (${format})`, error);
+          return undefined;
+        }
       }
 
       const licenseServers = liveMethods[`${protocol}-${drm}`]?.drms?.[drm]?.licenseServers;
@@ -1656,6 +1663,20 @@ class StreamStore {
     const port = SRT_PLAYOUT_PORTS[network] || SRT_PLAYOUT_PORTS.main;
     const streamId = `live-ts.${objectId}${token ? `.${token}` : ""}`;
     return `srt://${network}.glb.contentfabric.io:${port}?streamid=${streamId}`;
+  }
+
+  /** PlayoutOptions URL with the signed token swapped in, matching `authArgs`. Undefined when absent or unparsable. */
+  _SdkPlayoutUrl({url, signedToken}: {url?: string, signedToken?: string}): string | undefined {
+    if(!url) { return undefined; }
+    try {
+      const playoutUrl = new URL(url);
+      if(signedToken) { playoutUrl.searchParams.set("authorization", signedToken); }
+      return playoutUrl.toString();
+    } catch(error) {
+
+      console.error(`Unable to parse playout URL ${url}`, error);
+      return undefined;
+    }
   }
 
   /** Strip the signed-token param (`ath`) from an embed URL for the "public" variant. */
