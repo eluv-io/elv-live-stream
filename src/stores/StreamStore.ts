@@ -1144,15 +1144,6 @@ class StreamStore {
     }
   }
 
-  /** Run a TenantContent query pinned to the fixed fabric node, always releasing the region afterward. */
-  async _TenantContent(params: Record<string, any>): Promise<any> {
-    try {
-      return await this.client.TenantContent(params);
-    } catch(error) {
-      console.error("Unable to reset region after TenantContent", error);
-    }
-  }
-
   /** TenantContent filter array: site + optional date range + optional name (contains match on the `name` query field). */
   _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string): string[] {
     const [startDate, endDate] = dateRange || [null, null];
@@ -1241,7 +1232,7 @@ class StreamStore {
       let versions: TenantContentVersion[] = [];
 
       while(true) {
-        const {versions: page, paging} = yield this._TenantContent({
+        const {versions: page, paging} = yield this.client.TenantContent({
           filter,
           start,
           limit: TENANT_CONTENT_PAGE_SIZE,
@@ -1298,7 +1289,7 @@ class StreamStore {
       const filter = this._TenantContentFilter(siteId, dateRange, nameFilter);
       const start = this._tenantContentCursor;
 
-      const {versions, paging} = yield this._TenantContent({
+      const {versions, paging} = yield this.client.TenantContent({
         filter,
         start,
         limit: TENANT_CONTENT_PAGE_SIZE,
@@ -1432,7 +1423,7 @@ class StreamStore {
         let versions: TenantContentVersion[] = [];
 
         while(true) {
-          const {versions: page, paging} = yield this._TenantContent({
+          const {versions: page, paging} = yield this.client.TenantContent({
             filter,
             start,
             limit: TENANT_CONTENT_PAGE_SIZE
@@ -1486,7 +1477,7 @@ class StreamStore {
     let versions: TenantContentVersion[] = [];
 
     while(true) {
-      const {versions: page, paging} = yield this._TenantContent({
+      const {versions: page, paging} = yield this.client.TenantContent({
         filter,
         start,
         limit: TENANT_CONTENT_PAGE_SIZE
