@@ -2,7 +2,7 @@ import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
-import {ActionIcon, Group, Popover, Select, Text, Tooltip} from "@mantine/core";
+import {ActionIcon, Button, Group, Popover, Select, Text, Tooltip} from "@mantine/core";
 import {DatePicker} from "@mantine/dates";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
@@ -17,6 +17,7 @@ import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {notifications} from "@mantine/notifications";
 import {IconArrowsMaximize, IconArrowsMinimize, IconChevronLeft, IconChevronRight, IconCopy, IconLabel, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
 import {CalendarMonthIcon, EndIcon} from "@/assets/icons/index.js";
+import styles from "./Streams.module.css";
 
 const EndRecordingIcon = (props) => <EndIcon width={16} height={16} {...props} />;
 
@@ -196,6 +197,23 @@ const Streams = observer(() => {
       titleRightSection={
         !showDateControls ? null :
         <Group gap={16} wrap="nowrap">
+          <Popover opened={showDatePicker} onChange={opened => !opened && closeDatePicker()} withinPortal position="bottom-end">
+            <Popover.Target>
+              <Tooltip label="Select a date">
+                <ActionIcon variant="subtle" color="elv-gray.6" onClick={toggleDatePicker}>
+                  <CalendarMonthIcon size={24} />
+                </ActionIcon>
+              </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <DatePicker
+                value={datePreset === "day" ? FormatDateFilter(referenceDate) : null}
+                onChange={SelectDate}
+                highlightToday
+                classNames={{day: styles.datePickerDay}}
+              />
+            </Popover.Dropdown>
+          </Popover>
           {dateRangeLabel && (
             <Text fz="1.25rem" fw={400} style={{whiteSpace: "nowrap"}}>
               {dateRangeLabel}
@@ -213,18 +231,7 @@ const Streams = observer(() => {
               </ActionIcon>
             </Tooltip>
           </Group>
-          <Popover opened={showDatePicker} onClose={closeDatePicker} withinPortal position="bottom-end">
-            <Popover.Target>
-              <Tooltip label="Select a date">
-                <ActionIcon variant="subtle" color="elv-gray.6" onClick={toggleDatePicker}>
-                  <CalendarMonthIcon size={24} />
-                </ActionIcon>
-              </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown>
-              <DatePicker value={datePreset === "day" ? FormatDateFilter(referenceDate) : null} onChange={SelectDate} />
-            </Popover.Dropdown>
-          </Popover>
+          <Button variant="outline" maw={80} miw={0} p="0 14px" onClick={() => SelectDatePreset(datePreset)}>Today</Button>
           <Select
             data={DATE_RANGE_PRESET_OPTIONS}
             value={datePreset}
