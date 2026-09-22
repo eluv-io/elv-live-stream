@@ -1563,7 +1563,6 @@ class StreamStore {
     // TODO: drop this filter once every offering is meant to be shown
     const offerings = Object.keys(sourcesByOffering || {}).filter(offering => ["default", "wsc"].includes(offering));
     if(offerings.length === 0) { offerings.push("default"); }
-    console.log("offerings", offerings);
 
     // Part 1 - everything that needs only objectId, in parallel
     const [versionHash, signedToken, embedUrl, libraryId] = yield Promise.all([
