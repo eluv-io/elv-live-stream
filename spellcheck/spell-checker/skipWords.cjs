@@ -141,6 +141,7 @@ module.exports = [
   "sandboxed",
   "scrollbar",
   "scroller",
+  "sdk",
   "searchable",
   "seg",
   "segoe",
@@ -190,6 +191,7 @@ module.exports = [
   "whitespace",
   "widevine",
   "wm",
+  "wsc",
   "xc",
   "xl"
 ];
