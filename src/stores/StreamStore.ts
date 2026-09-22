@@ -221,7 +221,10 @@ export interface StreamOutputUrls {
   publicEmbedUrl?: string;
   playoutUrl?: string;
   publicPlayoutUrl?: string;
+  // Default offering's rows - kept for callers that don't care about offering.
   playoutMethods: OutputUrlRow[];
+  // Same rows as playoutMethods, keyed by offering, for UI filtering by offering.
+  playoutMethodsByOffering: Record<string, OutputUrlRow[]>;
   srtPlayoutUrl?: string;
   publicSrtPlayoutUrl?: string;
 }
@@ -1534,7 +1537,7 @@ class StreamStore {
    * protocol/DRM method. All playout URLs carry the same week-long signed token.
    */
   *BuildStreamOutputUrls(objectId: string): Generator<any, StreamOutputUrls> {
-    const result: StreamOutputUrls = {playoutMethods: []};
+    const result: StreamOutputUrls = {playoutMethods: [], playoutMethodsByOffering: {}};
     if(!objectId) { return result; }
 
     const anonymousToken = this.client.utils.B64(
@@ -1548,8 +1551,22 @@ class StreamStore {
       });
     };
 
+    // Gather offerings
+    const sourcesByOffering = yield Guard(
+      this.client.ContentObjectMetadata({
+        libraryId: yield this.client.ContentObjectLibraryId({objectId}),
+        objectId,
+        metadataSubtree: "offerings"
+      }),
+      `Unable to load sources for ${objectId}`
+    );
+    // TODO: drop this filter once every offering is meant to be shown
+    const offerings = Object.keys(sourcesByOffering || {}).filter(offering => ["default", "wsc"].includes(offering));
+    if(offerings.length === 0) { offerings.push("default"); }
+    console.log("offerings", offerings);
+
     // Part 1 - everything that needs only objectId, in parallel
-    const [versionHash, signedToken, embedUrl, libraryId, playoutOptions] = yield Promise.all([
+    const [versionHash, signedToken, embedUrl, libraryId] = yield Promise.all([
       Guard(this.client.LatestVersionHash({objectId}), `Unable to load version hash for ${objectId}`),
       Guard(this.client.CreateSignedToken({
         objectId,
@@ -1557,13 +1574,7 @@ class StreamStore {
         duration: 7 * 86400000 // 1 week
       }), `Unable to create signed token for ${objectId}`),
       Guard(this.EmbedUrl({objectId}), `Unable to load embed URL for ${objectId}`),
-      Guard(this.client.ContentObjectLibraryId({objectId}), `Unable to load library id for ${objectId}`),
-      Guard(this.client.PlayoutOptions({
-        objectId,
-        protocols: ["hls", "dash"],
-        drms: ALL_DRMS,
-        offering: "default"
-      }), `Unable to load live playout options for ${objectId}`)
+      Guard(this.client.ContentObjectLibraryId({objectId}), `Unable to load library id for ${objectId}`)
     ]);
 
     // Swap channel auth for the signed token when we have one
@@ -1579,75 +1590,115 @@ class StreamStore {
       result.publicEmbedUrl = this._DropEmbedAuth(embedUrl);
     }
 
-    const liveMethods: Record<string, any> = {};
-    Object.keys(playoutOptions || {}).forEach(protocol => {
-      Object.keys(playoutOptions[protocol]?.playoutMethods || {}).forEach(drm => {
-        liveMethods[`${protocol}-${drm}`] = playoutOptions[protocol].playoutMethods[drm];
+    // Part 2 - one full set of playout URLs per offering, in parallel
+    const BuildOfferingUrls = async (offering: string) => {
+      const [playoutOptions, rawPlayoutUrl, formatsMeta] = await Promise.all([
+        Guard(this.client.PlayoutOptions({
+          objectId,
+          protocols: ["hls", "dash"],
+          drms: ALL_DRMS,
+          offering
+        }), `Unable to load live playout options for ${objectId} (${offering})`),
+        Guard(this.client.FabricUrl({
+          libraryId,
+          objectId,
+          rep: `playout/${offering}/options.json`,
+          ...authArgs
+        }), `Unable to load playout options URL for ${objectId} (${offering})`),
+        // Playout formats in precedence order: overrides -> config -> applied -> keys of the offering.
+        // overrides/config/applied are the "default" offering's settings, not per-offering - only
+        // read them for "default", or they'd wrongly win over every other offering's own formats.
+        Guard(
+          offering === "default" ?
+            Promise.all([
+              this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_overrides/playout_config/playout_formats"}),
+              this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_config/playout_config/playout_formats"}),
+              this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording/playout_config/playout_formats"}),
+              this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: `offerings/${offering}/playout/playout_formats`})
+            ]) :
+            this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: `offerings/${offering}/playout/playout_formats`})
+              .then(offeringFormats => [undefined, undefined, undefined, offeringFormats]),
+          `Unable to load playout formats for ${objectId} (${offering})`,
+          []
+        )
+      ]);
+
+      const liveMethods: Record<string, any> = {};
+      Object.keys(playoutOptions || {}).forEach(protocol => {
+        Object.keys(playoutOptions[protocol]?.playoutMethods || {}).forEach(drm => {
+          liveMethods[`${protocol}-${drm}`] = playoutOptions[protocol].playoutMethods[drm];
+        });
       });
-    });
 
-    // Part 2 - needs libraryId, in parallel
-    const [rawPlayoutUrl, formatsMeta] = yield Promise.all([
-      Guard(this.client.FabricUrl({
-        libraryId,
-        objectId,
-        rep: "playout/default/options.json",
-        ...authArgs
-      }), `Unable to load playout options URL for ${objectId}`),
-      // Playout formats in precedence order: overrides -> config -> applied -> keys of the "default" offering.
-      Guard(Promise.all([
-        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_overrides/playout_config/playout_formats"}),
-        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording_config/playout_config/playout_formats"}),
-        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "live_recording/playout_config/playout_formats"}),
-        this.client.ContentObjectMetadata({libraryId, objectId, metadataSubtree: "offerings/default/playout/playout_formats"})
-      ]), `Unable to load playout formats for ${objectId}`, [])
-    ]);
+      const [overrides, config, applied, offeringFormats] = formatsMeta || [];
+      const configured = overrides ?? config ?? applied ?? Object.keys(offeringFormats || {});
+      const formats: string[] = (Array.isArray(configured) ? configured : []).filter(format => PLAYOUT_FORMATS[format]);
 
-    if(rawPlayoutUrl) {
-      result.playoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId});
-      result.publicPlayoutUrl = this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, dropAuthorization: true});
-    }
+      // One URL per format, in parallel, kept in `formats` order.
+      // Prefer the URL from PlayoutOptions; fall back to the expected path when it's absent
+      const methods = await Promise.all(formats.map(async format => {
+        const {label, manifest, protocol, drm} = PLAYOUT_FORMATS[format];
 
-    const [overrides, config, applied, offering] = formatsMeta || [];
-    const configured = overrides ?? config ?? applied ?? Object.keys(offering || {});
-    const formats: string[] = (Array.isArray(configured) ? configured : []).filter(format => PLAYOUT_FORMATS[format]);
+        let rawUrl = this._SdkPlayoutUrl({url: liveMethods[`${protocol}-${drm}`]?.playoutUrl, signedToken});
+        if(!rawUrl) {
+          try {
+            rawUrl = await this.client.FabricUrl({
+              libraryId,
+              objectId,
+              rep: `playout/${offering}/${format}/${manifest}`,
+              ...authArgs
+            });
+          } catch(error) {
 
-    // Part 3 - one URL per format, in parallel, kept in `formats` order.
-    // Prefer the URL from PlayoutOptions; fall back to the expected path when it's absent
-    const methods = yield Promise.all(formats.map(async format => {
-      const {label, manifest, protocol, drm} = PLAYOUT_FORMATS[format];
-
-      let rawUrl = this._SdkPlayoutUrl({url: liveMethods[`${protocol}-${drm}`]?.playoutUrl, signedToken});
-      if(!rawUrl) {
-        try {
-          rawUrl = await this.client.FabricUrl({
-            libraryId,
-            objectId,
-            rep: `playout/default/${format}/${manifest}`,
-            ...authArgs
-          });
-        } catch(error) {
-
-          console.error(`Unable to build playout URL for ${objectId} (${format})`, error);
-          return undefined;
+            console.error(`Unable to build playout URL for ${objectId} (${offering}/${format})`, error);
+            return undefined;
+          }
         }
-      }
 
-      const licenseServers = liveMethods[`${protocol}-${drm}`]?.drms?.[drm]?.licenseServers;
-      const licenseServerUrl = Array.isArray(licenseServers) && licenseServers.length > 0 ? licenseServers[0] : undefined;
+        const licenseServers = liveMethods[`${protocol}-${drm}`]?.drms?.[drm]?.licenseServers;
+        const licenseServerUrl = Array.isArray(licenseServers) && licenseServers.length > 0 ? licenseServers[0] : undefined;
+
+        return {
+          label,
+          url: this._NamedNetworkUrl({url: rawUrl, objectId}),
+          licenseServerUrl,
+          publicUrl: this._NamedNetworkUrl({url: rawUrl, objectId, dropAuthorization: true}),
+          publicLicenseServerUrl: licenseServerUrl ?
+            this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
+            undefined
+        };
+      }));
+
+      const resolvedMethods = methods.filter(Boolean);
 
       return {
-        label,
-        url: this._NamedNetworkUrl({url: rawUrl, objectId}),
-        licenseServerUrl,
-        publicUrl: this._NamedNetworkUrl({url: rawUrl, objectId, dropAuthorization: true}),
-        publicLicenseServerUrl: licenseServerUrl ?
-          this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
-          undefined
+        offering,
+        playoutUrl: rawPlayoutUrl ? this._NamedNetworkUrl({url: rawPlayoutUrl, objectId}) : undefined,
+        publicPlayoutUrl: rawPlayoutUrl ? this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, dropAuthorization: true}) : undefined,
+        methods: resolvedMethods
       };
-    }));
+    };
 
-    result.playoutMethods.push(...methods.filter(Boolean));
+    const offeringResults = yield Promise.all(offerings.map(BuildOfferingUrls));
+
+    // "default" wins as the offering-agnostic result; otherwise the first offering does.
+    offeringResults.forEach(({offering, playoutUrl, publicPlayoutUrl, methods}) => {
+      result.playoutMethodsByOffering[offering] = methods;
+      if(offering === "default" || !result.playoutUrl) {
+        result.playoutUrl = playoutUrl;
+        result.publicPlayoutUrl = publicPlayoutUrl;
+        result.playoutMethods = methods;
+      }
+    });
+
+    // There's no by-offering filter in the UI yet, so fold the wsc offering's row into the flat
+    // list too, under its own "WSC" label (not the format's own label) so it doesn't read as a
+    // duplicate of the default offering's - the UI appends " Playout URL" itself, same as every
+    // other format label. TODO: drop once the by-offering filter ships, per NBA handover ask.
+    const [wscMethod] = result.playoutMethodsByOffering["wsc"] || [];
+    if(wscMethod) {
+      result.playoutMethods.push({...wscMethod, label: "WSC"});
+    }
 
     return result;
   }
