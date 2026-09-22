@@ -194,6 +194,7 @@ module.exports = [
   "widevine",
   "wm",
   "writeable",
+  "wsc",
   "xc",
   "xl"
 ];
