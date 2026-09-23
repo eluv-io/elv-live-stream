@@ -313,6 +313,8 @@ export interface StreamMetadata {
   originUrl: string;
   referenceUrl: string;
   title: string;
+  date?: string;
+  eventTime?: string;
   // Recording Config
   connectionTimeout: string | null;
   partTtl: string | null;

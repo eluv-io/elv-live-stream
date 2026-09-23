@@ -232,6 +232,20 @@ export const FormatStreamDate = (date?: string): string => {
   return isNaN(parsed.getTime()) ? date : FormatDateFilter(parsed);
 };
 
+export const FormatStreamEventTime = (time?: string): string => {
+  if(!time) { return ""; }
+
+  const parsed = new Date(time);
+  if(isNaN(parsed.getTime())) { return ""; }
+
+  return parsed.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "America/New_York"
+  });
+};
+
 // Copy of elv-client-js's `slugify`. Importing it from
 // `@eluvio/elv-client-js/utilities/lib/helpers.js` pulls that whole module in,
 // about 24KB gzip in the entry chunk for a one-line regex.

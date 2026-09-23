@@ -61,7 +61,7 @@ export interface ProbeData {
   audioData: AudioDataMap;
 }
 
-type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags">;
+type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags" | "date" | "eventTime">;
 
 type GeneralConfigData = Pick<StreamMetadata,
   "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
@@ -111,7 +111,9 @@ const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamLi
     originUrl: url,
     source,
     packaging,
-    inputCfg
+    inputCfg,
+    date: meta?.public?.asset_metadata?.date,
+    eventTime: meta?.public?.asset_metadata?.time
   };
 };
 
@@ -131,6 +133,8 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
     if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
     if(listData.source?.length) { info.source = listData.source; }
     if(listData.packaging?.length) { info.packaging = listData.packaging; }
+    if(listData.date != null) { info.date = listData.date; }
+    if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
     // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
     if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
   }
@@ -139,7 +143,8 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
     info.name = name;
     if(info.title == null) { info.title = name; }
   }
-  if(date != null) { info.date = date; }
+  // Meta's asset_metadata/date takes priority; query_fields.date is the fallback when meta wasn't fetched.
+  if(date != null && info.date == null) { info.date = date; }
   if(titleId != null) { info.titleId = titleId; }
 
   return info;
@@ -177,6 +182,8 @@ const TENANT_CONTENT_SELECT = [
   "public/name",
   "public/asset_metadata/display_title",
   "public/asset_metadata/tags",
+  "public/asset_metadata/date",
+  "public/asset_metadata/time",
   "live_recording/recording_config/recording_params/xc_params/input_cfg",
   "live_recording_config/url",
   "live_recording_config/recording_config/input_cfg"
@@ -1828,6 +1835,8 @@ class StreamStore {
           "public/name",
           "public/asset_metadata/display_title",
           "public/asset_metadata/tags",
+          "public/asset_metadata/date",
+          "public/asset_metadata/time",
           "live_recording/recording_config/recording_params/xc_params/input_cfg",
           "live_recording_config/url",
           "live_recording_config/recording_config/input_cfg"

@@ -16,7 +16,12 @@ import {
 import {Link} from "react-router-dom";
 import {EndIcon} from "@/assets/icons/index.js";
 
+// No playable (fmp4) output when a stream is packaged as Transport Stream only.
+const TsPackagingOnly = record => (record.packaging || []).length > 0 && !record.packaging.includes("fmp4");
+
 export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, view}) => {
+  const tsPackagingOnly = TsPackagingOnly(record);
+
   return [
     {
       label: "Check",
@@ -109,14 +114,16 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
     },
     {
       label: "View",
-      title: "View Stream",
+      title: tsPackagingOnly ? "Preview unavailable for Transport Stream-only packaging" : "View Stream",
       icon: <IconDeviceAnalytics />,
       iconVariant: "subtle",
       buttonVariant: "outline",
       iconColor: "gray.6",
       hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
-      component: Link,
-      to: `/streams/${record.objectId}/preview`
+      disabled: tsPackagingOnly,
+      // component=Link ignores Mantine's `disabled` prop, so drop the link/route when disabled -
+      // renders as a real <button disabled> instead, which actually blocks the click.
+      ...(tsPackagingOnly ? {} : {component: Link, to: `/streams/${record.objectId}/preview`})
     },
     {
       label: "Stop",
