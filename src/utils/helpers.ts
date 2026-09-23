@@ -232,6 +232,7 @@ export const FormatStreamDate = (date?: string): string => {
   return isNaN(parsed.getTime()) ? date : FormatDateFilter(parsed);
 };
 
+// Viewer's local time-of-day (e.g. "14:00"), from a stream's event time ISO string.
 export const FormatStreamEventTime = (time?: string): string => {
   if(!time) { return ""; }
 
@@ -241,8 +242,7 @@ export const FormatStreamEventTime = (time?: string): string => {
   return parsed.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
-    timeZone: "America/New_York"
+    hour12: false
   });
 };
 
