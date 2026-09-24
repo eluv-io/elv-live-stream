@@ -240,7 +240,7 @@ export const FormatStreamEventTime = (time?: string): string => {
   if(isNaN(parsed.getTime())) { return ""; }
 
   return parsed.toLocaleTimeString("en-US", {
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
     hour12: true,
     timeZoneName: "short"
