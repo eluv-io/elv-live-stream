@@ -1957,6 +1957,38 @@ describe("UpdateConfigMetadata", () => {
     );
   });
 
+  it("merges advancedEncodingParams into xc_params without clobbering existing fields", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    mockClient.ContentObjectMetadata.mockImplementation(({metadataSubtree}) => {
+      if(metadataSubtree === "live_recording/recording_config/recording_params/xc_params") {
+        return Promise.resolve({video_bitrate: 5000000, preset: "veryfast"});
+      }
+      return Promise.resolve({});
+    });
+    await store.UpdateConfigMetadata({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false,
+      advancedEncodingParams: {preset: "medium", force_keyint: 60}
+    });
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
+        metadata: {video_bitrate: 5000000, preset: "medium", force_keyint: 60}
+      })
+    );
+  });
+
+  it("skips the xc_params merge write when advancedEncodingParams is empty or undefined", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false, advancedEncodingParams: {}});
+    let writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
+    expect(writtenPaths).not.toContain("live_recording/recording_config/recording_params/xc_params");
+
+    mockClient.ReplaceMetadata.mockClear();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false});
+    writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
+    expect(writtenPaths).not.toContain("live_recording/recording_config/recording_params/xc_params");
+  });
+
   it("skips FinalizeContentObject when finalize=false", async () => {
     const {store, mockClient} = makeConfigMetaStore();
     await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false});

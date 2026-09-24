@@ -2,9 +2,12 @@
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET, type DateRangePreset} from "@/utils/helpers";
-import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
+import {ALTERNATE_TRANSCODE_PROTOCOLS, LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {
+  AlternateTranscode,
   DeriveSourceAndPackaging,
+  ProgramPidSelection,
+  ProbeProgram,
   StreamMetadata, ProbeStream, RecordingInputCfg
 } from "@/utils/stream";
 import type RootStore from "@/stores/RootStore";
@@ -29,6 +32,14 @@ type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persisten
     stream_names: string[]
   };
   retention: string;
+  // Assumed shape, pending fabric-team confirmation - see the note on
+  // StreamEditStore's UpdateConfigMetadataParams.
+  copyPackagingFormats: string[];
+  alternateTranscodeEnabled: boolean;
+  // Resolved from the id array stored on the fabric - see ResolveAlternateTranscodes.
+  alternateTranscodes: AlternateTranscode[];
+  programPidSelection: ProgramPidSelection;
+  advancedEncodingParams: Record<string, unknown> | null;
 };
 
 export interface AudioDataEntry {
@@ -50,7 +61,7 @@ export interface ProbeData {
   audioData: AudioDataMap;
 }
 
-type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags">;
+type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags" | "date" | "eventTime">;
 
 type GeneralConfigData = Pick<StreamMetadata,
   "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
@@ -100,7 +111,9 @@ const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamLi
     originUrl: url,
     source,
     packaging,
-    inputCfg
+    inputCfg,
+    date: meta?.public?.asset_metadata?.date,
+    eventTime: meta?.public?.asset_metadata?.time
   };
 };
 
@@ -120,6 +133,8 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
     if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
     if(listData.source?.length) { info.source = listData.source; }
     if(listData.packaging?.length) { info.packaging = listData.packaging; }
+    if(listData.date != null) { info.date = listData.date; }
+    if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
     // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
     if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
   }
@@ -128,7 +143,8 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
     info.name = name;
     if(info.title == null) { info.title = name; }
   }
-  if(date != null) { info.date = date; }
+  // Meta's asset_metadata/date takes priority; query_fields.date is the fallback when meta wasn't fetched.
+  if(date != null && info.date == null) { info.date = date; }
   if(titleId != null) { info.titleId = titleId; }
 
   return info;
@@ -166,6 +182,8 @@ const TENANT_CONTENT_SELECT = [
   "public/name",
   "public/asset_metadata/display_title",
   "public/asset_metadata/tags",
+  "public/asset_metadata/date",
+  "public/asset_metadata/time",
   "live_recording/recording_config/recording_params/xc_params/input_cfg",
   "live_recording_config/url",
   "live_recording_config/recording_config/input_cfg"
@@ -231,6 +249,9 @@ class StreamStore {
   loadingStatus = false;
   tableFilter = "";
   tableTagFilter: string[] = [];
+  // Streams-table selection and sort, held here so they survive page unmount.
+  selectedRecords: StreamInfo[] = [];
+  sortStatus: {columnAccessor: string, direction: "asc" | "desc"} = {columnAccessor: "date", direction: "desc"};
   // Date filter (preset + anchor date). Persisted via SetDateFilter. dateRangeFilter is derived.
   datePreset: DateRangePreset;
   referenceDate: Date;
@@ -351,6 +372,15 @@ class StreamStore {
     this._allStreamsPromise = null;
     const remaining = this.allTags;
     this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
+    this.selectedRecords = this.selectedRecords.filter(r => this.streams[r.slug]);
+  };
+
+  SetSelectedRecords = (records: StreamInfo[]) => {
+    this.selectedRecords = records;
+  };
+
+  SetSortStatus = (sortStatus: {columnAccessor: string, direction: "asc" | "desc"}) => {
+    this.sortStatus = sortStatus;
   };
 
   SetTableFilter = (filter: string) => {
@@ -904,6 +934,80 @@ class StreamStore {
     }
   }
 
+  // Each id is a separate content object; resolved in parallel with per-id
+  // failure isolation so a broken reference still renders (and stays
+  // removable) instead of vanishing from the table.
+  *ResolveAlternateTranscodes({libraryId, ids}: {libraryId: string, ids: string[]}): Generator<any, AlternateTranscode[]> {
+    if(!ids || ids.length === 0) { return []; }
+
+    const results = yield Promise.all(ids.map(async(id): Promise<AlternateTranscode> => {
+      let name = id;
+      let url = "";
+      let ingressNodeId;
+      let geo;
+      let recordingConfig: Record<string, any> = {};
+      let xcParams: Record<string, any> = {};
+
+      try {
+        const generalMeta = await this.client.ContentObjectMetadata({
+          libraryId,
+          objectId: id,
+          metadataSubtree: "public",
+          select: ["name"]
+        });
+        name = generalMeta?.name || id;
+      } catch(error) {
+        console.error(`Unable to load name for alternate transcode ${id}`, error);
+      }
+
+      try {
+        const liveRecordingConfigMeta = await this.client.ContentObjectMetadata({
+          libraryId,
+          objectId: id,
+          metadataSubtree: "live_recording_config",
+          select: ["url", "ingress_node_id", "geo", "recording_config"]
+        });
+        url = liveRecordingConfigMeta?.url || "";
+        ingressNodeId = liveRecordingConfigMeta?.ingress_node_id;
+        geo = liveRecordingConfigMeta?.geo;
+        recordingConfig = liveRecordingConfigMeta?.recording_config || {};
+      } catch(error) {
+        console.error(`Unable to load config for alternate transcode ${id}`, error);
+      }
+
+      try {
+        xcParams = (await this.client.ContentObjectMetadata({
+          libraryId,
+          objectId: id,
+          metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
+        })) || {};
+      } catch(error) {
+        console.error(`Unable to load applied encoding config for alternate transcode ${id}`, error);
+      }
+
+      const protocol = (url.split("://")[0]) || ALTERNATE_TRANSCODE_PROTOCOLS[0]?.value || "";
+
+      return {
+        id,
+        name,
+        // geo (only ever set on public transcodes) distinguishes the two,
+        // since both now carry a resolved ingress_node_id.
+        nodeType: geo ? "public" : "dedicated",
+        node: geo ? undefined : ingressNodeId,
+        geo,
+        resolvedNodeId: ingressNodeId,
+        protocol,
+        resolution: xcParams.enc_height ? `${xcParams.enc_height}p` : undefined,
+        videoBitrate: xcParams.video_bitrate,
+        streamBitrate: xcParams.input_cfg?.stream_bitrate,
+        advancedEncodingParams: recordingConfig.advanced_encoding_params ?? null,
+        programPidSelection: recordingConfig.program_pid_selection ?? {activeProgramId: null, selections: {}}
+      };
+    }));
+
+    return results;
+  }
+
   *LoadRecordingConfigData({
     libraryId,
     objectId,
@@ -914,7 +1018,7 @@ class StreamStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, {audioStreams, audioData}] = yield Promise.all([
+      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, liveRecordingConfigTopMeta, {audioStreams, audioData}] = yield Promise.all([
         this.client.ContentObjectMetadata({
           libraryId,
           objectId,
@@ -930,6 +1034,13 @@ class StreamStore {
           objectId,
           metadataSubtree: "live_recording_config/recording_config"
         }),
+        // Sibling of recording_config on live_recording_config - see CreateAlternateTranscode.
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config",
+          select: ["alternate_transcodes"]
+        }),
         this.LoadStreamProbeData({libraryId, objectId})
       ]);
 
@@ -941,6 +1052,28 @@ class StreamStore {
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
       const reconnectionTimeout = liveRecordingConfigMeta?.reconnect_timeout ?? liveRecordingMeta?.recording_params?.reconnect_timeout;
 
+      // Existing streams predate these fields, hence the defaults.
+      const copyPackagingFormats = liveRecordingConfigMeta?.copy_packaging_formats ?? [];
+      const alternateTranscodeEnabled = liveRecordingConfigMeta?.alternate_transcode_enabled ?? false;
+      // alternate_transcodes is an id array; resolve to full rows for display/edit.
+      const alternateTranscodes = yield this.ResolveAlternateTranscodes({libraryId, ids: liveRecordingConfigTopMeta?.alternate_transcodes ?? []});
+
+      // Detected programs and PID list, read-only - not part of the saved
+      // selection. Fabric only exposes program numbers and a flat,
+      // program-unscoped PID list here, so every program shows the same list.
+      const mpegtsSelection = inputCfg?.mpegts_selection;
+      const programs: ProbeProgram[] = (mpegtsSelection?.program_ids ?? []).map(programId => ({
+        id: `${programId}`,
+        number: programId,
+        pids: (mpegtsSelection?.pids ?? []).map(pid => ({pid}))
+      }));
+
+      const programPidSelection: ProgramPidSelection = {
+        ...(liveRecordingConfigMeta?.program_pid_selection ?? {activeProgramId: null, selections: {}}),
+        programs
+      };
+      const advancedEncodingParams = liveRecordingConfigMeta?.advanced_encoding_params ?? null;
+
       const recordingData = {
         audioStreams,
         audioData,
@@ -950,7 +1083,12 @@ class StreamStore {
         multiPath,
         persistent,
         reconnectionTimeout,
-        retention
+        retention,
+        copyPackagingFormats,
+        alternateTranscodeEnabled,
+        alternateTranscodes,
+        programPidSelection,
+        advancedEncodingParams
       };
 
       this.UpdateStream({key: slug, value: recordingData});
@@ -1025,15 +1163,6 @@ class StreamStore {
 
       console.error("Unable to load playout config data", error);
       return {};
-    }
-  }
-
-  /** Run a TenantContent query pinned to the fixed fabric node, always releasing the region afterward. */
-  async _TenantContent(params: Record<string, any>): Promise<any> {
-    try {
-      return await this.client.TenantContent(params);
-    } catch(error) {
-      console.error("Unable to reset region after TenantContent", error);
     }
   }
 
@@ -1125,7 +1254,7 @@ class StreamStore {
       let versions: TenantContentVersion[] = [];
 
       while(true) {
-        const {versions: page, paging} = yield this._TenantContent({
+        const {versions: page, paging} = yield this.client.TenantContent({
           filter,
           start,
           limit: TENANT_CONTENT_PAGE_SIZE,
@@ -1182,7 +1311,7 @@ class StreamStore {
       const filter = this._TenantContentFilter(siteId, dateRange, nameFilter);
       const start = this._tenantContentCursor;
 
-      const {versions, paging} = yield this._TenantContent({
+      const {versions, paging} = yield this.client.TenantContent({
         filter,
         start,
         limit: TENANT_CONTENT_PAGE_SIZE,
@@ -1316,7 +1445,7 @@ class StreamStore {
         let versions: TenantContentVersion[] = [];
 
         while(true) {
-          const {versions: page, paging} = yield this._TenantContent({
+          const {versions: page, paging} = yield this.client.TenantContent({
             filter,
             start,
             limit: TENANT_CONTENT_PAGE_SIZE
@@ -1370,7 +1499,7 @@ class StreamStore {
     let versions: TenantContentVersion[] = [];
 
     while(true) {
-      const {versions: page, paging} = yield this._TenantContent({
+      const {versions: page, paging} = yield this.client.TenantContent({
         filter,
         start,
         limit: TENANT_CONTENT_PAGE_SIZE
@@ -1636,7 +1765,8 @@ class StreamStore {
   /**
    * Rebuild a fabric URL against a named-network host so it resolves close to the viewer.
    * Path is anchored to the object id (not the version hash) so it always resolves latest.
-   * dropAuthorization strips the auth token for the "public" variant.
+   * dropAuthorization strips the auth token for the "public" variant, which keeps the `s/<network>` path prefix;
+   * the authorized variant omits it.
    */
   _NamedNetworkUrl({url, objectId, dropAuthorization=false}: {url: string, objectId: string, dropAuthorization?: boolean}): string | undefined {
     try {
@@ -1650,7 +1780,7 @@ class StreamStore {
       }
 
       const namedNetworkUrl = new URL(`https://${networkHost}`);
-      namedNetworkUrl.pathname = UrlJoin("s", network, "q", objectId, path);
+      namedNetworkUrl.pathname = dropAuthorization ? UrlJoin("s", network, "q", objectId, path) : UrlJoin("q", objectId, path);
       originalUrl.searchParams.forEach((value, key) => {
         if(key !== "authorization") { namedNetworkUrl.searchParams.set(key, value); }
       });
@@ -1718,6 +1848,8 @@ class StreamStore {
           "public/name",
           "public/asset_metadata/display_title",
           "public/asset_metadata/tags",
+          "public/asset_metadata/date",
+          "public/asset_metadata/time",
           "live_recording/recording_config/recording_params/xc_params/input_cfg",
           "live_recording_config/url",
           "live_recording_config/recording_config/input_cfg"

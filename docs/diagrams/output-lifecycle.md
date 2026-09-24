@@ -22,10 +22,15 @@ sequenceDiagram
     participant OutputStore
     participant FrameClient
 
-    Modal->>OutputStore: CreateOutput(name, type, region|node, ...)
+    Modal->>OutputStore: CreateOutput(name, type, nodeType, region?, node?|nodeHost?, ...)
+    opt public node picked
+        OutputStore->>FrameClient: SpaceNodes(matchEndpoint: host) -> node id
+    end
     OutputStore->>OutputStore: branch on type:<br/>srt_pull=array keys (node_ids/elvgeos),<br/>push/rtp/udp=scalar keys (node_id/elvgeo)
     OutputStore->>FrameClient: OutputsCreate(enabled:false, delivery:{type, settings})
     Note over FrameClient: new outputs are always created disabled
+    OutputStore->>FrameClient: OutputsModify(custom.location:{type, geo?, node?, host?})
+    Note over FrameClient: OutputsCreate can't set custom. type is public|dedicated;<br/>public with no geo is Automatic. Reads fall back to the<br/>legacy description until it's phased out
     opt type === srt_pull
         OutputStore->>FrameClient: OutputsResolveSrtPullUrls
     end

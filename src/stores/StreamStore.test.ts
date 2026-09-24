@@ -131,8 +131,8 @@ describe("StreamStore._SetStreamActive", () => {
   });
 });
 
-describe("StreamStore tenant-query node pinning", () => {
-  it("pins the fabric node before each TenantContent call and resets the region after", async () => {
+describe("StreamStore tenant-query", () => {
+  it("pages through every TenantContent page without rerouting the client's nodes", async () => {
     const tenantContent = vi.fn()
       .mockResolvedValueOnce({versions: [{id: "iq__1", hash: "hq__1"}], paging: {more: true}})
       .mockResolvedValueOnce({versions: [{id: "iq__2", hash: "hq__2"}], paging: {more: false}});
@@ -141,19 +141,21 @@ describe("StreamStore tenant-query node pinning", () => {
     // Non-paged load pages through everything in one call.
     await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
 
-    expect(mockClient.SetNodes).toHaveBeenCalledWith({
-      fabricURIs: ["https://host-154-14-243-34.contentfabric.io"]
-    });
-    expect(mockClient.SetNodes).toHaveBeenCalledTimes(2);
-    expect(mockClient.ResetRegion).toHaveBeenCalledTimes(2);
+    expect(tenantContent).toHaveBeenCalledTimes(2);
+    expect(Object.keys(store.tenantLiveStreamContent)).toEqual(["iq__1", "iq__2"]);
+    expect(mockClient.SetNodes).not.toHaveBeenCalled();
+    expect(mockClient.ResetRegion).not.toHaveBeenCalled();
   });
 
-  it("resets the region even when TenantContent throws", async () => {
-    const {store, mockClient} = makeStore({tenantContent: vi.fn().mockRejectedValue(new Error("boom"))});
+  it("resolves with empty content and clears loading when TenantContent throws", async () => {
+    const {store} = makeStore({tenantContent: vi.fn().mockRejectedValue(new Error("boom"))});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
+    const result = await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
+    errorSpy.mockRestore();
 
-    expect(mockClient.ResetRegion).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({});
+    expect(store.loadingTenantLiveStreamContent).toBe(false);
   });
 
   it("passes the name search to the tenant query as a name:co: filter", async () => {

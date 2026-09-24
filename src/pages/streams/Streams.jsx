@@ -1,12 +1,13 @@
-import {useEffect, useState} from "react";
+import {useEffect} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
-import {ActionIcon, Group, Select, Text, Tooltip} from "@mantine/core";
+import {ActionIcon, Button, Divider, Group, Popover, Select, Text, Tooltip} from "@mantine/core";
+import {DatePicker} from "@mantine/dates";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
 import {dataStore, modalStore, streamStore, streamGroupStore} from "@/stores/index.ts";
-import {DATE_RANGE_PRESET_OPTIONS, FormatDateRangeLabel, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
+import {DATE_RANGE_PRESET_OPTIONS, FormatDateFilter, FormatDateRangeLabel, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
@@ -16,19 +17,20 @@ import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 import {notifications} from "@mantine/notifications";
 import {IconArrowsMaximize, IconArrowsMinimize, IconChevronLeft, IconChevronRight, IconCopy, IconLabel, IconPlayerPlay, IconPlayerStop, IconRefresh, IconTrash} from "@tabler/icons-react";
 import {CalendarMonthIcon, EndIcon} from "@/assets/icons/index.js";
+import styles from "./Streams.module.css";
 
 const EndRecordingIcon = (props) => <EndIcon width={16} height={16} {...props} />;
 
 const Streams = observer(() => {
-  const [sortStatus, setSortStatus] = useState({columnAccessor: "date", direction: "desc"});
-  const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
   const [showEditTagsModal, {open: openEditTags, close: closeEditTags}] = useDisclosure(false);
+  const [showDatePicker, {toggle: toggleDatePicker, close: closeDatePicker}] = useDisclosure(false);
   const navigate = useNavigate();
 
   // Date filter lives in the store (session-persisted) so it survives navigating
   // to a stream detail page and back.
-  const {datePreset, referenceDate} = streamStore;
+  const {datePreset, referenceDate, selectedRecords, sortStatus} = streamStore;
+  const setSelectedRecords = streamStore.SetSelectedRecords;
 
   const ToggleGroup = (titleId) => streamGroupStore.ToggleExpandedGroup(titleId);
 
@@ -39,6 +41,22 @@ const Streams = observer(() => {
     streamStore.SetDateFilter({preset});
     streamGroupStore.CollapseAllGroups();
     DebouncedRefresh();
+  };
+
+  const SelectToday = () => {
+    streamStore.SetDateFilter({preset: "day", referenceDate: new Date()});
+    streamGroupStore.CollapseAllGroups();
+    DebouncedRefresh();
+  };
+
+  const SelectDate = (value) => {
+    if(!value) { return; }
+
+    const [year, month, day] = value.split("-").map(Number);
+    streamStore.SetDateFilter({preset: "day", referenceDate: new Date(year, month - 1, day)});
+    streamGroupStore.CollapseAllGroups();
+    DebouncedRefresh();
+    closeDatePicker();
   };
 
   const ShiftDate = (direction) => {
@@ -184,12 +202,27 @@ const Streams = observer(() => {
       titleRightSection={
         !showDateControls ? null :
         <Group gap={16} wrap="nowrap">
-          {dateRangeLabel && (
-            <Text fz="1.25rem" fw={400} style={{whiteSpace: "nowrap"}}>
-              {dateRangeLabel}
-            </Text>
-          )}
-          <Group gap={8} wrap="nowrap">
+          <Popover opened={showDatePicker} onChange={opened => !opened && closeDatePicker()} withinPortal position="bottom-end">
+            <Popover.Target>
+              <Tooltip label="Select a date">
+                <Button variant="subtle" color="elv-gray.6" px={12} onClick={toggleDatePicker}>
+                  <Group gap={12} wrap="nowrap">
+                    <CalendarMonthIcon size={16} color="elv-neutral.4" />
+                    <Text fw={500} fz={16} c="elv-black.9" style={{whiteSpace: "nowrap"}}>{dateRangeLabel}</Text>
+                  </Group>
+                </Button>
+              </Tooltip>
+            </Popover.Target>
+            <Popover.Dropdown>
+              <DatePicker
+                value={datePreset === "day" ? FormatDateFilter(referenceDate) : null}
+                onChange={SelectDate}
+                highlightToday
+                classNames={{day: styles.datePickerDay}}
+              />
+            </Popover.Dropdown>
+          </Popover>
+          <Group gap={8} wrap="nowrap" align="center">
             <Tooltip label={`Previous ${datePresetLabel}`} disabled={datePreset === "all"}>
               <ActionIcon variant="subtle" color="elv-gray.6" disabled={datePreset === "all"} onClick={() => ShiftDate(-1)}>
                 <IconChevronLeft size={24} />
@@ -201,12 +234,14 @@ const Streams = observer(() => {
               </ActionIcon>
             </Tooltip>
           </Group>
+          <Divider orientation="vertical" size={1} color="elv-gray.3" h={18} style={{alignSelf: "center"}} />
+          <Button variant="outline" maw={80} miw={0} p="0 12px" onClick={SelectToday}>Today</Button>
+          <Divider orientation="vertical" size={1} color="elv-gray.3" h={18} style={{alignSelf: "center"}} />
           <Select
             data={DATE_RANGE_PRESET_OPTIONS}
             value={datePreset}
             onChange={SelectDatePreset}
             allowDeselect={false}
-            leftSection={<CalendarMonthIcon size={20} />}
             w={130}
           />
         </Group>
@@ -250,7 +285,7 @@ const Streams = observer(() => {
         onToggleGroup={ToggleGroup}
         onViewSummary={ViewGroupSummary}
         sortStatus={sortStatus}
-        onSortStatusChange={setSortStatus}
+        onSortStatusChange={streamStore.SetSortStatus}
         streamOrder={streamOrder}
         selectedRecords={selectedRecords}
         onSelectedRecordsChange={setSelectedRecords}

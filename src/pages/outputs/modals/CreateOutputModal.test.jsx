@@ -8,7 +8,13 @@ vi.mock("@/stores/index.ts", () => ({
     dedicatedNodesList: [],
     LoadDedicatedNodes: vi.fn()
   },
-  outputStore: {CreateOutput: vi.fn(), outputList: []}
+  outputStore: {
+    CreateOutput: vi.fn(),
+    outputList: [],
+    nodesByRegion: {},
+    loadingNodesRegion: null,
+    LoadNodesByRegion: vi.fn()
+  }
 }));
 
 import CreateOutputModal from "./CreateOutputModal.jsx";

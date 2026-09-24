@@ -20,3 +20,7 @@
   margin: 0;
   font-size: 14px;
 }
+
+.datePickerDay[data-today][data-highlight-today]:not([data-selected], [data-in-range]) {
+  border-color: var(--mantine-color-elv-blue-3);
+}

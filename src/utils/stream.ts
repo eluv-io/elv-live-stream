@@ -51,6 +51,11 @@ export interface RecordingInputCfg {
   copy_packaging?: "raw_ts" | "rtp_ts" | "ats_ts";
   custom_read_loop_enabled?: boolean;
   input_packaging?: "rtp_ts" | "raw_ts";
+  stream_bitrate?: number;
+  mpegts_selection?: {
+    program_ids?: number[];
+    pids?: number[];
+  };
 }
 
 interface RecordingConfig {
@@ -60,6 +65,52 @@ interface RecordingConfig {
   copy_mpegts?: boolean;
   input_cfg?: RecordingInputCfg;
   persistent?: boolean;
+}
+
+// Probe-derived MPEG-TS program/PID structure. Fabric currently exposes only
+// program numbers and a flat, program-unscoped PID list at
+// input_cfg.mpegts_selection.{program_ids,pids} - no per-PID type/codec/
+// description and no per-program PID scoping yet, hence the optional fields.
+export interface ProbePid {
+  pid: number;
+  type?: "video" | "audio" | "data";
+  codec?: string;
+  description?: string;
+}
+
+export interface ProbeProgram {
+  id: string;
+  number: number;
+  name?: string;
+  pids: ProbePid[];
+}
+
+// Only the active program's selection is persisted - see ProgramPidSelector.jsx.
+// `programs` is the read-only detected-program list used to populate the
+// picker; it's derived from input_cfg.mpegts_selection, not itself saved.
+export interface ProgramPidSelection {
+  activeProgramId: string | null;
+  selections: Record<string, number[]>;
+  programs?: ProbeProgram[];
+}
+
+// A resolved view of one alternate transcode - `id` is the objectId of its
+// own content object (the parent only stores an id array).
+export interface AlternateTranscode {
+  id: string;
+  name: string;
+  nodeType: "dedicated" | "public";
+  node?: string;
+  geo?: string;
+  // The node id actually placed in ingress_node_id - the dedicated pick for
+  // dedicated transcodes, or geo's resolved node for public ones.
+  resolvedNodeId?: string;
+  protocol: string;
+  resolution?: string;
+  videoBitrate?: string;
+  streamBitrate?: string;
+  advancedEncodingParams?: Record<string, unknown> | null;
+  programPidSelection?: ProgramPidSelection;
 }
 
 export interface RecordingPeriod {
@@ -173,6 +224,7 @@ interface XcParams {
   filter_descriptor?: string;
   force_keyint?: number;
   format?: string;
+  input_cfg?: RecordingInputCfg;
   listen?: boolean;
   n_audio?: number;
   level?: number;
@@ -261,6 +313,8 @@ export interface StreamMetadata {
   originUrl: string;
   referenceUrl: string;
   title: string;
+  date?: string;
+  eventTime?: string;
   // Recording Config
   connectionTimeout: string | null;
   partTtl: string | null;
