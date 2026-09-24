@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect} from "react";
 import {observer} from "mobx-react-lite";
 import {useNavigate} from "react-router-dom";
 import {useDisclosure} from "@mantine/hooks";
@@ -22,8 +22,6 @@ import styles from "./Streams.module.css";
 const EndRecordingIcon = (props) => <EndIcon width={16} height={16} {...props} />;
 
 const Streams = observer(() => {
-  const [sortStatus, setSortStatus] = useState({columnAccessor: "date", direction: "desc"});
-  const [selectedRecords, setSelectedRecords] = useState([]);
   const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
   const [showEditTagsModal, {open: openEditTags, close: closeEditTags}] = useDisclosure(false);
   const [showDatePicker, {toggle: toggleDatePicker, close: closeDatePicker}] = useDisclosure(false);
@@ -31,7 +29,8 @@ const Streams = observer(() => {
 
   // Date filter lives in the store (session-persisted) so it survives navigating
   // to a stream detail page and back.
-  const {datePreset, referenceDate} = streamStore;
+  const {datePreset, referenceDate, selectedRecords, sortStatus} = streamStore;
+  const setSelectedRecords = streamStore.SetSelectedRecords;
 
   const ToggleGroup = (titleId) => streamGroupStore.ToggleExpandedGroup(titleId);
 
@@ -280,7 +279,7 @@ const Streams = observer(() => {
         onToggleGroup={ToggleGroup}
         onViewSummary={ViewGroupSummary}
         sortStatus={sortStatus}
-        onSortStatusChange={setSortStatus}
+        onSortStatusChange={streamStore.SetSortStatus}
         streamOrder={streamOrder}
         selectedRecords={selectedRecords}
         onSelectedRecordsChange={setSelectedRecords}

@@ -32,6 +32,8 @@ const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } =
       get filteredStreams() { return Object.values(this.streams); },
       get allTags() { return []; },
       datePreset: "day",
+      SetSelectedRecords: (records) => { mockStreamStore.selectedRecords = records; },
+      SetSortStatus: (status) => { mockStreamStore.sortStatus = status; },
       referenceDate: new Date(),
       SetTableFilter: vi.fn(),
       SetTableTagFilter: vi.fn(),
@@ -53,12 +55,21 @@ vi.mock("@tanstack/react-virtual", () => ({
   })
 }));
 
-vi.mock("@/stores", () => ({
-  dataStore: mockDataStore,
-  streamStore: mockStreamStore,
-  modalStore: mockModalStore,
-  streamGroupStore: mockStreamGroupStore,
-}));
+// Selection/sort live in the store, so they must be observable for the component to re-render.
+vi.mock("@/stores", async () => {
+  const {extendObservable} = await import("mobx");
+  extendObservable(mockStreamStore, {
+    selectedRecords: [],
+    sortStatus: {columnAccessor: "date", direction: "desc"}
+  });
+
+  return {
+    dataStore: mockDataStore,
+    streamStore: mockStreamStore,
+    modalStore: mockModalStore,
+    streamGroupStore: mockStreamGroupStore,
+  };
+});
 // -------------------------------------------------------------------------------
 
 const renderWithProviders = (ui) => {
@@ -76,6 +87,7 @@ describe("Streams Dashboard Component", () => {
     vi.clearAllMocks();
     mockDataStore.streamsLoaded = true;
     mockStreamStore.tableFilter = "";
+    mockStreamStore.selectedRecords = [];
   });
 
   it("should trigger LoadStreamList on mount if streams are not loaded", () => {

@@ -242,7 +242,8 @@ export const FormatStreamEventTime = (time?: string): string => {
   return parsed.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false
+    hour12: true,
+    timeZoneName: "short"
   });
 };
 

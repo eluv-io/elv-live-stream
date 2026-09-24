@@ -249,6 +249,9 @@ class StreamStore {
   loadingStatus = false;
   tableFilter = "";
   tableTagFilter: string[] = [];
+  // Streams-table selection and sort, held here so they survive page unmount.
+  selectedRecords: StreamInfo[] = [];
+  sortStatus: {columnAccessor: string, direction: "asc" | "desc"} = {columnAccessor: "date", direction: "desc"};
   // Date filter (preset + anchor date). Persisted via SetDateFilter. dateRangeFilter is derived.
   datePreset: DateRangePreset;
   referenceDate: Date;
@@ -369,6 +372,15 @@ class StreamStore {
     this._allStreamsPromise = null;
     const remaining = this.allTags;
     this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
+    this.selectedRecords = this.selectedRecords.filter(r => this.streams[r.slug]);
+  };
+
+  SetSelectedRecords = (records: StreamInfo[]) => {
+    this.selectedRecords = records;
+  };
+
+  SetSortStatus = (sortStatus: {columnAccessor: string, direction: "asc" | "desc"}) => {
+    this.sortStatus = sortStatus;
   };
 
   SetTableFilter = (filter: string) => {
