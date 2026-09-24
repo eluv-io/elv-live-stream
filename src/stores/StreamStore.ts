@@ -1765,7 +1765,8 @@ class StreamStore {
   /**
    * Rebuild a fabric URL against a named-network host so it resolves close to the viewer.
    * Path is anchored to the object id (not the version hash) so it always resolves latest.
-   * dropAuthorization strips the auth token for the "public" variant.
+   * dropAuthorization strips the auth token for the "public" variant, which keeps the `s/<network>` path prefix;
+   * the authorized variant omits it.
    */
   _NamedNetworkUrl({url, objectId, dropAuthorization=false}: {url: string, objectId: string, dropAuthorization?: boolean}): string | undefined {
     try {
@@ -1779,7 +1780,7 @@ class StreamStore {
       }
 
       const namedNetworkUrl = new URL(`https://${networkHost}`);
-      namedNetworkUrl.pathname = UrlJoin("q", objectId, path);
+      namedNetworkUrl.pathname = dropAuthorization ? UrlJoin("s", network, "q", objectId, path) : UrlJoin("q", objectId, path);
       originalUrl.searchParams.forEach((value, key) => {
         if(key !== "authorization") { namedNetworkUrl.searchParams.set(key, value); }
       });
