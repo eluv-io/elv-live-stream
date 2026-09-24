@@ -43,6 +43,12 @@ const Streams = observer(() => {
     DebouncedRefresh();
   };
 
+  const SelectToday = () => {
+    streamStore.SetDateFilter({preset: "day", referenceDate: new Date()});
+    streamGroupStore.CollapseAllGroups();
+    DebouncedRefresh();
+  };
+
   const SelectDate = (value) => {
     if(!value) { return; }
 
@@ -229,7 +235,7 @@ const Streams = observer(() => {
             </Tooltip>
           </Group>
           <Divider orientation="vertical" size={1} color="elv-gray.3" h={18} style={{alignSelf: "center"}} />
-          <Button variant="outline" maw={80} miw={0} p="0 12px" onClick={() => SelectDatePreset(datePreset)}>Today</Button>
+          <Button variant="outline" maw={80} miw={0} p="0 12px" onClick={SelectToday}>Today</Button>
           <Divider orientation="vertical" size={1} color="elv-gray.3" h={18} style={{alignSelf: "center"}} />
           <Select
             data={DATE_RANGE_PRESET_OPTIONS}
