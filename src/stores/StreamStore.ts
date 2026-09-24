@@ -1779,7 +1779,7 @@ class StreamStore {
       }
 
       const namedNetworkUrl = new URL(`https://${networkHost}`);
-      namedNetworkUrl.pathname = UrlJoin("s", network, "q", objectId, path);
+      namedNetworkUrl.pathname = UrlJoin("q", objectId, path);
       originalUrl.searchParams.forEach((value, key) => {
         if(key !== "authorization") { namedNetworkUrl.searchParams.set(key, value); }
       });
