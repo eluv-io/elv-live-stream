@@ -25,6 +25,7 @@ import {
 import {QUALITY_MAP, STATUS_MAP} from "@/utils/constants.ts";
 import {notifications} from "@mantine/notifications";
 import {useNavigate} from "react-router-dom";
+import {TsPackagingOnly} from "@/utils/streamActions.jsx";
 import styles from "./Monitor.module.css";
 
 const COLS = 4;
@@ -44,6 +45,8 @@ const OverflowMenu = observer(({stream}) => {
     height: 18
   };
 
+  const tsPackagingOnly = TsPackagingOnly(stream);
+
   const OPTIONS = [
     {
       id: "embed-link",
@@ -60,8 +63,10 @@ const OverflowMenu = observer(({stream}) => {
     {
       id: "view-stream",
       label: "View Stream",
+      title: tsPackagingOnly ? "Preview unavailable for Transport Stream-only packaging" : undefined,
       Icon: <IconDeviceAnalytics {...iconProps} />,
       hide: !stream.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(stream.status),
+      disabled: tsPackagingOnly,
       onClick: () => navigate(`/streams/${stream.objectId}/preview`)
     },
     {
@@ -147,6 +152,7 @@ const OverflowMenu = observer(({stream}) => {
                 color="var(--mantine-color-elv-gray-9)"
                 onClick={() => { setOpened(false); item.onClick(); }}
                 disabled={item.disabled}
+                title={item.title}
               >
                 { item.label }
               </Menu.Item>
@@ -159,14 +165,15 @@ const OverflowMenu = observer(({stream}) => {
 
 const GridItem = observer(({stream, index}) => {
   const record = streamStore.streams?.[stream.slug] ?? stream;
+  const tsPackagingOnly = TsPackagingOnly(record);
 
   return (
     <Flex direction="column" w="100%" style={{minWidth: 0}}>
       <VideoContainer
         index={index}
         slug={record.slug}
-        showPreview={streamStore.showMonitorPreviews}
-        playable={record.status === "running"}
+        showPreview={streamStore.showMonitorPreviews && !tsPackagingOnly}
+        playable={record.status === "running" && !tsPackagingOnly}
         capLevelToPlayerSize
       />
       <Flex flex={1} p="0.5rem 0 0.5rem" w="100%">

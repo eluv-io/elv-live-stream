@@ -17,7 +17,7 @@ import {Link} from "react-router-dom";
 import {EndIcon} from "@/assets/icons/index.js";
 
 // No playable (fmp4) output when a stream is packaged as Transport Stream only.
-const TsPackagingOnly = record => (record.packaging || []).length > 0 && !record.packaging.includes("fmp4");
+export const TsPackagingOnly = record => (record.packaging || []).length > 0 && !record.packaging.includes("fmp4");
 
 export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, view}) => {
   const tsPackagingOnly = TsPackagingOnly(record);
