@@ -39,6 +39,7 @@ import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
+import {TsPackagingOnly} from "@/utils/streamActions.jsx";
 
 // Classifies an output's saved location (see GetOutputLocation) as dedicated or
 // public (Automatic, region-only, or region-with-node). `geoNode` is the public
@@ -112,6 +113,8 @@ export const SummaryPanel = observer(({output, url, id}) => {
   const showActiveSource = Boolean(failoverStream) && (primaryConnected || failoverConnected);
   const activeSourceLabel = primaryConnected ? "Input Primary" : "Input Failover";
   const inactiveSourceLabel = primaryConnected ? "Failover" : "Primary";
+  // No playable (fmp4) output when the input stream is packaged as Transport Stream only.
+  const tsPackagingOnly = TsPackagingOnly({packaging: output?.input?.packaging});
 
   return (
     <Box pt={16}>
@@ -138,13 +141,17 @@ export const SummaryPanel = observer(({output, url, id}) => {
         {
           output?.input?.stream && !streamUnavailable &&
           <Box w={videoWidth}>
-            <VideoContainer
-              index={0}
-              id={output?.input?.stream}
-              showPreview
-              playable={streamStatus === STATUS_MAP.RUNNING}
-              borderRadius={16}
-            />
+            {tsPackagingOnly ? (
+              <Text c="dimmed" size="sm">Preview unavailable for Transport Stream-only packaging</Text>
+            ) : (
+              <VideoContainer
+                index={0}
+                id={output?.input?.stream}
+                showPreview
+                playable={streamStatus === STATUS_MAP.RUNNING}
+                borderRadius={16}
+              />
+            )}
           </Box>
         }
         {
