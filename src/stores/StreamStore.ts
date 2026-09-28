@@ -213,6 +213,11 @@ const NETWORK_HOSTS: Record<string, string> = {
   test: "test.net955203.contentfabric.io"
 };
 
+// Per-offering vanity hosts, overriding NETWORK_HOSTS for that offering's playout URLs.
+const VANITY_HOSTS: Record<string, string> = {
+  wsc: "digitalstream.nba.com"
+};
+
 export interface OutputUrlRow {
   label: string;
   url: string;
@@ -1750,9 +1755,9 @@ class StreamStore {
 
         return {
           label,
-          url: this._NamedNetworkUrl({url: rawUrl, objectId}),
+          url: this._NamedNetworkUrl({url: rawUrl, objectId, offering}),
           licenseServerUrl,
-          publicUrl: this._NamedNetworkUrl({url: rawUrl, objectId, dropAuthorization: true}),
+          publicUrl: this._NamedNetworkUrl({url: rawUrl, objectId, dropAuthorization: true, offering}),
           publicLicenseServerUrl: licenseServerUrl ?
             this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
             undefined
@@ -1763,8 +1768,8 @@ class StreamStore {
 
       return {
         offering,
-        playoutUrl: rawPlayoutUrl ? this._NamedNetworkUrl({url: rawPlayoutUrl, objectId}) : undefined,
-        publicPlayoutUrl: rawPlayoutUrl ? this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, dropAuthorization: true}) : undefined,
+        playoutUrl: rawPlayoutUrl ? this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, offering}) : undefined,
+        publicPlayoutUrl: rawPlayoutUrl ? this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, dropAuthorization: true, offering}) : undefined,
         methods: resolvedMethods
       };
     };
@@ -1839,11 +1844,12 @@ class StreamStore {
    * Path is anchored to the object id (not the version hash) so it always resolves latest.
    * dropAuthorization strips the auth token for the "public" variant, which keeps the `s/<network>` path prefix;
    * the authorized variant omits it.
+   * offering overrides the host with VANITY_HOSTS[offering] when one is configured for it.
    */
-  _NamedNetworkUrl({url, objectId, dropAuthorization=false}: {url: string, objectId: string, dropAuthorization?: boolean}): string | undefined {
+  _NamedNetworkUrl({url, objectId, dropAuthorization=false, offering}: {url: string, objectId: string, dropAuthorization?: boolean, offering?: string}): string | undefined {
     try {
       const network = this.rootStore.networkInfo?.name || "main";
-      const networkHost = NETWORK_HOSTS[network] || NETWORK_HOSTS.main;
+      const networkHost = (offering && VANITY_HOSTS[offering]) || NETWORK_HOSTS[network] || NETWORK_HOSTS.main;
 
       const originalUrl = new URL(url);
       let path = UrlJoin("rep", originalUrl.pathname.split("/rep")[1] || "");
