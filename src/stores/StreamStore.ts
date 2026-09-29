@@ -1653,8 +1653,7 @@ class StreamStore {
       }),
       `Unable to load sources for ${objectId}`
     );
-    // TODO: drop this filter once every offering is meant to be shown
-    const offerings = Object.keys(sourcesByOffering || {}).filter(offering => ["default", "wsc"].includes(offering));
+    const offerings = Object.keys(sourcesByOffering || {});
     if(offerings.length === 0) { offerings.push("default"); }
 
     // Part 1 - everything that needs only objectId, in parallel
@@ -1782,15 +1781,6 @@ class StreamStore {
         result.playoutMethods = methods;
       }
     });
-
-    // There's no by-offering filter in the UI yet, so fold the wsc offering's row into the flat
-    // list too, under its own "WSC" label (not the format's own label) so it doesn't read as a
-    // duplicate of the default offering's - the UI appends " Playout URL" itself, same as every
-    // other format label. TODO: drop once the by-offering filter ships, per NBA handover ask.
-    const [wscMethod] = result.playoutMethodsByOffering["wsc"] || [];
-    if(wscMethod) {
-      result.playoutMethods.push({...wscMethod, label: "WSC"});
-    }
 
     return result;
   }
