@@ -268,6 +268,8 @@ class StreamStore {
   allStreamsLoaded = false;
   loadingAllStreams = false;
   _allStreamsPromise: Promise<void> | null = null;
+  // Un-enriched tenant-query index (objectId -> StreamInfo) for single-stream lookups.
+  _tenantStreamIndex: StreamMap | null = null;
   // Paged tenant query state: has-more, fetch-in-flight, resume cursor, query params.
   tenantContentHasMore = false;
   loadingMoreTenantContent = false;
@@ -296,7 +298,8 @@ class StreamStore {
       _tenantContentQuery: false,
       _tenantContentEpoch: false,
       _streamListEpoch: false,
-      _allStreamsPromise: false
+      _allStreamsPromise: false,
+      _tenantStreamIndex: false
     }, {autoBind: true});
   }
 
@@ -1488,6 +1491,46 @@ class StreamStore {
     }
 
     return this.allStreams;
+  }
+
+  /**
+   * Stream record (originUrl/source/packaging) for one object id from the tenant query,
+   * no per-object reads. Checks loaded maps first, then a cached unscoped query.
+   */
+  *LoadTenantStreamInfo(objectId: string): Generator<any, Partial<StreamInfo> | undefined> {
+    const loaded = this.streams?.[objectId] ?? this.allStreams?.[objectId] ?? this._tenantStreamIndex?.[objectId];
+    if(loaded) { return loaded; }
+
+    const siteId = this.rootStore.dataStore.siteId;
+    if(!siteId) { return undefined; }
+
+    const filter = this._TenantContentFilter(siteId);
+    let start = 0;
+    let versions: TenantContentVersion[] = [];
+
+    while(true) {
+      const {versions: page, paging} = yield this.client.TenantContent({
+        filter,
+        start,
+        limit: TENANT_CONTENT_PAGE_SIZE,
+        select: TENANT_CONTENT_SELECT
+      });
+
+      const received = (page ?? []).length;
+      versions = versions.concat(page ?? []);
+
+      const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+      if(next === null) { break; }
+      start = next;
+    }
+
+    this._tenantStreamIndex = Object.fromEntries(
+      versions
+        .filter(({id, hash}) => id && hash)
+        .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
+    );
+
+    return this._tenantStreamIndex[objectId];
   }
 
   /**

@@ -436,31 +436,43 @@ class OutputStore {
 
     // Each fetch is isolated so one failure (e.g. EmbedUrl) can't discard the
     // others - the live quality/stats must land even if the URL derivation fails.
-    let libraryId;
-    try {
-      libraryId = yield this.client.ContentObjectLibraryId({objectId: streamObjectId});
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to resolve stream library for output.", error);
-    }
+    if(this.rootStore.dataStore.useContentGroup) {
+      try {
+        const record: any = yield this.rootStore.streamStore.LoadTenantStreamInfo(streamObjectId);
+        streamInfo.url = record?.originUrl;
+        streamInfo.source = record?.source;
+        streamInfo.packaging = record?.packaging;
+      } catch(error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to load stream info from tenant query for output.", error);
+      }
+    } else {
+      let libraryId;
+      try {
+        libraryId = yield this.client.ContentObjectLibraryId({objectId: streamObjectId});
+      } catch(error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to resolve stream library for output.", error);
+      }
 
-    try {
-      const metadata = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId: streamObjectId,
-        metadataSubtree: "live_recording_config",
-        select: [
-          "url",
-          "recording_config/input_cfg",
-        ]
-      });
-      streamInfo.url = metadata?.url;
-      const {source, packaging} = DeriveSourceAndPackaging({url: metadata?.url, inputCfg: metadata?.recording_config?.input_cfg});
-      streamInfo.source = source;
-      streamInfo.packaging = packaging;
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to load stream config for output.", error);
+      try {
+        const metadata = yield this.client.ContentObjectMetadata({
+          libraryId,
+          objectId: streamObjectId,
+          metadataSubtree: "live_recording_config",
+          select: [
+            "url",
+            "recording_config/input_cfg",
+          ]
+        });
+        streamInfo.url = metadata?.url;
+        const {source, packaging} = DeriveSourceAndPackaging({url: metadata?.url, inputCfg: metadata?.recording_config?.input_cfg});
+        streamInfo.source = source;
+        streamInfo.packaging = packaging;
+      } catch(error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to load stream config for output.", error);
+      }
     }
 
     try {
