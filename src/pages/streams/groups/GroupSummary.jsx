@@ -79,7 +79,13 @@ const GroupSummary = observer(() => {
         });
       })(),
       (async () => {
+        const tsOnlyIds = new Set(
+          Object.values(map)
+            .filter(stream => stream.packaging?.length && !stream.packaging.includes("fmp4"))
+            .map(stream => stream.objectId)
+        );
         await streamStore.StreamOutputUrls(objectIds, {
+          tsOnlyIds,
           onStreamUrls: (objectId, urls) => {
             if(runId !== loadId.current) { return; }
             setOutputUrls(current => ({...current, [objectId]: urls}));

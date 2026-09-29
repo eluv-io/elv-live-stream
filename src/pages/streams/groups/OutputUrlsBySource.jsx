@@ -45,6 +45,8 @@ const UrlRows = (output, mode, packaging, offering) => {
     return rows;
   }
 
+  if(output.tsOnly) { return rows; }
+
   const embedUrl = isPublic ? (output.publicEmbedUrl || output.embedUrl) : output.embedUrl;
   if(embedUrl) { rows.push({label: "Embeddable URL", url: embedUrl}); }
 
@@ -380,6 +382,8 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false, pen
                               {
                                 pendingIds.has(stream.objectId) ?
                                   <Text fz="0.875rem" c="elv-gray.6">Loading URLs...</Text> :
+                                  output?.tsOnly ?
+                                    <Text fz="0.875rem" c="elv-gray.6">TS-only stream: no FMP4 playout. Use the TS view for the SRT URL.</Text> :
                                   <Text fz="0.875rem" c="elv-gray.6">No output URLs available.</Text>
                               }
                             </Table.Td>

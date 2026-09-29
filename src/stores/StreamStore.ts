@@ -230,6 +230,7 @@ export interface StreamOutputUrls {
   publicPlayoutUrl?: string;
   // Default offering's rows - kept for callers that don't care about offering.
   playoutMethods: OutputUrlRow[];
+  tsOnly?: boolean;
   // Same rows as playoutMethods, keyed by offering, for UI filtering by offering.
   playoutMethodsByOffering: Record<string, OutputUrlRow[]>;
   srtPlayoutUrl?: string;
@@ -1629,9 +1630,23 @@ class StreamStore {
    * Output URLs for one stream: embed URL, options URL, one playout URL per available
    * protocol/DRM method. All playout URLs carry the same week-long signed token.
    */
-  *BuildStreamOutputUrls(objectId: string): Generator<any, StreamOutputUrls> {
+  *BuildStreamOutputUrls(objectId: string, {tsOnly = false}: {tsOnly?: boolean} = {}): Generator<any, StreamOutputUrls> {
     const result: StreamOutputUrls = {playoutMethods: [], playoutMethodsByOffering: {}};
     if(!objectId) { return result; }
+
+    if(tsOnly) {
+      result.tsOnly = true;
+      const token = yield this.client.CreateSignedToken({
+        objectId,
+        subject: "elv-lsm",
+        duration: 7 * 86400000
+      }).catch((error: unknown) => {
+        console.error(`Unable to create signed token for ${objectId}`, error);
+      });
+      result.srtPlayoutUrl = token ? this._SrtPlayoutUrl({objectId, token}) : undefined;
+      result.publicSrtPlayoutUrl = this._SrtPlayoutUrl({objectId});
+      return result;
+    }
 
     const anonymousToken = this.client.utils.B64(
       JSON.stringify({qspace_id: this.rootStore.contentSpaceId})
@@ -1883,7 +1898,7 @@ class StreamStore {
    */
   *StreamOutputUrls(
     objectIds: string[],
-    {onStreamUrls}: {onStreamUrls?: (objectId: string, urls: StreamOutputUrls) => void} = {}
+    {onStreamUrls, tsOnlyIds}: {onStreamUrls?: (objectId: string, urls: StreamOutputUrls) => void, tsOnlyIds?: Set<string>} = {}
   ): Generator<any, Record<string, StreamOutputUrls>> {
     const result: Record<string, StreamOutputUrls> = {};
 
@@ -1892,7 +1907,7 @@ class StreamStore {
       objectIds || [],
       async (objectId: string) => {
         if(!objectId) { return; }
-        const urls = await this.BuildStreamOutputUrls(objectId) as unknown as StreamOutputUrls;
+        const urls = await this.BuildStreamOutputUrls(objectId, {tsOnly: tsOnlyIds?.has(objectId)}) as unknown as StreamOutputUrls;
         result[objectId] = urls;
         onStreamUrls?.(objectId, urls);
       }
