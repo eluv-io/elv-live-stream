@@ -23,11 +23,19 @@ vi.mock("@/stores/index.ts", () => ({
     loadedDeclaredTags: true,
     LoadDeclaredTags: vi.fn().mockResolvedValue(undefined),
     SaveDeclaredTags: vi.fn().mockResolvedValue(undefined)
+  },
+  streamStore: {
+    loadingAllStreams: false,
+    LoadAllStreams: vi.fn().mockResolvedValue({}),
+    StreamCountWithTag: vi.fn(tag => tag === "news" ? 2 : 0)
+  },
+  streamEditStore: {
+    ReplaceTagOnStreams: vi.fn().mockResolvedValue({total: 2, failed: 0})
   }
 }));
 
 import DeclaredTags from "./DeclaredTags.jsx";
-import {dataStore} from "@/stores/index.ts";
+import {dataStore, streamEditStore} from "@/stores/index.ts";
 
 const renderComponent = () => render(<MantineProvider><DeclaredTags /></MantineProvider>);
 
@@ -69,5 +77,28 @@ describe("DeclaredTags", () => {
 
     expect(screen.getByText("This tag already exists")).toBeInTheDocument();
     expect(screen.getByRole("button", {name: "Save"})).toBeDisabled();
+  });
+
+  it("removes the tag from streams when the delete checkbox is checked", async() => {
+    renderComponent();
+    await userEvent.click(screen.getAllByRole("button", {hidden: true}).filter(b => b.querySelector("svg.tabler-icon-trash"))[0]);
+    await userEvent.click(await screen.findByLabelText("Also remove from 2 streams"));
+    await userEvent.click(screen.getByRole("button", {name: "Delete Tag"}));
+
+    await waitFor(() => expect(streamEditStore.ReplaceTagOnStreams).toHaveBeenCalledWith({oldTag: "news", newTag: undefined}));
+    await waitFor(() => expect(dataStore.SaveDeclaredTags).toHaveBeenCalledWith(
+      expect.objectContaining({tags: ["sports"]})
+    ));
+  });
+
+  it("keeps the tag declared when some streams fail to update", async() => {
+    streamEditStore.ReplaceTagOnStreams.mockResolvedValueOnce({total: 2, failed: 1});
+    renderComponent();
+    await userEvent.click(screen.getAllByRole("button", {hidden: true}).filter(b => b.querySelector("svg.tabler-icon-trash"))[0]);
+    await userEvent.click(await screen.findByLabelText("Also remove from 2 streams"));
+    await userEvent.click(screen.getByRole("button", {name: "Delete Tag"}));
+
+    await waitFor(() => expect(streamEditStore.ReplaceTagOnStreams).toHaveBeenCalled());
+    expect(dataStore.SaveDeclaredTags).not.toHaveBeenCalled();
   });
 });

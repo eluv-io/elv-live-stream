@@ -388,6 +388,16 @@ class StreamStore {
     } as StreamInfo;
   };
 
+  // Updates tags in both stream maps, without creating entries for streams outside the date scope
+  SetStreamTags = ({slug, tags}: {slug: string, tags: string[]}) => {
+    if(this.streams[slug]) { this.streams[slug].tags = tags; }
+    if(this.allStreams[slug]) { this.allStreams[slug].tags = tags; }
+  };
+
+  StreamCountWithTag = (tag: string): number => {
+    return Object.values(this.allStreams || {}).filter(s => s.tags?.includes(tag)).length;
+  };
+
   UpdateStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
     // Stop any in-flight status/classify pass over the previous list.

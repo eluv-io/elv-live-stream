@@ -2524,7 +2524,7 @@ class StreamEditStore {
         awaitCommitConfirmation: true
       });
 
-      this.rootStore.streamStore.UpdateStream({key: slug, value: {tags}});
+      this.rootStore.streamStore.SetStreamTags({slug, tags});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to update stream tags.", error);
@@ -2542,6 +2542,30 @@ class StreamEditStore {
       console.error("Failed to update stream tags (batch).", error);
       throw error;
     }
+  }
+
+  /**
+   * Removes `oldTag` from every stream carrying it, or renames it when `newTag` is given.
+   * Resolves with per-stream failure count; doesn't throw on individual failures.
+   */
+  *ReplaceTagOnStreams({oldTag, newTag}: {oldTag: string, newTag?: string}): Generator<any, {total: number, failed: number}> {
+    const allStreams = yield this.rootStore.streamStore.LoadAllStreams();
+    const targets = Object.values(allStreams as Record<string, any>).filter(s => s.tags?.includes(oldTag));
+
+    const results = yield Promise.allSettled(
+      targets.map(s => this.UpdateStreamTags({
+        objectId: s.objectId,
+        slug: s.slug,
+        tags: Array.from(new Set(
+          s.tags.map((t: string) => t === oldTag ? newTag : t).filter(Boolean)
+        )) as string[]
+      }))
+    );
+
+    return {
+      total: targets.length,
+      failed: (results as PromiseSettledResult<unknown>[]).filter(r => r.status === "rejected").length
+    };
   }
 }
 

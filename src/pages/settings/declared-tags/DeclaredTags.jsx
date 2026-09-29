@@ -1,4 +1,4 @@
-import {ActionIcon, Box, Button, Group, Title, Tooltip} from "@mantine/core";
+import {ActionIcon, Box, Button, Checkbox, Group, Text, Title, Tooltip} from "@mantine/core";
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {toJS} from "mobx";
@@ -8,7 +8,7 @@ import TagModal from "@/pages/settings/declared-tags/TagModal.jsx";
 import {IconPencil, IconTrash} from "@tabler/icons-react";
 import {DataTable} from "mantine-datatable";
 import sharedStyles from "@/assets/shared.module.css";
-import {dataStore} from "@/stores/index.ts";
+import {dataStore, streamEditStore, streamStore} from "@/stores/index.ts";
 
 const DeclaredTags = observer(() => {
   const [pendingDeleteTag, setPendingDeleteTag] = useState(null);
@@ -17,6 +17,8 @@ const DeclaredTags = observer(() => {
   const [showModal, setShowModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [removeFromStreams, setRemoveFromStreams] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     dataStore.LoadDeclaredTags();
@@ -41,7 +43,21 @@ const DeclaredTags = observer(() => {
     }
   };
 
+  // Load all streams (not just the date-scoped list) so the affected-stream counts are complete
+  const LoadStreamCounts = () => streamStore.LoadAllStreams();
+
+  // Applies the tag change to streams first; the declared list is only touched if every stream succeeded
+  const ReplaceOnStreams = async({oldTag, newTag}) => {
+    const {failed} = await streamEditStore.ReplaceTagOnStreams({oldTag, newTag});
+
+    if(failed > 0) {
+      throw new Error(`Unable to update ${failed} ${failed === 1 ? "stream" : "streams"}. The tag was not changed in settings; try again.`);
+    }
+  };
+
   const currentTags = () => toJS(dataStore.declaredTags) ?? [];
+  const pendingDeleteCount = pendingDeleteTag ? streamStore.StreamCountWithTag(pendingDeleteTag) : 0;
+  const editTagCount = editTag ? streamStore.StreamCountWithTag(editTag) : 0;
   const records = currentTags().map(name => ({name}));
 
   return (
@@ -94,7 +110,10 @@ const DeclaredTags = observer(() => {
                       size={22}
                       variant="transparent"
                       color="elv-gray.6"
-                      onClick={() => setEditTag(record.name)}
+                      onClick={() => {
+                        LoadStreamCounts();
+                        setEditTag(record.name);
+                      }}
                       disabled={saving}
                     >
                       <IconPencil />
@@ -106,6 +125,9 @@ const DeclaredTags = observer(() => {
                       variant="transparent"
                       color="elv-gray.6"
                       onClick={() => {
+                        LoadStreamCounts();
+                        setRemoveFromStreams(false);
+                        setDeleting(false);
                         setPendingDeleteTag(record.name);
                         setShowModal(true);
                       }}
@@ -132,27 +154,49 @@ const DeclaredTags = observer(() => {
         show={showModal}
         CloseCallback={() => setShowModal(false)}
         ConfirmCallback={async() => {
+          setDeleting(true);
+          if(removeFromStreams) { await ReplaceOnStreams({oldTag: pendingDeleteTag}); }
+
           await Save({
             tags: currentTags().filter(tag => tag !== pendingDeleteTag),
             commitMessage: "Delete declared tag",
             title: "Tag deleted",
             message: "Declared tag successfully deleted"
           });
-          setPendingDeleteTag(null);
         }}
-      />
+      >
+        {
+          !showModal || deleting ? null :
+          streamStore.loadingAllStreams ?
+            <Text mt={16} c="elv-gray.6">Checking streams...</Text> :
+            pendingDeleteCount > 0 ?
+              <Checkbox
+                mt={16}
+                label={`Also remove from ${pendingDeleteCount} ${pendingDeleteCount === 1 ? "stream" : "streams"}`}
+                checked={removeFromStreams}
+                onChange={event => setRemoveFromStreams(event.currentTarget.checked)}
+              /> :
+              <Text mt={16} c="elv-gray.6">No streams use this tag.</Text>
+        }
+      </ConfirmModal>
       <TagModal
         opened={editTag !== null}
         tag={editTag}
         existingTags={currentTags().filter(tag => tag !== editTag)}
+        streamCount={editTagCount}
+        streamsLoading={streamStore.loadingAllStreams}
         title="Edit Tag"
         onClose={() => setEditTag(null)}
-        onSave={(name) => Save({
-          tags: currentTags().map(tag => tag === editTag ? name : tag),
-          commitMessage: "Update declared tag",
-          title: "Tag updated",
-          message: "Declared tag successfully updated"
-        })}
+        onSave={async(name, renameOnStreams) => {
+          if(renameOnStreams) { await ReplaceOnStreams({oldTag: editTag, newTag: name}); }
+
+          await Save({
+            tags: currentTags().map(tag => tag === editTag ? name : tag),
+            commitMessage: "Update declared tag",
+            title: "Tag updated",
+            message: "Declared tag successfully updated"
+          });
+        }}
       />
       <TagModal
         opened={addingTag}
