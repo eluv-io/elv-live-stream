@@ -54,8 +54,8 @@ const UrlRows = (output, mode, packaging) => {
       rows.push({
         label: method.label,
         children: [
-          {label: `${method.label} Playout URL`, url},
-          {label: `${method.label} License Server URL`, url: isPublic ? method.publicLicenseServerUrl : method.licenseServerUrl}
+          {label: "Playout URL", jsonKey: `${method.label} Playout URL`, url},
+          {label: "License Server URL", jsonKey: `${method.label} License Server URL`, url: isPublic ? method.publicLicenseServerUrl : method.licenseServerUrl}
         ]
       });
     } else {
@@ -72,7 +72,7 @@ const UrlsByLabel = (rows) => {
   rows.forEach(row => {
     if(row.children) {
       row.children.forEach(child => {
-        if(child.url) { urlByLabel[child.label] = child.url; }
+        if(child.url) { urlByLabel[child.jsonKey ?? child.label] = child.url; }
       });
     } else if(row.url) {
       urlByLabel[row.label] = row.url;
