@@ -20,7 +20,9 @@ const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } =
       LoadStreamUrls: vi.fn().mockResolvedValue([]),
       loadedDedicatedNodes: true,
       LoadDedicatedNodes: vi.fn().mockResolvedValue([]),
-      dedicatedNodesList: []
+      dedicatedNodesList: [],
+      loadedDeclaredTags: true,
+      LoadDeclaredTags: vi.fn().mockResolvedValue([])
     },
     mockStreamStore: {
       tableFilter: "",
@@ -31,6 +33,7 @@ const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } =
       },
       get filteredStreams() { return Object.values(this.streams); },
       get allTags() { return []; },
+      TagOptionGroups: () => [],
       datePreset: "day",
       SetSelectedRecords: (records) => { mockStreamStore.selectedRecords = records; },
       SetSortStatus: (status) => { mockStreamStore.sortStatus = status; },

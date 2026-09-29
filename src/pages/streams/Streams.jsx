@@ -73,6 +73,8 @@ const Streams = observer(() => {
   const showDateControls = dataStore.useDateFilter && dataStore.useContentGroup;
 
   useEffect(() => {
+    if(!dataStore.loadedDeclaredTags) { dataStore.LoadDeclaredTags(); }
+
     // Reload if nothing is loaded, or if what's loaded is the full (unscoped) set
     // from another page - the streams page needs its date-filtered view.
     if(!dataStore.streamsLoaded || !dataStore.streamsScoped) {

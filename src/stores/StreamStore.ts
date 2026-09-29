@@ -313,11 +313,32 @@ class StreamStore {
     );
   }
 
-  get allTags(): string[] {
+  get declaredTags(): string[] {
+    return [...(this.rootStore.dataStore.declaredTags ?? [])].sort();
+  }
+
+  // Tags found on streams that aren't declared in settings
+  get discoverTags(): string[] {
+    const declared = new Set(this.declaredTags);
     const tags = new Set<string>();
-    Object.values(this.streams || {}).forEach(s => s.tags?.forEach(t => tags.add(t)));
+    Object.values(this.streams || {}).forEach(s => s.tags?.forEach(t => declared.has(t) || tags.add(t)));
     return Array.from(tags).sort();
   }
+
+  // Declared tags first, then discover
+  get allTags(): string[] {
+    return [...this.declaredTags, ...this.discoverTags];
+  }
+
+  // Grouped options for tag inputs, omitting `exclude`d tags and empty groups
+  TagOptionGroups = (exclude: string[] = []) => {
+    return [
+      {group: "Declared Tags", items: this.declaredTags},
+      {group: "Discover Tags", items: this.discoverTags}
+    ]
+      .map(g => ({...g, items: g.items.filter(t => !exclude.includes(t))}))
+      .filter(g => g.items.length > 0);
+  };
 
   get activeTagFilter(): string[] {
     const available = new Set(this.allTags);

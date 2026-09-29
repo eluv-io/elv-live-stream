@@ -108,7 +108,7 @@ const EditTagsModal = observer(({opened, onClose, records=[]}) => {
         description="Add tags to organize and quickly find streams. New tags will be applied to all selected items."
         styles={{description: {fontSize: "0.875rem"}}}
         placeholder="Type and press Enter to add a tag"
-        data={streamStore.allTags.filter(t => !allCurrentTags.includes(t))}
+        data={streamStore.TagOptionGroups(allCurrentTags)}
         value={newTags}
         onChange={setNewTags}
         mb={24}
