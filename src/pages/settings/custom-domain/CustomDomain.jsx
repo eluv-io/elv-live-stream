@@ -24,7 +24,7 @@ const CustomDomain = observer(() => {
     };
 
     Load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const Save = async() => {
