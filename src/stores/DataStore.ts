@@ -168,6 +168,8 @@ class DataStore {
   dedicatedNodes: DedicatedNodeMap;
   srtUrlsByStream: Record<string, SrtUrlInfo>;
   loadedDedicatedNodes = false;
+  declaredTags: string[] = [];
+  loadedDeclaredTags = false;
   streamsLoaded = false;
   // Whether the currently-loaded stream set is scoped to the streams page's date filter.
   // Pages that need the full set (Outputs, Monitor, stream mapping) reload when this is true.
@@ -540,6 +542,26 @@ class DataStore {
     }
   }
 
+  *LoadDeclaredTags(): Generator<any, void> {
+    this.loadedDeclaredTags = false;
+    try {
+      if(!this.siteLibraryId) {
+        yield this.LoadTenantSiteData();
+      }
+
+      const tags = yield this.client.ContentObjectMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        metadataSubtree: "/declared_tags"
+      });
+      this.UpdateDeclaredTags({tags: tags ?? []});
+      this.loadedDeclaredTags = true;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load declared tags", error);
+    }
+  }
+
   *LoadStreamUrls(): Generator<any, void> {
     this.loadedUrls = false;
     try {
@@ -708,6 +730,45 @@ class DataStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to save dedicated nodes", error);
+      throw error;
+    }
+  }
+
+  UpdateDeclaredTags = ({tags}: {tags: string[]}) => {
+    this.declaredTags = tags;
+  };
+
+  *SaveDeclaredTags({tags, commitMessage="Update declared tags"}: {tags: string[], commitMessage?: string}): Generator<any, void> {
+    try {
+      if(!this.siteLibraryId) {
+        yield this.LoadTenantSiteData();
+      }
+
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId
+      });
+
+      yield this.client.ReplaceMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        metadataSubtree: "/declared_tags",
+        metadata: toJS(tags)
+      });
+
+      yield this.client.FinalizeContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        commitMessage,
+        awaitCommitConfirmation: true
+      });
+
+      this.UpdateDeclaredTags({tags});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to save declared tags", error);
       throw error;
     }
   }
