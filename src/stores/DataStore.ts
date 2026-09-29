@@ -170,6 +170,8 @@ class DataStore {
   loadedDedicatedNodes = false;
   declaredTags: string[] = [];
   loadedDeclaredTags = false;
+  customDomain = "";
+  loadedCustomDomain = false;
   streamsLoaded = false;
   // Whether the currently-loaded stream set is scoped to the streams page's date filter.
   // Pages that need the full set (Outputs, Monitor, stream mapping) reload when this is true.
@@ -369,6 +371,13 @@ class DataStore {
       this.useContentGroup = !!liveManagementSettings?.use_content_group;
       this.useDateFilter = !!liveManagementSettings?.use_date_filter;
 
+      const customDomain = yield this.client.ContentObjectMetadata({
+        libraryId: siteLibraryId,
+        objectId: siteObjectId,
+        metadataSubtree: "/custom_domain"
+      });
+      this.UpdateCustomDomain({customDomain: customDomain ?? ""});
+
       const {live_stream, title} = contentTypes || {};
       if(live_stream) { this.contentType = live_stream; }
       if(title) { this.titleContentType = title; }
@@ -559,6 +568,26 @@ class DataStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to load declared tags", error);
+    }
+  }
+
+  *LoadCustomDomain(): Generator<any, void> {
+    this.loadedCustomDomain = false;
+    try {
+      if(!this.siteLibraryId) {
+        yield this.LoadTenantSiteData();
+      }
+
+      const customDomain = yield this.client.ContentObjectMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        metadataSubtree: "/custom_domain"
+      });
+      this.UpdateCustomDomain({customDomain: customDomain ?? ""});
+      this.loadedCustomDomain = true;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load custom domain", error);
     }
   }
 
@@ -769,6 +798,45 @@ class DataStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to save declared tags", error);
+      throw error;
+    }
+  }
+
+  UpdateCustomDomain = ({customDomain}: {customDomain: string}) => {
+    this.customDomain = customDomain;
+  };
+
+  *SaveCustomDomain({customDomain, commitMessage="Update custom domain"}: {customDomain: string, commitMessage?: string}): Generator<any, void> {
+    try {
+      if(!this.siteLibraryId) {
+        yield this.LoadTenantSiteData();
+      }
+
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId
+      });
+
+      yield this.client.ReplaceMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        metadataSubtree: "/custom_domain",
+        metadata: customDomain
+      });
+
+      yield this.client.FinalizeContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        commitMessage,
+        awaitCommitConfirmation: true
+      });
+
+      this.UpdateCustomDomain({customDomain});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to save custom domain", error);
       throw error;
     }
   }

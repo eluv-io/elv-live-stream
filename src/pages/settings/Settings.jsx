@@ -3,11 +3,13 @@ import PageContainer from "@/components/page-container/PageContainer.jsx";
 import ConfigProfiles from "@/pages/settings/config-profiles/ConfigProfiles.jsx";
 import DedicatedNodes from "@/pages/settings/dedicated-nodes/DedicatedNodes.jsx";
 import DeclaredTags from "@/pages/settings/declared-tags/DeclaredTags.jsx";
+import CustomDomain from "@/pages/settings/custom-domain/CustomDomain.jsx";
 
 const SETTINGS_TABS = [
   {label: "Config Profiles", value: "configProfiles", Component: ConfigProfiles},
   {label: "Dedicated Nodes", value: "dedicatedNodes", Component: DedicatedNodes},
-  {label: "Declared Tags", value: "declaredTags", Component: DeclaredTags}
+  {label: "Declared Tags", value: "declaredTags", Component: DeclaredTags},
+  {label: "Custom Domain", value: "customDomain", Component: CustomDomain}
 ];
 
 const Settings = () => {
