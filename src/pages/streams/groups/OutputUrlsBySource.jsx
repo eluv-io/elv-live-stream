@@ -216,6 +216,7 @@ const CopyCell = ({url, background}) => (
   </Table.Td>
 );
 
+
 const DataRow = ({row}) => (
   <>
     <Table.Tr>
@@ -226,16 +227,16 @@ const DataRow = ({row}) => (
     </Table.Tr>
     {
       (row.children || []).map(child => (
-        <Table.Tr key={child.label} bg="elv-gray.1">
+        <Table.Tr key={child.label} bg="#f2f2f2">
           <Table.Td />
-          <Table.Td bg="elv-gray.1">
+          <Table.Td bg="#f2f2f2">
             <Group gap={8} wrap="nowrap" pl={20}>
-              <Text fz="0.875rem" c="elv-gray.9">•</Text>
+              <Text fz="0.875rem" c="elv-neutral.9">•</Text>
               <LabelText>{child.label}</LabelText>
             </Group>
           </Table.Td>
-          <Table.Td bg="elv-gray.1" maw={0}><UrlText url={child.url} /></Table.Td>
-          <CopyCell url={child.url} background="var(--mantine-color-elv-gray-1)" />
+          <Table.Td bg="#f2f2f2" maw={0}><UrlText url={child.url} /></Table.Td>
+          <CopyCell url={child.url} background="#f2f2f2" />
         </Table.Tr>
       ))
     }
