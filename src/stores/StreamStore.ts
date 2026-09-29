@@ -268,7 +268,7 @@ class StreamStore {
   allStreamsLoaded = false;
   loadingAllStreams = false;
   _allStreamsPromise: Promise<void> | null = null;
-  // Un-enriched tenant-query index (objectId -> StreamInfo) for single-stream lookups.
+  // Simple tenant-query index (objectId -> StreamInfo) for single-stream lookups.
   _tenantStreamIndex: StreamMap | null = null;
   // Paged tenant query state: has-more, fetch-in-flight, resume cursor, query params.
   tenantContentHasMore = false;

@@ -89,6 +89,7 @@ module.exports = [
   "lh",
   "libav",
   "listable",
+  "lookups",
   "lro",
   "lsm",
   "mantine",
