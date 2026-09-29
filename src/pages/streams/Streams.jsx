@@ -73,7 +73,14 @@ const Streams = observer(() => {
   const showDateControls = dataStore.useDateFilter && dataStore.useContentGroup;
 
   useEffect(() => {
-    if(!dataStore.loadedDeclaredTags) { dataStore.LoadDeclaredTags(); }
+    // A restored declared-tag selection needs the declared list before it can scope the query
+    if(!dataStore.loadedDeclaredTags) {
+      Promise.resolve(dataStore.LoadDeclaredTags()).then(() => {
+        if(dataStore.useContentGroup && streamStore.selectedDeclaredTags.length > 0) {
+          dataStore.LoadStreamList({reload: true});
+        }
+      });
+    }
 
     // Reload if nothing is loaded, or if what's loaded is the full (unscoped) set
     // from another page - the streams page needs its date-filtered view.
@@ -91,6 +98,16 @@ const Streams = observer(() => {
   const DebouncedSearchReload = useDebouncedCallback(async() => {
     await dataStore.LoadStreamList({reload: true});
   }, 400);
+
+  // Selected declared tags are sent to the tenant query, so changing them re-runs it.
+  const SetTagFilter = (tags) => {
+    const before = streamStore.selectedDeclaredTags.join("|");
+    streamStore.SetTableTagFilter(tags);
+    if(dataStore.useContentGroup && before !== streamStore.selectedDeclaredTags.join("|")) {
+      streamGroupStore.CollapseAllGroups();
+      DebouncedSearchReload();
+    }
+  };
 
   const OnSearchChange = (event) => {
     streamStore.SetTableFilter(event.target.value);
@@ -258,19 +275,19 @@ const Streams = observer(() => {
         onSearchChange={OnSearchChange}
         tagOptions={streamStore.allTags}
         tagFilter={streamStore.activeTagFilter}
-        onTagFilterChange={(tags) => streamStore.SetTableTagFilter(tags)}
+        onTagFilterChange={SetTagFilter}
       />
       <TagFilterRow
         tags={streamStore.allTags}
         selectedTags={streamStore.activeTagFilter}
         onTagToggle={(tag) => {
           const current = streamStore.tableTagFilter;
-          streamStore.SetTableTagFilter(
+          SetTagFilter(
             current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag]
           );
           setSelectedRecords([]);
         }}
-        onClearAll={() => streamStore.SetTableTagFilter([])}
+        onClearAll={() => SetTagFilter([])}
       />
 
       <BatchActions

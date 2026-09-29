@@ -253,7 +253,7 @@ class DataStore {
       if(this.useContentGroup) {
         // Tenant-wide content-group query. Scoped (streams page) loads one page at a
         // time; LoadMoreStreamList pulls the rest.
-        const nameFilter = scoped && !objectIdSearch ? this.rootStore.streamStore.tableFilter : "";
+        const nameFilter = scoped && !objectIdSearch ? this.rootStore.streamStore.tenantNameTerms : [];
         streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, nameFilter, force: reload, paged: scoped && !objectIdSearch});
       } else {
         // Legacy: the site object's registered stream list.

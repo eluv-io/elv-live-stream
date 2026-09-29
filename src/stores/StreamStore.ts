@@ -272,7 +272,7 @@ class StreamStore {
   _tenantContentPromise: Promise<void> | null = null;
   _tenantContentFilterKey: string | null = null;
   _tenantContentCursor = 0;
-  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string} | null = null;
+  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string[]} | null = null;
   // Bumped when the paged query restarts or the date filter changes; stale "load more" fetches discard against it.
   _tenantContentEpoch = 0;
   // Bumped whenever `streams` is replaced; an in-flight status/classify pass checks this and stops early.
@@ -326,14 +326,28 @@ class StreamStore {
     return [...this.declaredTags, ...this.discoverTags];
   }
 
-  // Grouped options for tag inputs, omitting `exclude`d tags and empty groups
-  TagOptionGroups = (exclude: string[] = []) => {
-    return [
-      {group: "Declared Tags", items: this.declaredTags},
-      {group: "Discover Tags", items: this.discoverTags}
-    ]
-      .map(g => ({...g, items: g.items.filter(t => !exclude.includes(t))}))
-      .filter(g => g.items.length > 0);
+  // Declared tags filter by case-insensitive name substring; others by the stream's own tags
+  StreamMatchesTag = (stream: StreamInfo, tag: string): boolean => {
+    return this.declaredTags.includes(tag) ?
+      !!stream.title?.toLowerCase().includes(tag.toLowerCase()) :
+      !!stream.tags?.includes(tag);
+  };
+
+  get selectedDeclaredTags(): string[] {
+    const declared = new Set(this.declaredTags);
+    return this.activeTagFilter.filter(t => declared.has(t));
+  }
+
+  // Name terms (AND'd) sent to the tenant query: the search text plus selected declared tags
+  get tenantNameTerms(): string[] {
+    return [this.tableFilter.trim(), ...this.selectedDeclaredTags].filter(Boolean);
+  }
+
+  // Suggestions for stream tag inputs: tags already on streams. Declared tags are filter shortcuts only.
+  TagOptions = (exclude: string[] = []) => {
+    const tags = new Set<string>();
+    Object.values(this.streams || {}).forEach(s => s.tags?.forEach(t => exclude.includes(t) || tags.add(t)));
+    return Array.from(tags).sort();
   };
 
   get activeTagFilter(): string[] {
@@ -359,13 +373,16 @@ class StreamStore {
     const objectIdSearch = this.tableFilterIsObjectId;
     const serverSideText = this.rootStore.dataStore.useContentGroup && !objectIdSearch;
     const filter = serverSideText ? "" : this.tableFilter.toLowerCase().trim();
-    const tagFilter = this.activeTagFilter;
+    // Declared tags are already applied by the tenant query on the content-group path
+    const tagFilter = this.rootStore.dataStore.useContentGroup ?
+      this.activeTagFilter.filter(t => !this.selectedDeclaredTags.includes(t)) :
+      this.activeTagFilter;
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||
         s.title?.toLowerCase().includes(filter) ||
         s.objectId?.toLowerCase().includes(filter);
       const matchesTags = tagFilter.length === 0 ||
-        tagFilter.some(tag => s.tags?.includes(tag));
+        tagFilter.some(tag => this.StreamMatchesTag(s, tag));
       return matchesText && matchesTags;
     });
   }
@@ -390,10 +407,6 @@ class StreamStore {
     if(this.allStreams[slug]) { this.allStreams[slug].tags = tags; }
   };
 
-  StreamCountWithTag = (tag: string): number => {
-    return Object.values(this.allStreams || {}).filter(s => s.tags?.includes(tag)).length;
-  };
-
   UpdateStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
     // Stop any in-flight status/classify pass over the previous list.
@@ -406,7 +419,10 @@ class StreamStore {
     this.allStreamsLoaded = false;
     this._allStreamsPromise = null;
     const remaining = this.allTags;
-    this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
+    // Declared tags aren't known until loaded; don't drop a restored selection before then
+    if(this.rootStore.dataStore.loadedDeclaredTags) {
+      this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
+    }
     this.selectedRecords = this.selectedRecords.filter(r => this.streams[r.slug]);
   };
 
@@ -1201,13 +1217,12 @@ class StreamStore {
     }
   }
 
-  /** TenantContent filter array: site + optional date range + optional name (contains match on the `name` query field). */
-  _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string): string[] {
+  /** TenantContent filter array: site + optional date range + optional name terms (each a contains match on the `name` query field). */
+  _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null], nameFilter: string[] = []): string[] {
     const [startDate, endDate] = dateRange || [null, null];
     const filter = [`group:eq:${siteId}`];
 
-    const name = (nameFilter || "").trim();
-    if(name) { filter.push(`name:co:${name}`); }
+    nameFilter.forEach(name => filter.push(`name:co:${name}`));
 
     if(startDate && endDate && FormatDateFilter(startDate) === FormatDateFilter(endDate)) {
       // Single day - one exact-match tag rather than a redundant ge/le pair.
@@ -1246,7 +1261,7 @@ class StreamStore {
    * further pages via LoadMoreTenantLiveStreamContent. paged=false (default) loops
    * through every page in one call.
    */
-  *LoadTenantLiveStreamContent({siteId, dateRange, nameFilter, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], nameFilter?: string, force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
+  *LoadTenantLiveStreamContent({siteId, dateRange, nameFilter, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], nameFilter?: string[], force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
     if(!siteId) {
       // No site id - skip the tenant query; caller falls back to the site object's list.
       console.warn("LoadTenantLiveStreamContent: no siteId, skipping tenant query");
@@ -1256,7 +1271,7 @@ class StreamStore {
     }
 
     const [startDate, endDate] = dateRange || [null, null];
-    const name = (nameFilter || "").trim();
+    const name = (nameFilter || []).map(n => n.trim()).filter(Boolean);
     const filterKey = JSON.stringify([
       siteId,
       startDate ? FormatDateFilter(startDate) : null,

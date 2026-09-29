@@ -62,7 +62,7 @@ vi.mock("@/stores", () => ({
   streamStore: {
     LoadDetails: vi.fn().mockResolvedValue({}),
     LoadGeneralConfigData: vi.fn().mockResolvedValue(undefined),
-    TagOptionGroups: () => [],
+    TagOptions: () => [],
     streams: {
       "test-slug": {
         title: "Test Stream",

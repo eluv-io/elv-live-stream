@@ -251,7 +251,7 @@ const Monitor = observer(() => {
           record.title?.toLowerCase().includes(textFilter) ||
           record.objectId?.toLowerCase().includes(textFilter);
         const matchesTags = tagFilter.length === 0 ||
-          tagFilter.some(tag => record.tags?.includes(tag));
+          tagFilter.some(tag => streamStore.StreamMatchesTag(record, tag));
         return matchesText && matchesTags;
       })
       .sort(SortTable({sortStatus: {columnAccessor: "title", direction: "asc"}}));

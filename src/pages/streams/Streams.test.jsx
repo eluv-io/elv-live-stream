@@ -33,7 +33,7 @@ const { mockDataStore, mockStreamStore, mockModalStore, mockStreamGroupStore } =
       },
       get filteredStreams() { return Object.values(this.streams); },
       get allTags() { return []; },
-      TagOptionGroups: () => [],
+      TagOptions: () => [],
       datePreset: "day",
       SetSelectedRecords: (records) => { mockStreamStore.selectedRecords = records; },
       SetSortStatus: (status) => { mockStreamStore.sortStatus = status; },

@@ -68,7 +68,6 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
         await Promise.all([
           streamStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug}),
           dataStore.LoadAccessGroups(),
-          dataStore.loadedDeclaredTags ? Promise.resolve() : dataStore.LoadDeclaredTags(),
           profileStore.state !== "loaded" ? profileStore.LoadProfiles() : Promise.resolve()
         ]);
         const stream = streamStore.streams[slug];
@@ -273,7 +272,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
             label="Tags"
             description="Add tags to organize and quickly find streams."
             placeholder="Type and press Enter to add a tag"
-            data={streamStore.TagOptionGroups()}
+            data={streamStore.TagOptions()}
             key={form.key("tags")}
             {...form.getInputProps("tags")}
             mb={29}

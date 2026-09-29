@@ -162,7 +162,7 @@ describe("StreamStore tenant-query", () => {
     const tenantContent = vi.fn().mockResolvedValue({versions: [], paging: {more: false}});
     const {store} = makeStore({tenantContent});
 
-    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: "  Final Match  "});
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: ["  Final Match  "]});
 
     expect(tenantContent).toHaveBeenCalledWith(expect.objectContaining({
       filter: ["group:eq:iq__site", "name:co:Final Match"]
@@ -173,7 +173,7 @@ describe("StreamStore tenant-query", () => {
     const tenantContent = vi.fn().mockResolvedValue({versions: [], paging: {more: true}});
     const {store} = makeStore({tenantContent});
 
-    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: "quarterfinal", paged: true});
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: ["quarterfinal"], paged: true});
     expect(tenantContent).toHaveBeenLastCalledWith(expect.objectContaining({filter: ["group:eq:iq__site", "name:co:quarterfinal"]}));
 
     await store.LoadMoreTenantLiveStreamContent();
