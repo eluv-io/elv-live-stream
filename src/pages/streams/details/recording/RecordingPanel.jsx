@@ -12,6 +12,7 @@ import {
   Checkbox,
   Divider,
   Group,
+  Input,
   Loader,
   Radio,
   Select,
@@ -27,6 +28,7 @@ import {
 } from "@/utils/constants.ts";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
+import ProgramPidSelector from "@/pages/streams/details/recording/program-pid-selector/ProgramPidSelector.jsx";
 
 const RecordingPanel = observer(({
   slug,
@@ -63,7 +65,8 @@ const RecordingPanel = observer(({
     copyMpegTs,
     fabricPackagingFMP4,
     alternateTranscodes,
-    advancedEncodingParams
+    advancedEncodingParams,
+    programPidSelection
   } = form.getValues();
 
   const LoadConfigData = async () => {
@@ -371,7 +374,6 @@ const RecordingPanel = observer(({
 
           <Collapse expanded={fabricPackagingFMP4}>
             <Box ml={34} mb={29}>
-              {/* Disabled - see fmp4FormData comment in Save() above.
               <Stack gap={4} mb={12}>
                 <Input.Label>Program</Input.Label>
                 <Input.Description>Choose a program (if multiprogram) and select the video/audio PIDs to include in the output.</Input.Description>
@@ -380,7 +382,6 @@ const RecordingPanel = observer(({
                 value={programPidSelection}
                 onChange={(value) => form.setFieldValue("programPidSelection", value)}
               />
-              */}
 
               <Box mt={16}>
                 <JsonEditorCard
