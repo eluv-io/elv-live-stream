@@ -1,12 +1,13 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {ActionIcon, Box, Button, Group, Tooltip} from "@mantine/core";
+import {ActionIcon, Box, Button, Divider, Group, Stack, Text, Title, Tooltip} from "@mantine/core";
 import {DataTable} from "mantine-datatable";
 import {IconPencil, IconPlus, IconTrash} from "@tabler/icons-react";
 import {notifications} from "@mantine/notifications";
-import {dataStore, streamEditStore} from "@/stores/index.ts";
+import {dataStore, streamEditStore, streamStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
-import {AudioBitrateReadable} from "@/utils/formatters.ts";
+import {AudioBitrateReadable, VideoBitrateReadable} from "@/utils/formatters.ts";
+import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import AlternateTranscodeModal from "@/pages/streams/details/recording/alternate-transcodes/AlternateTranscodeModal.jsx";
 import sharedStyles from "@/assets/shared.module.css";
@@ -36,6 +37,19 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [statuses, setStatuses] = useState({});
+
+  const idsKey = (records || []).map(r => r.id).join(",");
+
+  useEffect(() => {
+    if(!idsKey) { return; }
+
+    let stale = false;
+    streamStore.StreamStatuses(idsKey.split(","))
+      .then(result => { if(!stale) { setStatuses(result); } });
+
+    return () => { stale = true; };
+  }, [idsKey]);
 
   const HandleSave = async(values) => {
     setSaving(true);
@@ -91,10 +105,34 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
           minHeight={(!records || records.length === 0) ? 130 : 75}
           records={records || []}
           columns={[
-            {accessor: "name", title: "Name"},
+            {
+              accessor: "name",
+              title: "Name",
+              render: record => (
+                <Stack gap={0} maw="100%">
+                  <Title order={3} lineClamp={1} title={record.name} style={{wordBreak: "break-all"}}>
+                    {record.name}
+                  </Title>
+                  <Group wrap="nowrap" gap={6}>
+                    <StatusIndicator
+                      status={statuses[record.id]?.status}
+                      size="xs"
+                      fw={400}
+                      c="elv-gray.6"
+                      fz="0.75rem"
+                    />
+                    <Box h={10}>
+                      <Divider orientation="vertical" c="elv-gray.6" size="sm" h="100%" />
+                    </Box>
+                    <Text fz="0.75rem" fw={400} c="elv-gray.6" lineClamp={1}>{record.id}</Text>
+                  </Group>
+                </Stack>
+              )
+            },
             {accessor: "geoNode", title: "Geo/Node", render: GeoNodeLabel},
             {accessor: "resolution", title: "Resolution", render: record => record.resolution || "-"},
-            {accessor: "streamBitrate", title: "Bitrate", render: record => AudioBitrateReadable(Number(record.streamBitrate)) || "-"},
+            {accessor: "streamBitrate", title: "Stream Bitrate", render: record => AudioBitrateReadable(Number(record.streamBitrate)) || "-"},
+            {accessor: "videoBitrate", title: "Bitrate", render: record => VideoBitrateReadable(Number(record.videoBitrate)) || "-"},
             {
               accessor: "actions",
               title: "",
