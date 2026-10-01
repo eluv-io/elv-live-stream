@@ -1112,7 +1112,7 @@ class StreamStore {
       // alternate_transcodes is an id array; resolve to full rows for display/edit.
       const alternateTranscodes = yield this.ResolveAlternateTranscodes({libraryId, ids: liveRecordingConfigTopMeta?.alternate_transcodes ?? []});
 
-      // Detected programs/PIDs, read-only - not part of the saved selection.
+      // Detected programs/PID's, read-only - not part of the saved selection.
       // Prefer the probe; fall back to mpegts_selection, which has only program
       // numbers and a flat, program-unscoped PID list.
       const mpegtsSelection = inputCfg?.mpegts_selection;
