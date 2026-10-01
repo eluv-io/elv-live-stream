@@ -8,6 +8,8 @@ import {
   DeriveSourceAndPackaging,
   ProgramPidSelection,
   ProbeProgram,
+  RawProbeProgram,
+  ProgramsFromProbe,
   StreamMetadata, ProbeStream, RecordingInputCfg
 } from "@/utils/stream";
 import type RootStore from "@/stores/RootStore";
@@ -59,6 +61,7 @@ export type AudioDataMap = Record<string, AudioDataEntry>;
 export interface ProbeData {
   audioStreams: ProbeStream[];
   audioData: AudioDataMap;
+  programs?: RawProbeProgram[];
 }
 
 type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags" | "date" | "eventTime">;
@@ -1069,7 +1072,7 @@ class StreamStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, liveRecordingConfigTopMeta, {audioStreams, audioData}] = yield Promise.all([
+      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, liveRecordingConfigTopMeta, {audioStreams, audioData, programs: probePrograms}] = yield Promise.all([
         this.client.ContentObjectMetadata({
           libraryId,
           objectId,
@@ -1109,15 +1112,18 @@ class StreamStore {
       // alternate_transcodes is an id array; resolve to full rows for display/edit.
       const alternateTranscodes = yield this.ResolveAlternateTranscodes({libraryId, ids: liveRecordingConfigTopMeta?.alternate_transcodes ?? []});
 
-      // Detected programs and PID list, read-only - not part of the saved
-      // selection. Fabric only exposes program numbers and a flat,
-      // program-unscoped PID list here, so every program shows the same list.
+      // Detected programs/PIDs, read-only - not part of the saved selection.
+      // Prefer the probe; fall back to mpegts_selection, which has only program
+      // numbers and a flat, program-unscoped PID list.
       const mpegtsSelection = inputCfg?.mpegts_selection;
-      const programs: ProbeProgram[] = (mpegtsSelection?.program_ids ?? []).map(programId => ({
-        id: `${programId}`,
-        number: programId,
-        pids: (mpegtsSelection?.pids ?? []).map(pid => ({pid}))
-      }));
+      const programs: ProbeProgram[] = probePrograms?.length ?
+        ProgramsFromProbe(probePrograms) :
+        (mpegtsSelection?.program_ids ?? []).map(programId => ({
+          id: `${programId}`,
+          number: programId,
+          name: `Program ${programId}`,
+          pids: (mpegtsSelection?.pids ?? []).map(pid => ({pid}))
+        }));
 
       const programPidSelection: ProgramPidSelection = {
         ...(liveRecordingConfigMeta?.program_pid_selection ?? {activeProgramId: null, selections: {}}),
@@ -2256,7 +2262,8 @@ class StreamStore {
 
       return {
         audioStreams,
-        audioData
+        audioData,
+        programs: probeMetadata.programs ?? []
       };
     } catch(error) {
 

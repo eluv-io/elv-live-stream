@@ -85,6 +85,55 @@ export interface ProbeProgram {
   pids: ProbePid[];
 }
 
+interface RawProbeStream {
+  id?: string;
+  codec_type?: string;
+  codec_name?: string;
+  width?: number;
+  height?: number;
+  avg_frame_rate?: string;
+  channel_layout?: string;
+  sample_rate?: string;
+}
+
+export interface RawProbeProgram {
+  program_id: number;
+  program_num?: number;
+  streams?: RawProbeStream[];
+}
+
+const PidDescription = (stream: RawProbeStream): string => {
+  if(stream.codec_type === "video") {
+    const [num, den] = (stream.avg_frame_rate ?? "").split("/").map(Number);
+    const fps = num && den ? `${Math.round((num / den) * 100) / 100}fps` : "";
+    return [stream.width && stream.height ? `${stream.width}x${stream.height}` : "", fps].filter(Boolean).join(" ");
+  }
+
+  if(stream.codec_type === "audio") {
+    const rate = stream.sample_rate ? `${Number(stream.sample_rate) / 1000}kHz` : "";
+    return [stream.channel_layout, rate].filter(Boolean).join(" ");
+  }
+
+  return "";
+};
+
+// Stream `id` is the hex PID (e.g. "0x65"); streams without a valid PID are dropped
+export const ProgramsFromProbe = (programs: RawProbeProgram[] = []): ProbeProgram[] =>
+  programs.map(program => ({
+    id: `${program.program_id}`,
+    number: program.program_num ?? program.program_id,
+    name: `Program ${program.program_num ?? program.program_id}`,
+    pids: (program.streams ?? [])
+      .map(stream => ({stream, pid: parseInt(stream.id ?? "", 16)}))
+      .filter(({pid}) => !Number.isNaN(pid))
+      .map(({stream, pid}) => ({
+        pid,
+        type: stream.codec_type as ProbePid["type"],
+        codec: stream.codec_name,
+        description: PidDescription(stream)
+      }))
+  }));
+
 // Only the active program's selection is persisted - see ProgramPidSelector.jsx.
 // `programs` is the read-only detected-program list used to populate the
 // picker; it's derived from input_cfg.mpegts_selection, not itself saved.
