@@ -94,7 +94,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
           onClick={() => setAdding(true)}
           disabled={disabled || saving}
         >
-          Add alternate transcode
+          Add Alternate Transcode
         </Button>
       </Group>
       <Box className={sharedStyles.tableWrapper}>

@@ -5,6 +5,7 @@ import {dataStore} from "@/stores/index.ts";
 import {ALTERNATE_TRANSCODE_PROTOCOLS, FABRIC_NODE_REGIONS, RESOLUTION_OPTIONS} from "@/utils/constants.ts";
 import {Button, Flex, Modal, NumberInput, Select, Stack, Tabs, Text, TextInput, Title} from "@mantine/core";
 import JsonEditorCard from "@/components/json-editor-card/JsonEditorCard.jsx";
+import {defaultConfigProfile} from "@/utils/defaultProfile";
 import modalStyles from "@/pages/outputs/modals/modals.module.css";
 
 const DEFAULT_VALUES = {
@@ -16,7 +17,7 @@ const DEFAULT_VALUES = {
   resolution: "",
   videoBitrate: "",
   streamBitrate: "",
-  advancedEncodingParams: null
+  advancedEncodingParams: defaultConfigProfile.recording_params?.xc_params ?? null
 };
 
 // Reused for both add and edit - the DedicatedNodes.jsx + NodeModal.jsx pattern.

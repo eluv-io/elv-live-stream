@@ -150,12 +150,13 @@ interface UpdateConfigMetadataParams {
   alternateTranscodes?: string[];
   // Only used when objectId targets an alternate transcode's own object.
   resolution?: string;
-  // Written to live_recording/recording_config/recording_params/xc_params,
-  // not the recording_config above.
+  // videoBitrate/streamBitrate are written to
+  // live_recording/recording_config/recording_params/xc_params, not the
+  // recording_config above.
   videoBitrate?: string;
   streamBitrate?: string;
   programPidSelection?: ProgramPidSelection;
-  // Merged into xc_params; unnamed existing keys are left untouched.
+  // Replaces live_recording_config/recording_params/xc_params; empty/null/undefined is a no-op.
   advancedEncodingParams?: Record<string, unknown> | null;
 }
 
@@ -1054,7 +1055,6 @@ class StreamEditStore {
     if(copyPackagingFormats !== undefined) recordingConfig.copy_packaging_formats = copyPackagingFormats;
     if(alternateTranscodeEnabled !== undefined) recordingConfig.alternate_transcode_enabled = alternateTranscodeEnabled;
     if(programPidSelection !== undefined) recordingConfig.program_pid_selection = programPidSelection;
-    if(advancedEncodingParams !== undefined) recordingConfig.advanced_encoding_params = advancedEncodingParams;
 
     const recordingStreamConfig = {...existingConfig?.recording_stream_config};
     if(audioData !== undefined) {
@@ -1079,6 +1079,12 @@ class StreamEditStore {
       playout_config: playoutConfig,
       recording_stream_config: recordingStreamConfig
     };
+    if(advancedEncodingParams && Object.keys(advancedEncodingParams).length > 0) {
+      liveRecordingConfigUpdate.recording_params = {
+        ...existingConfig?.recording_params,
+        xc_params: advancedEncodingParams
+      };
+    }
     // Sibling of recording_config on live_recording_config - see CreateAlternateTranscode.
     if(alternateTranscodes !== undefined) liveRecordingConfigUpdate.alternate_transcodes = alternateTranscodes;
 
@@ -1173,20 +1179,6 @@ class StreamEditStore {
         libraryId, objectId, writeToken,
         metadataSubtree: "live_recording/recording_config/recording_params/xc_params/enc_width",
         metadata: dimensions?.width ?? null
-      });
-    }
-
-    // Merge-only: overlay explicit keys onto current xc_params so unrelated
-    // fields aren't clobbered; empty/null is a no-op, not a clear.
-    if(advancedEncodingParams && Object.keys(advancedEncodingParams).length > 0) {
-      const existingXcParams = (yield this.client.ContentObjectMetadata({
-        libraryId, objectId, writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
-      })) || {};
-      yield this.client.ReplaceMetadata({
-        libraryId, objectId, writeToken,
-        metadataSubtree: "live_recording/recording_config/recording_params/xc_params",
-        metadata: {...existingXcParams, ...advancedEncodingParams}
       });
     }
 

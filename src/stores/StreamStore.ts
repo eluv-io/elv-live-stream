@@ -1001,6 +1001,7 @@ class StreamStore {
       let geo;
       let recordingConfig: Record<string, any> = {};
       let xcParams: Record<string, any> = {};
+      let advancedEncodingParams: Record<string, unknown> | null = null;
 
       try {
         const generalMeta = await this.client.ContentObjectMetadata({
@@ -1019,12 +1020,13 @@ class StreamStore {
           libraryId,
           objectId: id,
           metadataSubtree: "live_recording_config",
-          select: ["url", "ingress_node_id", "geo", "recording_config"]
+          select: ["url", "ingress_node_id", "geo", "recording_config", "recording_params"]
         });
         url = liveRecordingConfigMeta?.url || "";
         ingressNodeId = liveRecordingConfigMeta?.ingress_node_id;
         geo = liveRecordingConfigMeta?.geo;
         recordingConfig = liveRecordingConfigMeta?.recording_config || {};
+        advancedEncodingParams = liveRecordingConfigMeta?.recording_params?.xc_params ?? null;
       } catch(error) {
         console.error(`Unable to load config for alternate transcode ${id}`, error);
       }
@@ -1054,7 +1056,7 @@ class StreamStore {
         resolution: xcParams.enc_height ? `${xcParams.enc_height}p` : undefined,
         videoBitrate: xcParams.video_bitrate,
         streamBitrate: xcParams.input_cfg?.stream_bitrate,
-        advancedEncodingParams: recordingConfig.advanced_encoding_params ?? null,
+        advancedEncodingParams,
         programPidSelection: recordingConfig.program_pid_selection ?? {activeProgramId: null, selections: {}}
       };
     }));
@@ -1093,7 +1095,7 @@ class StreamStore {
           libraryId,
           objectId,
           metadataSubtree: "live_recording_config",
-          select: ["alternate_transcodes"]
+          select: ["alternate_transcodes", "recording_params"]
         }),
         this.LoadStreamProbeData({libraryId, objectId})
       ]);
@@ -1129,7 +1131,7 @@ class StreamStore {
         ...(liveRecordingConfigMeta?.program_pid_selection ?? {activeProgramId: null, selections: {}}),
         programs
       };
-      const advancedEncodingParams = liveRecordingConfigMeta?.advanced_encoding_params ?? null;
+      const advancedEncodingParams = liveRecordingConfigTopMeta?.recording_params?.xc_params ?? null;
 
       const recordingData = {
         audioStreams,
