@@ -243,23 +243,28 @@ const Outputs = observer(() => {
                 width: "30%",
                 render: record => (
                   <Group gap={0} wrap="nowrap">
-                    <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>{ record.url }</Text>
-                    <ActionIcon
-                      variant="transparent"
-                      c="elv-gray.6"
-                      size={18}
-                      onClick={() => {
-                        navigator.clipboard.writeText(record.url);
-                        setCopiedSlug(record.slug);
-                        setTimeout(() => setCopiedSlug(null), 2000);
-                      }}
-                    >
-                      {
-                        copiedSlug === record.slug ?
-                          <IconCheck /> :
-                          <IconCopy />
-                      }
-                    </ActionIcon>
+                    {
+                      record.url &&
+                      <>
+                        <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>{ record.url }</Text>
+                        <ActionIcon
+                          variant="transparent"
+                          c="elv-gray.6"
+                          size={18}
+                          onClick={() => {
+                            navigator.clipboard.writeText(record.url);
+                            setCopiedSlug(record.slug);
+                            setTimeout(() => setCopiedSlug(null), 2000);
+                          }}
+                        >
+                          {
+                            copiedSlug === record.slug ?
+                              <IconCheck /> :
+                              <IconCopy />
+                          }
+                        </ActionIcon>
+                      </>
+                    }
                   </Group>
                 )
               },
