@@ -272,7 +272,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
             label="Tags"
             description="Add tags to organize and quickly find streams."
             placeholder="Type and press Enter to add a tag"
-            data={streamStore.allTags}
+            data={streamStore.TagOptions()}
             key={form.key("tags")}
             {...form.getInputProps("tags")}
             mb={29}

@@ -105,8 +105,8 @@ export interface StreamInfo {
   reconnectionTimeout: number;
   // Placeholder pending API support - object creation date, epoch ms
   createdAt?: number;
-  // Event/scheduled date from the tenant query's query_fields (raw string, e.g. "2026-08-27")
   date?: string;
+  eventTime?: string;
   titleId?: string;
   // Fields added by LoadSummaryData
   videoStreamProbe?: any;
@@ -168,6 +168,10 @@ class DataStore {
   dedicatedNodes: DedicatedNodeMap;
   srtUrlsByStream: Record<string, SrtUrlInfo>;
   loadedDedicatedNodes = false;
+  declaredTags: string[] = [];
+  loadedDeclaredTags = false;
+  customDomain = "";
+  loadedCustomDomain = false;
   streamsLoaded = false;
   // Whether the currently-loaded stream set is scoped to the streams page's date filter.
   // Pages that need the full set (Outputs, Monitor, stream mapping) reload when this is true.
@@ -249,7 +253,7 @@ class DataStore {
       if(this.useContentGroup) {
         // Tenant-wide content-group query. Scoped (streams page) loads one page at a
         // time; LoadMoreStreamList pulls the rest.
-        const nameFilter = scoped && !objectIdSearch ? this.rootStore.streamStore.tableFilter : "";
+        const nameFilter = scoped && !objectIdSearch ? this.rootStore.streamStore.tenantNameTerms : [];
         streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, nameFilter, force: reload, paged: scoped && !objectIdSearch});
       } else {
         // Legacy: the site object's registered stream list.
@@ -366,6 +370,13 @@ class DataStore {
       });
       this.useContentGroup = !!liveManagementSettings?.use_content_group;
       this.useDateFilter = !!liveManagementSettings?.use_date_filter;
+
+      const customDomain = yield this.client.ContentObjectMetadata({
+        libraryId: siteLibraryId,
+        objectId: siteObjectId,
+        metadataSubtree: "/custom_domain"
+      });
+      this.UpdateCustomDomain({customDomain: customDomain ?? ""});
 
       const {live_stream, title} = contentTypes || {};
       if(live_stream) { this.contentType = live_stream; }
@@ -540,6 +551,46 @@ class DataStore {
     }
   }
 
+  *LoadDeclaredTags(): Generator<any, void> {
+    this.loadedDeclaredTags = false;
+    try {
+      if(!this.siteLibraryId) {
+        yield this.LoadTenantSiteData();
+      }
+
+      const tags = yield this.client.ContentObjectMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        metadataSubtree: "/declared_tags"
+      });
+      this.UpdateDeclaredTags({tags: tags ?? []});
+      this.loadedDeclaredTags = true;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load declared tags", error);
+    }
+  }
+
+  *LoadCustomDomain(): Generator<any, void> {
+    this.loadedCustomDomain = false;
+    try {
+      if(!this.siteLibraryId) {
+        yield this.LoadTenantSiteData();
+      }
+
+      const customDomain = yield this.client.ContentObjectMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        metadataSubtree: "/custom_domain"
+      });
+      this.UpdateCustomDomain({customDomain: customDomain ?? ""});
+      this.loadedCustomDomain = true;
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load custom domain", error);
+    }
+  }
+
   *LoadStreamUrls(): Generator<any, void> {
     this.loadedUrls = false;
     try {
@@ -708,6 +759,84 @@ class DataStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to save dedicated nodes", error);
+      throw error;
+    }
+  }
+
+  UpdateDeclaredTags = ({tags}: {tags: string[]}) => {
+    this.declaredTags = tags;
+  };
+
+  *SaveDeclaredTags({tags, commitMessage="Update declared tags"}: {tags: string[], commitMessage?: string}): Generator<any, void> {
+    try {
+      if(!this.siteLibraryId) {
+        yield this.LoadTenantSiteData();
+      }
+
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId
+      });
+
+      yield this.client.ReplaceMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        metadataSubtree: "/declared_tags",
+        metadata: toJS(tags)
+      });
+
+      yield this.client.FinalizeContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        commitMessage,
+        awaitCommitConfirmation: true
+      });
+
+      this.UpdateDeclaredTags({tags});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to save declared tags", error);
+      throw error;
+    }
+  }
+
+  UpdateCustomDomain = ({customDomain}: {customDomain: string}) => {
+    this.customDomain = customDomain;
+  };
+
+  *SaveCustomDomain({customDomain, commitMessage="Update custom domain"}: {customDomain: string, commitMessage?: string}): Generator<any, void> {
+    try {
+      if(!this.siteLibraryId) {
+        yield this.LoadTenantSiteData();
+      }
+
+      const {writeToken} = yield this.client.EditContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId
+      });
+
+      yield this.client.ReplaceMetadata({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        metadataSubtree: "/custom_domain",
+        metadata: customDomain
+      });
+
+      yield this.client.FinalizeContentObject({
+        libraryId: this.siteLibraryId,
+        objectId: this.siteId,
+        writeToken,
+        commitMessage,
+        awaitCommitConfirmation: true
+      });
+
+      this.UpdateCustomDomain({customDomain});
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to save custom domain", error);
       throw error;
     }
   }

@@ -6,6 +6,7 @@ import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
 const ConfirmModal = observer(({
   message,
   customMessage,
+  children,
   title,
   detailData={},
   batchSummary,
@@ -70,6 +71,7 @@ const ConfirmModal = observer(({
             }
           </Box>
         }
+        {children}
         {
           batchSummary &&
           <List mt={12}>

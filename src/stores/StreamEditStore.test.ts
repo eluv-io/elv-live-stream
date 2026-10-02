@@ -1957,6 +1957,35 @@ describe("UpdateConfigMetadata", () => {
     );
   });
 
+  it("writes advancedEncodingParams to live_recording_config recording_params.xc_params", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    mockClient.ContentObjectMetadata.mockResolvedValue({recording_params: {other: 1}});
+    await store.UpdateConfigMetadata({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false,
+      advancedEncodingParams: {preset: "medium", force_keyint: 60}
+    });
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadataSubtree: "live_recording_config",
+        metadata: expect.objectContaining({
+          recording_params: {other: 1, xc_params: {preset: "medium", force_keyint: 60}}
+        })
+      })
+    );
+    const writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
+    expect(writtenPaths).not.toContain("live_recording/recording_config/recording_params/xc_params");
+  });
+
+  it("leaves recording_params untouched when advancedEncodingParams is empty or undefined", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    for(const extra of [{advancedEncodingParams: {}}, {}]) {
+      mockClient.ReplaceMetadata.mockClear();
+      await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false, ...extra});
+      const call = mockClient.ReplaceMetadata.mock.calls.find(c => c[0].metadataSubtree === "live_recording_config");
+      expect(call[0].metadata).not.toHaveProperty("recording_params");
+    }
+  });
+
   it("skips FinalizeContentObject when finalize=false", async () => {
     const {store, mockClient} = makeConfigMetaStore();
     await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false});

@@ -16,3 +16,21 @@ export const ValidateTextField = ({value, key}: ValidateTextFieldProps={}): stri
 
   return null;
 };
+
+export const ValidateUrl = ({value}: {value?: string} = {}): string | null => {
+  const trimmed = value?.trim();
+
+  if(!trimmed) { return null; }
+
+  try {
+    const {protocol, hostname} = new URL(trimmed);
+
+    if(!["http:", "https:"].includes(protocol) || !hostname) {
+      return "Enter a valid URL starting with http:// or https://";
+    }
+  } catch {
+    return "Enter a valid URL starting with http:// or https://";
+  }
+
+  return null;
+};

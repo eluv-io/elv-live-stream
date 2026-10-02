@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import {ActionIcon, Badge, Box, Button, Center, Checkbox, Group, Loader, LoadingOverlay, Stack, Text, Title, Tooltip, UnstyledButton} from "@mantine/core";
 import {useVirtualizer} from "@tanstack/react-virtual";
 import {IconArrowNarrowDown, IconArrowNarrowUp, IconArrowsVertical, IconChevronRight} from "@tabler/icons-react";
-import {SanitizeUrl, FormatStreamDate} from "@/utils/helpers.ts";
+import {SanitizeUrl, FormatStreamDate, FormatStreamEventTime} from "@/utils/helpers.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
@@ -82,6 +82,22 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) 
     renderGroup: record => (
       <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500}>
         {FormatStreamDate(record.date)}
+      </Text>
+    )
+  },
+  {
+    accessor: "eventTime",
+    title: "Event Time",
+    sortable: true,
+    width: "minmax(120px, 0.75fr)",
+    render: record => (
+      <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500}>
+        {FormatStreamEventTime(record.eventTime)}
+      </Text>
+    ),
+    renderGroup: record => (
+      <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500}>
+        {FormatStreamEventTime(record.eventTime)}
       </Text>
     )
   },

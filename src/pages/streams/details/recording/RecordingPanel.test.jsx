@@ -29,6 +29,14 @@ vi.mock("@/stores/index.ts", () => ({
     LoadRecordingConfigData: mockLoadRecordingConfigData
   },
   outputStore: {LoadOutputStreamInfo: mockLoadOutputStreamInfo},
+  // AlternateTranscodesTable/AlternateTranscodeModal (rendered inside the
+  // Transport Stream Packaging section) read dataStore.dedicatedNodesList
+  // for the Streaming Protocol Node select, even while collapsed/closed.
+  dataStore: {
+    dedicatedNodesList: [],
+    loadedDedicatedNodes: true,
+    LoadDedicatedNodes: vi.fn()
+  },
   // RecordingPanel registers its Save/Discard callbacks with streamSaveStore on
   // mount and no longer renders its own Save button — the page-level toolbar
   // now drives saves via the callback captured through Register.

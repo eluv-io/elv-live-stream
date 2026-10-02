@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {CheckExpiration, GetDateRangePreset, SanitizeUrl, ShiftDateRangePreset, SortTable, slugify} from "@/utils/helpers";
+import {CheckExpiration, GetDateRangePreset, GetOutputLocation, SanitizeUrl, ShiftDateRangePreset, SortTable, WithOutputLocation, slugify} from "@/utils/helpers";
 
 describe("SortTable", () => {
   const asc = {columnAccessor: "name", direction: "asc"};
@@ -211,5 +211,62 @@ describe("ShiftDateRangePreset", () => {
   it("shifts days and weeks by the expected offset", () => {
     expect(ShiftDateRangePreset("day", new Date(2026, 7, 31), 1).getDate()).toBe(1);
     expect(ShiftDateRangePreset("week", new Date(2026, 7, 10), 1).getDate()).toBe(17);
+  });
+});
+
+describe("GetOutputLocation", () => {
+  const region = "na-west-north";
+
+  it("reads custom.location including its type and host", () => {
+    expect(GetOutputLocation({custom: {location: {type: "public", geo: region, node: "inode1", host: "host-1.example.com"}}}))
+      .toEqual({type: "public", geo: region, node: "inode1", host: "host-1.example.com"});
+  });
+
+  it("reads a typed Automatic location as public with no geo or node", () => {
+    expect(GetOutputLocation({custom: {location: {type: "public"}}})).toEqual({type: "public", geo: "", node: "", host: ""});
+  });
+
+  it("prefers custom.location over a legacy description", () => {
+    expect(GetOutputLocation({custom: {location: {type: "public", geo: region}}, description: "inode-old"}))
+      .toEqual({type: "public", geo: region, node: "", host: ""});
+  });
+
+  it("falls back to a legacy region-slug description", () => {
+    expect(GetOutputLocation({description: region})).toEqual({type: "public", geo: region, node: "", host: ""});
+  });
+
+  it("falls back to a legacy node-id description, inferring public unless it's a dedicated node", () => {
+    expect(GetOutputLocation({description: "inode1"})).toEqual({type: "public", geo: "", node: "inode1", host: ""});
+    expect(GetOutputLocation({description: "inode1"}, ["inode1"])).toEqual({type: "dedicated", geo: "", node: "inode1", host: ""});
+  });
+
+  it("reads as public Automatic when nothing is saved", () => {
+    expect(GetOutputLocation({})).toEqual({type: "public", geo: "", node: "", host: ""});
+    expect(GetOutputLocation(undefined)).toEqual({type: "public", geo: "", node: "", host: ""});
+  });
+});
+
+describe("WithOutputLocation", () => {
+  it("replaces location and keeps other keys", () => {
+    expect(WithOutputLocation({ui: 1, location: {geo: "eu-west"}}, {type: "public", geo: "us-east", node: "inode1"}))
+      .toEqual({ui: 1, location: {type: "public", geo: "us-east", node: "inode1"}});
+  });
+
+  it("saves node and host together for a public pick", () => {
+    expect(WithOutputLocation(undefined, {type: "public", geo: "us-east", node: "inode1", host: "host-1.example.com"}))
+      .toEqual({location: {type: "public", geo: "us-east", node: "inode1", host: "host-1.example.com"}});
+  });
+
+  it("omits empty geo/node fields", () => {
+    expect(WithOutputLocation(undefined, {type: "public", geo: "us-east", node: ""})).toEqual({location: {type: "public", geo: "us-east"}});
+  });
+
+  it("keeps a type-only location (Automatic)", () => {
+    expect(WithOutputLocation(undefined, {type: "public"})).toEqual({location: {type: "public"}});
+  });
+
+  it("drops location when empty and returns undefined if nothing is left", () => {
+    expect(WithOutputLocation({location: {geo: "us-east"}}, {})).toBeUndefined();
+    expect(WithOutputLocation({ui: 1, location: {geo: "us-east"}}, {})).toEqual({ui: 1});
   });
 });
