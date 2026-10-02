@@ -6,7 +6,7 @@ import {IconPencil, IconPlus, IconTrash} from "@tabler/icons-react";
 import {notifications} from "@mantine/notifications";
 import {dataStore, streamEditStore, streamStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
-import {AudioBitrateReadable, VideoBitrateReadable} from "@/utils/formatters.ts";
+import {VideoBitrateReadable} from "@/utils/formatters.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import AlternateTranscodeModal from "@/pages/streams/details/recording/alternate-transcodes/AlternateTranscodeModal.jsx";
@@ -131,7 +131,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
             },
             {accessor: "geoNode", title: "Geo/Node", render: GeoNodeLabel},
             {accessor: "resolution", title: "Resolution", render: record => record.resolution || "-"},
-            {accessor: "streamBitrate", title: "Stream Bitrate", render: record => AudioBitrateReadable(Number(record.streamBitrate)) || "-"},
+            {accessor: "streamBitrate", title: "Stream Bitrate", render: record => VideoBitrateReadable(Number(record.streamBitrate)) || "-"},
             {accessor: "videoBitrate", title: "Bitrate", render: record => VideoBitrateReadable(Number(record.videoBitrate)) || "-"},
             {
               accessor: "actions",
