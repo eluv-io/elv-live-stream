@@ -175,7 +175,12 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
       <ConfirmModal
         title="Delete Alternate Transcode Confirmation"
         message="Are you sure you want to delete this alternate transcode?"
-        detailData={{nameKey: "Name:", name: pendingDeleteItem?.name}}
+        detailData={{
+          nameKey: "Stream Name:",
+          name: pendingDeleteItem?.name,
+          idKey: "Stream ID:",
+          id: pendingDeleteItem?.id
+        }}
         confirmText="Delete"
         danger
         show={showDeleteModal}
