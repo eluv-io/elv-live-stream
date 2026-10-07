@@ -101,6 +101,7 @@ vi.mock("@/stores/index.ts", () => ({
     allMappedStreamTags: [],
     sortStatus: {columnAccessor: "name", direction: "asc"},
     LoadOutputs: vi.fn(),
+    LoadOutputsState: vi.fn(),
     SetTableFilter: vi.fn(),
     SetTableTagFilter: vi.fn(),
     SetSortStatus: vi.fn()

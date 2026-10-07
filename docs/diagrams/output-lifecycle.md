@@ -9,10 +9,12 @@ flowchart TD
     A[Outputs.jsx mounts] --> B["dataStore.LoadStreamList (must finish first)"]
     B --> C[LoadOutputSettingsId]
     C --> D["resolves outputSettingsId from site's<br/>live_outputs metadata"]
-    D --> E["LoadOutputs: client.OutputsList<br/>(replaces outputs map wholesale)"]
+    D --> E["LoadOutputs: client.OutputsList(includeState: false)<br/>(replaces outputs map wholesale)"]
+    E --> F["table renders (loading cleared)"]
+    F --> G["LoadOutputsState: OutputsListState(outputs)<br/>+ OutputsResolveSrtPullUrls per srt_pull output<br/>(merges state / rewritten urls per output)"]
 ```
 
-`LoadOutputs` must run **after** `LoadStreamList` and never concurrently with output-state polling — `OutputsList`/`OutputsState` temporarily reroute the shared fabric client to a live-egress node; overlapping calls would mis-route each other's reads and 403.
+`LoadOutputs` / `LoadOutputsState` must run **after** `LoadStreamList` and never concurrently with output-state polling — `OutputsList`/`OutputsState` temporarily reroute the shared fabric client to a live-egress node; overlapping calls would mis-route each other's reads and 403.
 
 ## Creation
 

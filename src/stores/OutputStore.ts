@@ -1,5 +1,5 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
-import {makeAutoObservable} from "mobx";
+import {makeAutoObservable, toJS} from "mobx";
 import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/stream";
 import {SortTable} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
@@ -159,6 +159,8 @@ class OutputStore {
   tableFilter = "";
   tableTagFilter: string[] = [];
   sortStatus = {columnAccessor: "name", direction: "asc"};
+  // srt_pull urls point at the origin host until LoadOutputsState rewrites them.
+  srtUrlsPending = false;
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
@@ -184,7 +186,7 @@ class OutputStore {
     const {streamsByObjectId, streams} = this.rootStore.streamStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
     // srt_pull stores urls as an array; other types store a single url string.
-    const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
+    const url = (this.srtUrlsPending ? undefined : output.srt_pull?.urls?.[0]) ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
 
     return {
       slug,
@@ -292,15 +294,65 @@ class OutputStore {
         yield this.LoadOutputSettingsId();
       }
 
+      // State is fetched separately (LoadOutputsState) so the table renders first
       this.outputs = yield this.client.OutputsList({
-        objectId: this.outputSettingsId
+        objectId: this.outputSettingsId,
+        includeState: false
       });
 
+      this.srtUrlsPending = true;
       this.state = "loaded";
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to load outputs.", error);
       this.state = "error";
+    }
+  }
+
+  /**
+   * Merge live state onto outputs loaded by LoadOutputs. Also rewrites srt_pull
+   * URLs to the egress host, which OutputsList skips when includeState=false.
+   * URLs are applied as soon as they resolve, without waiting on the slower state call.
+   */
+  *LoadOutputsState(): Generator<any, void> {
+    try {
+      if(!this.outputSettingsId || Object.keys(this.outputs || {}).length === 0) { return; }
+
+      const outputs = toJS(this.outputs);
+
+      const statePromise = this.client.OutputsListState({objectId: this.outputSettingsId, outputs})
+        .catch(error => {
+          // eslint-disable-next-line no-console
+          console.error("Failed to load output state.", error);
+          return {};
+        });
+
+      const srtUrls = yield Promise.all(
+        Object.entries(outputs)
+          .filter(([, output]) => output.srt_pull?.urls)
+          .map(async ([slug, output]) => {
+            try {
+              const resolved = await this.client.OutputsResolveSrtPullUrls({value: output});
+              return [slug, resolved.srt_pull.urls];
+            } catch(error) {
+              // eslint-disable-next-line no-console
+              console.error(`Failed to resolve SRT URLs for output ${slug}.`, error);
+              return undefined;
+            }
+          })
+      );
+
+      for(const [slug, urls] of srtUrls.filter(Boolean)) {
+        this.UpdateOutput({slug, updates: {srt_pull: {...this.outputs[slug]?.srt_pull, urls}}});
+      }
+      this.srtUrlsPending = false;
+
+      const states = yield statePromise;
+      for(const [slug, state] of Object.entries(states || {})) {
+        this.UpdateOutput({slug, updates: {state}});
+      }
+    } finally {
+      this.srtUrlsPending = false;
     }
   }
 

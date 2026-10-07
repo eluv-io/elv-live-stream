@@ -68,6 +68,9 @@ const Outputs = observer(() => {
       } finally {
         setLoading(false);
       }
+
+      // Render the list first; live state (client counts) fills in afterward
+      await outputStore.LoadOutputsState();
     }
   };
 

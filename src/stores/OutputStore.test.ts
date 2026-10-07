@@ -32,6 +32,7 @@ const makeClient = (overrides: Record<string, unknown> = {}) => ({
   ContentObjectMetadata: vi.fn().mockResolvedValue(null),
   OutputsList: vi.fn().mockResolvedValue({}),
   OutputsListItem: vi.fn().mockResolvedValue({}),
+  OutputsListState: vi.fn().mockResolvedValue({}),
   OutputsState: vi.fn().mockResolvedValue({state: {connected_clients: 3}}),
   OutputsCreate: vi.fn().mockResolvedValue({"out-1": {name: "New Output", srt_pull: {urls: ["srt://host:1234"]}}}),
   OutputsResolveSrtPullUrls: vi.fn().mockImplementation(({value}) => Promise.resolve(value)),
@@ -218,6 +219,92 @@ describe("outputList", () => {
 // ---------------------------------------------------------------------------
 // CheckOutputState
 // ---------------------------------------------------------------------------
+
+describe("LoadOutputs", () => {
+  it("should request the list without state", async () => {
+    const {store, mockClient} = makeStore({OutputsList: vi.fn().mockResolvedValue({"out-1": {name: "A"}})});
+
+    await store.LoadOutputs();
+
+    expect(mockClient.OutputsList).toHaveBeenCalledWith({objectId: "iq__output-settings", includeState: false});
+    expect(store.outputs).toEqual({"out-1": {name: "A"}});
+    expect(store.state).toBe("loaded");
+  });
+});
+
+describe("LoadOutputsState", () => {
+  it("should merge state and rewritten srt_pull urls onto loaded outputs", async () => {
+    const {store, mockClient} = makeStore({
+      OutputsListState: vi.fn().mockResolvedValue({"out-1": {connected_clients: 2}, "out-2": {}}),
+      OutputsResolveSrtPullUrls: vi.fn().mockResolvedValue({srt_pull: {urls: ["srt://egress:1234"]}})
+    });
+    store.outputs = {
+      "out-1": {name: "A", srt_pull: {urls: ["srt://origin:1234"], node_ids: ["n1"]}},
+      "out-2": {name: "B", rtp: {url: "rtp://x"}}
+    };
+
+    await store.LoadOutputsState();
+
+    expect(mockClient.OutputsListState).toHaveBeenCalledWith({objectId: "iq__output-settings", outputs: expect.any(Object)});
+    expect(mockClient.OutputsResolveSrtPullUrls).toHaveBeenCalledTimes(1);
+    expect(store.outputs["out-1"].state).toEqual({connected_clients: 2});
+    expect(store.outputs["out-1"].srt_pull).toEqual({urls: ["srt://egress:1234"], node_ids: ["n1"]});
+    expect(store.outputs["out-2"].state).toEqual({});
+  });
+
+  it("should still merge state when SRT url resolution fails", async () => {
+    const {store} = makeStore({
+      OutputsListState: vi.fn().mockResolvedValue({"out-1": {connected_clients: 1}}),
+      OutputsResolveSrtPullUrls: vi.fn().mockRejectedValue(new Error("boom"))
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    store.outputs = {"out-1": {name: "A", srt_pull: {urls: ["srt://origin:1234"]}}};
+
+    await store.LoadOutputsState();
+
+    expect(store.outputs["out-1"].state).toEqual({connected_clients: 1});
+    expect(store.outputs["out-1"].srt_pull.urls).toEqual(["srt://origin:1234"]);
+  });
+
+  it("should hide srt_pull urls until they are resolved", async () => {
+    let resolveUrls;
+    const {store} = makeStore({
+      OutputsList: vi.fn().mockResolvedValue({"out-1": {name: "A", srt_pull: {urls: ["srt://origin:1234"]}}}),
+      OutputsResolveSrtPullUrls: vi.fn().mockReturnValue(new Promise(resolve => { resolveUrls = resolve; }))
+    });
+
+    await store.LoadOutputs();
+    expect(store.OutputItem("out-1").url).toBeUndefined();
+
+    const loading = store.LoadOutputsState();
+    resolveUrls({srt_pull: {urls: ["srt://egress:1234"]}});
+    await loading;
+
+    expect(store.OutputItem("out-1").url).toBe("srt://egress:1234");
+  });
+
+  it("should show original srt_pull urls when state loading fails", async () => {
+    const {store} = makeStore({
+      OutputsListState: vi.fn().mockRejectedValue(new Error("boom")),
+      OutputsResolveSrtPullUrls: vi.fn().mockRejectedValue(new Error("boom"))
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    store.outputs = {"out-1": {name: "A", srt_pull: {urls: ["srt://origin:1234"]}}};
+    store.srtUrlsPending = true;
+
+    await store.LoadOutputsState();
+
+    expect(store.OutputItem("out-1").url).toBe("srt://origin:1234");
+  });
+
+  it("should skip the call when there are no outputs", async () => {
+    const {store, mockClient} = makeStore({OutputsListState: vi.fn()});
+
+    await store.LoadOutputsState();
+
+    expect(mockClient.OutputsListState).not.toHaveBeenCalled();
+  });
+});
 
 describe("CheckOutputState", () => {
   it("should return the response from OutputsState without mutating outputs when update=false", async () => {
