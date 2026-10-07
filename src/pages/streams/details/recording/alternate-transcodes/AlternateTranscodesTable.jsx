@@ -44,6 +44,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [statuses, setStatuses] = useState({});
+  const [startingIds, setStartingIds] = useState([]);
 
   const idsKey = (records || []).map(r => r.id).join(",");
 
@@ -69,6 +70,24 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
     });
   };
 
+  const StartNewTranscode = async(id) => {
+    setStartingIds(ids => [...ids, id]);
+
+    try {
+      await streamStore.StartStream({objectId: id});
+    } catch(error) {
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: `Unable to start alternate transcode: ${error?.message || error}`
+      });
+    } finally {
+      const result = await streamStore.StreamStatuses([id]);
+      setStatuses(prev => ({...prev, ...result}));
+      setStartingIds(ids => ids.filter(startingId => startingId !== id));
+    }
+  };
+
   const HandleSave = async(values) => {
     setSaving(true);
     try {
@@ -78,6 +97,8 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
 
       const exists = (records || []).some(r => r.id === record.id);
       onChange(exists ? records.map(r => r.id === record.id ? record : r) : [...(records || []), record]);
+
+      if(!exists) { StartNewTranscode(record.id); }
     } catch(error) {
       notifications.show({
         title: "Error",
@@ -133,7 +154,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
                   </Title>
                   <Group wrap="nowrap" gap={6}>
                     <StatusIndicator
-                      status={statuses[record.id]?.status}
+                      status={startingIds.includes(record.id) ? STATUS_MAP.STARTING : statuses[record.id]?.status}
                       size="xs"
                       fw={400}
                       c="elv-gray.6"
@@ -163,7 +184,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
                           size={22}
                           variant="transparent"
                           color="elv-gray.6"
-                          disabled={disabled || saving}
+                          disabled={disabled || saving || startingIds.includes(record.id)}
                           onClick={() => ConfirmStreamOp(record, "START")}
                         >
                           <IconPlayerPlay />
