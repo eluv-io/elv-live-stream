@@ -37,6 +37,10 @@ interface ModalDataProps {
   detailData?: DetailData | null;
   batchSummary?: BatchSummary | null;
   customMessage?: string;
+  dependentsLoading?: boolean;
+  dependentCount?: number;
+  includeDependents?: boolean;
+  OnIncludeDependentsChange?: ((include: boolean) => void) | null;
 }
 
 interface NotificationResult {
@@ -111,6 +115,9 @@ class ModalStore {
     confirmText: "",
   };
 
+  // Alternate transcodes of the stream in the open START/STOP modal, with live status.
+  dependents: {id: string, status: StreamStatus}[] = [];
+
   OP_MAP: Record<StreamOp, OpConfig> = {
     "CHECK": {
       title: "Check Stream Confirmation",
@@ -139,7 +146,7 @@ class ModalStore {
       title: "Start Stream Confirmation",
       message: "Are you sure you want to start the stream? Once started, the stream will go live, and any changes may require restarting. Please confirm before proceeding.",
       confirmText: "Start Stream",
-      Method: ({slug}) => this.rootStore.streamStore.StartStream({slug}),
+      Method: ({objectId, slug}) => this.rootStore.streamStore.StartStream({objectId, slug}),
       notification: () => ({
         success: {title: "Started Stream", message: "Stream was successfully started"},
         error: {title: "Error", message: "Unable to start stream"}
@@ -226,6 +233,7 @@ class ModalStore {
     this.rootStore = rootStore;
     makeAutoObservable(this, {
       OP_MAP: false,
+      dependents: observable.ref,
       // modalData holds JSX React elements (customMessage, loadingText). MobX
       // deep-observes plain objects, and a React element is a plain object — in
       // dev it carries a `_debugTask` whose `run` method gets wrapped by MobX's
@@ -300,6 +308,9 @@ class ModalStore {
     Callback,
     notifications
   }: SetModalParams): void => {
+    this.dependents = [];
+    const checkDependents = (op === "START" || op === "STOP") && !!data.objectId;
+
     this.modalData = {
       ...this.modalData,
       ...this.StreamOpMessaging({
@@ -314,15 +325,67 @@ class ModalStore {
         name: data.name,
         nameKey: "Stream Name:"
       },
-      ConfirmCallback: () => this.HandleStreamAction({
-        records: [{objectId: data.objectId, slug}],
-        op,
-        Callback,
-        notifications
-      }),
+      ConfirmCallback: () => {
+        const {statuses: readyStatuses} = BATCH_READY_STATUSES[op as BatchOp] || {statuses: []};
+        const dependentRecords = this.modalData.includeDependents ?
+          this.dependents
+            .filter(d => readyStatuses.includes(d.status))
+            .map(d => ({objectId: d.id, slug: ""})) : [];
+
+        return this.HandleStreamAction({
+          records: [{objectId: data.objectId, slug}, ...dependentRecords],
+          op,
+          Callback,
+          notifications
+        });
+      },
       CloseCallback: () => this.ResetModal(),
-      show: true
+      show: true,
+      dependentsLoading: checkDependents
     };
+
+    if(checkDependents) {
+      this.LoadDependents({objectId: data.objectId});
+    }
+  };
+
+  // Shows the "Include dependent streams" checkbox when the stream has alternate transcodes.
+  *LoadDependents({objectId}: {objectId: string}): Generator<any, void> {
+    try {
+      const client = this.rootStore.streamStore.client;
+      const libraryId = yield client.ContentObjectLibraryId({objectId});
+      const ids: string[] = (yield client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        metadataSubtree: "live_recording_config/alternate_transcodes"
+      })) || [];
+
+      if(ids.length === 0) { return; }
+
+      const statuses = yield this.rootStore.streamStore.StreamStatuses(ids);
+
+      // Modal was closed or replaced while loading.
+      if(this.modalData.objectId !== objectId) { return; }
+
+      this.dependents = ids.map(id => ({id, status: statuses[id]?.status}));
+      this.modalData = {
+        ...this.modalData,
+        dependentCount: ids.length,
+        includeDependents: true,
+        OnIncludeDependentsChange: this.SetIncludeDependents
+      };
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error("Unable to load dependent streams", error);
+    } finally {
+      if(this.modalData.objectId === objectId) {
+        this.modalData = {...this.modalData, dependentsLoading: false};
+      }
+    }
+  }
+
+  SetIncludeDependents = (include: boolean) => {
+    this.modalData = {...this.modalData, includeDependents: include};
   };
 
   SetBatchModal = ({records, op, Callback, notifications}: SetBatchModalParams): void => {

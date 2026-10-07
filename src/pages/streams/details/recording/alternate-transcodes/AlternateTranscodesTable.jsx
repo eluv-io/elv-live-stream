@@ -1,11 +1,11 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Box, Button, Divider, Group, Stack, Text, Title, Tooltip} from "@mantine/core";
 import {DataTable} from "mantine-datatable";
-import {IconPencil, IconPlus, IconTrash} from "@tabler/icons-react";
+import {IconPencil, IconPlayerPlay, IconPlayerStop, IconPlus, IconTrash} from "@tabler/icons-react";
 import {notifications} from "@mantine/notifications";
-import {dataStore, streamEditStore, streamStore} from "@/stores/index.ts";
-import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
+import {dataStore, modalStore, streamEditStore, streamStore} from "@/stores/index.ts";
+import {FABRIC_NODE_REGIONS, STATUS_MAP} from "@/utils/constants.ts";
 import {VideoBitrateReadable} from "@/utils/formatters.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
@@ -47,15 +47,27 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
 
   const idsKey = (records || []).map(r => r.id).join(",");
 
-  useEffect(() => {
-    if(!idsKey) { return; }
+  const LoadStatuses = useCallback(() => {
+    if(!idsKey) { return Promise.resolve(); }
 
-    let stale = false;
-    streamStore.StreamStatuses(idsKey.split(","))
-      .then(result => { if(!stale) { setStatuses(result); } });
-
-    return () => { stale = true; };
+    return streamStore.StreamStatuses(idsKey.split(","))
+      .then(result => setStatuses(result));
   }, [idsKey]);
+
+  useEffect(() => {
+    LoadStatuses();
+  }, [LoadStatuses]);
+
+  // Slug is omitted: alternate transcodes aren't in the streams map.
+  const ConfirmStreamOp = (record, op) => {
+    modalStore.SetModal({
+      data: {objectId: record.id, name: record.name},
+      op,
+      slug: "",
+      Callback: LoadStatuses,
+      notifications
+    });
+  };
 
   const HandleSave = async(values) => {
     setSaving(true);
@@ -144,6 +156,33 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
               textAlign: "right",
               render: (record) => (
                 <Group justify="flex-end" gap={12} wrap="nowrap">
+                  {
+                    [STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(statuses[record.id]?.status) ? (
+                      <Tooltip label="Start" withArrow>
+                        <ActionIcon
+                          size={22}
+                          variant="transparent"
+                          color="elv-gray.6"
+                          disabled={disabled || saving}
+                          onClick={() => ConfirmStreamOp(record, "START")}
+                        >
+                          <IconPlayerPlay />
+                        </ActionIcon>
+                      </Tooltip>
+                    ) : [STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(statuses[record.id]?.status) ? (
+                      <Tooltip label="Stop" withArrow>
+                        <ActionIcon
+                          size={22}
+                          variant="transparent"
+                          color="elv-gray.6"
+                          disabled={disabled || saving}
+                          onClick={() => ConfirmStreamOp(record, "STOP")}
+                        >
+                          <IconPlayerStop />
+                        </ActionIcon>
+                      </Tooltip>
+                    ) : null
+                  }
                   <Tooltip label="Edit" withArrow>
                     <ActionIcon
                       size={22}

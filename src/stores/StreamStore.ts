@@ -632,16 +632,15 @@ class StreamStore {
 
   // Live Stream Controls
 
+  // objectId overrides the slug lookup for streams outside the streams map (alternate transcodes).
   *StartStream({
     slug,
+    objectId=this.streams[slug]?.objectId,
     start=false
-  }: {slug: string, start?: boolean}): Generator<any, void> {
-    const objectId = this.streams[slug].objectId;
+  }: {slug?: string, objectId?: string, start?: boolean}): Generator<any, void> {
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
-    const response = yield this.CheckStatus({
-      objectId: this.streams[slug].objectId
-    });
+    const response = yield this.CheckStatus({objectId});
     switch(response.state) {
       case "unconfigured":
       case "uninitialized":
