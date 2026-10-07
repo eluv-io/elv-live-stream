@@ -29,6 +29,12 @@ const GeoNodeLabel = (record) => {
   return "-";
 };
 
+// "<resolution> @ <bitrate>", omitting whichever part is missing.
+const VideoLabel = (record) => {
+  const bitrate = VideoBitrateReadable(Number(record.videoBitrate));
+  return [record.resolution, bitrate].filter(Boolean).join(" @ ") || "-";
+};
+
 // Controlled component like AudioTracksTable.jsx, but each row action is an
 // immediate fabric write, not a staged edit awaiting the panel's Save.
 const AlternateTranscodesTable = observer(({records, onChange, disabled, parentObjectId, parentLibraryId, parentSlug}) => {
@@ -130,9 +136,8 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
               )
             },
             {accessor: "geoNode", title: "Geo/Node", render: GeoNodeLabel},
-            {accessor: "resolution", title: "Resolution", render: record => record.resolution || "-"},
             {accessor: "streamBitrate", title: "Stream Bitrate", render: record => VideoBitrateReadable(Number(record.streamBitrate)) || "-"},
-            {accessor: "videoBitrate", title: "Bitrate", render: record => VideoBitrateReadable(Number(record.videoBitrate)) || "-"},
+            {accessor: "video", title: "Video", render: VideoLabel},
             {
               accessor: "actions",
               title: "",
