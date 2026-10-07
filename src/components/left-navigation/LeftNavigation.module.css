@@ -1,7 +1,9 @@
 .root {
   justify-content: center;
-  padding: 5px 0 5px 10px;
-  border: 2px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 2px;
 
   &:where([data-active]) {
     font-weight: 500;
@@ -13,10 +15,15 @@
 }
 
 .section {
+  margin: 0 !important;
   color: var(--mantine-color-elv-gray-7);
 }
 
 .label {
   font-size: 16px;
   color: var(--mantine-color-elv-gray-7);
+}
+
+.body {
+  display: none;
 }

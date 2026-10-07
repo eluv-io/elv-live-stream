@@ -5,8 +5,8 @@ import styles from "@/components/left-navigation/LeftNavigation.module.css";
 import {IconDeviceTv, IconRoute, IconSettings} from "@tabler/icons-react";
 
 const iconDimensions = {
-  width: 22,
-  height: 20
+  width: 24,
+  height: 24
 };
 
 const NAV_LINKS = [
@@ -21,7 +21,7 @@ const LeftNavigation = () => {
   const location = useLocation();
 
   return (
-    <AppShell.Navbar p="24 14">
+    <AppShell.Navbar p="24 15">
       {
         NAV_LINKS.map(({path, label, icon}) => (
           <Tooltip key={`navigation-link-${path}`} label={label} position="right" withArrow>
@@ -29,6 +29,7 @@ const LeftNavigation = () => {
               classNames={{
                 root: styles.root,
                 label: styles.label,
+                body: styles.body,
                 section: styles.section
             }}
               href="#"
