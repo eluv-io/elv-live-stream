@@ -33,7 +33,7 @@ const ConfirmModal = observer(({
       return;
     }
 
-    const timer = setTimeout(() => setShowChecking(true), 300);
+    const timer = setTimeout(() => setShowChecking(true), 400);
     return () => clearTimeout(timer);
   }, [dependentsLoading]);
 
@@ -88,7 +88,7 @@ const ConfirmModal = observer(({
           </Box>
         }
         {
-          showChecking &&
+          dependentsLoading && showChecking &&
           <Flex align="center" gap={8} mt={16}>
             <Loader size="xs" color="elv-gray.6" />
             <Text fz="sm" c="elv-gray.6">Checking for dependent streams...</Text>
