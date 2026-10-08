@@ -2182,3 +2182,37 @@ describe("UpdatePlayoutConfig", () => {
     );
   });
 });
+
+describe("UpdateAlternateTranscode", () => {
+  const params = {
+    objectId: "iq__alt", libraryId: "ilib1", name: "Alt", nodeType: "dedicated" as const,
+    node: "inod1", protocol: "mpegts"
+  };
+
+  const makeAltStore = () => {
+    const configMetaSpy = stubFlow("UpdateConfigMetadata");
+    const mockClient = {
+      EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-alt"}),
+      ContentObjectMetadata: vi.fn().mockResolvedValue(null),
+      MergeMetadata: vi.fn().mockResolvedValue(undefined),
+      DeleteWriteToken: vi.fn().mockResolvedValue(undefined)
+    };
+    const store = new StreamEditStore({client: mockClient, dataStore: {}, streamStore: {}} as any);
+    return {store, mockClient, configMetaSpy};
+  };
+
+  it("discards the write token when a step after EditContentObject fails", async () => {
+    const {store, mockClient} = makeAltStore();
+    mockClient.MergeMetadata.mockRejectedValue(new Error("merge failed"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(store.UpdateAlternateTranscode(params)).rejects.toThrow("merge failed");
+    expect(mockClient.DeleteWriteToken).toHaveBeenCalledWith({writeToken: "wt-alt"});
+  });
+
+  it("does not discard the write token on success", async () => {
+    const {store, mockClient} = makeAltStore();
+    await store.UpdateAlternateTranscode(params);
+    expect(mockClient.DeleteWriteToken).not.toHaveBeenCalled();
+  });
+});

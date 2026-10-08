@@ -544,12 +544,14 @@ class StreamEditStore {
     advancedEncodingParams,
     programPidSelection
   }: UpdateAlternateTranscodeParams): Generator<any, AlternateTranscode> {
+    let writeToken: string | undefined;
+
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const {writeToken} = yield this.client.EditContentObject({libraryId, objectId});
+      ({writeToken} = yield this.client.EditContentObject({libraryId, objectId}));
 
       const existingConfig = yield this.client.ContentObjectMetadata({
         libraryId,
@@ -624,6 +626,16 @@ class StreamEditStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to update alternate transcode", error);
+
+      if(writeToken) {
+        try {
+          yield this.client.DeleteWriteToken({writeToken});
+        } catch(discardError) {
+          // eslint-disable-next-line no-console
+          console.error("Failed to discard write token", discardError);
+        }
+      }
+
       throw error;
     }
   }
