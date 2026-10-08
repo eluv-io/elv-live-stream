@@ -558,18 +558,48 @@ class DataStore {
     }
   }
 
+  // Reads a subtree of the site object, loading site data first if needed
+  *_ReadSiteMetadata(metadataSubtree: string): Generator<any, any> {
+    if(!this.siteLibraryId) {
+      yield this.LoadTenantSiteData();
+    }
+
+    return yield this.client.ContentObjectMetadata({
+      libraryId: this.siteLibraryId,
+      objectId: this.siteId,
+      metadataSubtree
+    });
+  }
+
+  // Replaces a subtree of the site object in its own edit + finalize
+  *_WriteSiteMetadata({metadataSubtree, metadata, commitMessage}: {metadataSubtree: string, metadata: unknown, commitMessage: string}): Generator<any, void> {
+    if(!this.siteLibraryId) {
+      yield this.LoadTenantSiteData();
+    }
+
+    const libraryId = this.siteLibraryId;
+    const objectId = this.siteId;
+    const {writeToken} = yield this.client.EditContentObject({libraryId, objectId});
+
+    try {
+      yield this.client.ReplaceMetadata({libraryId, objectId, writeToken, metadataSubtree, metadata});
+      yield this.client.FinalizeContentObject({libraryId, objectId, writeToken, commitMessage, awaitCommitConfirmation: true});
+    } catch(error) {
+      try {
+        yield this.client.DeleteWriteToken({writeToken});
+      } catch(discardError) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to discard write token", discardError);
+      }
+
+      throw error;
+    }
+  }
+
   *LoadDeclaredTags(): Generator<any, void> {
     this.loadedDeclaredTags = false;
     try {
-      if(!this.siteLibraryId) {
-        yield this.LoadTenantSiteData();
-      }
-
-      const tags = yield this.client.ContentObjectMetadata({
-        libraryId: this.siteLibraryId,
-        objectId: this.siteId,
-        metadataSubtree: "/declared_tags"
-      });
+      const tags = yield this._ReadSiteMetadata("/declared_tags");
       this.UpdateDeclaredTags({tags: tags ?? []});
       this.loadedDeclaredTags = true;
     } catch(error) {
@@ -581,15 +611,7 @@ class DataStore {
   *LoadCustomDomain(): Generator<any, void> {
     this.loadedCustomDomain = false;
     try {
-      if(!this.siteLibraryId) {
-        yield this.LoadTenantSiteData();
-      }
-
-      const customDomain = yield this.client.ContentObjectMetadata({
-        libraryId: this.siteLibraryId,
-        objectId: this.siteId,
-        metadataSubtree: "/custom_domain"
-      });
+      const customDomain = yield this._ReadSiteMetadata("/custom_domain");
       this.UpdateCustomDomain({customDomain: customDomain ?? ""});
       this.loadedCustomDomain = true;
     } catch(error) {
@@ -776,31 +798,7 @@ class DataStore {
 
   *SaveDeclaredTags({tags, commitMessage="Update declared tags"}: {tags: string[], commitMessage?: string}): Generator<any, void> {
     try {
-      if(!this.siteLibraryId) {
-        yield this.LoadTenantSiteData();
-      }
-
-      const {writeToken} = yield this.client.EditContentObject({
-        libraryId: this.siteLibraryId,
-        objectId: this.siteId
-      });
-
-      yield this.client.ReplaceMetadata({
-        libraryId: this.siteLibraryId,
-        objectId: this.siteId,
-        writeToken,
-        metadataSubtree: "/declared_tags",
-        metadata: toJS(tags)
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId: this.siteLibraryId,
-        objectId: this.siteId,
-        writeToken,
-        commitMessage,
-        awaitCommitConfirmation: true
-      });
-
+      yield this._WriteSiteMetadata({metadataSubtree: "/declared_tags", metadata: toJS(tags), commitMessage});
       this.UpdateDeclaredTags({tags});
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -815,31 +813,7 @@ class DataStore {
 
   *SaveCustomDomain({customDomain, commitMessage="Update custom domain"}: {customDomain: string, commitMessage?: string}): Generator<any, void> {
     try {
-      if(!this.siteLibraryId) {
-        yield this.LoadTenantSiteData();
-      }
-
-      const {writeToken} = yield this.client.EditContentObject({
-        libraryId: this.siteLibraryId,
-        objectId: this.siteId
-      });
-
-      yield this.client.ReplaceMetadata({
-        libraryId: this.siteLibraryId,
-        objectId: this.siteId,
-        writeToken,
-        metadataSubtree: "/custom_domain",
-        metadata: customDomain
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId: this.siteLibraryId,
-        objectId: this.siteId,
-        writeToken,
-        commitMessage,
-        awaitCommitConfirmation: true
-      });
-
+      yield this._WriteSiteMetadata({metadataSubtree: "/custom_domain", metadata: customDomain, commitMessage});
       this.UpdateCustomDomain({customDomain});
     } catch(error) {
       // eslint-disable-next-line no-console
