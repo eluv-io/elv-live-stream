@@ -325,19 +325,34 @@ class ModalStore {
         name: data.name,
         nameKey: "Stream Name:"
       },
-      ConfirmCallback: () => {
-        const {statuses: readyStatuses} = BATCH_READY_STATUSES[op as BatchOp] || {statuses: []};
-        const dependentRecords = this.modalData.includeDependents ?
-          this.dependents
-            .filter(d => readyStatuses.includes(d.status))
-            .map(d => ({objectId: d.id, slug: ""})) : [];
-
-        return this.HandleStreamAction({
-          records: [{objectId: data.objectId, slug}, ...dependentRecords],
+      ConfirmCallback: async() => {
+        const dependentIds = await this.ReadyDependentIds(op);
+        const parent = this.HandleStreamAction({
+          records: [{objectId: data.objectId, slug}],
           op,
           Callback,
           notifications
         });
+        const dependents = Promise.allSettled(
+          dependentIds.map(id => this.OP_MAP[op].Method({objectId: id, slug: ""}))
+        );
+
+        // Dependents are reported separately so one failure doesn't mask the others or the parent.
+        let parentError;
+        try { await parent; } catch(error) { parentError = error; }
+
+        const failed = (await dependents).filter(result => result.status === "rejected");
+        if(failed.length > 0) {
+          // eslint-disable-next-line no-console
+          console.error(`Unable to ${op.toLowerCase()} dependent streams`, failed);
+          notifications?.show({
+            title: "Error",
+            color: "red",
+            message: `Unable to ${op.toLowerCase()} ${failed.length} of ${dependentIds.length} dependent streams`
+          });
+        }
+
+        if(parentError) { throw parentError; }
       },
       CloseCallback: () => this.ResetModal(),
       show: true,
@@ -383,6 +398,18 @@ class ModalStore {
       }
     }
   }
+
+  // Re-checks dependent statuses at confirm time, since the open-time snapshot may be stale.
+  ReadyDependentIds = async(op: StreamOp): Promise<string[]> => {
+    if(!this.modalData.includeDependents || this.dependents.length === 0) { return []; }
+
+    const {statuses: readyStatuses} = BATCH_READY_STATUSES[op as BatchOp];
+    const current = await this.rootStore.streamStore.StreamStatuses(this.dependents.map(d => d.id));
+
+    return this.dependents
+      .filter(d => readyStatuses.includes(current[d.id]?.status as StreamStatus))
+      .map(d => d.id);
+  };
 
   SetIncludeDependents = (include: boolean) => {
     this.modalData = {...this.modalData, includeDependents: include};
