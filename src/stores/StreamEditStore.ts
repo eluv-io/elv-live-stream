@@ -44,6 +44,18 @@ const ResolveIngestNodeId = async({client, geo}: {client: any, geo?: string}): P
   return nodes[0].id;
 };
 
+// Empty clears the value (null); anything else must be a positive integer
+const ParseBitrate = (value: string, label: string): number | null => {
+  if(!value.trim()) { return null; }
+
+  const bitrate = Number(value);
+  if(!Number.isInteger(bitrate) || bitrate <= 0) {
+    throw new Error(`Invalid ${label}: ${value}`);
+  }
+
+  return bitrate;
+};
+
 // Thrown when a live recording copy's content object can no longer be reached
 // (most likely deleted from the Fabric) while attempting to edit it. The UI
 // uses this to offer a "remove from list" remediation instead of a raw error.
@@ -1172,7 +1184,7 @@ class StreamEditStore {
       yield this.client.ReplaceMetadata({
         libraryId, objectId, writeToken,
         metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_bitrate",
-        metadata: parseInt(videoBitrate)
+        metadata: ParseBitrate(videoBitrate, "video bitrate")
       });
     }
 
@@ -1180,7 +1192,7 @@ class StreamEditStore {
       yield this.client.ReplaceMetadata({
         libraryId, objectId, writeToken,
         metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg/stream_bitrate",
-        metadata: parseInt(streamBitrate)
+        metadata: ParseBitrate(streamBitrate, "stream bitrate")
       });
     }
 

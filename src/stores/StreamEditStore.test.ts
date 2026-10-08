@@ -1883,6 +1883,34 @@ const makeConfigMetaStore = ({existingConfig = {}} = {}) => {
 };
 
 describe("UpdateConfigMetadata", () => {
+  it("writes video and stream bitrates as integers", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: "5000000", streamBitrate: "8000000", finalize: false});
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_bitrate", metadata: 5000000})
+    );
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg/stream_bitrate", metadata: 8000000})
+    );
+  });
+
+  it("clears the bitrate when the value is empty", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: "", finalize: false});
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_bitrate", metadata: null})
+    );
+  });
+
+  it.each(["abc", "12abc", "-5", "1.5"])("rejects a non-integer bitrate (%s) without writing", async (value) => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await expect(
+      store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: value, finalize: false})
+    ).rejects.toThrow("Invalid video bitrate");
+    const writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
+    expect(writtenPaths.some(p => p.endsWith("xc_params/video_bitrate"))).toBe(false);
+  });
+
   it("writes dvr_enabled to both live_recording and live_recording_overrides", async () => {
     const {store, mockClient} = makeConfigMetaStore();
     await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, finalize: false});
