@@ -2244,3 +2244,74 @@ describe("UpdateAlternateTranscode", () => {
     expect(mockClient.DeleteWriteToken).not.toHaveBeenCalled();
   });
 });
+
+describe("CreateAlternateTranscode cleanup", () => {
+  const params = {
+    parentObjectId: "iq__parent", parentLibraryId: "ilib1", parentSlug: "parent",
+    name: "Alt", nodeType: "dedicated" as const, node: "inod1", protocol: "mpegts"
+  };
+
+  const makeCreateStore = ({parentIds = [] as string[]} = {}) => {
+    const configMetaSpy = stubFlow("UpdateConfigMetadata");
+    const mockClient = {
+      CreateContentObject: vi.fn().mockResolvedValue({id: "iq__alt", writeToken: "wt-create"}),
+      FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
+      ContentObjectMetadata: vi.fn().mockImplementation(() => Promise.resolve({alternate_transcodes: parentIds})),
+      StreamCreate: vi.fn().mockResolvedValue(undefined),
+      EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-node"}),
+      MergeMetadata: vi.fn().mockResolvedValue(undefined),
+      DeleteWriteToken: vi.fn().mockResolvedValue(undefined),
+      DeleteContentObject: vi.fn().mockResolvedValue(undefined)
+    };
+    const store = new StreamEditStore({
+      client: mockClient,
+      dataStore: {LoadTenantSiteData: vi.fn().mockResolvedValue({contentTypes: {}})},
+      streamStore: {}
+    } as any);
+    return {store, mockClient, configMetaSpy};
+  };
+
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("deletes the reserved object when StreamCreate fails", async () => {
+    const {store, mockClient} = makeCreateStore();
+    mockClient.StreamCreate.mockRejectedValue(new Error("create failed"));
+
+    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("create failed");
+    expect(mockClient.DeleteContentObject).toHaveBeenCalledWith({libraryId: "ilib1", objectId: "iq__alt"});
+  });
+
+  it("discards the node write token and deletes the object when the node merge fails", async () => {
+    const {store, mockClient} = makeCreateStore();
+    mockClient.MergeMetadata.mockRejectedValue(new Error("merge failed"));
+
+    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("merge failed");
+    expect(mockClient.DeleteWriteToken).toHaveBeenCalledWith({writeToken: "wt-node"});
+    expect(mockClient.DeleteContentObject).toHaveBeenCalled();
+  });
+
+  it("deletes the object when appending to the parent fails", async () => {
+    const {store, mockClient, configMetaSpy} = makeCreateStore();
+    configMetaSpy.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("append failed"));
+
+    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("append failed");
+    expect(mockClient.DeleteContentObject).toHaveBeenCalledWith({libraryId: "ilib1", objectId: "iq__alt"});
+  });
+
+  it("keeps the object if the parent already references it", async () => {
+    const {store, mockClient, configMetaSpy} = makeCreateStore({parentIds: ["iq__alt"]});
+    configMetaSpy.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("finalize timed out"));
+
+    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("finalize timed out");
+    expect(mockClient.DeleteContentObject).not.toHaveBeenCalled();
+  });
+
+  it("does not delete anything on success", async () => {
+    const {store, mockClient} = makeCreateStore();
+    await store.CreateAlternateTranscode(params);
+    expect(mockClient.DeleteContentObject).not.toHaveBeenCalled();
+    expect(mockClient.DeleteWriteToken).not.toHaveBeenCalled();
+  });
+});

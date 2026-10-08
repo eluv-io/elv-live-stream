@@ -418,6 +418,10 @@ class StreamEditStore {
     advancedEncodingParams,
     programPidSelection
   }: CreateAlternateTranscodeParams): Generator<any, AlternateTranscode> {
+    // Tracked for cleanup if a later step fails
+    let objectId: string | undefined;
+    let nodeWriteToken: string | undefined;
+
     try {
       if(!parentLibraryId) {
         parentLibraryId = yield this.client.ContentObjectLibraryId({objectId: parentObjectId});
@@ -448,7 +452,8 @@ class StreamEditStore {
         libraryId: parentLibraryId,
         options: contentTypes?.live_stream ? {type: contentTypes.live_stream} : {}
       });
-      const objectId = createResponse.id;
+      // Object exists from here on; the finalize below commits it
+      objectId = createResponse.id as string;
 
       yield this.client.FinalizeContentObject({
         libraryId: parentLibraryId,
@@ -482,7 +487,7 @@ class StreamEditStore {
 
       // Also write ingress_node_id/geo directly (like UpdateAlternateTranscode),
       // since StreamCreate's own write goes through several merge layers.
-      const {writeToken: nodeWriteToken} = yield this.client.EditContentObject({libraryId: parentLibraryId, objectId});
+      ({writeToken: nodeWriteToken} = yield this.client.EditContentObject({libraryId: parentLibraryId, objectId}));
       yield this.client.MergeMetadata({
         libraryId: parentLibraryId,
         objectId,
@@ -501,6 +506,7 @@ class StreamEditStore {
         awaitCommitConfirmation: true,
         commitMessage: "Set alternate transcode node"
       });
+      nodeWriteToken = undefined;
 
       yield this.UpdateConfigMetadata({
         objectId,
@@ -536,6 +542,35 @@ class StreamEditStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to create alternate transcode", error);
+
+      if(nodeWriteToken) {
+        try {
+          yield this.client.DeleteWriteToken({writeToken: nodeWriteToken});
+        } catch(discardError) {
+          // eslint-disable-next-line no-console
+          console.error("Failed to discard write token", discardError);
+        }
+      }
+
+      if(objectId) {
+        try {
+          // Skip the delete if the parent already references it (e.g. a finalize that failed after committing)
+          const parentConfig = yield this.client.ContentObjectMetadata({
+            libraryId: parentLibraryId,
+            objectId: parentObjectId,
+            metadataSubtree: "live_recording_config",
+            select: ["alternate_transcodes"]
+          });
+
+          if(!(parentConfig?.alternate_transcodes ?? []).includes(objectId)) {
+            yield this.client.DeleteContentObject({libraryId: parentLibraryId, objectId});
+          }
+        } catch(cleanupError) {
+          // eslint-disable-next-line no-console
+          console.error(`Failed to remove partially created alternate transcode ${objectId}`, cleanupError);
+        }
+      }
+
       throw error;
     }
   }
