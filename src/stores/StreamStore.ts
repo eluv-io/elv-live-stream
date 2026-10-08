@@ -276,6 +276,11 @@ class StreamStore {
   _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string[]} | null = null;
   // Bumped when the paged query restarts or the date filter changes; stale "load more" fetches discard against it.
   _tenantContentEpoch = 0;
+  // Radio-type streams (query_fields.radio_team / radio_language) carry no date tag, so the
+  // dated tenant query never matches them. Cached by (siteId, nameFilter) - see _LoadRadioStreams.
+  _radioStreamsCache: StreamMap = {};
+  _radioStreamsKey: string | null = null;
+  _radioStreamsPromise: Promise<void> | null = null;
   // Bumped whenever `streams` is replaced; an in-flight status/classify pass checks this and stops early.
   _streamListEpoch = 0;
   rootStore: RootStore;
@@ -295,7 +300,10 @@ class StreamStore {
       _tenantContentQuery: false,
       _tenantContentEpoch: false,
       _streamListEpoch: false,
-      _allStreamsPromise: false
+      _allStreamsPromise: false,
+      _radioStreamsCache: false,
+      _radioStreamsKey: false,
+      _radioStreamsPromise: false
     }, {autoBind: true});
   }
 
@@ -1253,6 +1261,63 @@ class StreamStore {
   }
 
   /**
+   * Radio-type streams (query_fields.radio_team / radio_language present) have no date set,
+   * so they'd otherwise be excluded by every date preset but "all". Fetches the site+name-scoped
+   * set with no date filter and narrows it to radio entries; cached by (siteId, nameFilter) -
+   * deliberately independent of the dated query's own `force`, so date-preset navigation
+   * (day/week/month/year), which reloads the dated query on every shift, doesn't refetch this too.
+   */
+  *_LoadRadioStreams({siteId, nameFilter}: {siteId: string, nameFilter?: string}): Generator<any, StreamMap> {
+    const key = JSON.stringify([siteId, (nameFilter || "").trim()]);
+
+    if(this._radioStreamsKey === key) {
+      if(this._radioStreamsPromise) { yield this._radioStreamsPromise; }
+      return this._radioStreamsCache;
+    }
+
+    this._radioStreamsKey = key;
+    let resolve: () => void;
+    this._radioStreamsPromise = new Promise(res => { resolve = res; });
+
+    try {
+      const filter = this._TenantContentFilter(siteId, undefined, nameFilter);
+      let start = 0;
+      let versions: TenantContentVersion[] = [];
+
+      while(true) {
+        const {versions: page, paging} = yield this.client.TenantContent({
+          filter,
+          start,
+          limit: TENANT_CONTENT_PAGE_SIZE,
+          select: TENANT_CONTENT_SELECT
+        });
+
+        const received = (page ?? []).length;
+        versions = versions.concat(page ?? []);
+
+        const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+        if(next === null) { break; }
+        start = next;
+      }
+
+      this._radioStreamsCache = Object.fromEntries(
+        versions
+          .filter(({id, hash, query_fields}) =>
+            id && hash && (QueryFieldValue(query_fields, "radio_team") || QueryFieldValue(query_fields, "radio_language"))
+          )
+          .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
+      );
+    } catch(error) {
+      console.error("Unable to load radio stream content", error);
+      this._radioStreamsKey = null;
+    } finally {
+      resolve();
+    }
+
+    return this._radioStreamsCache;
+  }
+
+  /**
    * Start index of the next page, or null when none are left. The tenant query's
    * paging shape has varied (next / more / total), so fall back to "was this page full?".
    */
@@ -1351,6 +1416,13 @@ class StreamStore {
           .filter(({id, hash}) => id && hash)
           .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
       );
+
+      // Radio streams carry no date tag, so the date filter above (when active) would
+      // otherwise hide them from every preset but "all" - merge them back in.
+      if(startDate || endDate) {
+        const radioStreams: StreamMap = yield this._LoadRadioStreams({siteId, nameFilter: name});
+        this.tenantLiveStreamContent = {...radioStreams, ...this.tenantLiveStreamContent};
+      }
     } catch(error) {
       console.error("Unable to load tenant live stream content", error);
       this._tenantContentFilterKey = null;

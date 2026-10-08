@@ -179,6 +179,63 @@ describe("StreamStore tenant-query", () => {
     await store.LoadMoreTenantLiveStreamContent();
     expect(tenantContent).toHaveBeenLastCalledWith(expect.objectContaining({filter: ["group:eq:iq__site", "name:co:quarterfinal"]}));
   });
+
+  it("skips the radio-stream merge query when the request isn't date-scoped", async () => {
+    const tenantContent = vi.fn().mockResolvedValue({versions: [{id: "iq__1", hash: "hq__1"}], paging: {more: false}});
+    const {store} = makeStore({tenantContent});
+
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
+
+    expect(tenantContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("merges in undated radio streams (query_fields.radio_team/radio_language) when the query is date-scoped", async () => {
+    const dateRange: [Date, Date] = [new Date("2026-09-27T00:00:00"), new Date("2026-09-27T23:59:59")];
+    const tenantContent = vi.fn().mockImplementation(({filter}) => {
+      const isDated = (filter as string[]).some(f => f.startsWith("tag:"));
+      if(isDated) {
+        return Promise.resolve({
+          versions: [{id: "iq__dated", hash: "hq__dated", query_fields: {name: "Game 1", date: "2026-09-27"}}],
+          paging: {more: false}
+        });
+      }
+      // Unscoped radio-lookup query - includes a non-radio object that must be filtered out.
+      return Promise.resolve({
+        versions: [
+          {id: "iq__radio", hash: "hq__radio", query_fields: {name: "Radio - NBA - ATL - English", radio_team: "ATL", radio_language: "eng"}},
+          {id: "iq__other", hash: "hq__other", query_fields: {name: "Not radio"}}
+        ],
+        paging: {more: false}
+      });
+    });
+    const {store} = makeStore({tenantContent});
+
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", dateRange});
+
+    expect(tenantContent).toHaveBeenCalledTimes(2);
+    expect(Object.keys(store.tenantLiveStreamContent).sort()).toEqual(["iq__dated", "iq__radio"]);
+  });
+
+  it("caches the radio-stream lookup across date-preset navigation for the same siteId/nameFilter", async () => {
+    const dateRangeA: [Date, Date] = [new Date("2026-09-27T00:00:00"), new Date("2026-09-27T23:59:59")];
+    const dateRangeB: [Date, Date] = [new Date("2026-09-28T00:00:00"), new Date("2026-09-28T23:59:59")];
+    const tenantContent = vi.fn().mockImplementation(({filter}) => {
+      const isDated = (filter as string[]).some(f => f.startsWith("tag:"));
+      if(isDated) { return Promise.resolve({versions: [], paging: {more: false}}); }
+      return Promise.resolve({
+        versions: [{id: "iq__radio", hash: "hq__radio", query_fields: {name: "Radio", radio_team: "ATL"}}],
+        paging: {more: false}
+      });
+    });
+    const {store} = makeStore({tenantContent});
+
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", dateRange: dateRangeA, force: true});
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", dateRange: dateRangeB, force: true});
+
+    // One unscoped radio-lookup call, reused across both date-scoped (dated) calls.
+    const radioLookupCalls = tenantContent.mock.calls.filter(([{filter: f}]: any) => !(f as string[]).some(x => x.startsWith("tag:")));
+    expect(radioLookupCalls).toHaveLength(1);
+  });
 });
 
 describe("StreamStore.filteredStreams", () => {
