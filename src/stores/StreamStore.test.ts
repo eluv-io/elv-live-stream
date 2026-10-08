@@ -262,6 +262,37 @@ describe("StreamStore declared tags (OR semantics)", () => {
   });
 });
 
+describe("StreamStore.LoadTenantStreamInfo", () => {
+  it("returns a stream from the loaded maps without any reads", async () => {
+    const {store, mockClient} = makeStore({streams: {a: {slug: "a", objectId: "iq__a", originUrl: "srt://a"}}});
+    store.streams = {iq__a: {slug: "a", objectId: "iq__a", originUrl: "srt://a"}};
+
+    const info = await store.LoadTenantStreamInfo("iq__a");
+
+    expect(info.originUrl).toBe("srt://a");
+    expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
+    expect(mockClient.TenantContent).not.toHaveBeenCalled();
+  });
+
+  it("reads only that object on a miss, without paging the tenant", async () => {
+    const {store, mockClient} = makeStore({meta: {iq__x: {live_recording_config: {url: "srt://x"}}}});
+
+    const info = await store.LoadTenantStreamInfo("iq__x");
+
+    expect(info.originUrl).toBe("srt://x");
+    expect(mockClient.TenantContent).not.toHaveBeenCalled();
+    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(expect.objectContaining({objectId: "iq__x"}));
+  });
+
+  it("returns undefined when the object can't be read", async () => {
+    const {store, mockClient} = makeStore();
+    mockClient.ContentObjectMetadata.mockRejectedValue(new Error("not found"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await store.LoadTenantStreamInfo("iq__missing")).toBeUndefined();
+  });
+});
+
 describe("StreamStore active-set maintenance", () => {
   it("StartStream marks the stream active before the next poll", async () => {
     const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "l"}};
