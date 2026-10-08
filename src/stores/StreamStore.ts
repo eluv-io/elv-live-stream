@@ -1267,8 +1267,8 @@ class StreamStore {
    * deliberately independent of the dated query's own `force`, so date-preset navigation
    * (day/week/month/year), which reloads the dated query on every shift, doesn't refetch this too.
    */
-  *_LoadRadioStreams({siteId, nameFilter}: {siteId: string, nameFilter?: string}): Generator<any, StreamMap> {
-    const key = JSON.stringify([siteId, (nameFilter || "").trim()]);
+  *_LoadRadioStreams({siteId, nameFilter}: {siteId: string, nameFilter?: string[]}): Generator<any, StreamMap> {
+    const key = JSON.stringify([siteId, nameFilter ?? []]);
 
     if(this._radioStreamsKey === key) {
       if(this._radioStreamsPromise) { yield this._radioStreamsPromise; }
