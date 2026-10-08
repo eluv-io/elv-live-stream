@@ -1303,7 +1303,7 @@ class StreamStore {
     this._tenantContentCursor = 0;
     this._tenantContentQuery = {siteId, dateRange, nameFilter: name};
     // Any "load more" still in flight from a prior query is now stale.
-    this._tenantContentEpoch++;
+    const epoch = ++this._tenantContentEpoch;
 
     try {
       const filter = this._TenantContentFilter(siteId, dateRange, name);
@@ -1334,6 +1334,9 @@ class StreamStore {
         start = next;
       }
 
+      // A newer query started meanwhile - don't clobber its state with stale rows.
+      if(epoch !== this._tenantContentEpoch) { return {}; }
+
       this.tenantLiveStreamContent = Object.fromEntries(
         versions
           .filter(({id, hash}) => id && hash)
@@ -1343,7 +1346,7 @@ class StreamStore {
       console.error("Unable to load tenant live stream content", error);
       this._tenantContentFilterKey = null;
     } finally {
-      this.loadingTenantLiveStreamContent = false;
+      if(epoch === this._tenantContentEpoch) { this.loadingTenantLiveStreamContent = false; }
       resolve();
     }
 

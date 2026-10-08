@@ -184,12 +184,13 @@ class DataStore {
   // True while an additional page of streams is being fetched (scroll-to-load-more).
   loadingMoreStreams = false;
   _loadingStreams = false;
+  _streamLoadId = 0;
   _loadingMoreStreams = false;
   _accessGroupsPromise: Promise<void> | null = null;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
-    makeAutoObservable(this, {streamMetadata: observable.ref, _loadingStreams: false, _loadingMoreStreams: false, _accessGroupsPromise: false}, {autoBind: true});
+    makeAutoObservable(this, {streamMetadata: observable.ref, _loadingStreams: false, _streamLoadId: false, _loadingMoreStreams: false, _accessGroupsPromise: false}, {autoBind: true});
   }
 
   // Whether the streams page has more pages to load
@@ -230,6 +231,8 @@ class DataStore {
   *LoadStreamList({reload=false, scoped=true}: {reload?: boolean, scoped?: boolean} = {}): Generator<any, void> {
     if(this._loadingStreams && !reload) { return; }
     this._loadingStreams = true;
+    // A newer load (e.g. a search typed mid-load) supersedes this one's results.
+    const loadId = ++this._streamLoadId;
     this.streamsLoaded = false;
     // Drop any in-flight "load more" spinner - this rebuild replaces the list.
     this.loadingMoreStreams = false;
@@ -263,22 +266,26 @@ class DataStore {
         streamMetadata = this.streamMetadata;
       }
 
+      if(loadId !== this._streamLoadId) { return; }
+
       yield Promise.all([
         // Content-group query: skip per-object metadata fetches - list data is loaded separately.
         this.rootStore.streamStore.LoadStreams({streamMetadata, fetchObjectData: !this.useContentGroup}),
         this.rootStore.outputStore.LoadOutputSettingsId()
       ]);
 
+      if(loadId !== this._streamLoadId) { return; }
+
       this.streamsLoaded = true;
       this.streamsScoped = scoped;
 
       yield this.rootStore.streamStore.AllStreamsStatus(reload);
     } catch(error) {
-      this.streamsLoaded = true;
+      if(loadId === this._streamLoadId) { this.streamsLoaded = true; }
       // eslint-disable-next-line no-console
       console.error("Unable to load stream list", error);
     } finally {
-      this._loadingStreams = false;
+      if(loadId === this._streamLoadId) { this._loadingStreams = false; }
     }
   }
 
