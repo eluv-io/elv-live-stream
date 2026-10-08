@@ -222,6 +222,46 @@ describe("StreamStore.filteredStreams", () => {
   });
 });
 
+describe("StreamStore declared tags (OR semantics)", () => {
+  const streams = {
+    f: {slug: "f", objectId: "iq__f", title: "Finals", tags: []},
+    s: {slug: "s", objectId: "iq__s", title: "Semis", tags: []},
+    o: {slug: "o", objectId: "iq__o", title: "Other", tags: ["vip"]}
+  };
+
+  const makeTagStore = (tagFilter: string[]) => {
+    const {store} = makeStore({streams});
+    store.rootStore.dataStore.useContentGroup = true;
+    store.rootStore.dataStore.declaredTags = ["Finals", "Semis"];
+    store.rootStore.dataStore.loadedDeclaredTags = true;
+    store.RestoreTableTagFilter(tagFilter);
+    return store;
+  };
+
+  it("sends a lone declared tag to the tenant query", () => {
+    const store = makeTagStore(["Finals"]);
+
+    expect(store.tenantNameTerms).toEqual(["Finals"]);
+    expect(store.declaredTagsNeedFullLoad).toBe(false);
+  });
+
+  it("matches several declared tags client-side (OR) over a full load", () => {
+    const store = makeTagStore(["Finals", "Semis"]);
+
+    expect(store.tenantNameTerms).toEqual([]);
+    expect(store.declaredTagsNeedFullLoad).toBe(true);
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["f", "s"]);
+  });
+
+  it("ORs a declared tag with an ordinary tag client-side", () => {
+    const store = makeTagStore(["Finals", "vip"]);
+
+    expect(store.tenantNameTerms).toEqual([]);
+    expect(store.declaredTagsNeedFullLoad).toBe(true);
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["f", "o"]);
+  });
+});
+
 describe("StreamStore active-set maintenance", () => {
   it("StartStream marks the stream active before the next poll", async () => {
     const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "l"}};

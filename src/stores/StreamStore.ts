@@ -341,9 +341,19 @@ class StreamStore {
     return this.activeTagFilter.filter(t => declared.has(t));
   }
 
-  // Name terms (AND'd) sent to the tenant query: the search text plus selected declared tags
+  // A lone selected declared tag is sent to the tenant query; any more tags make the filter an OR, which the query (AND-only) can't express
+  get declaredTagsOnServer(): string[] {
+    return this.activeTagFilter.length === 1 ? this.selectedDeclaredTags : [];
+  }
+
+  // Declared tags that must be matched client-side, so the streams page loads the full set without paging
+  get declaredTagsNeedFullLoad(): boolean {
+    return this.selectedDeclaredTags.length > 0 && this.declaredTagsOnServer.length === 0;
+  }
+
+  // Name terms (AND'd) sent to the tenant query: the search text plus any server-side declared tag
   get tenantNameTerms(): string[] {
-    return [this.tableFilter.trim(), ...this.selectedDeclaredTags].filter(Boolean);
+    return [this.tableFilter.trim(), ...this.declaredTagsOnServer].filter(Boolean);
   }
 
   // Suggestions for stream tag inputs: tags already on streams. Declared tags are filter shortcuts only.
@@ -376,9 +386,9 @@ class StreamStore {
     const objectIdSearch = this.tableFilterIsObjectId;
     const serverSideText = this.rootStore.dataStore.useContentGroup && !objectIdSearch;
     const filter = serverSideText ? "" : this.tableFilter.toLowerCase().trim();
-    // Declared tags are already applied by the tenant query on the content-group path
+    // A server-side declared tag is already applied by the tenant query
     const tagFilter = this.rootStore.dataStore.useContentGroup ?
-      this.activeTagFilter.filter(t => !this.selectedDeclaredTags.includes(t)) :
+      this.activeTagFilter.filter(t => !this.declaredTagsOnServer.includes(t)) :
       this.activeTagFilter;
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||

@@ -99,11 +99,14 @@ const Streams = observer(() => {
     await dataStore.LoadStreamList({reload: true});
   }, 400);
 
-  // Selected declared tags are sent to the tenant query, so changing them re-runs it.
+  // Declared tags shape the tenant query (server-side term or full load), so changing them re-runs it.
+  const DeclaredTagQueryKey = () =>
+    `${streamStore.declaredTagsOnServer.join("|")}#${streamStore.declaredTagsNeedFullLoad}`;
+
   const SetTagFilter = (tags) => {
-    const before = streamStore.selectedDeclaredTags.join("|");
+    const before = DeclaredTagQueryKey();
     streamStore.SetTableTagFilter(tags);
-    if(dataStore.useContentGroup && before !== streamStore.selectedDeclaredTags.join("|")) {
+    if(dataStore.useContentGroup && before !== DeclaredTagQueryKey()) {
       streamGroupStore.CollapseAllGroups();
       DebouncedSearchReload();
     }
