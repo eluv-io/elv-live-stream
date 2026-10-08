@@ -468,7 +468,7 @@ export const ParseLiveConfigData = ({
 
   const dvrConfig = !skipDvrSection && dvrEnabled !== undefined ? {
     dvr: dvrEnabled,
-    ...(dvrEnabled && dvrStartTime != null ? {dvr_start_time: new Date(dvrStartTime).toISOString()} : {}),
+    ...(dvrEnabled && dvrStartTime ? {dvr_start_time: new Date(dvrStartTime).toISOString()} : {}),
     ...(dvrEnabled && dvrMaxDuration != null ? {dvr_max_duration: parseInt(String(dvrMaxDuration))} : {})
   } : undefined;
 

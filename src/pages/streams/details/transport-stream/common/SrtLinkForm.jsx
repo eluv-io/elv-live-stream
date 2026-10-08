@@ -116,7 +116,7 @@ const SrtLinkForm = ({
               format: "24h",
             }}
             leftSection={<IconCalendarEvent />}
-            rightSection={formData.startDate ? null : <IconSelector height={16}/>}
+            rightSection={formData.startDate ? undefined : <IconSelector height={16}/>}
           />
           <DateTimePicker
             value={formData.endDate}
@@ -134,7 +134,7 @@ const SrtLinkForm = ({
               format: "24h",
             }}
             leftSection={<IconCalendarEvent />}
-            rightSection={formData.endDate ? null : <IconSelector height={16}/>}
+            rightSection={formData.endDate ? undefined : <IconSelector height={16}/>}
           />
         </Group>
       )

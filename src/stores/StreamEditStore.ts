@@ -1065,7 +1065,11 @@ class StreamEditStore {
     if(!skipDvrSection && dvrEnabled !== undefined) {
       playoutConfig.dvr = dvrEnabled;
       if(dvrEnabled) {
-        if(dvrStartTime != null) { playoutConfig.dvr_start_time = new Date(dvrStartTime).toISOString(); }
+        if(dvrStartTime) {
+          playoutConfig.dvr_start_time = new Date(dvrStartTime).toISOString();
+        } else {
+          delete playoutConfig.dvr_start_time;
+        }
         if(dvrMaxDuration != null) { playoutConfig.dvr_max_duration = parseInt(dvrMaxDuration); }
       } else {
         delete playoutConfig.dvr_start_time;
@@ -1213,7 +1217,7 @@ class StreamEditStore {
         metadata: dvrEnabled
       });
       if(dvrEnabled) {
-        if(dvrStartTime != null) {
+        if(dvrStartTime) {
           yield this.client.ReplaceMetadata({
             libraryId, objectId, writeToken,
             metadataSubtree: "live_recording/playout_config/dvr_start_time",
@@ -1224,6 +1228,9 @@ class StreamEditStore {
             metadataSubtree: "live_recording_overrides/playout_config/dvr_start_time",
             metadata: new Date(dvrStartTime).toISOString()
           });
+        } else {
+          yield this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording/playout_config/dvr_start_time"});
+          yield this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording_overrides/playout_config/dvr_start_time"});
         }
         if(dvrMaxDuration != null) {
           yield this.client.ReplaceMetadata({
