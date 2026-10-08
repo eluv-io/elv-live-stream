@@ -994,51 +994,53 @@ class StreamStore {
     if(!ids || ids.length === 0) { return []; }
 
     const results = yield Promise.all(ids.map(async(id): Promise<AlternateTranscode> => {
-      let name = id;
-      let url = "";
-      let ingressNodeId;
-      let geo;
-      let recordingConfig: Record<string, any> = {};
-      let xcParams: Record<string, any> = {};
-      let advancedEncodingParams: Record<string, unknown> | null = null;
+      const [name, configMeta, xcParams] = await Promise.all([
+        (async() => {
+          try {
+            const generalMeta = await this.client.ContentObjectMetadata({
+              libraryId,
+              objectId: id,
+              metadataSubtree: "public",
+              select: ["name"]
+            });
+            return generalMeta?.name || id;
+          } catch(error) {
+            console.error(`Unable to load name for alternate transcode ${id}`, error);
+            return id;
+          }
+        })(),
+        (async() => {
+          try {
+            return (await this.client.ContentObjectMetadata({
+              libraryId,
+              objectId: id,
+              metadataSubtree: "live_recording_config",
+              select: ["url", "ingress_node_id", "geo", "recording_config", "recording_params"]
+            })) || {};
+          } catch(error) {
+            console.error(`Unable to load config for alternate transcode ${id}`, error);
+            return {};
+          }
+        })(),
+        (async(): Promise<Record<string, any>> => {
+          try {
+            return (await this.client.ContentObjectMetadata({
+              libraryId,
+              objectId: id,
+              metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
+            })) || {};
+          } catch(error) {
+            console.error(`Unable to load applied encoding config for alternate transcode ${id}`, error);
+            return {};
+          }
+        })()
+      ]);
 
-      try {
-        const generalMeta = await this.client.ContentObjectMetadata({
-          libraryId,
-          objectId: id,
-          metadataSubtree: "public",
-          select: ["name"]
-        });
-        name = generalMeta?.name || id;
-      } catch(error) {
-        console.error(`Unable to load name for alternate transcode ${id}`, error);
-      }
-
-      try {
-        const liveRecordingConfigMeta = await this.client.ContentObjectMetadata({
-          libraryId,
-          objectId: id,
-          metadataSubtree: "live_recording_config",
-          select: ["url", "ingress_node_id", "geo", "recording_config", "recording_params"]
-        });
-        url = liveRecordingConfigMeta?.url || "";
-        ingressNodeId = liveRecordingConfigMeta?.ingress_node_id;
-        geo = liveRecordingConfigMeta?.geo;
-        recordingConfig = liveRecordingConfigMeta?.recording_config || {};
-        advancedEncodingParams = liveRecordingConfigMeta?.recording_params?.xc_params ?? null;
-      } catch(error) {
-        console.error(`Unable to load config for alternate transcode ${id}`, error);
-      }
-
-      try {
-        xcParams = (await this.client.ContentObjectMetadata({
-          libraryId,
-          objectId: id,
-          metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
-        })) || {};
-      } catch(error) {
-        console.error(`Unable to load applied encoding config for alternate transcode ${id}`, error);
-      }
+      const url: string = configMeta.url || "";
+      const ingressNodeId = configMeta.ingress_node_id;
+      const geo = configMeta.geo;
+      const recordingConfig: Record<string, any> = configMeta.recording_config || {};
+      const advancedEncodingParams: Record<string, unknown> | null = configMeta.recording_params?.xc_params ?? null;
 
       const protocol = (url.split("://")[0]) || ALTERNATE_TRANSCODE_PROTOCOLS[0]?.value || "";
 
