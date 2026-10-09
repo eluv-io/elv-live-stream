@@ -52,8 +52,9 @@ export const BuildGroupedRows = ({records, groups, expandedGroups, streamOrder})
         titleId,
         displayTitle: group?.displayTitle ?? members[0]?.display_title,
         streamCount: members.length,
-        // Falls back to a member's date until real group data is wired.
-        date: group?.data?.date ?? members[0]?.date
+        // Falls back to a item's date/eventTime until real group data is wired.
+        date: group?.data?.date ?? members[0]?.date,
+        eventTime: group?.data?.eventTime ?? members[0]?.eventTime
       }
     });
   });

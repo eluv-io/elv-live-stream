@@ -2,9 +2,14 @@
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify, WithTimeout, FormatDateFilter, GetDateRangePreset, DEFAULT_DATE_PRESET, type DateRangePreset} from "@/utils/helpers";
-import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
+import {ALTERNATE_TRANSCODE_PROTOCOLS, LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {
+  AlternateTranscode,
   DeriveSourceAndPackaging,
+  ProgramPidSelection,
+  ProbeProgram,
+  RawProbeProgram,
+  ProgramsFromProbe,
   StreamMetadata, ProbeStream, RecordingInputCfg
 } from "@/utils/stream";
 import type RootStore from "@/stores/RootStore";
@@ -29,6 +34,14 @@ type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persisten
     stream_names: string[]
   };
   retention: string;
+  // Assumed shape, pending fabric-team confirmation - see the note on
+  // StreamEditStore's UpdateConfigMetadataParams.
+  copyPackagingFormats: string[];
+  alternateTranscodeEnabled: boolean;
+  // Resolved from the id array stored on the fabric - see ResolveAlternateTranscodes.
+  alternateTranscodes: AlternateTranscode[];
+  programPidSelection: ProgramPidSelection;
+  advancedEncodingParams: Record<string, unknown> | null;
 };
 
 export interface AudioDataEntry {
@@ -48,9 +61,10 @@ export type AudioDataMap = Record<string, AudioDataEntry>;
 export interface ProbeData {
   audioStreams: ProbeStream[];
   audioData: AudioDataMap;
+  programs?: RawProbeProgram[];
 }
 
-type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags">;
+type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags" | "date" | "eventTime">;
 
 type GeneralConfigData = Pick<StreamMetadata,
   "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
@@ -100,7 +114,9 @@ const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamLi
     originUrl: url,
     source,
     packaging,
-    inputCfg
+    inputCfg,
+    date: meta?.public?.asset_metadata?.date,
+    eventTime: meta?.public?.asset_metadata?.time
   };
 };
 
@@ -120,6 +136,8 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
     if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
     if(listData.source?.length) { info.source = listData.source; }
     if(listData.packaging?.length) { info.packaging = listData.packaging; }
+    if(listData.date != null) { info.date = listData.date; }
+    if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
     // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
     if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
   }
@@ -128,7 +146,8 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
     info.name = name;
     if(info.title == null) { info.title = name; }
   }
-  if(date != null) { info.date = date; }
+  // Meta's asset_metadata/date takes priority; query_fields.date is the fallback when meta wasn't fetched.
+  if(date != null && info.date == null) { info.date = date; }
   if(titleId != null) { info.titleId = titleId; }
 
   return info;
@@ -166,6 +185,8 @@ const TENANT_CONTENT_SELECT = [
   "public/name",
   "public/asset_metadata/display_title",
   "public/asset_metadata/tags",
+  "public/asset_metadata/date",
+  "public/asset_metadata/time",
   "live_recording/recording_config/recording_params/xc_params/input_cfg",
   "live_recording_config/url",
   "live_recording_config/recording_config/input_cfg"
@@ -212,6 +233,7 @@ export interface StreamOutputUrls {
   publicPlayoutUrl?: string;
   // Default offering's rows - kept for callers that don't care about offering.
   playoutMethods: OutputUrlRow[];
+  tsOnly?: boolean;
   // Same rows as playoutMethods, keyed by offering, for UI filtering by offering.
   playoutMethodsByOffering: Record<string, OutputUrlRow[]>;
   srtPlayoutUrl?: string;
@@ -231,6 +253,9 @@ class StreamStore {
   loadingStatus = false;
   tableFilter = "";
   tableTagFilter: string[] = [];
+  // Streams-table selection and sort, held here so they survive page unmount.
+  selectedRecords: StreamInfo[] = [];
+  sortStatus: {columnAccessor: string, direction: "asc" | "desc"} = {columnAccessor: "date", direction: "desc"};
   // Date filter (preset + anchor date). Persisted via SetDateFilter. dateRangeFilter is derived.
   datePreset: DateRangePreset;
   referenceDate: Date;
@@ -248,9 +273,14 @@ class StreamStore {
   _tenantContentPromise: Promise<void> | null = null;
   _tenantContentFilterKey: string | null = null;
   _tenantContentCursor = 0;
-  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string} | null = null;
+  _tenantContentQuery: {siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string[]} | null = null;
   // Bumped when the paged query restarts or the date filter changes; stale "load more" fetches discard against it.
   _tenantContentEpoch = 0;
+  // Radio-type streams (query_fields.radio_team / radio_language) carry no date tag, so the
+  // dated tenant query never matches them. Cached by (siteId, nameFilter) - see _LoadRadioStreams.
+  _radioStreamsCache: StreamMap = {};
+  _radioStreamsKey: string | null = null;
+  _radioStreamsPromise: Promise<void> | null = null;
   // Bumped whenever `streams` is replaced; an in-flight status/classify pass checks this and stops early.
   _streamListEpoch = 0;
   rootStore: RootStore;
@@ -270,7 +300,10 @@ class StreamStore {
       _tenantContentQuery: false,
       _tenantContentEpoch: false,
       _streamListEpoch: false,
-      _allStreamsPromise: false
+      _allStreamsPromise: false,
+      _radioStreamsCache: false,
+      _radioStreamsKey: false,
+      _radioStreamsPromise: false
     }, {autoBind: true});
   }
 
@@ -284,11 +317,56 @@ class StreamStore {
     );
   }
 
-  get allTags(): string[] {
+  get declaredTags(): string[] {
+    return [...(this.rootStore.dataStore.declaredTags ?? [])].sort();
+  }
+
+  // Tags found on streams that aren't declared in settings
+  get discoverTags(): string[] {
+    const declared = new Set(this.declaredTags);
     const tags = new Set<string>();
-    Object.values(this.streams || {}).forEach(s => s.tags?.forEach(t => tags.add(t)));
+    Object.values(this.streams || {}).forEach(s => s.tags?.forEach(t => declared.has(t) || tags.add(t)));
     return Array.from(tags).sort();
   }
+
+  // Declared tags first, then discover
+  get allTags(): string[] {
+    return [...this.declaredTags, ...this.discoverTags];
+  }
+
+  // Declared tags filter by case-insensitive name substring; others by the stream's own tags
+  StreamMatchesTag = (stream: StreamInfo, tag: string): boolean => {
+    return this.declaredTags.includes(tag) ?
+      !!stream.title?.toLowerCase().includes(tag.toLowerCase()) :
+      !!stream.tags?.includes(tag);
+  };
+
+  get selectedDeclaredTags(): string[] {
+    const declared = new Set(this.declaredTags);
+    return this.activeTagFilter.filter(t => declared.has(t));
+  }
+
+  // A lone selected declared tag is sent to the tenant query; any more tags make the filter an OR, which the query (AND-only) can't express
+  get declaredTagsOnServer(): string[] {
+    return this.activeTagFilter.length === 1 ? this.selectedDeclaredTags : [];
+  }
+
+  // Declared tags that must be matched client-side, so the streams page loads the full set without paging
+  get declaredTagsNeedFullLoad(): boolean {
+    return this.selectedDeclaredTags.length > 0 && this.declaredTagsOnServer.length === 0;
+  }
+
+  // Name terms (AND'd) sent to the tenant query: the search text plus any server-side declared tag
+  get tenantNameTerms(): string[] {
+    return [this.tableFilter.trim(), ...this.declaredTagsOnServer].filter(Boolean);
+  }
+
+  // Suggestions for stream tag inputs: tags already on streams. Declared tags are filter shortcuts only.
+  TagOptions = (exclude: string[] = []) => {
+    const tags = new Set<string>();
+    Object.values(this.streams || {}).forEach(s => s.tags?.forEach(t => exclude.includes(t) || tags.add(t)));
+    return Array.from(tags).sort();
+  };
 
   get activeTagFilter(): string[] {
     const available = new Set(this.allTags);
@@ -313,13 +391,16 @@ class StreamStore {
     const objectIdSearch = this.tableFilterIsObjectId;
     const serverSideText = this.rootStore.dataStore.useContentGroup && !objectIdSearch;
     const filter = serverSideText ? "" : this.tableFilter.toLowerCase().trim();
-    const tagFilter = this.activeTagFilter;
+    // A server-side declared tag is already applied by the tenant query
+    const tagFilter = this.rootStore.dataStore.useContentGroup ?
+      this.activeTagFilter.filter(t => !this.declaredTagsOnServer.includes(t)) :
+      this.activeTagFilter;
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||
         s.title?.toLowerCase().includes(filter) ||
         s.objectId?.toLowerCase().includes(filter);
       const matchesTags = tagFilter.length === 0 ||
-        tagFilter.some(tag => s.tags?.includes(tag));
+        tagFilter.some(tag => this.StreamMatchesTag(s, tag));
       return matchesText && matchesTags;
     });
   }
@@ -338,6 +419,12 @@ class StreamStore {
     } as StreamInfo;
   };
 
+  // Updates tags in both stream maps, without creating entries for streams outside the date scope
+  SetStreamTags = ({slug, tags}: {slug: string, tags: string[]}) => {
+    if(this.streams[slug]) { this.streams[slug].tags = tags; }
+    if(this.allStreams[slug]) { this.allStreams[slug].tags = tags; }
+  };
+
   UpdateStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
     // Stop any in-flight status/classify pass over the previous list.
@@ -350,7 +437,19 @@ class StreamStore {
     this.allStreamsLoaded = false;
     this._allStreamsPromise = null;
     const remaining = this.allTags;
-    this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
+    // Declared tags aren't known until loaded; don't drop a restored selection before then
+    if(this.rootStore.dataStore.loadedDeclaredTags) {
+      this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
+    }
+    this.selectedRecords = this.selectedRecords.filter(r => this.streams[r.slug]);
+  };
+
+  SetSelectedRecords = (records: StreamInfo[]) => {
+    this.selectedRecords = records;
+  };
+
+  SetSortStatus = (sortStatus: {columnAccessor: string, direction: "asc" | "desc"}) => {
+    this.sortStatus = sortStatus;
   };
 
   SetTableFilter = (filter: string) => {
@@ -548,16 +647,15 @@ class StreamStore {
 
   // Live Stream Controls
 
+  // objectId overrides the slug lookup for streams outside the streams map (alternate transcodes).
   *StartStream({
     slug,
+    objectId=this.streams[slug]?.objectId,
     start=false
-  }: {slug: string, start?: boolean}): Generator<any, void> {
-    const objectId = this.streams[slug].objectId;
+  }: {slug?: string, objectId?: string, start?: boolean}): Generator<any, void> {
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
-    const response = yield this.CheckStatus({
-      objectId: this.streams[slug].objectId
-    });
+    const response = yield this.CheckStatus({objectId});
     switch(response.state) {
       case "unconfigured":
       case "uninitialized":
@@ -904,6 +1002,84 @@ class StreamStore {
     }
   }
 
+  // Each id is a separate content object; resolved in parallel with per-id
+  // failure isolation so a broken reference still renders (and stays
+  // removable) instead of vanishing from the table.
+  *ResolveAlternateTranscodes({libraryId, ids}: {libraryId: string, ids: string[]}): Generator<any, AlternateTranscode[]> {
+    if(!ids || ids.length === 0) { return []; }
+
+    const results = yield Promise.all(ids.map(async(id): Promise<AlternateTranscode> => {
+      const [name, configMeta, xcParams] = await Promise.all([
+        (async() => {
+          try {
+            const generalMeta = await this.client.ContentObjectMetadata({
+              libraryId,
+              objectId: id,
+              metadataSubtree: "public",
+              select: ["name"]
+            });
+            return generalMeta?.name || id;
+          } catch(error) {
+            console.error(`Unable to load name for alternate transcode ${id}`, error);
+            return id;
+          }
+        })(),
+        (async() => {
+          try {
+            return (await this.client.ContentObjectMetadata({
+              libraryId,
+              objectId: id,
+              metadataSubtree: "live_recording_config",
+              select: ["url", "ingress_node_id", "geo", "recording_config", "recording_params"]
+            })) || {};
+          } catch(error) {
+            console.error(`Unable to load config for alternate transcode ${id}`, error);
+            return {};
+          }
+        })(),
+        (async(): Promise<Record<string, any>> => {
+          try {
+            return (await this.client.ContentObjectMetadata({
+              libraryId,
+              objectId: id,
+              metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
+            })) || {};
+          } catch(error) {
+            console.error(`Unable to load applied encoding config for alternate transcode ${id}`, error);
+            return {};
+          }
+        })()
+      ]);
+
+      const url: string = configMeta.url || "";
+      const ingressNodeId = configMeta.ingress_node_id;
+      const geo = configMeta.geo;
+      const recordingConfig: Record<string, any> = configMeta.recording_config || {};
+      const advancedEncodingParams: Record<string, unknown> | null = configMeta.recording_params?.xc_params ?? null;
+
+      const protocol = (url.split("://")[0]) || ALTERNATE_TRANSCODE_PROTOCOLS[0]?.value || "";
+
+      return {
+        id,
+        name,
+        // geo (only ever set on public transcodes) distinguishes the two,
+        // since both now carry a resolved ingress_node_id.
+        nodeType: geo ? "public" : "dedicated",
+        node: geo ? undefined : ingressNodeId,
+        geo,
+        resolvedNodeId: ingressNodeId,
+        protocol,
+        resolution: xcParams.enc_height ? `${xcParams.enc_height}p` : undefined,
+        videoBitrate: xcParams.video_bitrate,
+        streamBitrate: xcParams.input_cfg?.stream_bitrate,
+        advancedEncodingParams,
+        programPidSelection: recordingConfig.program_pid_selection ?? {activeProgramId: null, selections: {}}
+      };
+    }));
+
+    return results;
+  }
+
   *LoadRecordingConfigData({
     libraryId,
     objectId,
@@ -914,7 +1090,7 @@ class StreamStore {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
       }
 
-      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, {audioStreams, audioData}] = yield Promise.all([
+      const [multipathMeta, liveRecordingMeta, liveRecordingConfigMeta, liveRecordingConfigTopMeta, {audioStreams, audioData, programs: probePrograms}] = yield Promise.all([
         this.client.ContentObjectMetadata({
           libraryId,
           objectId,
@@ -930,6 +1106,13 @@ class StreamStore {
           objectId,
           metadataSubtree: "live_recording_config/recording_config"
         }),
+        // Sibling of recording_config on live_recording_config - see CreateAlternateTranscode.
+        this.client.ContentObjectMetadata({
+          libraryId,
+          objectId,
+          metadataSubtree: "live_recording_config",
+          select: ["alternate_transcodes", "recording_params"]
+        }),
         this.LoadStreamProbeData({libraryId, objectId})
       ]);
 
@@ -941,6 +1124,31 @@ class StreamStore {
       const retention = liveRecordingConfigMeta?.part_ttl ?? liveRecordingMeta?.recording_params?.part_ttl;
       const reconnectionTimeout = liveRecordingConfigMeta?.reconnect_timeout ?? liveRecordingMeta?.recording_params?.reconnect_timeout;
 
+      // Existing streams predate these fields, hence the defaults.
+      const copyPackagingFormats = liveRecordingConfigMeta?.copy_packaging_formats ?? [];
+      const alternateTranscodeEnabled = liveRecordingConfigMeta?.alternate_transcode_enabled ?? false;
+      // alternate_transcodes is an id array; resolve to full rows for display/edit.
+      const alternateTranscodes = yield this.ResolveAlternateTranscodes({libraryId, ids: liveRecordingConfigTopMeta?.alternate_transcodes ?? []});
+
+      // Detected programs/PID's, read-only - not part of the saved selection.
+      // Prefer the probe; fall back to mpegts_selection, which has only program
+      // numbers and a flat, program-unscoped PID list.
+      const mpegtsSelection = inputCfg?.mpegts_selection;
+      const programs: ProbeProgram[] = probePrograms?.length ?
+        ProgramsFromProbe(probePrograms) :
+        (mpegtsSelection?.program_ids ?? []).map(programId => ({
+          id: `${programId}`,
+          number: programId,
+          name: `Program ${programId}`,
+          pids: (mpegtsSelection?.pids ?? []).map(pid => ({pid}))
+        }));
+
+      const programPidSelection: ProgramPidSelection = {
+        ...(liveRecordingConfigMeta?.program_pid_selection ?? {activeProgramId: null, selections: {}}),
+        programs
+      };
+      const advancedEncodingParams = liveRecordingConfigTopMeta?.recording_params?.xc_params ?? null;
+
       const recordingData = {
         audioStreams,
         audioData,
@@ -950,7 +1158,12 @@ class StreamStore {
         multiPath,
         persistent,
         reconnectionTimeout,
-        retention
+        retention,
+        copyPackagingFormats,
+        alternateTranscodeEnabled,
+        alternateTranscodes,
+        programPidSelection,
+        advancedEncodingParams
       };
 
       this.UpdateStream({key: slug, value: recordingData});
@@ -1028,22 +1241,12 @@ class StreamStore {
     }
   }
 
-  /** Run a TenantContent query pinned to the fixed fabric node, always releasing the region afterward. */
-  async _TenantContent(params: Record<string, any>): Promise<any> {
-    try {
-      return await this.client.TenantContent(params);
-    } catch(error) {
-      console.error("Unable to reset region after TenantContent", error);
-    }
-  }
-
-  /** TenantContent filter array: site + optional date range + optional name (contains match on the `name` query field). */
-  _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null], nameFilter?: string): string[] {
+  /** TenantContent filter array: site + optional date range + optional name terms (each a contains match on the `name` query field). */
+  _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null], nameFilter: string[] = []): string[] {
     const [startDate, endDate] = dateRange || [null, null];
     const filter = [`group:eq:${siteId}`];
 
-    const name = (nameFilter || "").trim();
-    if(name) { filter.push(`name:co:${name}`); }
+    nameFilter.forEach(name => filter.push(`name:co:${name}`));
 
     if(startDate && endDate && FormatDateFilter(startDate) === FormatDateFilter(endDate)) {
       // Single day - one exact-match tag rather than a redundant ge/le pair.
@@ -1055,6 +1258,63 @@ class StreamStore {
     }
 
     return filter;
+  }
+
+  /**
+   * Radio-type streams (query_fields.radio_team / radio_language present) have no date set,
+   * so they'd otherwise be excluded by every date preset but "all". Fetches the site+name-scoped
+   * set with no date filter and narrows it to radio entries; cached by (siteId, nameFilter) -
+   * deliberately independent of the dated query's own `force`, so date-preset navigation
+   * (day/week/month/year), which reloads the dated query on every shift, doesn't refetch this too.
+   */
+  *_LoadRadioStreams({siteId, nameFilter}: {siteId: string, nameFilter?: string[]}): Generator<any, StreamMap> {
+    const key = JSON.stringify([siteId, nameFilter ?? []]);
+
+    if(this._radioStreamsKey === key) {
+      if(this._radioStreamsPromise) { yield this._radioStreamsPromise; }
+      return this._radioStreamsCache;
+    }
+
+    this._radioStreamsKey = key;
+    let resolve: () => void;
+    this._radioStreamsPromise = new Promise(res => { resolve = res; });
+
+    try {
+      const filter = this._TenantContentFilter(siteId, undefined, nameFilter);
+      let start = 0;
+      let versions: TenantContentVersion[] = [];
+
+      while(true) {
+        const {versions: page, paging} = yield this.client.TenantContent({
+          filter,
+          start,
+          limit: TENANT_CONTENT_PAGE_SIZE,
+          select: TENANT_CONTENT_SELECT
+        });
+
+        const received = (page ?? []).length;
+        versions = versions.concat(page ?? []);
+
+        const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+        if(next === null) { break; }
+        start = next;
+      }
+
+      this._radioStreamsCache = Object.fromEntries(
+        versions
+          .filter(({id, hash, query_fields}) =>
+            id && hash && (QueryFieldValue(query_fields, "radio_team") || QueryFieldValue(query_fields, "radio_language"))
+          )
+          .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
+      );
+    } catch(error) {
+      console.error("Unable to load radio stream content", error);
+      this._radioStreamsKey = null;
+    } finally {
+      resolve();
+    }
+
+    return this._radioStreamsCache;
   }
 
   /**
@@ -1082,7 +1342,7 @@ class StreamStore {
    * further pages via LoadMoreTenantLiveStreamContent. paged=false (default) loops
    * through every page in one call.
    */
-  *LoadTenantLiveStreamContent({siteId, dateRange, nameFilter, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], nameFilter?: string, force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
+  *LoadTenantLiveStreamContent({siteId, dateRange, nameFilter, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], nameFilter?: string[], force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
     if(!siteId) {
       // No site id - skip the tenant query; caller falls back to the site object's list.
       console.warn("LoadTenantLiveStreamContent: no siteId, skipping tenant query");
@@ -1092,7 +1352,7 @@ class StreamStore {
     }
 
     const [startDate, endDate] = dateRange || [null, null];
-    const name = (nameFilter || "").trim();
+    const name = (nameFilter || []).map(n => n.trim()).filter(Boolean);
     const filterKey = JSON.stringify([
       siteId,
       startDate ? FormatDateFilter(startDate) : null,
@@ -1117,7 +1377,7 @@ class StreamStore {
     this._tenantContentCursor = 0;
     this._tenantContentQuery = {siteId, dateRange, nameFilter: name};
     // Any "load more" still in flight from a prior query is now stale.
-    this._tenantContentEpoch++;
+    const epoch = ++this._tenantContentEpoch;
 
     try {
       const filter = this._TenantContentFilter(siteId, dateRange, name);
@@ -1125,7 +1385,7 @@ class StreamStore {
       let versions: TenantContentVersion[] = [];
 
       while(true) {
-        const {versions: page, paging} = yield this._TenantContent({
+        const {versions: page, paging} = yield this.client.TenantContent({
           filter,
           start,
           limit: TENANT_CONTENT_PAGE_SIZE,
@@ -1148,16 +1408,26 @@ class StreamStore {
         start = next;
       }
 
+      // A newer query started meanwhile - don't clobber its state with stale rows.
+      if(epoch !== this._tenantContentEpoch) { return {}; }
+
       this.tenantLiveStreamContent = Object.fromEntries(
         versions
           .filter(({id, hash}) => id && hash)
           .map(version => [version.id, StreamInfoFromTenantVersion(version) as StreamInfo])
       );
+
+      // Radio streams carry no date tag, so the date filter above (when active) would
+      // otherwise hide them from every preset but "all" - merge them back in.
+      if(startDate || endDate) {
+        const radioStreams: StreamMap = yield this._LoadRadioStreams({siteId, nameFilter: name});
+        this.tenantLiveStreamContent = {...radioStreams, ...this.tenantLiveStreamContent};
+      }
     } catch(error) {
       console.error("Unable to load tenant live stream content", error);
       this._tenantContentFilterKey = null;
     } finally {
-      this.loadingTenantLiveStreamContent = false;
+      if(epoch === this._tenantContentEpoch) { this.loadingTenantLiveStreamContent = false; }
       resolve();
     }
 
@@ -1182,7 +1452,7 @@ class StreamStore {
       const filter = this._TenantContentFilter(siteId, dateRange, nameFilter);
       const start = this._tenantContentCursor;
 
-      const {versions, paging} = yield this._TenantContent({
+      const {versions, paging} = yield this.client.TenantContent({
         filter,
         start,
         limit: TENANT_CONTENT_PAGE_SIZE,
@@ -1316,7 +1586,7 @@ class StreamStore {
         let versions: TenantContentVersion[] = [];
 
         while(true) {
-          const {versions: page, paging} = yield this._TenantContent({
+          const {versions: page, paging} = yield this.client.TenantContent({
             filter,
             start,
             limit: TENANT_CONTENT_PAGE_SIZE
@@ -1357,6 +1627,22 @@ class StreamStore {
   }
 
   /**
+   * Stream record (originUrl/source/packaging) for one object id. Uses the loaded maps when
+   * the stream is there; otherwise reads just that object rather than paging the whole tenant.
+   */
+  *LoadTenantStreamInfo(objectId: string): Generator<any, Partial<StreamInfo> | undefined> {
+    const loaded = this.streams?.[objectId] ?? this.allStreams?.[objectId];
+    if(loaded) { return loaded; }
+
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    const listData: StreamListData | undefined = yield this.LoadStreamListData({libraryId, objectId});
+    if(!listData) { return undefined; }
+
+    const {originUrl, source, packaging} = listData;
+    return {originUrl, source, packaging};
+  }
+
+  /**
    * Load and enrich only the streams in one group (query_fields.title_id). Version
    * metadata is still paged in full; per-object enrichment runs for the group alone.
    * TODO: server-side title_id filter once the group-data source lands.
@@ -1370,7 +1656,7 @@ class StreamStore {
     let versions: TenantContentVersion[] = [];
 
     while(true) {
-      const {versions: page, paging} = yield this._TenantContent({
+      const {versions: page, paging} = yield this.client.TenantContent({
         filter,
         start,
         limit: TENANT_CONTENT_PAGE_SIZE
@@ -1426,9 +1712,23 @@ class StreamStore {
    * Output URLs for one stream: embed URL, options URL, one playout URL per available
    * protocol/DRM method. All playout URLs carry the same week-long signed token.
    */
-  *BuildStreamOutputUrls(objectId: string): Generator<any, StreamOutputUrls> {
+  *BuildStreamOutputUrls(objectId: string, {tsOnly = false}: {tsOnly?: boolean} = {}): Generator<any, StreamOutputUrls> {
     const result: StreamOutputUrls = {playoutMethods: [], playoutMethodsByOffering: {}};
     if(!objectId) { return result; }
+
+    if(tsOnly) {
+      result.tsOnly = true;
+      const token = yield this.client.CreateSignedToken({
+        objectId,
+        subject: "elv-lsm",
+        duration: 7 * 86400000
+      }).catch((error: unknown) => {
+        console.error(`Unable to create signed token for ${objectId}`, error);
+      });
+      result.srtPlayoutUrl = token ? this._SrtPlayoutUrl({objectId, token}) : undefined;
+      result.publicSrtPlayoutUrl = this._SrtPlayoutUrl({objectId});
+      return result;
+    }
 
     const anonymousToken = this.client.utils.B64(
       JSON.stringify({qspace_id: this.rootStore.contentSpaceId})
@@ -1450,8 +1750,7 @@ class StreamStore {
       }),
       `Unable to load sources for ${objectId}`
     );
-    // TODO: drop this filter once every offering is meant to be shown
-    const offerings = Object.keys(sourcesByOffering || {}).filter(offering => ["default", "wsc"].includes(offering));
+    const offerings = Object.keys(sourcesByOffering || {});
     if(offerings.length === 0) { offerings.push("default"); }
 
     // Part 1 - everything that needs only objectId, in parallel
@@ -1580,15 +1879,6 @@ class StreamStore {
       }
     });
 
-    // There's no by-offering filter in the UI yet, so fold the wsc offering's row into the flat
-    // list too, under its own "WSC" label (not the format's own label) so it doesn't read as a
-    // duplicate of the default offering's - the UI appends " Playout URL" itself, same as every
-    // other format label. TODO: drop once the by-offering filter ships, per NBA handover ask.
-    const [wscMethod] = result.playoutMethodsByOffering["wsc"] || [];
-    if(wscMethod) {
-      result.playoutMethods.push({...wscMethod, label: "WSC"});
-    }
-
     return result;
   }
 
@@ -1636,12 +1926,15 @@ class StreamStore {
   /**
    * Rebuild a fabric URL against a named-network host so it resolves close to the viewer.
    * Path is anchored to the object id (not the version hash) so it always resolves latest.
-   * dropAuthorization strips the auth token for the "public" variant.
+   * dropAuthorization strips the auth token for the "public" variant, which keeps the `s/<network>` path prefix;
+   * the authorized variant omits it.
+   * The site's custom domain, when set, replaces the network host.
    */
   _NamedNetworkUrl({url, objectId, dropAuthorization=false}: {url: string, objectId: string, dropAuthorization?: boolean}): string | undefined {
     try {
       const network = this.rootStore.networkInfo?.name || "main";
-      const networkHost = NETWORK_HOSTS[network] || NETWORK_HOSTS.main;
+      const customDomain = this.rootStore.dataStore.customDomain?.trim();
+      const host = customDomain ? new URL(customDomain).origin : `https://${NETWORK_HOSTS[network] || NETWORK_HOSTS.main}`;
 
       const originalUrl = new URL(url);
       let path = UrlJoin("rep", originalUrl.pathname.split("/rep")[1] || "");
@@ -1649,8 +1942,8 @@ class StreamStore {
         path = UrlJoin("meta", originalUrl.pathname.split("/meta")[1]);
       }
 
-      const namedNetworkUrl = new URL(`https://${networkHost}`);
-      namedNetworkUrl.pathname = UrlJoin("s", network, "q", objectId, path);
+      const namedNetworkUrl = new URL(host);
+      namedNetworkUrl.pathname = dropAuthorization ? UrlJoin("s", network, "q", objectId, path) : UrlJoin("q", objectId, path);
       originalUrl.searchParams.forEach((value, key) => {
         if(key !== "authorization") { namedNetworkUrl.searchParams.set(key, value); }
       });
@@ -1687,7 +1980,7 @@ class StreamStore {
    */
   *StreamOutputUrls(
     objectIds: string[],
-    {onStreamUrls}: {onStreamUrls?: (objectId: string, urls: StreamOutputUrls) => void} = {}
+    {onStreamUrls, tsOnlyIds}: {onStreamUrls?: (objectId: string, urls: StreamOutputUrls) => void, tsOnlyIds?: Set<string>} = {}
   ): Generator<any, Record<string, StreamOutputUrls>> {
     const result: Record<string, StreamOutputUrls> = {};
 
@@ -1696,7 +1989,7 @@ class StreamStore {
       objectIds || [],
       async (objectId: string) => {
         if(!objectId) { return; }
-        const urls = await this.BuildStreamOutputUrls(objectId) as unknown as StreamOutputUrls;
+        const urls = await this.BuildStreamOutputUrls(objectId, {tsOnly: tsOnlyIds?.has(objectId)}) as unknown as StreamOutputUrls;
         result[objectId] = urls;
         onStreamUrls?.(objectId, urls);
       }
@@ -1718,6 +2011,8 @@ class StreamStore {
           "public/name",
           "public/asset_metadata/display_title",
           "public/asset_metadata/tags",
+          "public/asset_metadata/date",
+          "public/asset_metadata/time",
           "live_recording/recording_config/recording_params/xc_params/input_cfg",
           "live_recording_config/url",
           "live_recording_config/recording_config/input_cfg"
@@ -2028,7 +2323,8 @@ class StreamStore {
 
       return {
         audioStreams,
-        audioData
+        audioData,
+        programs: probeMetadata.programs ?? []
       };
     } catch(error) {
 

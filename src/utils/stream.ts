@@ -51,6 +51,11 @@ export interface RecordingInputCfg {
   copy_packaging?: "raw_ts" | "rtp_ts" | "ats_ts";
   custom_read_loop_enabled?: boolean;
   input_packaging?: "rtp_ts" | "raw_ts";
+  stream_bitrate?: number;
+  mpegts_selection?: {
+    program_ids?: number[];
+    pids?: number[];
+  };
 }
 
 interface RecordingConfig {
@@ -60,6 +65,101 @@ interface RecordingConfig {
   copy_mpegts?: boolean;
   input_cfg?: RecordingInputCfg;
   persistent?: boolean;
+}
+
+// Probe-derived MPEG-TS program/PID structure. Fabric currently exposes only
+// program numbers and a flat, program-unscoped PID list at
+// input_cfg.mpegts_selection.{program_ids,pids} - no per-PID type/codec/
+// description and no per-program PID scoping yet, hence the optional fields.
+export interface ProbePid {
+  pid: number;
+  type?: "video" | "audio" | "data";
+  codec?: string;
+  description?: string;
+}
+
+export interface ProbeProgram {
+  id: string;
+  number: number;
+  name?: string;
+  pids: ProbePid[];
+}
+
+interface RawProbeStream {
+  id?: string;
+  codec_type?: string;
+  codec_name?: string;
+  width?: number;
+  height?: number;
+  avg_frame_rate?: string;
+  channel_layout?: string;
+  sample_rate?: string;
+}
+
+export interface RawProbeProgram {
+  program_id: number;
+  program_num?: number;
+  streams?: RawProbeStream[];
+}
+
+const PidDescription = (stream: RawProbeStream): string => {
+  if(stream.codec_type === "video") {
+    const [num, den] = (stream.avg_frame_rate ?? "").split("/").map(Number);
+    const fps = num && den ? `${Math.round((num / den) * 100) / 100}fps` : "";
+    return [stream.width && stream.height ? `${stream.width}x${stream.height}` : "", fps].filter(Boolean).join(" ");
+  }
+
+  if(stream.codec_type === "audio") {
+    const rate = stream.sample_rate ? `${Number(stream.sample_rate) / 1000}kHz` : "";
+    return [stream.channel_layout, rate].filter(Boolean).join(" ");
+  }
+
+  return "";
+};
+
+// Stream `id` is the hex PID (e.g. "0x65"); streams without a valid PID are dropped
+export const ProgramsFromProbe = (programs: RawProbeProgram[] = []): ProbeProgram[] =>
+  programs.map(program => ({
+    id: `${program.program_id}`,
+    number: program.program_num ?? program.program_id,
+    name: `Program ${program.program_num ?? program.program_id}`,
+    pids: (program.streams ?? [])
+      .map(stream => ({stream, pid: parseInt(stream.id ?? "", 16)}))
+      .filter(({pid}) => !Number.isNaN(pid))
+      .map(({stream, pid}) => ({
+        pid,
+        type: stream.codec_type as ProbePid["type"],
+        codec: stream.codec_name,
+        description: PidDescription(stream)
+      }))
+  }));
+
+// Only the active program's selection is persisted - see ProgramPidSelector.jsx.
+// `programs` is the read-only detected-program list used to populate the
+// picker; it's derived from input_cfg.mpegts_selection, not itself saved.
+export interface ProgramPidSelection {
+  activeProgramId: string | null;
+  selections: Record<string, number[]>;
+  programs?: ProbeProgram[];
+}
+
+// A resolved view of one alternate transcode - `id` is the objectId of its
+// own content object (the parent only stores an id array).
+export interface AlternateTranscode {
+  id: string;
+  name: string;
+  nodeType: "dedicated" | "public";
+  node?: string;
+  geo?: string;
+  // The node id actually placed in ingress_node_id - the dedicated pick for
+  // dedicated transcodes, or geo's resolved node for public ones.
+  resolvedNodeId?: string;
+  protocol: string;
+  resolution?: string;
+  videoBitrate?: string;
+  streamBitrate?: string;
+  advancedEncodingParams?: Record<string, unknown> | null;
+  programPidSelection?: ProgramPidSelection;
 }
 
 export interface RecordingPeriod {
@@ -173,6 +273,7 @@ interface XcParams {
   filter_descriptor?: string;
   force_keyint?: number;
   format?: string;
+  input_cfg?: RecordingInputCfg;
   listen?: boolean;
   n_audio?: number;
   level?: number;
@@ -261,6 +362,8 @@ export interface StreamMetadata {
   originUrl: string;
   referenceUrl: string;
   title: string;
+  date?: string;
+  eventTime?: string;
   // Recording Config
   connectionTimeout: string | null;
   partTtl: string | null;
@@ -365,7 +468,7 @@ export const ParseLiveConfigData = ({
 
   const dvrConfig = !skipDvrSection && dvrEnabled !== undefined ? {
     dvr: dvrEnabled,
-    ...(dvrEnabled && dvrStartTime != null ? {dvr_start_time: new Date(dvrStartTime).toISOString()} : {}),
+    ...(dvrEnabled && dvrStartTime ? {dvr_start_time: new Date(dvrStartTime).toISOString()} : {}),
     ...(dvrEnabled && dvrMaxDuration != null ? {dvr_max_duration: parseInt(String(dvrMaxDuration))} : {})
   } : undefined;
 

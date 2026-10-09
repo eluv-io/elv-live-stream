@@ -3,7 +3,7 @@ import {observer} from "mobx-react-lite";
 import {ActionIcon, Badge, Box, Button, Center, Checkbox, Group, Loader, LoadingOverlay, Stack, Text, Title, Tooltip, UnstyledButton} from "@mantine/core";
 import {useVirtualizer} from "@tanstack/react-virtual";
 import {IconArrowNarrowDown, IconArrowNarrowUp, IconArrowsVertical, IconChevronRight} from "@tabler/icons-react";
-import {SanitizeUrl, FormatStreamDate} from "@/utils/helpers.ts";
+import {SanitizeUrl, FormatStreamDate, FormatStreamEventTime} from "@/utils/helpers.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
@@ -26,11 +26,14 @@ const MinTrackWidth = width => {
   return match ? parseFloat(match[1]) : 0;
 };
 
+const MIN_RESIZE_WIDTH = 160;
+
 const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) => [
   {
     accessor: "title",
     title: "Name",
     sortable: true,
+    resizable: true,
     width: "minmax(240px, 2fr)",
     render: record => (
       <Stack gap={0} maw="100%">
@@ -82,6 +85,22 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) 
     renderGroup: record => (
       <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500}>
         {FormatStreamDate(record.date)}
+      </Text>
+    )
+  },
+  {
+    accessor: "eventTime",
+    title: "Event Time",
+    sortable: true,
+    width: "minmax(120px, 0.75fr)",
+    render: record => (
+      <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500}>
+        {FormatStreamEventTime(record.eventTime)}
+      </Text>
+    ),
+    renderGroup: record => (
+      <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500}>
+        {FormatStreamEventTime(record.eventTime)}
       </Text>
     )
   },
@@ -187,6 +206,7 @@ const TableShell = ({
   minGridWidth,
   sortStatus,
   onSortStatusChange,
+  onColumnResize,
   fetching,
   onRowClick,
   rowStyle,
@@ -235,6 +255,24 @@ const TableShell = ({
     onSortStatusChange({columnAccessor: column.accessor, direction});
   };
 
+  const StartResize = (event, column) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startWidth = event.currentTarget.parentElement.getBoundingClientRect().width;
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+
+    const OnMove = e => onColumnResize(column.accessor, Math.max(MIN_RESIZE_WIDTH, startWidth + e.clientX - startX));
+    const OnUp = () => {
+      target.removeEventListener("pointermove", OnMove);
+      target.removeEventListener("pointerup", OnUp);
+    };
+    target.addEventListener("pointermove", OnMove);
+    target.addEventListener("pointerup", OnUp);
+  };
+
   const selectableRecords = records.filter(IsSelectable);
   const allSelected = selectionEnabled && selectableRecords.length > 0 && selectableRecords.every(IsSelected);
   const someSelected = selectionEnabled && !allSelected && selectableRecords.some(IsSelected);
@@ -272,7 +310,7 @@ const TableShell = ({
                 key={column.accessor}
                 className={styles.headerCell}
                 onClick={() => HandleSort(column)}
-                style={{cursor: column.sortable && onSortStatusChange ? "pointer" : "default"}}
+                style={{cursor: column.sortable && onSortStatusChange ? "pointer" : "default", position: "relative"}}
               >
                 <Group gap={4} wrap="nowrap">
                   <Text fz="0.875rem" fw={700} c="#000">{column.title}</Text>
@@ -284,6 +322,16 @@ const TableShell = ({
                     )
                   }
                 </Group>
+                {
+                  column.resizable && onColumnResize &&
+                  <span
+                    className={styles.resizeHandle}
+                    role="separator"
+                    aria-label={`resize-${column.accessor}`}
+                    onPointerDown={event => StartResize(event, column)}
+                    onClick={event => event.stopPropagation()}
+                  />
+                }
               </UnstyledButton>
             ))
           }
@@ -521,11 +569,12 @@ const StreamsTable = observer(({
 }) => {
   const allRecords = records || [];
   const rows = BuildGroupedRows({records: allRecords, groups, expandedGroups, streamOrder});
+  const [resizedWidths, setResizedWidths] = useState({});
   const columns = BuildColumns({showActions, onNameClick, onViewSummary, getRowActions});
 
   const columnWidths = [
     onSelectedRecordsChange ? SELECTION_COLUMN_WIDTH : null,
-    ...columns.map(column => column.width)
+    ...columns.map(column => resizedWidths[column.accessor] ? `${resizedWidths[column.accessor]}px` : column.width)
   ].filter(Boolean);
   const gridTemplateColumns = columnWidths.join(" ");
   const minGridWidth = columnWidths.reduce((sum, width) => sum + MinTrackWidth(width), 0);
@@ -538,6 +587,7 @@ const StreamsTable = observer(({
       minGridWidth={minGridWidth}
       sortStatus={sortStatus}
       onSortStatusChange={onSortStatusChange}
+      onColumnResize={(accessor, width) => setResizedWidths(prev => ({...prev, [accessor]: width}))}
       fetching={fetching}
       onRowClick={onRowClick}
       rowStyle={rowStyle}

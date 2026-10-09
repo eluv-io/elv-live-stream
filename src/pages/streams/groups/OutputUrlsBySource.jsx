@@ -4,6 +4,7 @@ import {
   Badge,
   Box,
   CopyButton,
+  Divider,
   Group,
   Loader,
   SegmentedControl,
@@ -29,7 +30,7 @@ const PACKAGING_OPTIONS = [
 ];
 
 // Flattens one stream's output URLs into rows
-const UrlRows = (output, mode, packaging) => {
+const UrlRows = (output, mode, packaging, offering) => {
   if(!output) { return []; }
 
   const isPublic = mode === "public";
@@ -44,18 +45,22 @@ const UrlRows = (output, mode, packaging) => {
     return rows;
   }
 
+  if(output.tsOnly) { return rows; }
+
   const embedUrl = isPublic ? (output.publicEmbedUrl || output.embedUrl) : output.embedUrl;
   if(embedUrl) { rows.push({label: "Embeddable URL", url: embedUrl}); }
 
-  (output.playoutMethods || []).forEach(method => {
+  const methods = output.playoutMethodsByOffering?.[offering] || output.playoutMethods || [];
+
+  methods.forEach(method => {
     const url = isPublic ? method.publicUrl : method.url;
 
     if(method.licenseServerUrl) {
       rows.push({
         label: method.label,
         children: [
-          {label: `${method.label} Playout URL`, url},
-          {label: `${method.label} License Server URL`, url: isPublic ? method.publicLicenseServerUrl : method.licenseServerUrl}
+          {label: "Playout URL", jsonKey: `${method.label} Playout URL`, url},
+          {label: "License Server URL", jsonKey: `${method.label} License Server URL`, url: isPublic ? method.publicLicenseServerUrl : method.licenseServerUrl}
         ]
       });
     } else {
@@ -66,13 +71,24 @@ const UrlRows = (output, mode, packaging) => {
   return rows;
 };
 
+const OfferingLabel = (offering) => offering === "default" ? "Default" : offering;
+
+const OfferingsOf = (output) => Object.keys(output?.playoutMethodsByOffering || {});
+
+// Selected offering if still available, else "default", else the first one found.
+const ActiveOffering = (output, selected) => {
+  const offerings = OfferingsOf(output);
+  if(offerings.includes(selected)) { return selected; }
+  return offerings.includes("default") ? "default" : offerings[0];
+};
+
 const UrlsByLabel = (rows) => {
   const urlByLabel = {};
 
   rows.forEach(row => {
     if(row.children) {
       row.children.forEach(child => {
-        if(child.url) { urlByLabel[child.label] = child.url; }
+        if(child.url) { urlByLabel[child.jsonKey ?? child.label] = child.url; }
       });
     } else if(row.url) {
       urlByLabel[row.label] = row.url;
@@ -89,11 +105,13 @@ const AllUrlsJson = (rows) => {
 
 // Every stream's URLs, keyed by the stream title (the accordion header), as pretty JSON.
 // Falls back to slug, then objectId; a duplicate title gets a numeric suffix.
-const AllStreamsUrlsJson = ({streams, outputUrls, mode, packaging}) => {
+const AllStreamsUrlsJson = ({streams, outputUrls, mode, packaging, offerings}) => {
   const urlsByTitle = {};
 
   streams.forEach(stream => {
-    const urlByLabel = UrlsByLabel(UrlRows(outputUrls[stream.objectId], mode, packaging));
+    const output = outputUrls[stream.objectId];
+    const offering = ActiveOffering(output, offerings[stream.objectId]);
+    const urlByLabel = UrlsByLabel(UrlRows(output, mode, packaging, offering));
     if(Object.keys(urlByLabel).length === 0) { return; }
 
     const base = stream.title || stream.slug || stream.objectId;
@@ -124,7 +142,7 @@ const PackagingSwitch = ({options, value, onChange}) => (
       >
         <Badge
           key={`source-${option.label}`}
-          radius={2}
+          radius={4}
           color={SOURCE_PACKAGING_COLOR_MAP[option.value]}
           c="elv-gray.7"
           tt="uppercase"
@@ -137,6 +155,35 @@ const PackagingSwitch = ({options, value, onChange}) => (
         </Badge>
       </UnstyledButton>
     ))}
+  </Group>
+);
+
+const OfferingSwitch = ({offerings, value, onChange}) => (
+  <Group gap={8} wrap="nowrap" onClick={event => event.stopPropagation()}>
+    <Divider orientation="vertical" size={2} color="elv-gray.3" h={18} mr={8} style={{alignSelf: "center"}} />
+    <Text fz="0.75rem" c="elv-gray.6">View:</Text>
+    {offerings.map(offering => {
+      const active = offering === value;
+
+      return (
+        <Badge
+          key={offering}
+          component="button"
+          type="button"
+          radius={4}
+          variant={active ? "filled" : "outline"}
+          color={active ? "elv-blue.3" : "elv-gray.2"}
+          c={active ? "white" : "elv-gray.7"}
+          tt="none"
+          fz={12}
+          fw={400}
+          style={{cursor: "pointer"}}
+          onClick={() => onChange(offering)}
+        >
+          {OfferingLabel(offering)}
+        </Badge>
+      );
+    })}
   </Group>
 );
 
@@ -216,6 +263,7 @@ const CopyCell = ({url, background}) => (
   </Table.Td>
 );
 
+
 const DataRow = ({row}) => (
   <>
     <Table.Tr>
@@ -226,16 +274,16 @@ const DataRow = ({row}) => (
     </Table.Tr>
     {
       (row.children || []).map(child => (
-        <Table.Tr key={child.label} bg="elv-gray.1">
+        <Table.Tr key={child.label} bg="#f2f2f2">
           <Table.Td />
-          <Table.Td bg="elv-gray.1">
+          <Table.Td bg="#f2f2f2">
             <Group gap={8} wrap="nowrap" pl={20}>
-              <Text fz="0.875rem" c="elv-gray.9">•</Text>
+              <Text fz="0.875rem" c="elv-neutral.9">•</Text>
               <LabelText>{child.label}</LabelText>
             </Group>
           </Table.Td>
-          <Table.Td bg="elv-gray.1" maw={0}><UrlText url={child.url} /></Table.Td>
-          <CopyCell url={child.url} background="var(--mantine-color-elv-gray-1)" />
+          <Table.Td bg="#f2f2f2" maw={0}><UrlText url={child.url} /></Table.Td>
+          <CopyCell url={child.url} background="#f2f2f2" />
         </Table.Tr>
       ))
     }
@@ -246,6 +294,7 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false, pen
   const [collapsed, setCollapsed] = useState({});
   const [mode, setMode] = useState("authorized");
   const [packaging, setPackaging] = useState("fmp4");
+  const [offerings, setOfferings] = useState({});
   const Toggle = (id) => setCollapsed(current => ({...current, [id]: !current[id]}));
 
   return (
@@ -269,7 +318,7 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false, pen
               }}
             />
             <CopyAllButton
-              value={AllStreamsUrlsJson({streams, outputUrls, mode, packaging})}
+              value={AllStreamsUrlsJson({streams, outputUrls, mode, packaging, offerings})}
               disabled={loading}
             />
           </Group>
@@ -281,7 +330,10 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false, pen
             (loading ? <Loader /> : <Text fz={14} c="elv-gray.6">No sources.</Text>)
           }
           {streams.map(stream => {
-            const rows = UrlRows(outputUrls[stream.objectId], mode, packaging);
+            const output = outputUrls[stream.objectId];
+            const streamOfferings = OfferingsOf(output);
+            const offering = ActiveOffering(output, offerings[stream.objectId]);
+            const rows = UrlRows(output, mode, packaging, offering);
             const open = !collapsed[stream.objectId];
             const allUrls = AllUrlsJson(rows);
 
@@ -302,7 +354,17 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false, pen
                         <ToggleControl open={open} />
                       </Table.Th>
                       <Table.Th colSpan={2}>
-                        <Text fw={700} fz="0.875rem" c="elv-gray.9">{stream.title || stream.slug}</Text>
+                        <Group gap={16} wrap="nowrap">
+                          <Text fw={700} fz="0.875rem" c="elv-gray.9">{stream.title || stream.slug}</Text>
+                          {
+                            packaging === "fmp4" && streamOfferings.length > 0 &&
+                            <OfferingSwitch
+                              offerings={streamOfferings}
+                              value={offering}
+                              onChange={value => setOfferings(current => ({...current, [stream.objectId]: value}))}
+                            />
+                          }
+                        </Group>
                       </Table.Th>
                       <Table.Th px={8} style={{textAlign: "center"}}>
                         {allUrls ? <CopyControl value={allUrls} /> : null}
@@ -320,6 +382,8 @@ const OutputUrlsBySource = ({streams = [], outputUrls = {}, loading = false, pen
                               {
                                 pendingIds.has(stream.objectId) ?
                                   <Text fz="0.875rem" c="elv-gray.6">Loading URLs...</Text> :
+                                  output?.tsOnly ?
+                                    <Text fz="0.875rem" c="elv-gray.6">TS-only stream: no FMP4 playout. Use the TS view for the SRT URL.</Text> :
                                   <Text fz="0.875rem" c="elv-gray.6">No output URLs available.</Text>
                               }
                             </Table.Td>

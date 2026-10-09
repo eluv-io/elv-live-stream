@@ -4,7 +4,6 @@ import {observer} from "mobx-react-lite";
 import {profileStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
-import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconPencil, IconPlus, IconTrash, IconCheck, IconCopy} from "@tabler/icons-react";
 import {defaultConfigProfile} from "@/utils/defaultProfile.ts";
 import {DataTable} from "mantine-datatable";
@@ -146,7 +145,6 @@ const ConfigProfiles = observer(() => {
     <>
       <Box w="100%" mb={20}>
         <Group>
-          <SectionTitle>Config Profiles</SectionTitle>
           <Group ml="auto" gap={8}>
             <Button
               variant="filled"

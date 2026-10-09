@@ -131,8 +131,8 @@ describe("StreamStore._SetStreamActive", () => {
   });
 });
 
-describe("StreamStore tenant-query node pinning", () => {
-  it("pins the fabric node before each TenantContent call and resets the region after", async () => {
+describe("StreamStore tenant-query", () => {
+  it("pages through every TenantContent page without rerouting the client's nodes", async () => {
     const tenantContent = vi.fn()
       .mockResolvedValueOnce({versions: [{id: "iq__1", hash: "hq__1"}], paging: {more: true}})
       .mockResolvedValueOnce({versions: [{id: "iq__2", hash: "hq__2"}], paging: {more: false}});
@@ -141,26 +141,28 @@ describe("StreamStore tenant-query node pinning", () => {
     // Non-paged load pages through everything in one call.
     await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
 
-    expect(mockClient.SetNodes).toHaveBeenCalledWith({
-      fabricURIs: ["https://host-154-14-243-34.contentfabric.io"]
-    });
-    expect(mockClient.SetNodes).toHaveBeenCalledTimes(2);
-    expect(mockClient.ResetRegion).toHaveBeenCalledTimes(2);
+    expect(tenantContent).toHaveBeenCalledTimes(2);
+    expect(Object.keys(store.tenantLiveStreamContent)).toEqual(["iq__1", "iq__2"]);
+    expect(mockClient.SetNodes).not.toHaveBeenCalled();
+    expect(mockClient.ResetRegion).not.toHaveBeenCalled();
   });
 
-  it("resets the region even when TenantContent throws", async () => {
-    const {store, mockClient} = makeStore({tenantContent: vi.fn().mockRejectedValue(new Error("boom"))});
+  it("resolves with empty content and clears loading when TenantContent throws", async () => {
+    const {store} = makeStore({tenantContent: vi.fn().mockRejectedValue(new Error("boom"))});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
+    const result = await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
+    errorSpy.mockRestore();
 
-    expect(mockClient.ResetRegion).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({});
+    expect(store.loadingTenantLiveStreamContent).toBe(false);
   });
 
   it("passes the name search to the tenant query as a name:co: filter", async () => {
     const tenantContent = vi.fn().mockResolvedValue({versions: [], paging: {more: false}});
     const {store} = makeStore({tenantContent});
 
-    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: "  Final Match  "});
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: ["  Final Match  "]});
 
     expect(tenantContent).toHaveBeenCalledWith(expect.objectContaining({
       filter: ["group:eq:iq__site", "name:co:Final Match"]
@@ -171,11 +173,68 @@ describe("StreamStore tenant-query node pinning", () => {
     const tenantContent = vi.fn().mockResolvedValue({versions: [], paging: {more: true}});
     const {store} = makeStore({tenantContent});
 
-    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: "quarterfinal", paged: true});
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", nameFilter: ["quarterfinal"], paged: true});
     expect(tenantContent).toHaveBeenLastCalledWith(expect.objectContaining({filter: ["group:eq:iq__site", "name:co:quarterfinal"]}));
 
     await store.LoadMoreTenantLiveStreamContent();
     expect(tenantContent).toHaveBeenLastCalledWith(expect.objectContaining({filter: ["group:eq:iq__site", "name:co:quarterfinal"]}));
+  });
+
+  it("skips the radio-stream merge query when the request isn't date-scoped", async () => {
+    const tenantContent = vi.fn().mockResolvedValue({versions: [{id: "iq__1", hash: "hq__1"}], paging: {more: false}});
+    const {store} = makeStore({tenantContent});
+
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
+
+    expect(tenantContent).toHaveBeenCalledTimes(1);
+  });
+
+  it("merges in undated radio streams (query_fields.radio_team/radio_language) when the query is date-scoped", async () => {
+    const dateRange: [Date, Date] = [new Date("2026-09-27T00:00:00"), new Date("2026-09-27T23:59:59")];
+    const tenantContent = vi.fn().mockImplementation(({filter}) => {
+      const isDated = (filter as string[]).some(f => f.startsWith("tag:"));
+      if(isDated) {
+        return Promise.resolve({
+          versions: [{id: "iq__dated", hash: "hq__dated", query_fields: {name: "Game 1", date: "2026-09-27"}}],
+          paging: {more: false}
+        });
+      }
+      // Unscoped radio-lookup query - includes a non-radio object that must be filtered out.
+      return Promise.resolve({
+        versions: [
+          {id: "iq__radio", hash: "hq__radio", query_fields: {name: "Radio - NBA - ATL - English", radio_team: "ATL", radio_language: "eng"}},
+          {id: "iq__other", hash: "hq__other", query_fields: {name: "Not radio"}}
+        ],
+        paging: {more: false}
+      });
+    });
+    const {store} = makeStore({tenantContent});
+
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", dateRange});
+
+    expect(tenantContent).toHaveBeenCalledTimes(2);
+    expect(Object.keys(store.tenantLiveStreamContent).sort()).toEqual(["iq__dated", "iq__radio"]);
+  });
+
+  it("caches the radio-stream lookup across date-preset navigation for the same siteId/nameFilter", async () => {
+    const dateRangeA: [Date, Date] = [new Date("2026-09-27T00:00:00"), new Date("2026-09-27T23:59:59")];
+    const dateRangeB: [Date, Date] = [new Date("2026-09-28T00:00:00"), new Date("2026-09-28T23:59:59")];
+    const tenantContent = vi.fn().mockImplementation(({filter}) => {
+      const isDated = (filter as string[]).some(f => f.startsWith("tag:"));
+      if(isDated) { return Promise.resolve({versions: [], paging: {more: false}}); }
+      return Promise.resolve({
+        versions: [{id: "iq__radio", hash: "hq__radio", query_fields: {name: "Radio", radio_team: "ATL"}}],
+        paging: {more: false}
+      });
+    });
+    const {store} = makeStore({tenantContent});
+
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", dateRange: dateRangeA, force: true});
+    await store.LoadTenantLiveStreamContent({siteId: "iq__site", dateRange: dateRangeB, force: true});
+
+    // One unscoped radio-lookup call, reused across both date-scoped (dated) calls.
+    const radioLookupCalls = tenantContent.mock.calls.filter(([{filter: f}]: any) => !(f as string[]).some(x => x.startsWith("tag:")));
+    expect(radioLookupCalls).toHaveLength(1);
   });
 });
 
@@ -217,6 +276,77 @@ describe("StreamStore.filteredStreams", () => {
 
     store.SetTableFilter("Final Match");
     expect(store.tableFilterIsObjectId).toBe(false);
+  });
+});
+
+describe("StreamStore declared tags (OR semantics)", () => {
+  const streams = {
+    f: {slug: "f", objectId: "iq__f", title: "Finals", tags: []},
+    s: {slug: "s", objectId: "iq__s", title: "Semis", tags: []},
+    o: {slug: "o", objectId: "iq__o", title: "Other", tags: ["vip"]}
+  };
+
+  const makeTagStore = (tagFilter: string[]) => {
+    const {store} = makeStore({streams});
+    store.rootStore.dataStore.useContentGroup = true;
+    store.rootStore.dataStore.declaredTags = ["Finals", "Semis"];
+    store.rootStore.dataStore.loadedDeclaredTags = true;
+    store.RestoreTableTagFilter(tagFilter);
+    return store;
+  };
+
+  it("sends a lone declared tag to the tenant query", () => {
+    const store = makeTagStore(["Finals"]);
+
+    expect(store.tenantNameTerms).toEqual(["Finals"]);
+    expect(store.declaredTagsNeedFullLoad).toBe(false);
+  });
+
+  it("matches several declared tags client-side (OR) over a full load", () => {
+    const store = makeTagStore(["Finals", "Semis"]);
+
+    expect(store.tenantNameTerms).toEqual([]);
+    expect(store.declaredTagsNeedFullLoad).toBe(true);
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["f", "s"]);
+  });
+
+  it("ORs a declared tag with an ordinary tag client-side", () => {
+    const store = makeTagStore(["Finals", "vip"]);
+
+    expect(store.tenantNameTerms).toEqual([]);
+    expect(store.declaredTagsNeedFullLoad).toBe(true);
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["f", "o"]);
+  });
+});
+
+describe("StreamStore.LoadTenantStreamInfo", () => {
+  it("returns a stream from the loaded maps without any reads", async () => {
+    const {store, mockClient} = makeStore({streams: {a: {slug: "a", objectId: "iq__a", originUrl: "srt://a"}}});
+    store.streams = {iq__a: {slug: "a", objectId: "iq__a", originUrl: "srt://a"}};
+
+    const info = await store.LoadTenantStreamInfo("iq__a");
+
+    expect(info.originUrl).toBe("srt://a");
+    expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
+    expect(mockClient.TenantContent).not.toHaveBeenCalled();
+  });
+
+  it("reads only that object on a miss, without paging the tenant", async () => {
+    const {store, mockClient} = makeStore({meta: {iq__x: {live_recording_config: {url: "srt://x"}}}});
+
+    const info = await store.LoadTenantStreamInfo("iq__x");
+
+    expect(info.originUrl).toBe("srt://x");
+    expect(mockClient.TenantContent).not.toHaveBeenCalled();
+    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(expect.objectContaining({objectId: "iq__x"}));
+  });
+
+  it("returns undefined when the object can't be read", async () => {
+    const {store, mockClient} = makeStore();
+    mockClient.ContentObjectMetadata.mockRejectedValue(new Error("not found"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await store.LoadTenantStreamInfo("iq__missing")).toBeUndefined();
   });
 });
 

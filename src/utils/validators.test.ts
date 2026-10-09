@@ -1,5 +1,5 @@
 import {describe, it, expect} from "vitest";
-import {ValidateTextField} from "@/utils/validators";
+import {ValidateTextField, ValidateUrl} from "@/utils/validators";
 
 describe("ValidateTextField", () => {
   it("returns false if the field is empty", () => {
@@ -16,5 +16,23 @@ describe("ValidateTextField", () => {
 
   it("passes if the trimmed value is 3 characters, including a whitespace in the middle", () => {
     expect(ValidateTextField({value: "T s  ", key: "Name"})).toBe(null);
+  });
+});
+
+describe("ValidateUrl", () => {
+  it("allows an empty value", () => {
+    expect(ValidateUrl({value: ""})).toBe(null);
+    expect(ValidateUrl()).toBe(null);
+  });
+
+  it("accepts http and https URLs", () => {
+    expect(ValidateUrl({value: "https://example.com"})).toBe(null);
+    expect(ValidateUrl({value: "http://sub.example.com/path"})).toBe(null);
+  });
+
+  it("rejects values that are not http(s) URLs", () => {
+    expect(ValidateUrl({value: "example"})).not.toBe(null);
+    expect(ValidateUrl({value: "ftp://example.com"})).not.toBe(null);
+    expect(ValidateUrl({value: "https://"})).not.toBe(null);
   });
 });

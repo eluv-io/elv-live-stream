@@ -1,11 +1,7 @@
 import {makeAutoObservable} from "mobx";
 import type RootStore from "@/stores/RootStore";
 
-// Coordinates the shared Save/Discard toolbar for the General/Recording/Playout
-// config tabs on the stream details page. Each tab's panel registers its own
-// Save/Discard implementation on mount; this store just tracks dirty state and
-// orchestrates a sequential batch save. It does not own form values - those
-// stay in each panel's own @mantine/form instance.
+// Tracks dirty state and orchestrates batch Save/Discard for the stream details page's panels
 export type SavablePanelId = "general" | "recording" | "playout";
 
 const PANEL_ORDER: SavablePanelId[] = ["general", "recording", "playout"];
@@ -59,15 +55,7 @@ class StreamSaveStore {
     this.failedPanelId = null;
   }
 
-  // Sequential by design: each panel does its own independent fabric
-  // transaction (own EditContentObject/FinalizeContentObject). Stop at first
-  // failure so it's unambiguous which tab failed - tabs already saved in this
-  // batch stay clean, unattempted tabs stay dirty for retry.
-  //
-  // Dirty flags for succeeded panels are cleared together at the very end
-  // (not one at a time as each Save resolves) so the whole batch reads as a
-  // single atomic action - indicators shouldn't flicker off tab-by-tab while
-  // the rest of the save is still in flight.
+  // Saves panels sequentially, stopping at the first failure; unattempted panels stay dirty
   *SaveAll(): Generator<any, void> {
     this.saving = true;
     this.failedPanelId = null;

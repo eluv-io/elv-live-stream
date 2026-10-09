@@ -7,9 +7,12 @@ vi.mock("mobx", async () => ({
 }));
 
 vi.mock("@/stores", () => ({}));
-vi.mock("@/utils/constants", () => ({}));
+vi.mock("@/utils/constants", () => ({
+  FABRIC_NODE_REGIONS: [{value: "us-east", label: "US East"}, {value: "eu-west", label: "EU West"}]
+}));
 
-vi.mock("@/utils/helpers", () => ({
+vi.mock("@/utils/helpers", async(importOriginal) => ({
+  ...(await importOriginal<typeof import("@/utils/helpers")>()),
   SortTable: () => () => 0
 }));
 
@@ -667,7 +670,7 @@ describe("ModifyOutput — node/region clearing and geo resolution", () => {
 // ---------------------------------------------------------------------------
 
 describe("CreateOutput", () => {
-  it("should use node_ids (array) and elvgeos (array) for srt_pull type", async () => {
+  it("should use node_ids (array) for srt_pull type, dropping the region when a node is pinned", async () => {
     const {store, mockClient} = makeStore();
 
     await store.CreateOutput({
@@ -679,12 +682,22 @@ describe("CreateOutput", () => {
 
     const deliveryArg = mockClient.OutputsCreate.mock.calls[0][0].delivery;
     expect(deliveryArg.settings.node_ids).toEqual(["node-abc"]);
-    expect(deliveryArg.settings.elvgeos).toEqual(["us-east"]);
+    expect(deliveryArg.settings.elvgeos).toBeUndefined();
     expect(deliveryArg.settings.node_id).toBeUndefined();
     expect(deliveryArg.settings.elvgeo).toBeUndefined();
   });
 
-  it("should use node_id (single) and elvgeo (single) for srt_push type", async () => {
+  it("should use elvgeos (array) for srt_pull type when only a region is given", async () => {
+    const {store, mockClient} = makeStore();
+
+    await store.CreateOutput({type: "srt_pull", name: "Pull Out", region: "us-east"});
+
+    const deliveryArg = mockClient.OutputsCreate.mock.calls[0][0].delivery;
+    expect(deliveryArg.settings.elvgeos).toEqual(["us-east"]);
+    expect(deliveryArg.settings.node_ids).toBeUndefined();
+  });
+
+  it("should use node_id (single) for srt_push type, dropping the region when a node is pinned", async () => {
     const {store, mockClient} = makeStore();
 
     await store.CreateOutput({
@@ -696,7 +709,7 @@ describe("CreateOutput", () => {
 
     const deliveryArg = mockClient.OutputsCreate.mock.calls[0][0].delivery;
     expect(deliveryArg.settings.node_id).toBe("node-xyz");
-    expect(deliveryArg.settings.elvgeo).toBe("eu-west");
+    expect(deliveryArg.settings.elvgeo).toBeUndefined();
     expect(deliveryArg.settings.node_ids).toBeUndefined();
     expect(deliveryArg.settings.elvgeos).toBeUndefined();
   });
@@ -1393,5 +1406,253 @@ describe("SwitchOutputInput", () => {
 
     await expect(store.SwitchOutputInput({outputId: "out-1", hop: 1})).rejects.toThrow("hop failed");
     expect(store.outputs["out-1"].state).toEqual({failover: {active_stream: "iq__primary"}});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Output location (custom.location)
+// ---------------------------------------------------------------------------
+
+describe("CreateOutput location", () => {
+  const makeCreateStore = (clientOverrides: Record<string, unknown> = {}) => {
+    const created = {name: "New Output", srt_pull: {urls: ["srt://host:1234"]}, state: {connected_clients: 0}};
+    return makeStore({OutputsListItem: vi.fn().mockResolvedValue(created), ...clientOverrides});
+  };
+
+  it("should save the region to custom.location and not write description", async () => {
+    const {store, mockClient} = makeCreateStore();
+
+    await store.CreateOutput({type: "srt_pull", name: "Out", region: "us-east"});
+
+    expect(mockClient.OutputsCreate.mock.calls[0][0].description).toBeUndefined();
+    const modifyArg = mockClient.OutputsModify.mock.calls[0][0];
+    expect(modifyArg.output.custom).toEqual({location: {type: "public", geo: "us-east"}});
+    expect(modifyArg.output.state).toBeUndefined();
+    expect(store.outputs["out-1"].custom).toEqual({location: {type: "public", geo: "us-east"}});
+  });
+
+  it("should resolve a pinned hostname to a node ID and save geo, node and host", async () => {
+    const {store, mockClient} = makeCreateStore({SpaceNodes: vi.fn().mockResolvedValue([{id: "inode123"}])});
+
+    await store.CreateOutput({type: "srt_pull", name: "Out", nodeType: "public", region: "us-east", nodeHost: "host-1.example.com"});
+
+    expect(mockClient.SpaceNodes).toHaveBeenCalledWith({matchEndpoint: "host-1.example.com"});
+    const deliveryArg = mockClient.OutputsCreate.mock.calls[0][0].delivery;
+    expect(deliveryArg.settings.node_ids).toEqual(["inode123"]);
+    expect(deliveryArg.settings.elvgeos).toBeUndefined();
+    expect(mockClient.OutputsModify.mock.calls[0][0].output.custom)
+      .toEqual({location: {type: "public", geo: "us-east", node: "inode123", host: "host-1.example.com"}});
+  });
+
+  it("should reject the create when a pinned hostname matches no node", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const {store, mockClient} = makeCreateStore({SpaceNodes: vi.fn().mockResolvedValue([])});
+
+    await expect(store.CreateOutput({type: "srt_pull", name: "Out", region: "us-east", nodeHost: "host-x.example.com"}))
+      .rejects.toThrow("No node found");
+    expect(mockClient.OutputsCreate).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("should save a public location with no geo or node for Automatic", async () => {
+    const {store, mockClient} = makeCreateStore();
+
+    await store.CreateOutput({type: "srt_pull", name: "Out", nodeType: "public"});
+
+    const deliveryArg = mockClient.OutputsCreate.mock.calls[0][0].delivery;
+    expect(deliveryArg.settings.elvgeos).toBeUndefined();
+    expect(deliveryArg.settings.node_ids).toBeUndefined();
+    expect(mockClient.OutputsModify.mock.calls[0][0].output.custom).toEqual({location: {type: "public"}});
+  });
+
+  it("should save a dedicated location with the node", async () => {
+    const {store, mockClient} = makeCreateStore();
+
+    await store.CreateOutput({type: "srt_pull", name: "Out", nodeType: "dedicated", node: "inode123"});
+
+    expect(mockClient.OutputsModify.mock.calls[0][0].output.custom).toEqual({location: {type: "dedicated", node: "inode123"}});
+  });
+
+  it("should still register the output when saving the location fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    const {store} = makeCreateStore({OutputsModify: vi.fn().mockRejectedValue(new Error("boom"))});
+
+    await store.CreateOutput({type: "srt_pull", name: "Out", region: "us-east"});
+
+    expect(store.outputs["out-1"]).toBeDefined();
+    expect(store.outputs["out-1"].custom).toBeUndefined();
+    consoleError.mockRestore();
+  });
+});
+
+describe("ModifyOutput location", () => {
+  const makeModifyStore = (existingOutput: Record<string, unknown>, clientOverrides: Record<string, unknown> = {}) => {
+    const {store, mockClient} = makeStore({
+      OutputsListItem: vi.fn().mockResolvedValue(existingOutput),
+      ...clientOverrides
+    });
+    store.outputs = {"out-1": existingOutput};
+    return {store, mockClient};
+  };
+
+  it("should resolve a pinned hostname to a node ID and save geo, node and host, keeping other custom keys and leaving description alone", async () => {
+    const existing = {
+      name: "Out",
+      rtp: {url: "rtp://host:5004", node_id: "inode-old"},
+      description: "us-east",
+      custom: {ui: {collapsed: true}},
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing, {SpaceNodes: vi.fn().mockResolvedValue([{id: "inode123"}])});
+
+    await store.ModifyOutput({outputId: "out-1", type: "rtp", nodeType: "public", nodeHost: "host-1.example.com", node: "", region: "us-east"});
+
+    expect(mockClient.SpaceNodes).toHaveBeenCalledWith({matchEndpoint: "host-1.example.com"});
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.rtp.node_id).toBe("inode123");
+    expect(outputArg.custom).toEqual({
+      ui: {collapsed: true},
+      location: {type: "public", geo: "us-east", node: "inode123", host: "host-1.example.com"}
+    });
+    expect(outputArg.description).toBe("us-east");
+  });
+
+  it("should treat custom.location as the saved pick, not description", async () => {
+    const existing = {
+      name: "Out",
+      rtp: {url: "rtp://host:5004", node_id: "inode123"},
+      description: "stale-description",
+      custom: {location: {type: "public", geo: "us-east", node: "inode123", host: "host-1.example.com"}},
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing, {SpaceNodes: vi.fn()});
+
+    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", nodeType: "public", nodeHost: "host-1.example.com", node: "", region: "us-east"});
+
+    expect(mockClient.SpaceNodes).not.toHaveBeenCalled();
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.rtp.node_id).toBe("inode123");
+    expect(outputArg.custom).toEqual(existing.custom);
+  });
+
+  it("should not touch custom when a legacy description-only output is saved unchanged", async () => {
+    const existing = {
+      name: "Out",
+      rtp: {url: "rtp://host:5004", node_id: "inode-existing"},
+      description: "us-east",
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", node: "", region: "us-east"});
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.rtp.node_id).toBe("inode-existing");
+    expect(outputArg.custom).toBeUndefined();
+  });
+
+  it("should resolve a default node (no geo) and save a public location when switching to Automatic", async () => {
+    const configFetch = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({network: {services: {live_egress: ["https://egress-1.example.com:443"]}}})
+    });
+    vi.stubGlobal("fetch", configFetch);
+    const existing = {
+      name: "Out",
+      rtp: {url: "rtp://host:5004", node_id: "inode-dedicated"},
+      custom: {location: {type: "dedicated", node: "inode-dedicated"}},
+      input: {stream: "iq__abc"}
+    };
+    const {store, mockClient} = makeStore({
+      OutputsListItem: vi.fn().mockResolvedValue(existing),
+      ConfigUrl: vi.fn().mockResolvedValue("https://main.contentfabric.io/config"),
+      SpaceNodes: vi.fn().mockResolvedValue([{id: "inode-auto"}])
+    });
+    store.outputs = {"out-1": existing};
+
+    await store.ModifyOutput({outputId: "out-1", type: "rtp", nodeType: "public", node: "", region: ""});
+
+    expect(configFetch.mock.calls[0][0]).not.toContain("elvgeo");
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.rtp.node_id).toBe("inode-auto");
+    expect(outputArg.custom).toEqual({location: {type: "public"}});
+    vi.unstubAllGlobals();
+  });
+
+  it("should not re-resolve when a legacy output with nothing saved is saved as Automatic", async () => {
+    const configFetch = vi.fn();
+    vi.stubGlobal("fetch", configFetch);
+    const existing = {name: "Out", rtp: {url: "rtp://host:5004", node_id: "inode-existing"}, input: {stream: "iq__abc"}};
+    const {store, mockClient} = makeModifyStore(existing);
+
+    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", nodeType: "public", node: "", region: ""});
+
+    expect(configFetch).not.toHaveBeenCalled();
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.rtp.node_id).toBe("inode-existing");
+    expect(outputArg.custom).toBeUndefined();
+    vi.unstubAllGlobals();
+  });
+
+  it("should not re-resolve when a legacy public output pinned by node ID is renamed", async () => {
+    const configFetch = vi.fn();
+    vi.stubGlobal("fetch", configFetch);
+    const existing = {name: "Out", rtp: {url: "rtp://host:5004", node_id: "inode-legacy"}, description: "inode-legacy", input: {stream: "iq__abc"}};
+    const {store, mockClient} = makeModifyStore(existing, {SpaceNodes: vi.fn()});
+
+    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", nodeType: "public", nodeHost: "", node: "", region: ""});
+
+    expect(configFetch).not.toHaveBeenCalled();
+    expect(mockClient.SpaceNodes).not.toHaveBeenCalled();
+    expect(mockClient.OutputsModify.mock.calls[0][0].output.rtp.node_id).toBe("inode-legacy");
+    vi.unstubAllGlobals();
+  });
+
+  it("should treat a legacy dedicated node as dedicated when switching to public", async () => {
+    const configFetch = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({network: {services: {live_egress: ["https://egress-1.example.com:443"]}}})
+    });
+    vi.stubGlobal("fetch", configFetch);
+    const existing = {name: "Out", rtp: {url: "rtp://host:5004", node_id: "inode-ded"}, description: "inode-ded", input: {stream: "iq__abc"}};
+    const {store, mockClient} = makeModifyStore(existing, {
+      ConfigUrl: vi.fn().mockResolvedValue("https://main.contentfabric.io/config"),
+      SpaceNodes: vi.fn().mockResolvedValue([{id: "inode-auto"}])
+    });
+    store.rootStore.dataStore.dedicatedNodesList = [{value: "inode-ded", label: "Dedicated 1"}];
+
+    await store.ModifyOutput({outputId: "out-1", type: "rtp", nodeType: "public", nodeHost: "", node: "", region: ""});
+
+    const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
+    expect(outputArg.rtp.node_id).toBe("inode-auto");
+    expect(outputArg.custom).toEqual({location: {type: "public"}});
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("LoadNodesByRegion", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("should list unique hostnames from live_egress without looking up node IDs", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({network: {services: {live_egress: [
+        "https://host-1.example.com:443",
+        "https://host-2.example.com:443",
+        "https://host-1.example.com:8443"
+      ]}}})
+    }));
+    const {store, mockClient} = makeStore({
+      ConfigUrl: vi.fn().mockResolvedValue("https://main.contentfabric.io/config"),
+      SpaceNodes: vi.fn()
+    });
+
+    await store.LoadNodesByRegion({region: "us-east"});
+
+    expect(store.nodesByRegion["us-east"]).toEqual([
+      {value: "host-1.example.com", label: "host-1.example.com"},
+      {value: "host-2.example.com", label: "host-2.example.com"}
+    ]);
+    expect(mockClient.SpaceNodes).not.toHaveBeenCalled();
   });
 });
