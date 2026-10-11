@@ -252,12 +252,21 @@ describe("StreamStore.filteredStreams", () => {
     expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["a"]);
   });
 
-  it("skips the client-side text filter on the content-group path (server-side search)", () => {
+  it("applies the text filter client-side on the content-group path", () => {
     const {store} = makeStore({streams});
     store.rootStore.dataStore.useContentGroup = true;
     store.SetTableFilter("alph");
 
-    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["a", "b"]);
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["a"]);
+  });
+
+  it("matches metadata tags in the text filter", () => {
+    const {store} = makeStore({streams});
+    store.rootStore.dataStore.useContentGroup = true;
+    store.SetTableFilter("Y");
+
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["b"]);
+    expect(store.searchNeedsFullLoad).toBe(true);
   });
 
   it("filters by object id client-side even on the content-group path", () => {
@@ -281,41 +290,40 @@ describe("StreamStore.filteredStreams", () => {
 
 describe("StreamStore declared tags (OR semantics)", () => {
   const streams = {
-    f: {slug: "f", objectId: "iq__f", title: "Finals", tags: []},
-    s: {slug: "s", objectId: "iq__s", title: "Semis", tags: []},
+    r: {slug: "r", objectId: "iq__r", title: "Radio One", tags: []},
+    f: {slug: "f", objectId: "iq__f", title: "Finals", tags: ["Finals"]},
     o: {slug: "o", objectId: "iq__o", title: "Other", tags: ["vip"]}
   };
 
   const makeTagStore = (tagFilter: string[]) => {
     const {store} = makeStore({streams});
     store.rootStore.dataStore.useContentGroup = true;
-    store.rootStore.dataStore.declaredTags = ["Finals", "Semis"];
+    store.rootStore.dataStore.declaredTags = ["RADIO", "Finals"];
     store.rootStore.dataStore.loadedDeclaredTags = true;
     store.RestoreTableTagFilter(tagFilter);
     return store;
   };
 
-  it("sends a lone declared tag to the tenant query", () => {
-    const store = makeTagStore(["Finals"]);
+  it("sends a lone RADIO tag to the tenant query as a name filter", () => {
+    const store = makeTagStore(["RADIO"]);
 
-    expect(store.tenantNameTerms).toEqual(["Finals"]);
+    expect(store.tenantNameTerms).toEqual(["RADIO"]);
     expect(store.declaredTagsNeedFullLoad).toBe(false);
   });
 
-  it("matches several declared tags client-side (OR) over a full load", () => {
-    const store = makeTagStore(["Finals", "Semis"]);
+  it("matches other declared tags client-side by metadata tag", () => {
+    const store = makeTagStore(["Finals"]);
 
     expect(store.tenantNameTerms).toEqual([]);
-    expect(store.declaredTagsNeedFullLoad).toBe(true);
-    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["f", "s"]);
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["f"]);
   });
 
-  it("ORs a declared tag with an ordinary tag client-side", () => {
-    const store = makeTagStore(["Finals", "vip"]);
+  it("ORs RADIO with a metadata tag client-side over a full load", () => {
+    const store = makeTagStore(["RADIO", "vip"]);
 
     expect(store.tenantNameTerms).toEqual([]);
     expect(store.declaredTagsNeedFullLoad).toBe(true);
-    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["f", "o"]);
+    expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["r", "o"]);
   });
 });
 

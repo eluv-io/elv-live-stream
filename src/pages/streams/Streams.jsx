@@ -75,8 +75,9 @@ const Streams = observer(() => {
   useEffect(() => {
     // A restored declared-tag selection needs the declared list before it can scope the query
     if(!dataStore.loadedDeclaredTags) {
+      const before = DeclaredTagQueryKey();
       Promise.resolve(dataStore.LoadDeclaredTags()).then(() => {
-        if(dataStore.useContentGroup && streamStore.selectedDeclaredTags.length > 0) {
+        if(dataStore.useContentGroup && before !== DeclaredTagQueryKey()) {
           dataStore.LoadStreamList({reload: true});
         }
       });
@@ -93,8 +94,7 @@ const Streams = observer(() => {
     await dataStore.LoadStreamList({reload: true});
   }, 500);
 
-  // Content-group tenants search server-side: the search term is sent to the tenant
-  // query as a `name` filter, so a change re-runs the query (debounced).
+  // Search is client-side, but an active search needs the full set without paging, so a change reloads (debounced).
   const DebouncedSearchReload = useDebouncedCallback(async() => {
     await dataStore.LoadStreamList({reload: true});
   }, 400);
@@ -108,6 +108,7 @@ const Streams = observer(() => {
     streamStore.SetTableTagFilter(tags);
     if(dataStore.useContentGroup && before !== DeclaredTagQueryKey()) {
       streamGroupStore.CollapseAllGroups();
+      dataStore.MarkStreamsLoading();
       DebouncedSearchReload();
     }
   };
@@ -116,6 +117,7 @@ const Streams = observer(() => {
     streamStore.SetTableFilter(event.target.value);
     if(dataStore.useContentGroup) {
       streamGroupStore.CollapseAllGroups();
+      dataStore.MarkStreamsLoading();
       DebouncedSearchReload();
     }
   };

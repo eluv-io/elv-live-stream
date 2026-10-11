@@ -225,6 +225,11 @@ class DataStore {
     }
   }
 
+  // Shows the loader while a debounced reload is pending, instead of a stale or empty list
+  MarkStreamsLoading() {
+    this.streamsLoaded = false;
+  }
+
   // scoped=true applies the streams page's date-range filter to the tenant query.
   // Callers that need the full stream map (Outputs, Monitor, stream mapping) pass
   // scoped=false so the list isn't limited to the currently-selected date range.
@@ -246,18 +251,20 @@ class DataStore {
       // so load the full set - no date scope, no paging - and let filteredStreams
       // narrow it client-side.
       const objectIdSearch = this.rootStore.streamStore.tableFilterIsObjectId;
+      // Client-side tag matches need every stream, not just the date-scoped page
+      const fullScan = objectIdSearch || this.rootStore.streamStore.declaredTagsNeedFullLoad;
 
       // Date scoping only applies when the site opts into it (useDateFilter).
       const dateRange: [Date | null, Date | null] =
-        scoped && this.useDateFilter && !objectIdSearch ? this.rootStore.streamStore.dateRangeFilter : [null, null];
+        scoped && this.useDateFilter && !fullScan ? this.rootStore.streamStore.dateRangeFilter : [null, null];
 
       // useContentGroup picks the source of truth outright - no fall-through between the two.
       let streamMetadata;
       if(this.useContentGroup) {
         // Tenant-wide content-group query. Scoped (streams page) loads one page at a
         // time; LoadMoreStreamList pulls the rest.
-        const nameFilter = scoped && !objectIdSearch ? this.rootStore.streamStore.tenantNameTerms : [];
-        streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, nameFilter, force: reload, paged: scoped && !objectIdSearch && !this.rootStore.streamStore.declaredTagsNeedFullLoad});
+        const nameFilter = scoped ? this.rootStore.streamStore.tenantNameTerms : [];
+        streamMetadata = yield this.rootStore.streamStore.LoadTenantLiveStreamContent({siteId: this.siteId, dateRange, nameFilter, force: reload, paged: scoped && !this.rootStore.streamStore.searchNeedsFullLoad && !this.rootStore.streamStore.declaredTagsNeedFullLoad});
       } else {
         // Legacy: the site object's registered stream list.
         if(!this.streamMetadata || reload) {

@@ -334,16 +334,19 @@ class StreamStore {
     return [...this.declaredTags, ...this.discoverTags];
   }
 
-  // Declared tags filter by case-insensitive name substring; others by the stream's own tags
+  // Only the RADIO tag filters by name; every other tag matches the stream's own tags
+  IsNameTag = (tag: string): boolean => {
+    return this.declaredTags.includes(tag) && tag.toLowerCase() === "radio";
+  };
+
   StreamMatchesTag = (stream: StreamInfo, tag: string): boolean => {
-    return this.declaredTags.includes(tag) ?
+    return this.IsNameTag(tag) ?
       !!stream.title?.toLowerCase().includes(tag.toLowerCase()) :
       !!stream.tags?.includes(tag);
   };
 
   get selectedDeclaredTags(): string[] {
-    const declared = new Set(this.declaredTags);
-    return this.activeTagFilter.filter(t => declared.has(t));
+    return this.activeTagFilter.filter(this.IsNameTag);
   }
 
   // A lone selected declared tag is sent to the tenant query; any more tags make the filter an OR, which the query (AND-only) can't express
@@ -351,14 +354,19 @@ class StreamStore {
     return this.activeTagFilter.length === 1 ? this.selectedDeclaredTags : [];
   }
 
-  // Declared tags that must be matched client-side, so the streams page loads the full set without paging
+  // Selected tags matched client-side (metadata tags, or several tags OR'd), so the page loads the full set
   get declaredTagsNeedFullLoad(): boolean {
-    return this.selectedDeclaredTags.length > 0 && this.declaredTagsOnServer.length === 0;
+    return this.activeTagFilter.some(t => !this.declaredTagsOnServer.includes(t));
   }
 
-  // Name terms (AND'd) sent to the tenant query: the search text plus any server-side declared tag
+  // Name terms (AND'd) sent to the tenant query: server-side declared tags only; search text is client-side
   get tenantNameTerms(): string[] {
-    return [this.tableFilter.trim(), ...this.declaredTagsOnServer].filter(Boolean);
+    return this.declaredTagsOnServer.filter(Boolean);
+  }
+
+  // Search text is matched client-side (title, id, tags), so an active search loads the full set without paging
+  get searchNeedsFullLoad(): boolean {
+    return this.tableFilter.trim().length > 0;
   }
 
   // Suggestions for stream tag inputs: tags already on streams. Declared tags are filter shortcuts only.
@@ -369,8 +377,8 @@ class StreamStore {
   };
 
   get activeTagFilter(): string[] {
-    const available = new Set(this.allTags);
-    return this.tableTagFilter.filter(t => available.has(t));
+    // Not narrowed to loaded tags: a restored metadata tag may be absent from the first (scoped) page
+    return this.tableTagFilter;
   }
 
   /**
@@ -382,15 +390,9 @@ class StreamStore {
     return /^iq__[A-Za-z0-9]*$/.test(this.tableFilter.trim());
   }
 
-  /**
-   * Client-side tag + text filtering (date scoping is server-side). On the content-group
-   * path the name search is also server-side, so skip the client-side text match there -
-   * except an object-id search, which the tenant query can't express.
-   */
+  // Client-side tag + text filtering (date scoping is server-side). Text matches title, id and metadata tags.
   get filteredStreams(): StreamInfo[] {
-    const objectIdSearch = this.tableFilterIsObjectId;
-    const serverSideText = this.rootStore.dataStore.useContentGroup && !objectIdSearch;
-    const filter = serverSideText ? "" : this.tableFilter.toLowerCase().trim();
+    const filter = this.tableFilter.toLowerCase().trim();
     // A server-side declared tag is already applied by the tenant query
     const tagFilter = this.rootStore.dataStore.useContentGroup ?
       this.activeTagFilter.filter(t => !this.declaredTagsOnServer.includes(t)) :
@@ -398,7 +400,8 @@ class StreamStore {
     return Object.values(this.streams || {}).filter(s => {
       const matchesText = !filter ||
         s.title?.toLowerCase().includes(filter) ||
-        s.objectId?.toLowerCase().includes(filter);
+        s.objectId?.toLowerCase().includes(filter) ||
+        s.tags?.some(t => t.toLowerCase().includes(filter));
       const matchesTags = tagFilter.length === 0 ||
         tagFilter.some(tag => this.StreamMatchesTag(s, tag));
       return matchesText && matchesTags;
@@ -437,8 +440,9 @@ class StreamStore {
     this.allStreamsLoaded = false;
     this._allStreamsPromise = null;
     const remaining = this.allTags;
-    // Declared tags aren't known until loaded; don't drop a restored selection before then
-    if(this.rootStore.dataStore.loadedDeclaredTags) {
+    // Drop stale tags only once declared tags and the full stream set are loaded; a restored tag may
+    // simply be outside the first scoped page
+    if(this.rootStore.dataStore.loadedDeclaredTags && !this.tenantContentHasMore) {
       this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
     }
     this.selectedRecords = this.selectedRecords.filter(r => this.streams[r.slug]);
