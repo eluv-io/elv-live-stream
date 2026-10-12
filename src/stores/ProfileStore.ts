@@ -3,7 +3,7 @@ import {makeAutoObservable, runInAction, toJS} from "mobx";
 import {slugify} from "@/utils/helpers";
 import {defaultConfigProfile} from "@/utils/defaultProfile.js";
 import type RootStore from "@/stores/RootStore";
-import {LiveRecordingConfigProfile} from "@/utils/stream";
+import {LiveRecordingConfigProfile} from "@/utils/stream/stream";
 
 class ProfileStore {
   state: "pending" | "loaded" | "error" = "pending";

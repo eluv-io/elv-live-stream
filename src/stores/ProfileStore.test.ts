@@ -1,5 +1,5 @@
 import {describe, it, expect, vi} from "vitest";
-import type {LiveRecordingConfigProfile} from "@/utils/stream";
+import type {LiveRecordingConfigProfile} from "@/utils/stream/stream";
 
 vi.mock("mobx", async () => ({
   ...(await vi.importActual("mobx")),

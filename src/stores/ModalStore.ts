@@ -1,7 +1,7 @@
 import {makeAutoObservable, observable} from "mobx";
 import {STATUS_MAP, StreamStatus} from "@/utils/constants";
 import type RootStore from "@/stores/RootStore";
-import {StreamRecord} from "@/utils/stream";
+import {StreamRecord} from "@/utils/stream/stream";
 
 export type StreamOp = "CHECK" | "START" | "STOP" | "RESTART" | "DEACTIVATE" | "DELETE";
 

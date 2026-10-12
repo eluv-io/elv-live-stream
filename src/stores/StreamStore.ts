@@ -11,7 +11,7 @@ import {
   RawProbeProgram,
   ProgramsFromProbe,
   StreamMetadata, ProbeStream, RecordingInputCfg
-} from "@/utils/stream";
+} from "@/utils/stream/stream";
 import type RootStore from "@/stores/RootStore";
 import {StreamInfo, PermissionLevel} from "@/stores/DataStore";
 import {StreamOp} from "@/stores/ModalStore";

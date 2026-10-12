@@ -5,7 +5,7 @@ import {useVirtualizer} from "@tanstack/react-virtual";
 import {IconArrowNarrowDown, IconArrowNarrowUp, IconArrowsVertical, IconChevronRight} from "@tabler/icons-react";
 import {SanitizeUrl, FormatStreamDate, FormatStreamEventTime} from "@/utils/helpers.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
-import {GetStreamActions} from "@/utils/streamActions.jsx";
+import {GetStreamActions} from "@/utils/stream/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 import styles from "./StreamsTable.module.css";
 import {SOURCE_PACKAGING_COLOR_MAP, QUALITY_MAP} from "@/utils/constants.ts";

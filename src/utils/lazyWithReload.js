@@ -1,19 +1,11 @@
 import {lazy} from "react";
 
-// After a new deploy, a tab still running the old bundle can try to lazy-load
-// a route chunk whose hashed filename no longer exists on the server (old
-// build files are gone from hosting), throwing
-// "Failed to fetch dynamically imported module" straight into React Router's
-// default error boundary. Wrapping lazy() importers with this retries once via
-// a full reload - which pulls the new bundle - instead of crashing the app.
-//
-// The flag is keyed per-chunk (not shared) so a chunk that's genuinely and
-// persistently broken can't have its retry flag cleared by an unrelated
-// chunk succeeding, which would otherwise cause an infinite reload loop.
+// After a deploy, a stale tab can fail to lazy-load a chunk whose hashed file is gone.
+// Retry once via a full reload (pulls the new bundle) instead of crashing.
+// The flag is per-chunk so an unrelated chunk succeeding can't clear it and cause a reload loop.
 const RELOAD_FLAG_PREFIX = "elv-chunk-reload-attempted:";
 
-// Exported separately from the lazy() wrapper so the retry logic can be
-// unit-tested without rendering a Suspense/ErrorBoundary tree.
+// Split from the lazy() wrapper so it can be unit-tested without Suspense.
 export function withReloadOnce(importer, key) {
   const reloadFlag = RELOAD_FLAG_PREFIX + key;
 

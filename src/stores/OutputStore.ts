@@ -1,6 +1,6 @@
 // Manages egress output configurations for live streams, including SRT and other output destinations.
 import {makeAutoObservable} from "mobx";
-import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/stream";
+import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/stream/stream";
 import {GetOutputLocation, SortTable, WithOutputLocation} from "@/utils/helpers";
 import type {OutputLocation} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";

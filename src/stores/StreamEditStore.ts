@@ -15,7 +15,7 @@ import {
   RecordingPeriod,
   SimpleWatermark,
   StreamRecord
-} from "@/utils/stream";
+} from "@/utils/stream/stream";
 import {defaultConfigProfile} from "@/utils/defaultProfile";
 import {PlayoutFormat, RESOLUTION_DIMENSIONS, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@/utils/helpers";

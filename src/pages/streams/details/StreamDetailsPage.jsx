@@ -10,7 +10,7 @@ import styles from "@/pages/streams/details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
-import {GetStreamActions} from "@/utils/streamActions.jsx";
+import {GetStreamActions} from "@/utils/stream/streamActions.jsx";
 import {QUALITY_MAP} from "@/utils/constants.ts";
 import {IconExternalLink} from "@tabler/icons-react";
 import SummaryPanel from "@/pages/streams/details/summary/SummaryPanel.jsx";

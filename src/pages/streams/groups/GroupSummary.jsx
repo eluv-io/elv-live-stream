@@ -11,7 +11,7 @@ import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import OutputUrlsBySource from "@/pages/streams/groups/OutputUrlsBySource.jsx";
 import {SortTable} from "@/utils/helpers.ts";
 import {streamStore, streamGroupStore} from "@/stores/index.ts";
-import {TsPackagingOnly} from "@/utils/streamActions.jsx";
+import {TsPackagingOnly} from "@/utils/stream/streamActions.jsx";
 
 // Preview is the only row action on the group summary table.
 const PreviewAction = (record) => {

@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {MeetsDurationMin, IsWithinRetentionPeriod, RecordingPeriodIsExpired} from "@/utils/recording";
+import {MeetsDurationMin, IsWithinRetentionPeriod, RecordingPeriodIsExpired} from "@/utils/stream/recording";
 
 describe("MeetsDurationMin", () => {
   it("returns true when duration is at least 61 seconds", () => {

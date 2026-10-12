@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor, LiveRecordingConfigProfile} from "@/utils/stream";
+import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor, LiveRecordingConfigProfile} from "@/utils/stream/stream";
 import {STATUS_MAP} from "@/utils/constants";
 
 describe("ParseLiveConfigData", () => {

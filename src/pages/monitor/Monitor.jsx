@@ -7,7 +7,7 @@ import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import {useWindowVirtualizer} from "@tanstack/react-virtual";
 
 import {dataStore, modalStore, rootStore, streamStore} from "@/stores/index.ts";
-import {StreamIsActive} from "@/utils/stream.ts";
+import {StreamIsActive} from "@/utils/stream/stream.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -25,7 +25,7 @@ import {
 import {QUALITY_MAP, STATUS_MAP} from "@/utils/constants.ts";
 import {notifications} from "@mantine/notifications";
 import {useNavigate} from "react-router-dom";
-import {TsPackagingOnly} from "@/utils/streamActions.jsx";
+import {TsPackagingOnly} from "@/utils/stream/streamActions.jsx";
 import styles from "./Monitor.module.css";
 
 const COLS = 4;

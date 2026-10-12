@@ -39,7 +39,7 @@ import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
-import {TsPackagingOnly} from "@/utils/streamActions.jsx";
+import {TsPackagingOnly} from "@/utils/stream/streamActions.jsx";
 
 // Classifies an output's saved location (see GetOutputLocation) as dedicated or
 // public (Automatic, region-only, or region-with-node). `geoNode` is the public
