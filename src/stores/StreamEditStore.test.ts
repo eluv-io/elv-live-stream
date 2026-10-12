@@ -1883,6 +1883,34 @@ const makeConfigMetaStore = ({existingConfig = {}} = {}) => {
 };
 
 describe("UpdateConfigMetadata", () => {
+  it("writes video and stream bitrates as integers", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: "5000000", streamBitrate: "8000000", finalize: false});
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_bitrate", metadata: 5000000})
+    );
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg/stream_bitrate", metadata: 8000000})
+    );
+  });
+
+  it("clears the bitrate when the value is empty", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: "", finalize: false});
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_bitrate", metadata: null})
+    );
+  });
+
+  it.each(["abc", "12abc", "-5", "1.5"])("rejects a non-integer bitrate (%s) without writing", async (value) => {
+    const {store, mockClient} = makeConfigMetaStore();
+    await expect(
+      store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: value, finalize: false})
+    ).rejects.toThrow("Invalid video bitrate");
+    const writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
+    expect(writtenPaths.some(p => p.endsWith("xc_params/video_bitrate"))).toBe(false);
+  });
+
   it("writes dvr_enabled to both live_recording and live_recording_overrides", async () => {
     const {store, mockClient} = makeConfigMetaStore();
     await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, finalize: false});
@@ -1955,6 +1983,35 @@ describe("UpdateConfigMetadata", () => {
     expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
       expect.objectContaining({commitMessage: "Update recording config"})
     );
+  });
+
+  it("writes advancedEncodingParams to live_recording_config recording_params.xc_params", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    mockClient.ContentObjectMetadata.mockResolvedValue({recording_params: {other: 1}});
+    await store.UpdateConfigMetadata({
+      objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false,
+      advancedEncodingParams: {preset: "medium", force_keyint: 60}
+    });
+    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadataSubtree: "live_recording_config",
+        metadata: expect.objectContaining({
+          recording_params: {other: 1, xc_params: {preset: "medium", force_keyint: 60}}
+        })
+      })
+    );
+    const writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
+    expect(writtenPaths).not.toContain("live_recording/recording_config/recording_params/xc_params");
+  });
+
+  it("leaves recording_params untouched when advancedEncodingParams is empty or undefined", async () => {
+    const {store, mockClient} = makeConfigMetaStore();
+    for(const extra of [{advancedEncodingParams: {}}, {}]) {
+      mockClient.ReplaceMetadata.mockClear();
+      await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false, ...extra});
+      const call = mockClient.ReplaceMetadata.mock.calls.find(c => c[0].metadataSubtree === "live_recording_config");
+      expect(call[0].metadata).not.toHaveProperty("recording_params");
+    }
   });
 
   it("skips FinalizeContentObject when finalize=false", async () => {
@@ -2151,5 +2208,110 @@ describe("UpdatePlayoutConfig", () => {
     expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
       expect.objectContaining({key: "my-stream", value: {status: "stopped"}})
     );
+  });
+});
+
+describe("UpdateAlternateTranscode", () => {
+  const params = {
+    objectId: "iq__alt", libraryId: "ilib1", name: "Alt", nodeType: "dedicated" as const,
+    node: "inod1", protocol: "mpegts"
+  };
+
+  const makeAltStore = () => {
+    const configMetaSpy = stubFlow("UpdateConfigMetadata");
+    const mockClient = {
+      EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-alt"}),
+      ContentObjectMetadata: vi.fn().mockResolvedValue(null),
+      MergeMetadata: vi.fn().mockResolvedValue(undefined),
+      DeleteWriteToken: vi.fn().mockResolvedValue(undefined)
+    };
+    const store = new StreamEditStore({client: mockClient, dataStore: {}, streamStore: {}} as any);
+    return {store, mockClient, configMetaSpy};
+  };
+
+  it("discards the write token when a step after EditContentObject fails", async () => {
+    const {store, mockClient} = makeAltStore();
+    mockClient.MergeMetadata.mockRejectedValue(new Error("merge failed"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(store.UpdateAlternateTranscode(params)).rejects.toThrow("merge failed");
+    expect(mockClient.DeleteWriteToken).toHaveBeenCalledWith({writeToken: "wt-alt"});
+  });
+
+  it("does not discard the write token on success", async () => {
+    const {store, mockClient} = makeAltStore();
+    await store.UpdateAlternateTranscode(params);
+    expect(mockClient.DeleteWriteToken).not.toHaveBeenCalled();
+  });
+});
+
+describe("CreateAlternateTranscode cleanup", () => {
+  const params = {
+    parentObjectId: "iq__parent", parentLibraryId: "ilib1", parentSlug: "parent",
+    name: "Alt", nodeType: "dedicated" as const, node: "inod1", protocol: "mpegts"
+  };
+
+  const makeCreateStore = ({parentIds = [] as string[]} = {}) => {
+    const configMetaSpy = stubFlow("UpdateConfigMetadata");
+    const mockClient = {
+      CreateContentObject: vi.fn().mockResolvedValue({id: "iq__alt", writeToken: "wt-create"}),
+      FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
+      ContentObjectMetadata: vi.fn().mockImplementation(() => Promise.resolve({alternate_transcodes: parentIds})),
+      StreamCreate: vi.fn().mockResolvedValue(undefined),
+      EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-node"}),
+      MergeMetadata: vi.fn().mockResolvedValue(undefined),
+      DeleteWriteToken: vi.fn().mockResolvedValue(undefined),
+      DeleteContentObject: vi.fn().mockResolvedValue(undefined)
+    };
+    const store = new StreamEditStore({
+      client: mockClient,
+      dataStore: {LoadTenantSiteData: vi.fn().mockResolvedValue({contentTypes: {}})},
+      streamStore: {}
+    } as any);
+    return {store, mockClient, configMetaSpy};
+  };
+
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  it("deletes the reserved object when StreamCreate fails", async () => {
+    const {store, mockClient} = makeCreateStore();
+    mockClient.StreamCreate.mockRejectedValue(new Error("create failed"));
+
+    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("create failed");
+    expect(mockClient.DeleteContentObject).toHaveBeenCalledWith({libraryId: "ilib1", objectId: "iq__alt"});
+  });
+
+  it("discards the node write token and deletes the object when the node merge fails", async () => {
+    const {store, mockClient} = makeCreateStore();
+    mockClient.MergeMetadata.mockRejectedValue(new Error("merge failed"));
+
+    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("merge failed");
+    expect(mockClient.DeleteWriteToken).toHaveBeenCalledWith({writeToken: "wt-node"});
+    expect(mockClient.DeleteContentObject).toHaveBeenCalled();
+  });
+
+  it("deletes the object when appending to the parent fails", async () => {
+    const {store, mockClient, configMetaSpy} = makeCreateStore();
+    configMetaSpy.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("append failed"));
+
+    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("append failed");
+    expect(mockClient.DeleteContentObject).toHaveBeenCalledWith({libraryId: "ilib1", objectId: "iq__alt"});
+  });
+
+  it("keeps the object if the parent already references it", async () => {
+    const {store, mockClient, configMetaSpy} = makeCreateStore({parentIds: ["iq__alt"]});
+    configMetaSpy.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("finalize timed out"));
+
+    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("finalize timed out");
+    expect(mockClient.DeleteContentObject).not.toHaveBeenCalled();
+  });
+
+  it("does not delete anything on success", async () => {
+    const {store, mockClient} = makeCreateStore();
+    await store.CreateAlternateTranscode(params);
+    expect(mockClient.DeleteContentObject).not.toHaveBeenCalled();
+    expect(mockClient.DeleteWriteToken).not.toHaveBeenCalled();
   });
 });

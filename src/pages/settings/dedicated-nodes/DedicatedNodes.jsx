@@ -4,7 +4,6 @@ import {observer} from "mobx-react-lite";
 import {toJS} from "mobx";
 import {notifications} from "@mantine/notifications";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
-import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NodeModal from "@/pages/settings/dedicated-nodes/NodeModal.jsx";
 import {IconPencil, IconTrash} from "@tabler/icons-react";
 import {DataTable} from "mantine-datatable";
@@ -64,7 +63,6 @@ const DedicatedNodes = observer(() => {
     <>
       <Box w="100%" mb={20}>
         <Group>
-          <SectionTitle>Dedicated Nodes</SectionTitle>
           <Group ml="auto" gap={8}>
             <Button
               variant="filled"

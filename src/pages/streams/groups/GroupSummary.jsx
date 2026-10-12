@@ -11,19 +11,25 @@ import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import OutputUrlsBySource from "@/pages/streams/groups/OutputUrlsBySource.jsx";
 import {SortTable} from "@/utils/helpers.ts";
 import {streamStore, streamGroupStore} from "@/stores/index.ts";
+import {TsPackagingOnly} from "@/utils/streamActions.jsx";
 
 // Preview is the only row action on the group summary table.
-const PreviewAction = (record) => [
-  {
-    label: "Preview",
-    title: "Preview Stream",
-    icon: <IconDeviceAnalytics />,
-    iconVariant: "subtle",
-    iconColor: "gray.6",
-    component: Link,
-    to: `/streams/${record.objectId}/preview`
-  }
-];
+const PreviewAction = (record) => {
+  const tsPackagingOnly = TsPackagingOnly(record);
+
+  return [
+    {
+      label: "Preview",
+      title: tsPackagingOnly ? "Preview unavailable for Transport Stream-only packaging" : "Preview Stream",
+      icon: <IconDeviceAnalytics />,
+      iconVariant: "subtle",
+      iconColor: "gray.6",
+      disabled: tsPackagingOnly,
+      // component=Link ignores Mantine's `disabled` prop, so drop the link/route when disabled.
+      ...(tsPackagingOnly ? {} : {component: Link, to: `/streams/${record.objectId}/preview`})
+    }
+  ];
+};
 
 // Skeleton - distribution summary for a stream group, keyed by title_id.
 // TODO: build out the real summary once the group-data source is wired.
@@ -73,7 +79,13 @@ const GroupSummary = observer(() => {
         });
       })(),
       (async () => {
+        const tsOnlyIds = new Set(
+          Object.values(map)
+            .filter(stream => stream.packaging?.length && !stream.packaging.includes("fmp4"))
+            .map(stream => stream.objectId)
+        );
         await streamStore.StreamOutputUrls(objectIds, {
+          tsOnlyIds,
           onStreamUrls: (objectId, urls) => {
             if(runId !== loadId.current) { return; }
             setOutputUrls(current => ({...current, [objectId]: urls}));

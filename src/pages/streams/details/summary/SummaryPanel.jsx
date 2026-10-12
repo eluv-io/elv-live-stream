@@ -32,6 +32,7 @@ const SummaryPanel = observer(({recordingInfo, slug}) => {
           status={status}
           recordingInfo={recordingInfo}
           currentTimeMs={currentTimeMs}
+          packaging={stream?.packaging}
         />
         <KeyStatsSection
           stream={stream}

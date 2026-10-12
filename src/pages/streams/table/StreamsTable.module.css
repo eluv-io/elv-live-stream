@@ -54,3 +54,17 @@
 .lastRow {
   border-bottom: none;
 }
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.resizeHandle:hover {
+  background-color: var(--mantine-color-gray-3);
+}

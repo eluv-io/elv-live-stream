@@ -38,6 +38,8 @@ vi.mock("@/stores", () => ({
     LoadAccessGroups: vi.fn().mockResolvedValue(undefined),
     LoadDedicatedNodes: vi.fn().mockResolvedValue(undefined),
     loadedDedicatedNodes: true,
+    loadedDeclaredTags: true,
+    LoadDeclaredTags: vi.fn().mockResolvedValue(undefined),
     dedicatedNodesList: [],
     accessGroups: {},
     client: {
@@ -60,6 +62,7 @@ vi.mock("@/stores", () => ({
   streamStore: {
     LoadDetails: vi.fn().mockResolvedValue({}),
     LoadGeneralConfigData: vi.fn().mockResolvedValue(undefined),
+    TagOptions: () => [],
     streams: {
       "test-slug": {
         title: "Test Stream",

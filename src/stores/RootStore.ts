@@ -89,11 +89,12 @@ class RootStore {
       // so it's in flight before the streams page mounts; LoadStreamList picks up the same
       // in-flight promise via the filter-key cache.
       if(this.dataStore.useContentGroup) {
+        const fullScan = this.streamStore.tableFilterIsObjectId || this.streamStore.declaredTagsNeedFullLoad;
         this.streamStore.LoadTenantLiveStreamContent({
           siteId: this.dataStore.siteId,
-          dateRange: this.dataStore.useDateFilter ? this.streamStore.dateRangeFilter : [null, null],
-          nameFilter: this.streamStore.tableFilter,
-          paged: true
+          dateRange: this.dataStore.useDateFilter && !fullScan ? this.streamStore.dateRangeFilter : [null, null],
+          nameFilter: this.streamStore.tenantNameTerms,
+          paged: !this.streamStore.searchNeedsFullLoad && !this.streamStore.declaredTagsNeedFullLoad
         });
       }
     } catch(error) {

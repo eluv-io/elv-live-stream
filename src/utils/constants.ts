@@ -82,6 +82,32 @@ export const RETENTION_OPTIONS = [
   // {label: "Indefinitely", value: "indefinite"}
 ];
 
+// Alternate transcode "Protocol" select - only MPEG-TS is wired today since
+// alternate transcodes live under Transport Stream Packaging, but this stays
+// a real option list (not a hardcoded value) so FMP4/CMAF protocol support
+// can be added later without restructuring the field.
+export const ALTERNATE_TRANSCODE_PROTOCOLS = [
+  {label: "MPEG-TS", value: "mpegts"}
+];
+
+export const RESOLUTION_OPTIONS = [
+  {label: "360p", value: "360p"},
+  {label: "480p", value: "480p"},
+  {label: "720p", value: "720p"},
+  {label: "1080p", value: "1080p"},
+  {label: "2160p", value: "2160p"}
+];
+
+// Height/width pairs per RESOLUTION_OPTIONS value, matching the fabric's
+// DefaultABRLadder convention; written to xc_params.enc_height/enc_width.
+export const RESOLUTION_DIMENSIONS: Record<string, {height: number, width: number}> = {
+  "360p": {height: 360, width: 640},
+  "480p": {height: 480, width: 854},
+  "720p": {height: 720, width: 1280},
+  "1080p": {height: 1080, width: 1920},
+  "2160p": {height: 2160, width: 3840}
+};
+
 export const DVR_DURATION_OPTIONS = [
   {label: "10 Minutes", value: "600"},
   {label: "30 Minutes", value: "1800"},

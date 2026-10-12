@@ -1,11 +1,12 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Box, Button, Flex, Grid, List, Modal, Text} from "@mantine/core";
+import {Box, Button, Checkbox, Flex, Grid, List, Loader, Modal, Text} from "@mantine/core";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
 
 const ConfirmModal = observer(({
   message,
   customMessage,
+  children,
   title,
   detailData={},
   batchSummary,
@@ -13,12 +14,28 @@ const ConfirmModal = observer(({
   CloseCallback,
   show,
   loadingText,
+  dependentsLoading,
+  dependentCount,
+  includeDependents,
+  OnIncludeDependentsChange,
   cancelText="Cancel",
   confirmText="Confirm",
   // danger=false
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showChecking, setShowChecking] = useState(false);
+
+  // Only show the checking text if the check is slow, to avoid a flash.
+  useEffect(() => {
+    if(!dependentsLoading) {
+      setShowChecking(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setShowChecking(true), 400);
+    return () => clearTimeout(timer);
+  }, [dependentsLoading]);
 
   useEffect(() => {
     setError(null);
@@ -71,6 +88,23 @@ const ConfirmModal = observer(({
           </Box>
         }
         {
+          dependentsLoading && showChecking &&
+          <Flex align="center" gap={8} mt={16}>
+            <Loader size="xs" color="elv-gray.6" />
+            <Text fz="sm" c="elv-gray.6">Checking for dependent streams...</Text>
+          </Flex>
+        }
+        {
+          dependentCount > 0 &&
+          <Checkbox
+            mt={16}
+            label={`Include dependent streams (${dependentCount})`}
+            checked={!!includeDependents}
+            onChange={event => OnIncludeDependentsChange?.(event.currentTarget.checked)}
+          />
+        }
+        {children}
+        {
           batchSummary &&
           <List mt={12}>
             {batchSummary.readyCount > 0 && (
@@ -105,7 +139,7 @@ const ConfirmModal = observer(({
           {cancelText}
         </Button>
         <Button
-          disabled={loading}
+          disabled={loading || dependentsLoading}
           variant="filled"
           loading={loading}
           onClick={async () => {

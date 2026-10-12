@@ -10,6 +10,7 @@ import {
   Flex,
   Group,
   Input,
+  Loader,
   PasswordInput,
   Select,
   SimpleGrid,
@@ -23,7 +24,7 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import SelectFailoverStreamModal from "@/pages/outputs/modals/SelectFailoverStreamModal.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {dataStore, streamStore} from "@/stores/index.ts";
+import {dataStore, outputStore, streamStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS, FAILOVER_TIMEOUT_OPTIONS, SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
 import {OutputUrlProtocol, SanitizeUrl} from "@/utils/helpers.ts";
 import sharedStyles from "@/assets/shared.module.css";
@@ -75,7 +76,7 @@ const FailoverStreamRow = ({record}) => (
 // state) owned by OutputPanels with the Summary tab.
 const GeneralConfig = observer(({form, output}) => {
   const [showFailoverModal, setShowFailoverModal] = useState(false);
-  const {type, nodeType, failoverStream, failoverStreamName} = form.getValues();
+  const {type, nodeType, geo, failoverStream, failoverStreamName} = form.getValues();
   const isDedicated = nodeType === "dedicated";
   // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
   // so it has no editable Target URL.
@@ -96,6 +97,12 @@ const GeneralConfig = observer(({form, output}) => {
   useEffect(() => {
     if(hasPrimary && failoverStream) { streamStore.LoadAllStreams(); }
   }, [hasPrimary, failoverStream]);
+
+  // Preload the region's node list on mount if the output already targets a
+  // region
+  useEffect(() => {
+    if(!isDedicated && geo) { outputStore.LoadNodesByRegion({region: geo}); }
+  }, []);
 
   const failoverRecord = failoverStream ?
     Object.values(streamStore.allStreams || {}).find(s => s.objectId === failoverStream) :
@@ -159,6 +166,7 @@ const GeneralConfig = observer(({form, output}) => {
               onChange={(value) => {
                 form.setFieldValue("nodeType", value);
                 form.setFieldValue("url", "");
+                form.setFieldValue("geoNode", "");
               }}
             />
             {
@@ -172,15 +180,36 @@ const GeneralConfig = observer(({form, output}) => {
                   key={form.key("node")}
                   {...form.getInputProps("node")}
                 /> :
-                <Select
-                  label="Fabric Geo"
-                  withAsterisk
-                  data={FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))}
-                  placeholder="Select Geo"
-                  clearable
-                  key={form.key("geo")}
-                  {...form.getInputProps("geo")}
-                />
+                <>
+                  <Select
+                    label="Fabric Geo"
+                    description="Automatic lets the fabric choose a region"
+                    data={[{value: "", label: "Automatic"}, ...FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))]}
+                    allowDeselect={false}
+                    key={form.key("geo")}
+                    {...form.getInputProps("geo")}
+                    onChange={(value) => {
+                      form.setFieldValue("geo", value || "");
+                      form.setFieldValue("geoNode", "");
+                      if(value) { outputStore.LoadNodesByRegion({region: value}); }
+                    }}
+                  />
+                  <Select
+                    label="Node"
+                    description="Automatic lets the fabric choose a node"
+                    // "" is the Automatic option; specific nodes need a chosen geo
+                    data={[{value: "", label: "Automatic"}, ...(outputStore.nodesByRegion[form.getValues().geo] || [])]}
+                    disabled={!form.getValues().geo}
+                    allowDeselect={false}
+                    rightSection={
+                      form.getValues().geo && outputStore.loadingNodesRegion === form.getValues().geo ?
+                        <Loader size={14} /> : undefined
+                    }
+                    key={form.key("geoNode")}
+                    {...form.getInputProps("geoNode")}
+                    onChange={(value) => form.setFieldValue("geoNode", value || "")}
+                  />
+                </>
             }
             {
               isPush &&

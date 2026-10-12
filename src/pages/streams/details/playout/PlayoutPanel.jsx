@@ -206,7 +206,7 @@ const PlayoutPanel = observer(({
                   format: "24h",
                 }}
                 leftSection={<IconCalendarEvent />}
-                rightSection={form.getValues().dvrStartTime ? null : <IconSelector height={16}/>}
+                rightSection={form.getValues().dvrStartTime ? undefined : <IconSelector height={16}/>}
                 clearable
               />
               <Select

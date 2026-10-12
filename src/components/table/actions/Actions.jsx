@@ -1,6 +1,6 @@
 import {useCallback, useState} from "react";
-import {Button, CheckIcon, Combobox, Flex, Group, ScrollArea, TextInput, useCombobox} from "@mantine/core";
-import {IconSearch} from "@tabler/icons-react";
+import {ActionIcon, Button, CheckIcon, Combobox, Flex, Group, ScrollArea, TextInput, useCombobox} from "@mantine/core";
+import {IconSearch, IconX} from "@tabler/icons-react";
 import styles from "./Actions.module.css";
 
 const Actions = ({
@@ -50,6 +50,18 @@ const Actions = ({
               placeholder="Search by name, ID, or tags"
               leftSection={<IconSearch width={15} height={15} />}
               value={searchValue}
+              rightSection={searchValue ? (
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  aria-label="Clear search"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onSearchChange({target: {value: ""}})}
+                >
+                  <IconX width={14} height={14} />
+                </ActionIcon>
+              ) : null}
               onChange={(e) => {
                 onSearchChange(e);
                 if(tagOptions.length > 0) { combobox.openDropdown(); }
