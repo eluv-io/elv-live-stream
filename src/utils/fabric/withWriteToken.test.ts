@@ -17,7 +17,7 @@ describe("WithWriteToken", () => {
   it("resolves library, opens a write token, runs fn, and finalizes", async () => {
     const fn = vi.fn().mockResolvedValue("done");
 
-    const out = await WithWriteToken({client, objectId: "iq__1", commitMessage: "msg"}, fn);
+    const out = await WithWriteToken({client: client as any, objectId: "iq__1", commitMessage: "msg"}, fn);
 
     expect(client.ContentObjectLibraryId).toHaveBeenCalledWith({objectId: "iq__1"});
     expect(client.EditContentObject).toHaveBeenCalledWith({libraryId: "ilib_resolved", objectId: "iq__1"});
@@ -34,7 +34,7 @@ describe("WithWriteToken", () => {
 
   it("skips lookups when libraryId and writeToken are provided", async () => {
     await WithWriteToken(
-      {client, objectId: "iq__1", libraryId: "ilib_given", writeToken: "tqw_given"},
+      {client: client as any, objectId: "iq__1", libraryId: "ilib_given", writeToken: "tqw_given"},
       async () => undefined
     );
 
@@ -46,7 +46,7 @@ describe("WithWriteToken", () => {
   });
 
   it("does not finalize when finalize is false and returns the token", async () => {
-    const out = await WithWriteToken({client, objectId: "iq__1", finalize: false}, async () => 1);
+    const out = await WithWriteToken({client: client as any, objectId: "iq__1", finalize: false}, async () => 1);
 
     expect(client.FinalizeContentObject).not.toHaveBeenCalled();
     expect(out).toEqual({result: 1, writeToken: "tqw_new"});
@@ -54,7 +54,7 @@ describe("WithWriteToken", () => {
 
   it("does not finalize and rethrows when fn fails", async () => {
     await expect(
-      WithWriteToken({client, objectId: "iq__1"}, async () => { throw new Error("boom"); })
+      WithWriteToken({client: client as any, objectId: "iq__1"}, async () => { throw new Error("boom"); })
     ).rejects.toThrow("boom");
 
     expect(client.FinalizeContentObject).not.toHaveBeenCalled();
@@ -64,7 +64,7 @@ describe("WithWriteToken", () => {
     client.FinalizeContentObject.mockRejectedValue(new Error("commit failed"));
 
     await expect(
-      WithWriteToken({client, objectId: "iq__1"}, async () => undefined)
+      WithWriteToken({client: client as any, objectId: "iq__1"}, async () => undefined)
     ).rejects.toThrow("commit failed");
   });
 });

@@ -1,17 +1,7 @@
-interface WriteTokenClient {
-  ContentObjectLibraryId: (args: {objectId: string}) => Promise<string>;
-  EditContentObject: (args: {libraryId: string, objectId: string}) => Promise<{writeToken: string}>;
-  FinalizeContentObject: (args: {
-    libraryId: string,
-    objectId: string,
-    writeToken: string,
-    commitMessage?: string,
-    awaitCommitConfirmation?: boolean
-  }) => Promise<unknown>;
-}
+import type {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
 
 export interface WithWriteTokenParams {
-  client: WriteTokenClient;
+  client: InstanceType<typeof FrameClient>;
   objectId: string;
   libraryId?: string;
   writeToken?: string;
