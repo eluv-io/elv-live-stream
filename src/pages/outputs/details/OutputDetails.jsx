@@ -16,6 +16,7 @@ import {
   Stack,
   Tabs,
   Text,
+  PasswordInput,
   TextInput,
   Title,
   Tooltip
@@ -232,6 +233,10 @@ export const SummaryPanel = observer(({output, url, id}) => {
           </Tooltip>
         </Group>
       <TextInput value={url ?? ""} readOnly />
+      {
+        output?.rtmp &&
+        <PasswordInput label="Stream Key" value={output.rtmp.stream_key ?? ""} mt={16} readOnly />
+      }
       <Divider mb={20} mt={30} />
 
       {
@@ -273,24 +278,25 @@ export const SummaryPanel = observer(({output, url, id}) => {
 // either tab share the "generalConfig" dirty state. Mounted only once output
 // data has loaded, so initialValues below are always real.
 const OutputPanels = observer(({output, id, url}) => {
-  const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
+  const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : output?.rtmp ? "rtmp" : "rtp";
   // dedicatedNodesList is guaranteed loaded here - see the loader gate below.
   const initialLocation = ClassifyOutputLocation({
     output,
     dedicatedNodesList: dataStore.dedicatedNodesList
   });
-  const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
+  const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url ?? output?.rtmp?.url;
 
   const form = useForm({
     mode: "controlled",
     initialValues: {
       name: output?.name,
-      type: initialType, // rtp | srt_pull | srt_push | udp
+      type: initialType, // rtp | srt_pull | srt_push | udp | rtmp
       nodeType: initialLocation.nodeType, // dedicated | public
       node: initialLocation.node,
       geo: initialLocation.geo,
       geoNode: initialLocation.geoNode,
       url: initialTargetUrl ?? "",
+      streamKey: output?.rtmp?.stream_key ?? "",
       encryption: output?.[initialType]?.connection?.enforced_encryption,
       stripRtp: output?.[initialType]?.strip_rtp,
       passphrase: output?.[initialType]?.passphrase,
@@ -314,9 +320,14 @@ const OutputPanels = observer(({output, id, url}) => {
         if(values.type === "srt_pull") { return null; }
         if(!value) { return "URL is required"; }
 
+        if(values.type === "rtmp") {
+          return /^rtmps?:\/\//i.test(value) ? null : "URL must use the rtmp:// or rtmps:// protocol";
+        }
+
         const protocol = OutputUrlProtocol(values.type);
         return new RegExp(`^${protocol}://`, "i").test(value) ? null : `URL must use the ${protocol}:// protocol`;
-      }
+      },
+      streamKey: (value, values) => values.type === "rtmp" && !value ? "Stream key is required" : null
     },
     onValuesChange: () => {
       outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()});
@@ -328,7 +339,7 @@ const OutputPanels = observer(({output, id, url}) => {
     if(hasErrors) { throw new Error("Please resolve validation errors before saving"); }
 
     const values = form.getValues();
-    const {name, type, node, geo, geoNode, encryption, stripRtp, passphrase, url} = values;
+    const {name, type, node, geo, geoNode, encryption, stripRtp, passphrase, url, streamKey} = values;
     const isDedicated = values.nodeType === "dedicated";
     const isPush = type !== "srt_pull";
     // Only persist failover once a primary stream exists (the section is disabled
@@ -353,6 +364,7 @@ const OutputPanels = observer(({output, id, url}) => {
       nodeHost: isDedicated ? "" : (geoNode || ""),
       region: isDedicated ? "" : geo,
       url: isPush ? url : undefined,
+      streamKey: type === "rtmp" ? streamKey : undefined,
       failoverStream: hasPrimary ? values.failoverStream : undefined,
       failoverAfter: values.failoverAfter,
       failoverResetClients: values.failoverResetClients === "on"

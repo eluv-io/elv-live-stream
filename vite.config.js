@@ -51,7 +51,7 @@ export default defineConfig({
     // elv-player-js is lazy-imported (VideoContainer) so Vite won't see it at
     // startup; pre-bundle it explicitly so the first play click doesn't trigger
     // an on-the-fly dep optimization + page reload that interrupts playback.
-    include: ["hash.js", "@eluvio/elv-client-js", "@eluvio/elv-player-js/lib/index.js", "mux-embed", "node-interval-tree"],
+    include: ["hash.js", "@eluvio/elv-client-js", "@eluvio/elv-client-js/src/FrameClient", "@eluvio/elv-player-js/lib/index.js", "mux-embed", "node-interval-tree"],
   },
   build: {
     outDir: "dist",

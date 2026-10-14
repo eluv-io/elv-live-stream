@@ -171,7 +171,9 @@ export const OUTPUT_TYPE_COLOR_MAP: Record<string, string> = {
   "TS": "elv-green.0",
   "SRT PUSH": "elv-pink.1",
   "SRT PULL": "elv-blue-gray.1",
-  "UDP": "elv-green.1"
+  "UDP": "elv-green.1",
+  "RTMP": "elv-yellow.1",
+  "RTMPS": "elv-yellow.1"
 };
 
 export const SOURCE_PACKAGING_COLOR_MAP = {

@@ -11,11 +11,13 @@ import {useDebouncedValue} from "@mantine/hooks";
 // Picks an input failover stream for an output. Unlike MapToStreamModal (which
 // maps the primary and writes immediately), this returns the selection via
 // onSelect - the value is held in the output form and persisted on Save.
-const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, currentStreamId, primaryStreamId}) => {
+const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, currentStreamId, primaryStreamId, title="Select Failover Stream", description, requireConfigured=false}) => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
   const [selectedRecords, setSelectedRecords] = useState([]);
+
+  const [statuses, setStatuses] = useState({});
 
   useEffect(() => {
     if(show) { streamStore.LoadAllStreams(); }
@@ -24,10 +26,35 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
   // Same eligibility as primary mapping, minus the output's own primary stream.
   const CanSelectStream = record =>
     !!record.inputCfg &&
+    (!requireConfigured || !!record.configured) &&
     !!record.packaging?.includes("ts") &&
     record.objectId !== primaryStreamId;
 
-  const records = Object.values(streamStore.allStreams || {})
+  const allRecords = Object.values(streamStore.allStreams || {});
+
+  // Allstreams carries no live status - fetch it for the selectable streams only.
+  useEffect(() => {
+    if(!show || !streamStore.allStreamsLoaded) { return; }
+
+    let cancelled = false;
+    const objectIds = Object.values(streamStore.allStreams || {})
+      .filter(record => CanSelectStream(record) && record.configured !== false)
+      .map(record => record.objectId);
+
+    streamStore.StreamStatuses(objectIds).then(result => {
+      if(!cancelled) { setStatuses(result); }
+    });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, streamStore.allStreamsLoaded]);
+
+  const records = allRecords
+    .map(record => ({
+      ...record,
+      title: record.title || record.slug,
+      status: statuses[record.objectId]?.status ?? (record.configured === false ? "unconfigured" : record.status)
+    }))
     .filter(record => (
       record.title?.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
       record.objectId?.toLowerCase().includes(debouncedFilter.toLowerCase())
@@ -38,7 +65,7 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
     const record = selectedRecords[0]?.record;
     if(!record) { return; }
 
-    onSelect({objectId: record.objectId, title: record.title});
+    onSelect({objectId: record.objectId, title: record.title, record});
     onCloseModal();
     setSelectedRecords([]);
   };
@@ -49,8 +76,10 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
       onClose={() => { onCloseModal(); setSelectedRecords([]); }}
       title={
         <Stack gap={0} mb={20}>
-          <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>Select Failover Stream</Title>
-          <Text fz="0.875rem" c="elv-gray.8">Select the stream to fail over to if the primary input disconnects (TS streams only; the primary stream can&apos;t be selected).</Text>
+          <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>{title}</Title>
+          <Text fz="0.875rem" c="elv-gray.8">
+            {description ?? "Select the stream to fail over to if the primary input disconnects (TS streams only; the primary stream can't be selected)."}
+          </Text>
         </Stack>
       }
       padding="24px"

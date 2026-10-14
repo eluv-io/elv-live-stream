@@ -64,7 +64,9 @@ export interface ProbeData {
   programs?: RawProbeProgram[];
 }
 
-type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags" | "date" | "eventTime">;
+type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags" | "date" | "eventTime"> & {
+  configured: boolean;
+};
 
 type GeneralConfigData = Pick<StreamMetadata,
   "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
@@ -115,6 +117,7 @@ const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamLi
     source,
     packaging,
     inputCfg,
+    configured: !!meta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg,
     date: meta?.public?.asset_metadata?.date,
     eventTime: meta?.public?.asset_metadata?.time
   };
@@ -140,6 +143,7 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
     if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
     // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
     if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
+    (info as any).configured = listData.configured;
   }
 
   if(name != null) {

@@ -83,7 +83,7 @@ const GeneralConfig = observer(({form, output}) => {
   const isPush = type !== "srt_pull";
   const isSrt = type?.includes("srt");
   // Protocol-specific example shown in the Target URL field
-  const urlPlaceholder = `${OutputUrlProtocol(type)}://example.com:1234`;
+  const urlPlaceholder = type === "rtmp" ? "rtmps://example.com/live2" : `${OutputUrlProtocol(type)}://example.com:1234`;
   // Failover needs something to fail away from - gated on a mapped primary.
   const hasPrimary = Boolean(output?.input?.stream);
 
@@ -143,13 +143,15 @@ const GeneralConfig = observer(({form, output}) => {
               {label: "SRT PULL", value: "srt_pull"},
               {label: "SRT PUSH", value: "srt_push"},
               {label: "RTP", value: "rtp"},
-              {label: "UDP", value: "udp"}
+              {label: "UDP", value: "udp"},
+              {label: "RTMP / RTMPS", value: "rtmp"}
             ]}
             key={form.key("type")}
             {...form.getInputProps("type")}
             onChange={(value) => {
               form.setFieldValue("type", value);
               form.setFieldValue("url", "");
+              form.setFieldValue("streamKey", "");
             }}
             mb={20}
           />
@@ -219,6 +221,15 @@ const GeneralConfig = observer(({form, output}) => {
                 key={form.key("url")}
                 withAsterisk
                 {...form.getInputProps("url")}
+              />
+            }
+            {
+              type === "rtmp" &&
+              <PasswordInput
+                label="Stream Key"
+                key={form.key("streamKey")}
+                withAsterisk
+                {...form.getInputProps("streamKey")}
               />
             }
           </Stack>

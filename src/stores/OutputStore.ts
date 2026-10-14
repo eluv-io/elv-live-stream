@@ -53,6 +53,13 @@ interface OutputSrtPush {
   strip_rtp?: boolean;
 }
 
+// RTMP push: the node pushes to `url` (rtmp:// or TLS) using `stream_key`.
+interface OutputRtmp {
+  node_id?: string;
+  url?: string;
+  stream_key?: string;
+}
+
 // Shared shape for the rtp and udp outputs.
 interface OutputRtpUdp {
   node_id?: string;
@@ -70,6 +77,7 @@ interface Output {
   custom?: {location?: OutputLocation, [key: string]: any};
   rtp?: OutputRtpUdp;
   udp?: OutputRtpUdp;
+  rtmp?: OutputRtmp;
   srt_pull?: OutputSrtPull;
   srt_push?: OutputSrtPush;
   state?: any;
@@ -78,10 +86,10 @@ interface Output {
 
 type Outputs = Record<string, Output>;
 
-export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
+export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "RTMP" | "RTMPS" | "TS";
 
 // Spread first to clear stale transport blocks on a type change - UpdateOutput merges shallow.
-const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, srt_pull: undefined, srt_push: undefined};
+const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, rtmp: undefined, srt_pull: undefined, srt_push: undefined};
 
 const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
   const stripRtp = output.srt_pull?.strip_rtp ?? output.srt_push?.strip_rtp;
@@ -89,6 +97,7 @@ const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[]
 
   if(output.rtp) return ["RTP"];
   if(output.udp) return ["UDP"];
+  if(output.rtmp) return [/^rtmps:/i.test(output.rtmp.url ?? "") ? "RTMPS" : "RTMP"];
   if(output.srt_push) return ["SRT PUSH", packaging];
   if(output.srt_pull) return ["SRT PULL", packaging];
   return undefined;
@@ -164,6 +173,30 @@ const GetNodesForRegion = async ({client, region}: {client: any, region: string}
   return Array.from(hosts).map(host => ({value: host, label: host}));
 };
 
+// Default input.fmp4 for rtmp outputs: top video rung, default (else first) audio track.
+const DefaultFmp4 = async ({client, streamObjectId}: {client: any, streamObjectId: string}) => {
+  const streamLibraryId = await client.ContentObjectLibraryId({objectId: streamObjectId});
+  const ladderSpecs: any[] = await client.ContentObjectMetadata({
+    libraryId: streamLibraryId,
+    objectId: streamObjectId,
+    metadataSubtree: "live_recording/recording_config/recording_params/ladder_specs"
+  }) || [];
+
+  const video = ladderSpecs
+    .filter(spec => spec.media_type === 1)
+    .sort((a, b) => (b.bit_rate ?? 0) - (a.bit_rate ?? 0))[0];
+  const audioSpecs = ladderSpecs.filter(spec => spec.media_type === 2);
+  const audio = audioSpecs.find(spec => spec.default) ?? audioSpecs[0];
+
+  if(!video) { throw new Error("Stream has no video ladder to publish over RTMP"); }
+
+  return {
+    representation: video.representation,
+    ...(audio && {audio_name: audio.stream_name}),
+    latency: "750ms"
+  };
+};
+
 interface CreateOutputParams {
   name?: string;
   externalId?: string;
@@ -176,11 +209,17 @@ interface CreateOutputParams {
   // resolved to an ID here.
   node?: string;
   nodeHost?: string;
+  // Required for rtmp: the stream whose ladder supplies input.fmp4.
+  streamObjectId?: string;
+  // Display fields for the picked stream (name/status/source...), so the new row
+  // renders before the next outputs load.
+  streamInfo?: Partial<OutputInput>;
   passphrase?: string;
   encryption?: string;
   stripRtp?: boolean;
   url?: string;
-  type: "srt_pull" | "srt_push" | "rtp" | "udp"
+  streamKey?: string;
+  type: "srt_pull" | "srt_push" | "rtp" | "udp" | "rtmp"
 }
 
 class OutputStore {
@@ -221,7 +260,7 @@ class OutputStore {
     const {streamsByObjectId, streams} = this.rootStore.streamStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
     // srt_pull stores urls as an array; other types store a single url string.
-    const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
+    const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url ?? output.rtmp?.url;
 
     return {
       slug,
@@ -597,6 +636,9 @@ class OutputStore {
     encryption,
     stripRtp,
     url,
+    streamKey,
+    streamObjectId,
+    streamInfo,
     type
   }: CreateOutputParams): Generator<any, void> {
     try {
@@ -615,7 +657,6 @@ class OutputStore {
       const isPull = type === "srt_pull";
 
       const settings: Record<string, any> = {};
-
       if(node) {
         settings[isPull ? "node_ids" : "node_id"] = isPull ? [node] : node;
       }
@@ -627,6 +668,7 @@ class OutputStore {
       }
 
       if(url) { settings.url = url; }
+      if(type === "rtmp") { settings.stream_key = streamKey; }
 
       if(isSrt) {
         settings.passphrase = passphrase || undefined;
@@ -634,15 +676,23 @@ class OutputStore {
         settings.connection = encryption ? {enforced_encryption: encryption} : undefined;
       }
 
+      let fmp4;
+      if(type === "rtmp") {
+        if(!streamObjectId) { throw "A stream is required for RTMP outputs."; }
+        fmp4 = yield DefaultFmp4({client: this.client, streamObjectId});
+      }
+
       const outputs = yield this.client.OutputsCreate({
         objectId: this.outputSettingsId,
+        streamObjectId,
         offering,
         name,
         externalId,
         enabled: false,
         delivery: {
           type,
-          settings
+          settings,
+          fmp4
         }
       });
 
@@ -663,7 +713,11 @@ class OutputStore {
         // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
         const {state: _state, ...createdOutput} = created;
 
-        yield this.client.OutputsModify({libraryId, objectId, outputId, output: {...createdOutput, custom}});
+        yield this.client.OutputsModify({libraryId, objectId, outputId, output: {
+          ...createdOutput,
+          ...(fmp4 && {input: {...createdOutput.input, fmp4}}),
+          custom
+        }});
         outputData = {...outputData, custom};
       } catch(error) {
         // The output exists and works; only its saved location is missing.
@@ -672,6 +726,10 @@ class OutputStore {
       }
 
       outputData = yield this.client.OutputsResolveSrtPullUrls({value: outputData});
+
+      if(streamObjectId) {
+        outputData = {...outputData, input: {...outputData.input, ...streamInfo, stream: streamObjectId}};
+      }
 
       this.outputs[outputId] = outputData;
     } catch(error) {
@@ -697,12 +755,16 @@ class OutputStore {
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {failover: _failover, ...existingInput} = existing.input || {};
 
+      const fmp4 = existing.rtmp ?
+        yield DefaultFmp4({client: this.client, streamObjectId}) : undefined;
+
       const updatedOutput = {
         ...existing,
         enabled: !existing.input?.stream ? true : existing.enabled,
         input: {
           ...existingInput,
-          stream: streamObjectId
+          stream: streamObjectId,
+          ...(fmp4 && {fmp4})
         }
       };
 
@@ -756,6 +818,9 @@ class OutputStore {
           // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
           const {failover: _failover, ...existingInput} = existing.input || {};
 
+          const fmp4 = existing.rtmp ?
+            await DefaultFmp4({client: this.client, streamObjectId}) : undefined;
+
           return {
             outputId,
             output: {
@@ -763,7 +828,8 @@ class OutputStore {
               enabled: !existing.input?.stream ? true : existing.enabled,
               input: {
                 ...existingInput,
-                stream: streamObjectId
+                stream: streamObjectId,
+                ...(fmp4 && {fmp4})
               }
             }
           };
@@ -874,11 +940,12 @@ class OutputStore {
     nodeHost,
     region,
     url,
+    streamKey,
     failoverStream,
     failoverAfter,
     failoverResetClients,
     // tags
-  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, nodeType?: "public" | "dedicated", node?: string, nodeHost?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp" | "rtmp", streamKey?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, nodeType?: "public" | "dedicated", node?: string, nodeHost?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -903,9 +970,9 @@ class OutputStore {
       // Strip transient runtime `state` and every transport block - the applicable
       // one is rebuilt fresh below so a type change can't carry the old shape over.
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-      const {state: _st, rtp: _rtp, udp: _udp, srt_pull: _srtPull, srt_push: _srtPush, ...cleanExisting} = existing;
+      const {state: _st, rtp: _rtp, udp: _udp, rtmp: _rtmp, srt_pull: _srtPull, srt_push: _srtPush, ...cleanExisting} = existing;
 
-      const existingTransportKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : existing.rtp ? "rtp" : existing.udp ? "udp" : undefined;
+      const existingTransportKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : existing.rtp ? "rtp" : existing.udp ? "udp" : existing.rtmp ? "rtmp" : undefined;
       const transportKey = type ?? existingTransportKey;
       const typeChanged = !!type && type !== existingTransportKey;
       // encryption/passphrase/strip_rtp live on the SRT block (srt_pull or srt_push);
@@ -971,7 +1038,8 @@ class OutputStore {
               [isPull ? "node_ids" : "node_id"]: resolvedNodeId ? (isPull ? [resolvedNodeId] : resolvedNodeId) : undefined,
               [isPull ? "elvgeos" : "elvgeo"]: undefined
             }),
-            ...(!isPull && url !== undefined && {url: url || undefined})
+            ...(!isPull && url !== undefined && {url: url || undefined}),
+            ...(transportKey === "rtmp" && streamKey !== undefined && {stream_key: streamKey || undefined})
           }
         })
       };
