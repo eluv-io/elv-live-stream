@@ -78,7 +78,7 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
         <Stack gap={0} mb={20}>
           <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>{title}</Title>
           <Text fz="0.875rem" c="elv-gray.8">
-            {description ?? "Select the stream to fail over to if the primary input disconnects (TS streams only; the primary stream can't be selected)."}
+            {description ?? "Select the stream to fail over to if the primary input disconnects (TS streams only. The primary stream can't be selected)."}
           </Text>
         </Stack>
       }

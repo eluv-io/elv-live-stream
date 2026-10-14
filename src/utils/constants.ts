@@ -124,6 +124,9 @@ export const RECONNECTION_TIMEOUT_OPTIONS = [
 ];
 
 // Failover reconnection timeout, stored as a Go-style duration on input.failover.after.
+export const RTMP_URL_DESCRIPTION = "RTMP server and application, e.g. rtmps://a.rtmps.youtube.com/live2. The port defaults to 1935 for rtmp and 443 for rtmps. Don't include the stream key.";
+export const RTMP_STREAM_KEY_DESCRIPTION = "The stream name published under the URL, typically the secret key issued by the platform.";
+
 export const FAILOVER_TIMEOUT_OPTIONS = [5, 10, 15, 20].map(n => ({
   label: `${n} seconds`,
   value: `${n}s`

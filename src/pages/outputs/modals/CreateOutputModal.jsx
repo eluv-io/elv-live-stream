@@ -2,7 +2,7 @@ import {useForm} from "@mantine/form";
 import {dataStore, outputStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {toJS} from "mobx";
-import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
+import {FABRIC_NODE_REGIONS, RTMP_STREAM_KEY_DESCRIPTION, RTMP_URL_DESCRIPTION} from "@/utils/constants.ts";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {
@@ -171,8 +171,8 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
           <Input.Wrapper
             label="Stream"
             description={type === "rtmp" ?
-              "The stream to publish; its video and audio are selected automatically" :
-              "Optional - the stream can also be mapped after the output is created"}
+              "The stream to publish. Its video and audio are selected automatically." :
+              "The stream this output delivers."}
             error={form.errors.streamObjectId}
             withAsterisk={type === "rtmp"}
           >
@@ -214,6 +214,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
                   form.getValues().type !== "srt_pull" &&
                   <TextInput
                     label="Target URL"
+                    description={type === "rtmp" ? RTMP_URL_DESCRIPTION : undefined}
                     placeholder={urlPlaceholder}
                     key={form.key("url")}
                     withAsterisk
@@ -224,6 +225,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
               {form.getValues().type === "rtmp" &&
                 <PasswordInput
                   label="Stream Key"
+                  description={RTMP_STREAM_KEY_DESCRIPTION}
                   key={form.key("streamKey")}
                   withAsterisk
                   {...form.getInputProps("streamKey")}
@@ -265,6 +267,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
                 {form.getValues().type !== "srt_pull" &&
                   <TextInput
                     label="Target URL"
+                    description={type === "rtmp" ? RTMP_URL_DESCRIPTION : undefined}
                     placeholder={urlPlaceholder}
                     key={form.key("url")}
                     withAsterisk
@@ -274,6 +277,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
                 {form.getValues().type === "rtmp" &&
                   <PasswordInput
                     label="Stream Key"
+                    description={RTMP_STREAM_KEY_DESCRIPTION}
                     key={form.key("streamKey")}
                     withAsterisk
                     {...form.getInputProps("streamKey")}

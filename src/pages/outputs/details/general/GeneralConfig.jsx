@@ -25,7 +25,13 @@ import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import SelectFailoverStreamModal from "@/pages/outputs/modals/SelectFailoverStreamModal.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {dataStore, outputStore, streamStore} from "@/stores/index.ts";
-import {FABRIC_NODE_REGIONS, FAILOVER_TIMEOUT_OPTIONS, SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
+import {
+  FABRIC_NODE_REGIONS,
+  FAILOVER_TIMEOUT_OPTIONS,
+  RTMP_STREAM_KEY_DESCRIPTION,
+  RTMP_URL_DESCRIPTION,
+  SOURCE_PACKAGING_COLOR_MAP
+} from "@/utils/constants.ts";
 import {OutputUrlProtocol, SanitizeUrl} from "@/utils/helpers.ts";
 import sharedStyles from "@/assets/shared.module.css";
 
@@ -287,6 +293,7 @@ const GeneralConfig = observer(({form, output}) => {
               isPush &&
               <TextInput
                 label="Target URL"
+                description={type === "rtmp" ? RTMP_URL_DESCRIPTION : undefined}
                 placeholder={urlPlaceholder}
                 key={form.key("url")}
                 withAsterisk
@@ -297,6 +304,7 @@ const GeneralConfig = observer(({form, output}) => {
               type === "rtmp" &&
               <PasswordInput
                 label="Stream Key"
+                description={RTMP_STREAM_KEY_DESCRIPTION}
                 key={form.key("streamKey")}
                 withAsterisk
                 {...form.getInputProps("streamKey")}
@@ -430,7 +438,7 @@ const GeneralConfig = observer(({form, output}) => {
             onCloseModal={() => setShowStreamModal(false)}
             currentStreamId={stream}
             title="Select Stream"
-            description="Select the stream to map to this output (TS streams only; unconfigured streams can't be selected)."
+            description="Select the stream to map to this output (TS streams only. Unconfigured streams can't be selected)."
             requireConfigured
             onSelect={record => {
               form.setFieldValue("stream", record.objectId);
