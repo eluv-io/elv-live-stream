@@ -46,7 +46,7 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
     });
 
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [show, streamStore.allStreamsLoaded]);
 
   const records = allRecords

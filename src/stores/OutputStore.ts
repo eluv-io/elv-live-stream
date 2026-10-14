@@ -941,11 +941,12 @@ class OutputStore {
     region,
     url,
     streamKey,
+    streamObjectId,
     failoverStream,
     failoverAfter,
     failoverResetClients,
     // tags
-  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp" | "rtmp", streamKey?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, nodeType?: "public" | "dedicated", node?: string, nodeHost?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, streamObjectId?: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp" | "rtmp", streamKey?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, nodeType?: "public" | "dedicated", node?: string, nodeHost?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -966,6 +967,20 @@ class OutputStore {
         // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
         const {name: _resolvedName, status: _resolvedStatus, quality: _resolvedQuality, stats: _resolvedStats, ...cleanFailover} = cleanInput.failover;
         cleanInput.failover = cleanFailover;
+      }
+
+      let input: any = cleanInput;
+      let enabled = existing.enabled;
+      if(streamObjectId !== undefined && streamObjectId !== (cleanInput.stream ?? "")) {
+        if(streamObjectId) {
+          // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+          const {failover: _failover, fmp4: _fmp4, ...remapped} = cleanInput;
+          input = {...remapped, stream: streamObjectId};
+          enabled = !existing.input?.stream ? true : existing.enabled;
+        } else {
+          input = null;
+          enabled = false;
+        }
       }
       // Strip transient runtime `state` and every transport block - the applicable
       // one is rebuilt fresh below so a type change can't carry the old shape over.
@@ -1009,11 +1024,23 @@ class OutputStore {
           yield ResolveEgressNodeId({client: this.client, geo: region || undefined}));
       }
 
+      // rtmp needs input.fmp4; other types must not carry it.
+      if(input?.stream) {
+        if(transportKey === "rtmp") {
+          if(!input.fmp4) { input = {...input, fmp4: yield DefaultFmp4({client: this.client, streamObjectId: input.stream})}; }
+        } else if(input.fmp4) {
+          // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+          const {fmp4: _staleFmp4, ...withoutFmp4} = input;
+          input = withoutFmp4;
+        }
+      }
+
       const output = {
         ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
         // ...(tags !== undefined && {tags}),
-        input: cleanInput,
+        enabled,
+        input,
         ...(nodeOrRegionChanged && {custom: WithOutputLocation(existing.custom, {
           type: locationType,
           geo: region,

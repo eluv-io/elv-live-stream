@@ -50,7 +50,7 @@ const PackagingBadges = ({items}) => (
   </Group>
 );
 
-const FailoverStreamRow = ({record}) => (
+const StreamRow = ({record}) => (
   <Flex align="center" gap={16} px={12} py={12} mt={8} wrap="nowrap" bd="1px solid elv-gray.2">
     <Stack gap={3} style={{flex: "2 1 0", minWidth: 0}}>
       <Text fw={600} fz="0.875rem" c="elv-gray.9" lineClamp={1} style={{wordBreak: "break-all"}} lh={1}>
@@ -76,7 +76,8 @@ const FailoverStreamRow = ({record}) => (
 // state) owned by OutputPanels with the Summary tab.
 const GeneralConfig = observer(({form, output}) => {
   const [showFailoverModal, setShowFailoverModal] = useState(false);
-  const {type, nodeType, geo, failoverStream, failoverStreamName} = form.getValues();
+  const [showStreamModal, setShowStreamModal] = useState(false);
+  const {type, nodeType, geo, failoverStream, failoverStreamName, stream, streamName} = form.getValues();
   const isDedicated = nodeType === "dedicated";
   // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
   // so it has no editable Target URL.
@@ -87,6 +88,11 @@ const GeneralConfig = observer(({form, output}) => {
   // Failover needs something to fail away from - gated on a mapped primary.
   const hasPrimary = Boolean(output?.input?.stream);
 
+  const ClearStream = () => {
+    form.setFieldValue("stream", "");
+    form.setFieldValue("streamName", "");
+  };
+
   const ClearFailoverStream = () => {
     form.setFieldValue("failoverStream", "");
     form.setFieldValue("failoverStreamName", "");
@@ -95,14 +101,26 @@ const GeneralConfig = observer(({form, output}) => {
   // The failover row needs the full stream record (url / source / packaging) -
   // allStreams is the unscoped set the picker also uses.
   useEffect(() => {
-    if(hasPrimary && failoverStream) { streamStore.LoadAllStreams(); }
-  }, [hasPrimary, failoverStream]);
+    if(stream || (hasPrimary && failoverStream)) { streamStore.LoadAllStreams(); }
+  }, [stream, hasPrimary, failoverStream]);
 
   // Preload the region's node list on mount if the output already targets a
   // region
   useEffect(() => {
     if(!isDedicated && geo) { outputStore.LoadNodesByRegion({region: geo}); }
   }, []);
+
+  const loadedStreamRecord = stream ?
+    Object.values(streamStore.allStreams || {}).find(s => s.objectId === stream) :
+    undefined;
+  const streamRecord = loadedStreamRecord ? {...loadedStreamRecord, status: output?.input?.status} : {
+    objectId: stream,
+    title: streamName || output?.input?.name,
+    originUrl: output?.input?.url,
+    source: output?.input?.source,
+    packaging: output?.input?.packaging,
+    status: output?.input?.status
+  };
 
   const failoverRecord = failoverStream ?
     Object.values(streamStore.allStreams || {}).find(s => s.objectId === failoverStream) :
@@ -155,6 +173,58 @@ const GeneralConfig = observer(({form, output}) => {
             }}
             mb={20}
           />
+          <Box mb={20}>
+            <Group wrap="nowrap">
+              <Group gap={4} wrap="nowrap">
+                <Text fz={16} fw={600} lh={1.5} c="elv-black.3">Stream</Text>
+                {type === "rtmp" && <Text c="red" fz={16}>*</Text>}
+              </Group>
+              {
+                stream &&
+                <Group ml="auto">
+                  <Tooltip label="Change Stream" position="bottom">
+                    <ActionIcon
+                      aria-label="Change stream"
+                      variant="transparent"
+                      c="elv-gray.6"
+                      size={24}
+                      onClick={() => setShowStreamModal(true)}
+                    >
+                      <IconArrowsShuffle size={24} />
+                    </ActionIcon>
+                  </Tooltip>
+                  {
+                    type !== "rtmp" &&
+                    <Tooltip label="Remove Stream" position="bottom">
+                      <ActionIcon
+                        aria-label="Remove stream"
+                        variant="transparent"
+                        c="elv-gray.6"
+                        size={24}
+                        onClick={ClearStream}
+                      >
+                        <IconTrash size={24} />
+                      </ActionIcon>
+                    </Tooltip>
+                  }
+                </Group>
+              }
+            </Group>
+            {
+              stream ?
+                <StreamRow record={streamRecord} /> :
+                <Box mt={4}>
+                  <Button
+                    variant="outline"
+                    leftSection={<IconPlus size={16} />}
+                    onClick={() => setShowStreamModal(true)}
+                  >
+                    Select Stream
+                  </Button>
+                </Box>
+            }
+            {form.errors.stream && <Text fz="0.75rem" c="red" mt={4}>{form.errors.stream}</Text>}
+          </Box>
           <Stack gap={20}>
             <Select
               label="Node Type"
@@ -312,7 +382,7 @@ const GeneralConfig = observer(({form, output}) => {
                   </Group>
                   {
                     failoverRecord ?
-                      <FailoverStreamRow record={failoverRecord} /> :
+                      <StreamRow record={failoverRecord} /> :
                       <Text fz="0.875rem" c="dimmed" mt={8}>{failoverStreamName || failoverStream}</Text>
                   }
                 </Box> :
@@ -352,6 +422,22 @@ const GeneralConfig = observer(({form, output}) => {
             </SimpleGrid>
           </Stack>
         </DisabledTooltipWrapper>
+
+        {
+          showStreamModal &&
+          <SelectFailoverStreamModal
+            show={showStreamModal}
+            onCloseModal={() => setShowStreamModal(false)}
+            currentStreamId={stream}
+            title="Select Stream"
+            description="Select the stream to map to this output (TS streams only; unconfigured streams can't be selected)."
+            requireConfigured
+            onSelect={record => {
+              form.setFieldValue("stream", record.objectId);
+              form.setFieldValue("streamName", record.title || record.objectId);
+            }}
+          />
+        }
 
         <SelectFailoverStreamModal
           show={showFailoverModal}

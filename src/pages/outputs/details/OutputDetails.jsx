@@ -297,6 +297,8 @@ const OutputPanels = observer(({output, id, url}) => {
       geoNode: initialLocation.geoNode,
       url: initialTargetUrl ?? "",
       streamKey: output?.rtmp?.stream_key ?? "",
+      stream: output?.input?.stream ?? "",
+      streamName: output?.input?.name ?? "",
       encryption: output?.[initialType]?.connection?.enforced_encryption,
       stripRtp: output?.[initialType]?.strip_rtp,
       passphrase: output?.[initialType]?.passphrase,
@@ -327,7 +329,8 @@ const OutputPanels = observer(({output, id, url}) => {
         const protocol = OutputUrlProtocol(values.type);
         return new RegExp(`^${protocol}://`, "i").test(value) ? null : `URL must use the ${protocol}:// protocol`;
       },
-      streamKey: (value, values) => values.type === "rtmp" && !value ? "Stream key is required" : null
+      streamKey: (value, values) => values.type === "rtmp" && !value ? "Stream key is required" : null,
+      stream: (value, values) => values.type === "rtmp" && !value ? "Stream is required" : null
     },
     onValuesChange: () => {
       outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()});
@@ -345,6 +348,7 @@ const OutputPanels = observer(({output, id, url}) => {
     // Only persist failover once a primary stream exists (the section is disabled
     // otherwise). "" clears it; ModifyOutput leaves it alone when undefined.
     const hasPrimary = Boolean(output?.input?.stream);
+    const streamChanged = values.stream !== (output?.input?.stream ?? "");
 
     await outputStore.ModifyOutput({
       outputId: id,
@@ -365,6 +369,7 @@ const OutputPanels = observer(({output, id, url}) => {
       region: isDedicated ? "" : geo,
       url: isPush ? url : undefined,
       streamKey: type === "rtmp" ? streamKey : undefined,
+      streamObjectId: values.stream,
       failoverStream: hasPrimary ? values.failoverStream : undefined,
       failoverAfter: values.failoverAfter,
       failoverResetClients: values.failoverResetClients === "on"
@@ -375,8 +380,10 @@ const OutputPanels = observer(({output, id, url}) => {
     // the baseline to include the (possibly server-assigned) passphrase
     // first, so setting the field to match it doesn't read as a new change.
     const newPassphrase = outputStore.outputs[id]?.[type]?.passphrase ?? "";
-    form.resetDirty({...values, passphrase: newPassphrase});
+    const failoverCleared = streamChanged ? {failoverStream: "", failoverStreamName: ""} : {};
+    form.resetDirty({...values, ...failoverCleared, passphrase: newPassphrase});
     form.setFieldValue("passphrase", newPassphrase);
+    Object.entries(failoverCleared).forEach(([key, value]) => form.setFieldValue(key, value));
   };
 
   const SaveRef = useRef();
