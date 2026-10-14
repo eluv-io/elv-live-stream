@@ -32,21 +32,21 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
 
   const allRecords = Object.values(streamStore.allStreams || {});
 
-  // Allstreams carries no live status - fetch it for the selectable streams only.
+  // All streams carries no live status - fetch it for the selectable streams only.
   useEffect(() => {
     if(!show || !streamStore.allStreamsLoaded) { return; }
 
-    let cancelled = false;
+    let canceled = false;
     const objectIds = Object.values(streamStore.allStreams || {})
       .filter(record => CanSelectStream(record) && record.configured !== false)
       .map(record => record.objectId);
 
     streamStore.StreamStatuses(objectIds).then(result => {
-      if(!cancelled) { setStatuses(result); }
+      if(!canceled) { setStatuses(result); }
     });
 
-    return () => { cancelled = true; };
-     
+    return () => { canceled = true; };
+
   }, [show, streamStore.allStreamsLoaded]);
 
   const records = allRecords
