@@ -7,6 +7,7 @@ import {streamStore} from "@/stores/index.ts";
 import {IconSearch} from "@tabler/icons-react";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import {useDebouncedValue} from "@mantine/hooks";
+import {FailoverLadderError} from "@/utils/stream/stream.ts";
 
 // Picks an input failover stream for an output. Unlike MapToStreamModal (which
 // maps the primary and writes immediately), this returns the selection via
@@ -23,12 +24,19 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
     if(show) { streamStore.LoadAllStreams(); }
   }, [show]);
 
-  // Same eligibility as primary mapping, minus the output's own primary stream.
+  // allStreams is keyed by slug, so look the primary up by objectId.
+  const primaryLadder = primaryStreamId ?
+    Object.values(streamStore.allStreams || {}).find(record => record.objectId === primaryStreamId)?.ladderSpecs :
+    undefined;
+
+  // Same eligibility as primary mapping, minus the output's own primary stream. The fabric
+  // rejects a failover whose ladder is lower than the primary's.
   const CanSelectStream = record =>
     !!record.inputCfg &&
     (!requireConfigured || !!record.configured) &&
     !!record.packaging?.includes("ts") &&
-    record.objectId !== primaryStreamId;
+    record.objectId !== primaryStreamId &&
+    !(primaryLadder && FailoverLadderError(primaryLadder, record.ladderSpecs || []));
 
   const allRecords = Object.values(streamStore.allStreams || {});
 
@@ -78,7 +86,7 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
         <Stack gap={0} mb={20}>
           <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>{title}</Title>
           <Text fz="0.875rem" c="elv-gray.8">
-            {description ?? "Select the stream to fail over to if the primary input disconnects (TS streams only. The primary stream can't be selected)."}
+            {description ?? "Select the stream to fail over to if the primary input disconnects. Only TS streams with a ladder at least as high as the primary's are available."}
           </Text>
         </Stack>
       }

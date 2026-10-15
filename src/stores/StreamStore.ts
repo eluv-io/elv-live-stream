@@ -64,7 +64,7 @@ export interface ProbeData {
   programs?: RawProbeProgram[];
 }
 
-type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "tags" | "date" | "eventTime"> & {
+type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "ladderSpecs" | "tags" | "date" | "eventTime"> & {
   configured: boolean;
 };
 
@@ -117,6 +117,7 @@ const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamLi
     source,
     packaging,
     inputCfg,
+    ladderSpecs: meta?.live_recording?.recording_config?.recording_params?.ladder_specs,
     configured: !!meta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg,
     date: meta?.public?.asset_metadata?.date,
     eventTime: meta?.public?.asset_metadata?.time
@@ -143,6 +144,7 @@ const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<Str
     if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
     // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
     if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
+    if(listData.ladderSpecs != null) { (info as any).ladderSpecs = listData.ladderSpecs; }
     (info as any).configured = listData.configured;
   }
 
@@ -192,6 +194,7 @@ const TENANT_CONTENT_SELECT = [
   "public/asset_metadata/date",
   "public/asset_metadata/time",
   "live_recording/recording_config/recording_params/xc_params/input_cfg",
+  "live_recording/recording_config/recording_params/ladder_specs",
   "live_recording_config/url",
   "live_recording_config/recording_config/input_cfg"
 ];
@@ -1961,6 +1964,7 @@ class StreamStore {
           "public/asset_metadata/date",
           "public/asset_metadata/time",
           "live_recording/recording_config/recording_params/xc_params/input_cfg",
+          "live_recording/recording_config/recording_params/ladder_specs",
           "live_recording_config/url",
           "live_recording_config/recording_config/input_cfg"
         ]

@@ -334,6 +334,30 @@ interface ParseLiveConfigDataProps {
   skipDvrSection?: boolean;
 }
 
+
+// Returns an error message if the failover ladder is lower than the primary's, else null.
+// The fabric rejects a failover with fewer or lower video rungs.
+export const FailoverLadderError = (primary: LadderSpec[], failover: LadderSpec[]): string | null => {
+  const Video = (specs: LadderSpec[]) => specs
+    .filter(spec => spec.media_type === 1)
+    .sort((a, b) => (b.height ?? 0) - (a.height ?? 0) || (b.bit_rate ?? 0) - (a.bit_rate ?? 0));
+
+  const primaryVideo = Video(primary);
+  const failoverVideo = Video(failover);
+
+  if(primaryVideo.length === 0) { return null; }
+
+  if(
+    failoverVideo.length < primaryVideo.length ||
+    (failoverVideo[0]?.height ?? 0) < (primaryVideo[0].height ?? 0) ||
+    (failoverVideo[0]?.bit_rate ?? 0) < (primaryVideo[0].bit_rate ?? 0)
+  ) {
+    return "Failover stream's ladder can't be lower than the primary stream's.";
+  }
+
+  return null;
+};
+
 export interface StreamRecord {
   objectId: string;
   slug: string;
@@ -343,6 +367,7 @@ export interface StreamMetadata {
   objectId: string;
   slug: string;
   inputCfg: RecordingInputCfg | undefined;
+  ladderSpecs?: LadderSpec[];
   // Stream Table Details
   audioStreamCount: number | undefined;
   codecName: string;
