@@ -187,13 +187,18 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
         <SectionTitle mb={12}>General</SectionTitle>
         <Box mb="24px" maw="80%">
           <SimpleGrid cols={1} spacing={150} mb={18}>
-            <TextInput
-              label="URL"
-              placeholder="Enter a URL"
-              required={true}
-              key={form.key("url")}
-              {...form.getInputProps("url")}
-            />
+            <DisabledTooltipWrapper
+              disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED, STATUS_MAP.UNCONFIGURED].includes(status)}
+              tooltipLabel="URL is only editable while the stream is inactive"
+            >
+              <TextInput
+                label="URL"
+                placeholder="Enter a URL"
+                required={true}
+                key={form.key("url")}
+                {...form.getInputProps("url")}
+              />
+            </DisabledTooltipWrapper>
           </SimpleGrid>
           <SimpleGrid cols={2} spacing={150} mb={18}>
             <TextInput
