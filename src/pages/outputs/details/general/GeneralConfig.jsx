@@ -435,26 +435,29 @@ const GeneralConfig = observer(({form, output}) => {
                   </Box>
                 </Box>
             }
-            <SimpleGrid cols={2} spacing={150}>
-              <Select
-                label="Failover Timeout"
-                description="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
-                data={FAILOVER_TIMEOUT_OPTIONS}
-                allowDeselect={false}
-                disabled={!hasPrimary || !failoverStream}
-                key={form.key("failoverAfter")}
-                {...form.getInputProps("failoverAfter")}
-              />
-              <Select
-                label="Reset Clients"
-                description="All client sessions will be reset on failover."
-                data={[{label: "On", value: "on"}, {label: "Off", value: "off"}]}
-                allowDeselect={false}
-                disabled={!hasPrimary || !failoverStream}
-                key={form.key("failoverResetClients")}
-                {...form.getInputProps("failoverResetClients")}
-              />
-            </SimpleGrid>
+            {
+              failoverStream &&
+              <SimpleGrid cols={2} spacing={150}>
+                <Select
+                  label="Failover Timeout"
+                  description="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
+                  data={FAILOVER_TIMEOUT_OPTIONS}
+                  allowDeselect={false}
+                  disabled={!hasPrimary}
+                  key={form.key("failoverAfter")}
+                  {...form.getInputProps("failoverAfter")}
+                />
+                <Select
+                  label="Reset Clients"
+                  description="All client sessions will be reset on failover."
+                  data={[{label: "On", value: "on"}, {label: "Off", value: "off"}]}
+                  allowDeselect={false}
+                  disabled={!hasPrimary}
+                  key={form.key("failoverResetClients")}
+                  {...form.getInputProps("failoverResetClients")}
+                />
+              </SimpleGrid>
+            }
           </Stack>
         </DisabledTooltipWrapper>
 

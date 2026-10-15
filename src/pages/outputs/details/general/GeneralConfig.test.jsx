@@ -71,8 +71,7 @@ describe("GeneralConfig - Input Failover section", () => {
 
     expect(screen.getByText("Input Failover")).toBeInTheDocument();
     expect(screen.getByRole("button", {name: /add failover stream/i})).toBeDisabled();
-    expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).toBeDisabled();
-    expect(screen.getByLabelText("Reset Clients", {selector: "input"})).toBeDisabled();
+    expect(screen.queryByLabelText("Failover Timeout", {selector: "input"})).not.toBeInTheDocument();
   });
 
   it("should enable the Add Failover Stream button when a primary is mapped and no failover is set", () => {
@@ -81,11 +80,11 @@ describe("GeneralConfig - Input Failover section", () => {
     expect(screen.getByRole("button", {name: /add failover stream/i})).toBeEnabled();
   });
 
-  it("should disable Timeout and Reset Clients until a failover stream is chosen", () => {
+  it("should hide Timeout and Reset Clients until a failover stream is chosen", () => {
     renderConfig({output: makeOutput()});
 
-    expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).toBeDisabled();
-    expect(screen.getByLabelText("Reset Clients", {selector: "input"})).toBeDisabled();
+    expect(screen.queryByLabelText("Failover Timeout", {selector: "input"})).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Reset Clients", {selector: "input"})).not.toBeInTheDocument();
   });
 
   it("should render the chosen stream as a row and load the stream set", () => {
@@ -103,7 +102,7 @@ describe("GeneralConfig - Input Failover section", () => {
     expect(streamStore.LoadAllStreams).toHaveBeenCalled();
   });
 
-  it("should enable Timeout and Reset Clients and show Change once a stream is set", () => {
+  it("should show Timeout and Reset Clients and Change once a stream is set", () => {
     renderConfig({
       output: makeOutput(),
       initialValues: {failoverStream: "iq__failover", failoverStreamName: "Backup Stream"}
