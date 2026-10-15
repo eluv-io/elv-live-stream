@@ -35,6 +35,12 @@ import {
 import {OutputUrlProtocol, SanitizeUrl} from "@/utils/helpers.ts";
 import sharedStyles from "@/assets/shared.module.css";
 
+const LockWhenEnabled = ({locked, children}) => (
+  <DisabledTooltipWrapper disabled={locked} tooltipLabel="Disable the output to edit this setting">
+    {children}
+  </DisabledTooltipWrapper>
+);
+
 const PackagingBadges = ({items}) => (
   <Group gap={4} wrap="nowrap">
     {
@@ -85,6 +91,7 @@ const GeneralConfig = observer(({form, output}) => {
   const [showStreamModal, setShowStreamModal] = useState(false);
   const {type, nodeType, geo, failoverStream, failoverStreamName, stream, streamName} = form.getValues();
   const isDedicated = nodeType === "dedicated";
+  const locked = Boolean(output?.enabled);
   // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
   // so it has no editable Target URL.
   const isPush = type !== "srt_pull";
@@ -158,27 +165,30 @@ const GeneralConfig = observer(({form, output}) => {
 
         <Box>
           <SectionTitle mb={12}>Output</SectionTitle>
-          <Select
-            label="Output Type"
-            description="Defines the output type"
-            placeholder="Output Type"
-            allowDeselect={false}
-            data={[
-              {label: "SRT PULL", value: "srt_pull"},
-              {label: "SRT PUSH", value: "srt_push"},
-              {label: "RTP", value: "rtp"},
-              {label: "UDP", value: "udp"},
-              {label: "RTMP / RTMPS", value: "rtmp"}
-            ]}
-            key={form.key("type")}
-            {...form.getInputProps("type")}
-            onChange={(value) => {
-              form.setFieldValue("type", value);
-              form.setFieldValue("url", "");
-              form.setFieldValue("streamKey", "");
-            }}
-            mb={20}
-          />
+          <LockWhenEnabled locked={locked}>
+            <Select
+              label="Output Type"
+              description="Defines the output type"
+              placeholder="Output Type"
+              allowDeselect={false}
+              disabled={locked}
+              data={[
+                {label: "SRT PULL", value: "srt_pull"},
+                {label: "SRT PUSH", value: "srt_push"},
+                {label: "RTP", value: "rtp"},
+                {label: "UDP", value: "udp"},
+                {label: "RTMP / RTMPS", value: "rtmp"}
+              ]}
+              key={form.key("type")}
+              {...form.getInputProps("type")}
+              onChange={(value) => {
+                form.setFieldValue("type", value);
+                form.setFieldValue("url", "");
+                form.setFieldValue("streamKey", "");
+              }}
+              mb={20}
+            />
+          </LockWhenEnabled>
           <Box mb={20}>
             <Group wrap="nowrap">
               <Group gap={4} wrap="nowrap">
@@ -232,83 +242,100 @@ const GeneralConfig = observer(({form, output}) => {
             {form.errors.stream && <Text fz="0.75rem" c="red" mt={4}>{form.errors.stream}</Text>}
           </Box>
           <Stack gap={20}>
-            <Select
-              label="Node Type"
-              data={[
-                ...(dataStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
-                {label: "Public", value: "public"}
-              ]}
-              allowDeselect={false}
-              key={form.key("nodeType")}
-              {...form.getInputProps("nodeType")}
-              onChange={(value) => {
-                form.setFieldValue("nodeType", value);
-                form.setFieldValue("url", "");
-                form.setFieldValue("geoNode", "");
-              }}
-            />
+            <LockWhenEnabled locked={locked}>
+              <Select
+                label="Node Type"
+                data={[
+                  ...(dataStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
+                  {label: "Public", value: "public"}
+                ]}
+                allowDeselect={false}
+                disabled={locked}
+                key={form.key("nodeType")}
+                {...form.getInputProps("nodeType")}
+                onChange={(value) => {
+                  form.setFieldValue("nodeType", value);
+                  form.setFieldValue("url", "");
+                  form.setFieldValue("geoNode", "");
+                }}
+              />
+            </LockWhenEnabled>
             {
               isDedicated ?
-                <Select
-                  label="Node"
-                  placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
-                  data={dataStore.dedicatedNodesList}
-                  allowDeselect={false}
-                  withAsterisk
-                  key={form.key("node")}
-                  {...form.getInputProps("node")}
-                /> :
-                <>
-                  <Select
-                    label="Fabric Geo"
-                    description="Automatic lets the fabric choose a region"
-                    data={[{value: "", label: "Automatic"}, ...FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))]}
-                    allowDeselect={false}
-                    key={form.key("geo")}
-                    {...form.getInputProps("geo")}
-                    onChange={(value) => {
-                      form.setFieldValue("geo", value || "");
-                      form.setFieldValue("geoNode", "");
-                      if(value) { outputStore.LoadNodesByRegion({region: value}); }
-                    }}
-                  />
+                <LockWhenEnabled locked={locked}>
                   <Select
                     label="Node"
-                    description="Automatic lets the fabric choose a node"
-                    // "" is the Automatic option; specific nodes need a chosen geo
-                    data={[{value: "", label: "Automatic"}, ...(outputStore.nodesByRegion[form.getValues().geo] || [])]}
-                    disabled={!form.getValues().geo}
+                    placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
+                    data={dataStore.dedicatedNodesList}
                     allowDeselect={false}
-                    rightSection={
-                      form.getValues().geo && outputStore.loadingNodesRegion === form.getValues().geo ?
-                        <Loader size={14} /> : undefined
-                    }
-                    key={form.key("geoNode")}
-                    {...form.getInputProps("geoNode")}
-                    onChange={(value) => form.setFieldValue("geoNode", value || "")}
+                    disabled={locked}
+                    withAsterisk
+                    key={form.key("node")}
+                    {...form.getInputProps("node")}
                   />
+                </LockWhenEnabled> :
+                <>
+                  <LockWhenEnabled locked={locked}>
+                    <Select
+                      label="Fabric Geo"
+                      description="Automatic lets the fabric choose a region"
+                      data={[{value: "", label: "Automatic"}, ...FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))]}
+                      allowDeselect={false}
+                      disabled={locked}
+                      key={form.key("geo")}
+                      {...form.getInputProps("geo")}
+                      onChange={(value) => {
+                        form.setFieldValue("geo", value || "");
+                        form.setFieldValue("geoNode", "");
+                        if(value) { outputStore.LoadNodesByRegion({region: value}); }
+                      }}
+                    />
+                  </LockWhenEnabled>
+                  <LockWhenEnabled locked={locked}>
+                    <Select
+                      label="Node"
+                      description="Automatic lets the fabric choose a node"
+                      // "" is the Automatic option; specific nodes need a chosen geo
+                      data={[{value: "", label: "Automatic"}, ...(outputStore.nodesByRegion[form.getValues().geo] || [])]}
+                      disabled={locked || !form.getValues().geo}
+                      allowDeselect={false}
+                      rightSection={
+                        form.getValues().geo && outputStore.loadingNodesRegion === form.getValues().geo ?
+                          <Loader size={14} /> : undefined
+                      }
+                      key={form.key("geoNode")}
+                      {...form.getInputProps("geoNode")}
+                      onChange={(value) => form.setFieldValue("geoNode", value || "")}
+                    />
+                  </LockWhenEnabled>
                 </>
             }
             {
               isPush &&
-              <TextInput
-                label="Target URL"
-                description={type === "rtmp" ? RTMP_URL_DESCRIPTION : undefined}
-                placeholder={urlPlaceholder}
-                key={form.key("url")}
-                withAsterisk
-                {...form.getInputProps("url")}
-              />
+              <LockWhenEnabled locked={locked}>
+                <TextInput
+                  label="Target URL"
+                  description={type === "rtmp" ? RTMP_URL_DESCRIPTION : undefined}
+                  placeholder={urlPlaceholder}
+                  key={form.key("url")}
+                  disabled={locked}
+                  withAsterisk
+                  {...form.getInputProps("url")}
+                />
+              </LockWhenEnabled>
             }
             {
               type === "rtmp" &&
-              <PasswordInput
-                label="Stream Key"
-                description={RTMP_STREAM_KEY_DESCRIPTION}
-                key={form.key("streamKey")}
-                withAsterisk
-                {...form.getInputProps("streamKey")}
-              />
+              <LockWhenEnabled locked={locked}>
+                <PasswordInput
+                  label="Stream Key"
+                  description={RTMP_STREAM_KEY_DESCRIPTION}
+                  key={form.key("streamKey")}
+                  disabled={locked}
+                  withAsterisk
+                  {...form.getInputProps("streamKey")}
+                />
+              </LockWhenEnabled>
             }
           </Stack>
         </Box>
