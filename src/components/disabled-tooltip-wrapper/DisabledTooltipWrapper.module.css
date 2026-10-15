@@ -8,5 +8,30 @@
     label {
       pointer-events: none;
     }
+
+    /* Wrapper already dims; avoid stacking Mantine's own disabled fade */
+    input:disabled {
+      opacity: 1;
+      color: var(--mantine-color-text);
+    }
+  }
+
+  &[data-disabled="true"][data-allow-view] {
+    input,
+    button {
+      pointer-events: auto;
+    }
+
+    /* Match Mantine's disabled look; readOnly inputs don't get it */
+    [class*="mantine-PasswordInput-input"],
+    [class*="mantine-TextInput-input"] {
+      background-color: var(--input-disabled-bg);
+      color: var(--mantine-color-text);
+      cursor: not-allowed;
+    }
+
+    input {
+      color: var(--mantine-color-text);
+    }
   }
 }

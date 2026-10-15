@@ -35,8 +35,8 @@ import {
 import {OutputUrlProtocol, SanitizeUrl} from "@/utils/helpers.ts";
 import sharedStyles from "@/assets/shared.module.css";
 
-const LockWhenEnabled = ({locked, children}) => (
-  <DisabledTooltipWrapper disabled={locked} tooltipLabel="Disable the output to edit this setting">
+const LockWhenEnabled = ({locked, allowView, children}) => (
+  <DisabledTooltipWrapper disabled={locked} allowView={allowView} tooltipLabel="Disable the output to edit this setting">
     {children}
   </DisabledTooltipWrapper>
 );
@@ -326,12 +326,12 @@ const GeneralConfig = observer(({form, output}) => {
             }
             {
               type === "rtmp" &&
-              <LockWhenEnabled locked={locked}>
+              <LockWhenEnabled locked={locked} allowView>
                 <PasswordInput
                   label="Stream Key"
                   description={RTMP_STREAM_KEY_DESCRIPTION}
                   key={form.key("streamKey")}
-                  disabled={locked}
+                  readOnly={locked}
                   withAsterisk
                   {...form.getInputProps("streamKey")}
                 />
