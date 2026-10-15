@@ -1405,6 +1405,14 @@ class StreamEditStore {
       }));
     }
 
+    const existingConfig = url ? yield this.client.ContentObjectMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording_config",
+      select: ["url", "probe_info"]
+    }) : undefined;
+
     yield this.UpdateDetailMetadata({
       objectId,
       name,
@@ -1416,6 +1424,23 @@ class StreamEditStore {
       writeToken,
       finalize: false
     });
+
+    const hostOf = (value?: string) => { try { return new URL(value ?? "").host; } catch { return undefined; } };
+    const protocolOf = (value?: string) => value?.split(":")?.[0];
+    if(
+      !configProfile &&
+      url &&
+      existingConfig?.probe_info &&
+      hostOf(url) !== hostOf(existingConfig.url) &&
+      protocolOf(url) === protocolOf(existingConfig.url)
+    ) {
+      yield this.client.StreamConfig({
+        name: objectId,
+        writeToken,
+        finalize: false,
+        inputStreamInfo: existingConfig.probe_info
+      });
+    }
 
     let probeCleared = false;
     if(configProfile) {
