@@ -21,6 +21,7 @@ import {useParams} from "react-router-dom";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {STATUS_MAP} from "@/utils/constants.ts";
+import {StreamIsActive} from "@/utils/stream/stream.ts";
 import {IconInfoCircle} from "@tabler/icons-react";
 
 const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) => {
@@ -188,7 +189,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
         <Box mb="24px" maw="80%">
           <SimpleGrid cols={1} spacing={150} mb={18}>
             <DisabledTooltipWrapper
-              disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED, STATUS_MAP.UNCONFIGURED].includes(status)}
+              disabled={StreamIsActive(status)}
               tooltipLabel="URL is only editable while the stream is inactive"
             >
               <TextInput

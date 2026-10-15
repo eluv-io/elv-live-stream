@@ -1405,12 +1405,11 @@ class StreamEditStore {
       }));
     }
 
-    const existingConfig = url ? yield this.client.ContentObjectMetadata({
+    const existingUrl = url ? yield this.client.ContentObjectMetadata({
       libraryId,
       objectId,
       writeToken,
-      metadataSubtree: "live_recording_config",
-      select: ["url", "probe_info"]
+      metadataSubtree: "live_recording_config/url"
     }) : undefined;
 
     yield this.UpdateDetailMetadata({
@@ -1425,21 +1424,31 @@ class StreamEditStore {
       finalize: false
     });
 
-    const hostOf = (value?: string) => { try { return new URL(value ?? "").host; } catch { return undefined; } };
-    const protocolOf = (value?: string) => value?.split(":")?.[0];
-    if(
-      !configProfile &&
-      url &&
-      existingConfig?.probe_info &&
-      hostOf(url) !== hostOf(existingConfig.url) &&
-      protocolOf(url) === protocolOf(existingConfig.url)
-    ) {
-      yield this.client.StreamConfig({
-        name: objectId,
+    const hostOf = (value?: string) => value?.replace(/^[a-z]+:\/\//, "").match(/^[^/:]+/)?.[0];
+    const host = hostOf(url);
+    if(!configProfile && host && host !== hostOf(existingUrl)) {
+      const hasFabricConfig = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
         writeToken,
-        finalize: false,
-        inputStreamInfo: existingConfig.probe_info
+        metadataSubtree: "live_recording/fabric_config/ingress_node_id"
       });
+
+      if(hasFabricConfig) {
+        const nodes = yield this.client.SpaceNodes({matchEndpoint: host});
+        if(!nodes?.length) { throw new Error(`No node found for stream URL host: ${host}`); }
+
+        yield this.client.MergeMetadata({
+          libraryId,
+          objectId,
+          writeToken,
+          metadataSubtree: "live_recording/fabric_config",
+          metadata: {
+            ingress_node_api: nodes[0].services.fabric_api.urls[0],
+            ingress_node_id: nodes[0].id
+          }
+        });
+      }
     }
 
     let probeCleared = false;
