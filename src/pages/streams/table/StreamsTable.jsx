@@ -10,6 +10,7 @@ import sharedStyles from "@/assets/shared.module.css";
 import styles from "./StreamsTable.module.css";
 import {SOURCE_PACKAGING_COLOR_MAP, QUALITY_MAP} from "@/utils/constants.ts";
 import {BuildGroupedRows} from "./groupedRows.js";
+import {settingsStore} from "@/stores/index.ts";
 
 // Fixed height for every row. No per-row measureElement, so getTotalSize() stays exact
 // and there's no scrollMargin/measurement race. Overflowing content is clipped by the cells.
@@ -27,6 +28,8 @@ const MinTrackWidth = width => {
 };
 
 const MIN_RESIZE_WIDTH = 160;
+
+const DATE_COLUMNS = ["date", "eventTime"];
 
 const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) => [
   {
@@ -570,7 +573,8 @@ const StreamsTable = observer(({
   const allRecords = records || [];
   const rows = BuildGroupedRows({records: allRecords, groups, expandedGroups, streamOrder});
   const [resizedWidths, setResizedWidths] = useState({});
-  const columns = BuildColumns({showActions, onNameClick, onViewSummary, getRowActions});
+  const columns = BuildColumns({showActions, onNameClick, onViewSummary, getRowActions})
+    .filter(column => settingsStore.useContentGroup || !DATE_COLUMNS.includes(column.accessor));
 
   const columnWidths = [
     onSelectedRecordsChange ? SELECTION_COLUMN_WIDTH : null,
