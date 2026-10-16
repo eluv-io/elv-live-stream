@@ -5,6 +5,8 @@ import StreamStatusStore from "@/stores/StreamStatusStore";
 import StreamDetailStore from "@/stores/StreamDetailStore";
 import StreamListStore from "@/stores/StreamListStore";
 import StreamEditStore from "@/stores/StreamEditStore";
+import AlternateTranscodeStore from "@/stores/AlternateTranscodeStore";
+import RecordingCopyStore from "@/stores/RecordingCopyStore";
 import ModalStore from "@/stores/ModalStore";
 import SettingsStore from "@/stores/SettingsStore";
 import ProfileStore from "@/stores/ProfileStore";
@@ -40,6 +42,8 @@ class RootStore {
   streamDetailStore: StreamDetailStore;
   streamListStore: StreamListStore;
   streamEditStore: StreamEditStore;
+  alternateTranscodeStore: AlternateTranscodeStore;
+  recordingCopyStore: RecordingCopyStore;
   streamSaveStore: StreamSaveStore;
   modalStore: ModalStore;
   settingsStore: SettingsStore;
@@ -57,6 +61,8 @@ class RootStore {
     this.streamDetailStore = new StreamDetailStore(this);
     this.streamListStore = new StreamListStore(this);
     this.streamEditStore = new StreamEditStore(this);
+    this.alternateTranscodeStore = new AlternateTranscodeStore(this);
+    this.recordingCopyStore = new RecordingCopyStore(this);
     this.streamSaveStore = new StreamSaveStore(this);
     this.modalStore = new ModalStore(this);
     this.settingsStore = new SettingsStore(this);

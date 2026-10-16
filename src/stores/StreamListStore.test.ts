@@ -33,7 +33,10 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, tenantContent} = {}
     streamStatusStore,
     streamGroupStore: {BuildGroups: vi.fn()},
     dataStore: {},
-    settingsStore: {},
+    settingsStore: {
+      declaredTags: [] as string[],
+      get sortedDeclaredTags() { return [...this.declaredTags].sort(); }
+    },
     userSettingsStore: {Persist: vi.fn()}
   };
 

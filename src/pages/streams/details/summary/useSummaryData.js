@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {useParams} from "react-router-dom";
-import {streamStatusStore, streamDetailStore, streamEditStore} from "@/stores/index.ts";
+import {streamStatusStore, streamDetailStore, recordingCopyStore} from "@/stores/index.ts";
 
 /**
  * Owns all async data loading for SummaryPanel.
@@ -19,7 +19,7 @@ const useSummaryData = ({slug, libraryId}) => {
   const LoadLiveRecordingCopies = async() => {
     try {
       setLoading(true);
-      let copies = await streamEditStore.FetchLiveRecordingCopies({objectId});
+      let copies = await recordingCopyStore.FetchLiveRecordingCopies({objectId});
 
       Object.keys(copies || {}).forEach(id => (copies[id]["_id"] = id));
       setLiveRecordingCopies(copies || {});

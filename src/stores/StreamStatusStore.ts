@@ -457,12 +457,11 @@ class StreamStatusStore {
 
       return url;
     } catch(error) {
-      /* eslint-disable no-console */
-      console.error("Error fetching frame for " + slug);
-      console.error(error);
-      /* eslint-disable no-console */
+      // eslint-disable-next-line no-console
+      console.error("Error fetching frame for " + slug, error);
       return;
     } finally {
+      // eslint-disable-next-line no-console
       console.timeEnd(`Load Frame: ${slug}`);
     }
   }
@@ -509,7 +508,7 @@ class StreamStatusStore {
             embedUrl: response?.playoutUrls?.embedUrl
           };
         } catch(error) {
-
+          // eslint-disable-next-line no-console
           console.error(`Skipping status for ${objectId}.`, error);
         }
       }

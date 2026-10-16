@@ -175,10 +175,10 @@ describe("DeriveSourceAndPackaging", () => {
       expect(source).toEqual(["srt", "ts"]);
     });
 
-    it("appends rtp for srt:// URLs when input_packaging includes rtp", () => {
+    it("appends rtp for srt:// URLs when input_packaging is rtp_ts", () => {
       const {source} = DeriveSourceAndPackaging({
         url: "srt://host:1234",
-        inputCfg: {input_packaging: ["rtp"]}
+        inputCfg: {input_packaging: "rtp_ts"}
       });
       expect(source).toEqual(["srt", "rtp"]);
     });

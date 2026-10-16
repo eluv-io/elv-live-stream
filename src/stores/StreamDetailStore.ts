@@ -1,7 +1,7 @@
 // Per-stream detail reads for the stream details page (summary, general, recording, playout, probe) and playout URL building.
 import {makeAutoObservable} from "mobx";
 import {slugify} from "@/utils/helpers";
-import {ALTERNATE_TRANSCODE_PROTOCOLS, RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
+import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 import {
   AlternateTranscode,
   DeriveSourceAndPackaging,
@@ -37,7 +37,7 @@ type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persisten
   // StreamEditStore's UpdateConfigMetadataParams.
   copyPackagingFormats: string[];
   alternateTranscodeEnabled: boolean;
-  // Resolved from the id array stored on the fabric - see ResolveAlternateTranscodes.
+  // Resolved from the id array stored on the fabric - see AlternateTranscodeStore.ResolveAlternateTranscodes.
   alternateTranscodes: AlternateTranscode[];
   programPidSelection: ProgramPidSelection;
   advancedEncodingParams: Record<string, unknown> | null;
@@ -210,87 +210,6 @@ class StreamDetailStore {
     }
   }
 
-  // Each id is a separate content object; resolved in parallel with per-id
-  // failure isolation so a broken reference still renders (and stays
-  // removable) instead of vanishing from the table.
-  *ResolveAlternateTranscodes({libraryId, ids}: {libraryId: string, ids: string[]}): Generator<any, AlternateTranscode[]> {
-    if(!ids || ids.length === 0) { return []; }
-
-    const results = yield Promise.all(ids.map(async(id): Promise<AlternateTranscode> => {
-      const [name, configMeta, xcParams] = await Promise.all([
-        (async() => {
-          try {
-            const generalMeta = await this.client.ContentObjectMetadata({
-              libraryId,
-              objectId: id,
-              metadataSubtree: "public",
-              select: ["name"]
-            });
-            return generalMeta?.name || id;
-          } catch(error) {
-            // eslint-disable-next-line no-console
-            console.error(`Unable to load name for alternate transcode ${id}`, error);
-            return id;
-          }
-        })(),
-        (async() => {
-          try {
-            return (await this.client.ContentObjectMetadata({
-              libraryId,
-              objectId: id,
-              metadataSubtree: "live_recording_config",
-              select: ["url", "ingress_node_id", "geo", "recording_config", "recording_params"]
-            })) || {};
-          } catch(error) {
-            // eslint-disable-next-line no-console
-            console.error(`Unable to load config for alternate transcode ${id}`, error);
-            return {};
-          }
-        })(),
-        (async(): Promise<Record<string, any>> => {
-          try {
-            return (await this.client.ContentObjectMetadata({
-              libraryId,
-              objectId: id,
-              metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
-            })) || {};
-          } catch(error) {
-            // eslint-disable-next-line no-console
-            console.error(`Unable to load applied encoding config for alternate transcode ${id}`, error);
-            return {};
-          }
-        })()
-      ]);
-
-      const url: string = configMeta.url || "";
-      const ingressNodeId = configMeta.ingress_node_id;
-      const geo = configMeta.geo;
-      const recordingConfig: Record<string, any> = configMeta.recording_config || {};
-      const advancedEncodingParams: Record<string, unknown> | null = configMeta.recording_params?.xc_params ?? null;
-
-      const protocol = (url.split("://")[0]) || ALTERNATE_TRANSCODE_PROTOCOLS[0]?.value || "";
-
-      return {
-        id,
-        name,
-        // geo (only ever set on public transcodes) distinguishes the two,
-        // since both now carry a resolved ingress_node_id.
-        nodeType: geo ? "public" : "dedicated",
-        node: geo ? undefined : ingressNodeId,
-        geo,
-        resolvedNodeId: ingressNodeId,
-        protocol,
-        resolution: xcParams.enc_height ? `${xcParams.enc_height}p` : undefined,
-        videoBitrate: xcParams.video_bitrate,
-        streamBitrate: xcParams.input_cfg?.stream_bitrate,
-        advancedEncodingParams,
-        programPidSelection: recordingConfig.program_pid_selection ?? {activeProgramId: null, selections: {}}
-      };
-    }));
-
-    return results;
-  }
-
   *LoadRecordingConfigData({
     libraryId,
     objectId,
@@ -317,7 +236,7 @@ class StreamDetailStore {
           objectId,
           metadataSubtree: "live_recording_config/recording_config"
         }),
-        // Sibling of recording_config on live_recording_config - see CreateAlternateTranscode.
+        // Sibling of recording_config on live_recording_config - see AlternateTranscodeStore.CreateAlternateTranscode.
         this.client.ContentObjectMetadata({
           libraryId,
           objectId,
@@ -339,7 +258,7 @@ class StreamDetailStore {
       const copyPackagingFormats = liveRecordingConfigMeta?.copy_packaging_formats ?? [];
       const alternateTranscodeEnabled = liveRecordingConfigMeta?.alternate_transcode_enabled ?? false;
       // alternate_transcodes is an id array; resolve to full rows for display/edit.
-      const alternateTranscodes = yield this.ResolveAlternateTranscodes({libraryId, ids: liveRecordingConfigTopMeta?.alternate_transcodes ?? []});
+      const alternateTranscodes = yield this.rootStore.alternateTranscodeStore.ResolveAlternateTranscodes({libraryId, ids: liveRecordingConfigTopMeta?.alternate_transcodes ?? []});
 
       // Detected programs/PID's, read-only - not part of the saved selection.
       // Prefer the probe; fall back to mpegts_selection, which has only program

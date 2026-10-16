@@ -1,7 +1,6 @@
-// Handles stream configuration writes: create, delete, metadata, recording config, playout (watermarks, DRM, audio), profiles, permissions, and VOD copy.
+// Stream writes: create, duplicate, delete, permissions, config saves (general/recording/playout), profiles, watermarks, DRM, audio, and tags.
 import {makeAutoObservable, toJS} from "mobx";
 import {
-  AlternateTranscode,
   DeriveCopyMode,
   DeriveCopyPackaging,
   FinalizeContentObjectResponse,
@@ -12,20 +11,15 @@ import {
   ParseLiveConfigData,
   ProgramPidSelection,
   RecordingInputCfg,
-  RecordingPeriod,
   SimpleWatermark,
   StreamRecord
 } from "@/utils/stream/stream";
-import {defaultConfigProfile} from "@/utils/defaultProfile";
 import {PlayoutFormat, RESOLUTION_DIMENSIONS, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@/utils/helpers";
 import {WithWriteToken} from "@/utils/fabric/withWriteToken";
-import {ResolveIngestNodeId} from "@/stores/lib/fabricNodes";
 import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/StreamDetailStore";
 import {PermissionLevel} from "@/stores/DataStore";
-
-const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Empty clears the value (null); anything else must be a positive integer
 const ParseBitrate = (value: string | number, label: string): number | null => {
@@ -38,16 +32,6 @@ const ParseBitrate = (value: string | number, label: string): number | null => {
 
   return bitrate;
 };
-
-// Thrown when a live recording copy's content object can no longer be reached
-// (most likely deleted from the Fabric) while attempting to edit it. The UI
-// uses this to offer a "remove from list" remediation instead of a raw error.
-export class RecordingCopyMissingError extends Error {
-  constructor(recordingCopyId: string) {
-    super(`Live recording copy ${recordingCopyId} no longer exists`);
-    this.name = "RecordingCopyMissingError";
-  }
-}
 
 interface InitLiveStreamObjectParams {
   objectId: string;
@@ -63,30 +47,6 @@ interface InitLiveStreamObjectParams {
   retention: number | string;
   persistent: boolean;
   url: string;
-}
-
-interface AlternateTranscodeFormParams {
-  name: string;
-  nodeType: "dedicated" | "public";
-  node?: string;
-  geo?: string;
-  protocol: string;
-  resolution?: string;
-  videoBitrate?: string | number;
-  streamBitrate?: string | number;
-  advancedEncodingParams?: Record<string, unknown> | null;
-  programPidSelection?: ProgramPidSelection;
-}
-
-interface CreateAlternateTranscodeParams extends AlternateTranscodeFormParams {
-  parentObjectId: string;
-  parentLibraryId?: string;
-  parentSlug: string;
-}
-
-interface UpdateAlternateTranscodeParams extends AlternateTranscodeFormParams {
-  objectId: string;
-  libraryId?: string;
 }
 
 interface DuplicateStreamParams {
@@ -141,7 +101,7 @@ interface UpdateConfigMetadataParams {
   copyPackagingFormats?: string[];
   alternateTranscodeEnabled?: boolean;
   // Ids of the alternate transcodes' own content objects - see
-  // CreateAlternateTranscode/SaveAlternateTranscode below.
+  // AlternateTranscodeStore.
   alternateTranscodes?: string[];
   // Only used when objectId targets an alternate transcode's own object.
   resolution?: string;
@@ -278,14 +238,6 @@ interface UpdateStreamAudioSettingsParams {
   edit?: boolean;
 }
 
-interface CopyToVodParams {
-  objectId: string;
-  targetLibraryId?: string;
-  accessGroup?: string;
-  selectedPeriods?: RecordingPeriod[];
-  title?: string;
-}
-
 class StreamEditStore {
   rootStore: RootStore;
 
@@ -378,343 +330,6 @@ class StreamEditStore {
       // eslint-disable-next-line no-console
       console.error("Failed to create stream", error);
       throw error;
-    }
-  }
-
-  // Creates a content object for one alternate transcode (self-referential
-  // url `<protocol>://<objectId>`) and appends its id to the parent's
-  // alternate_transcodes array, instead of linking it into the site. The
-  // object is reserved (Create+Finalize) before StreamCreate since the url
-  // needs the objectId, which StreamCreate only returns after completing.
-  *CreateAlternateTranscode({
-    parentObjectId,
-    parentLibraryId,
-    parentSlug,
-    name,
-    nodeType,
-    node,
-    geo,
-    protocol,
-    resolution,
-    videoBitrate,
-    streamBitrate,
-    advancedEncodingParams,
-    programPidSelection
-  }: CreateAlternateTranscodeParams): Generator<any, AlternateTranscode> {
-    // Tracked for cleanup if a later step fails
-    let objectId: string | undefined;
-    let nodeWriteToken: string | undefined;
-
-    try {
-      if(!parentLibraryId) {
-        parentLibraryId = yield this.client.ContentObjectLibraryId({objectId: parentObjectId});
-      }
-
-      const {contentTypes} = yield this.rootStore.dataStore.LoadTenantSiteData();
-
-      // alternate_transcodes is appended to below; probe_info seeds
-      // input_stream_info below.
-      const parentConfig = yield this.client.ContentObjectMetadata({
-        libraryId: parentLibraryId,
-        objectId: parentObjectId,
-        metadataSubtree: "live_recording_config",
-        select: ["alternate_transcodes", "probe_info"]
-      });
-      const existingIds: string[] = parentConfig?.alternate_transcodes ?? [];
-      const parentProbeInfo = parentConfig?.probe_info;
-
-      // Dedicated nodes use the node picked in the modal directly; public
-      // nodes resolve one from the chosen geo (see lib/fabricNodes).
-      const resolvedNodeId = nodeType === "dedicated" ?
-        node :
-        (geo ? yield ResolveIngestNodeId({client: this.client, geo}) : undefined);
-
-      const createResponse = yield this.client.CreateContentObject({
-        libraryId: parentLibraryId,
-        options: contentTypes?.live_stream ? {type: contentTypes.live_stream} : {}
-      });
-      // Object exists from here on; the finalize below commits it
-      objectId = createResponse.id as string;
-
-      yield this.client.FinalizeContentObject({
-        libraryId: parentLibraryId,
-        objectId,
-        writeToken: createResponse.writeToken,
-        awaitCommitConfirmation: true,
-        commitMessage: "Reserve alternate transcode object"
-      });
-
-      const inputStreamToken = yield this.client.CreateSignedToken({
-        objectId: parentObjectId,
-        duration: ONE_MONTH_MS
-      });
-
-      const baseProfile = {
-        ...defaultConfigProfile,
-        recording_params: {
-          ...defaultConfigProfile.recording_params,
-          input_stream: {stream: parentObjectId, token: inputStreamToken}
-        }
-      };
-      const configProfile = (resolvedNodeId && parentProbeInfo) ?
-        {...baseProfile, input_stream_info: parentProbeInfo} :
-        baseProfile;
-
-      yield this.client.StreamCreate({
-        libraryId: parentLibraryId,
-        objectId,
-        url: `${protocol}://${objectId}`,
-        // Base config from the built-in profile; per-transcode fields
-        // (bitrate, resolution) are overwritten below in SaveConfigMetadata.
-        // With a resolved node and a probed parent, input_stream_info above
-        // makes StreamCreate run its internal StreamConfig pass.
-        liveRecordingConfig: ParseLiveConfigData({configProfile}),
-        options: {
-          name,
-          displayTitle: name,
-          permission: "editable",
-          ingressNodeId: resolvedNodeId,
-          linkToSite: false
-        }
-      });
-
-      // Also write ingress_node_id/geo directly (like SaveAlternateTranscode),
-      // since StreamCreate's own write goes through several merge layers.
-      ({writeToken: nodeWriteToken} = yield this.client.EditContentObject({libraryId: parentLibraryId, objectId}));
-      yield this.client.MergeMetadata({
-        libraryId: parentLibraryId,
-        objectId,
-        writeToken: nodeWriteToken,
-        metadataSubtree: "live_recording_config",
-        metadata: {
-          url: `${protocol}://${objectId}`,
-          ingress_node_id: resolvedNodeId ?? null,
-          geo: nodeType === "public" ? geo : null
-        }
-      });
-      yield this.client.FinalizeContentObject({
-        libraryId: parentLibraryId,
-        objectId,
-        writeToken: nodeWriteToken,
-        awaitCommitConfirmation: true,
-        commitMessage: "Set alternate transcode node"
-      });
-      nodeWriteToken = undefined;
-
-      yield this.SaveConfigMetadata({
-        objectId,
-        libraryId: parentLibraryId,
-        resolution,
-        videoBitrate,
-        streamBitrate,
-        advancedEncodingParams,
-        programPidSelection
-      });
-
-      yield this.SaveConfigMetadata({
-        objectId: parentObjectId,
-        libraryId: parentLibraryId,
-        slug: parentSlug,
-        alternateTranscodes: [...existingIds, objectId]
-      });
-
-      return {
-        id: objectId,
-        name,
-        nodeType,
-        node,
-        geo,
-        resolvedNodeId,
-        protocol,
-        resolution,
-        videoBitrate,
-        streamBitrate,
-        advancedEncodingParams: advancedEncodingParams ?? null,
-        programPidSelection
-      };
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to create alternate transcode", error);
-
-      if(nodeWriteToken) {
-        try {
-          yield this.client.DeleteWriteToken({writeToken: nodeWriteToken});
-        } catch(discardError) {
-          // eslint-disable-next-line no-console
-          console.error("Failed to discard write token", discardError);
-        }
-      }
-
-      if(objectId) {
-        try {
-          // Skip the delete if the parent already references it (e.g. a finalize that failed after committing)
-          const parentConfig = yield this.client.ContentObjectMetadata({
-            libraryId: parentLibraryId,
-            objectId: parentObjectId,
-            metadataSubtree: "live_recording_config",
-            select: ["alternate_transcodes"]
-          });
-
-          if(!(parentConfig?.alternate_transcodes ?? []).includes(objectId)) {
-            yield this.client.DeleteContentObject({libraryId: parentLibraryId, objectId});
-          }
-        } catch(cleanupError) {
-          // eslint-disable-next-line no-console
-          console.error(`Failed to remove partially created alternate transcode ${objectId}`, cleanupError);
-        }
-      }
-
-      throw error;
-    }
-  }
-
-  // Rewrites an alternate transcode's own object (name, node/url,
-  // recording_config); doesn't touch the parent's alternate_transcodes array.
-  *SaveAlternateTranscode({
-    objectId,
-    libraryId,
-    name,
-    nodeType,
-    node,
-    geo,
-    protocol,
-    resolution,
-    videoBitrate,
-    streamBitrate,
-    advancedEncodingParams,
-    programPidSelection
-  }: UpdateAlternateTranscodeParams): Generator<any, AlternateTranscode> {
-    let writeToken: string | undefined;
-
-    try {
-      if(!libraryId) {
-        libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      }
-
-      ({writeToken} = yield this.client.EditContentObject({libraryId, objectId}));
-
-      const existingConfig = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadataSubtree: "live_recording_config",
-        select: ["ingress_node_id", "probe_info"]
-      });
-
-      // Same dedicated/public resolution as CreateAlternateTranscode.
-      const resolvedNodeId = nodeType === "dedicated" ?
-        node :
-        (geo ? yield ResolveIngestNodeId({client: this.client, geo}) : undefined);
-
-      const nodeChanged = (resolvedNodeId ?? null) !== (existingConfig?.ingress_node_id ?? null);
-
-      yield this.client.MergeMetadata({
-        libraryId,
-        objectId,
-        writeToken,
-        metadata: {
-          public: {name},
-          live_recording_config: {
-            url: `${protocol}://${objectId}`,
-            ingress_node_id: resolvedNodeId ?? null,
-            geo: nodeType === "public" ? geo : null
-          }
-        }
-      });
-
-      // Re-derive live_recording's fabric_config (ingress_node_api/id) for
-      // the new node - otherwise start/stop/restart keep targeting the old
-      // one. Only when there's already probe data to reuse; without it
-      // StreamConfig would try (and likely fail) to probe this object's own,
-      // probably inactive, url.
-      if(nodeChanged && resolvedNodeId && existingConfig?.probe_info) {
-        yield this.client.StreamConfig({
-          name: objectId,
-          writeToken,
-          finalize: false,
-          inputStreamInfo: existingConfig.probe_info
-        });
-      }
-
-      yield this.SaveConfigMetadata({
-        objectId,
-        libraryId,
-        writeToken,
-        resolution,
-        videoBitrate,
-        streamBitrate,
-        advancedEncodingParams,
-        programPidSelection,
-        finalize: true
-      });
-
-      return {
-        id: objectId,
-        name,
-        nodeType,
-        node,
-        geo,
-        resolvedNodeId,
-        protocol,
-        resolution,
-        videoBitrate,
-        streamBitrate,
-        advancedEncodingParams: advancedEncodingParams ?? null,
-        programPidSelection
-      };
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to update alternate transcode", error);
-
-      if(writeToken) {
-        try {
-          yield this.client.DeleteWriteToken({writeToken});
-        } catch(discardError) {
-          // eslint-disable-next-line no-console
-          console.error("Failed to discard write token", discardError);
-        }
-      }
-
-      throw error;
-    }
-  }
-
-  // Removes the id from the parent's alternate_transcodes array first (so a
-  // failed delete never leaves a broken reference), then deletes the object;
-  // delete failures are logged and swallowed.
-  *RemoveAlternateTranscode({
-    parentObjectId,
-    parentLibraryId,
-    parentSlug,
-    id
-  }: {parentObjectId: string, parentLibraryId?: string, parentSlug: string, id: string}): Generator<any, void> {
-    if(!parentLibraryId) {
-      parentLibraryId = yield this.client.ContentObjectLibraryId({objectId: parentObjectId});
-    }
-
-    const existingConfig = yield this.client.ContentObjectMetadata({
-      libraryId: parentLibraryId,
-      objectId: parentObjectId,
-      metadataSubtree: "live_recording_config",
-      select: ["alternate_transcodes"]
-    });
-    const existingIds: string[] = existingConfig?.alternate_transcodes ?? [];
-
-    yield this.SaveConfigMetadata({
-      objectId: parentObjectId,
-      libraryId: parentLibraryId,
-      slug: parentSlug,
-      alternateTranscodes: existingIds.filter(existingId => existingId !== id)
-    });
-
-    try {
-      yield this.client.DeleteContentObject({
-        libraryId: yield this.client.ContentObjectLibraryId({objectId: id}),
-        objectId: id
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.log(`Content object ${id} has already been deleted. Removed from the alternate transcodes list.`, error);
     }
   }
 
@@ -1133,7 +748,7 @@ class StreamEditStore {
             xc_params: advancedEncodingParams
           };
         }
-        // Sibling of recording_config on live_recording_config - see CreateAlternateTranscode.
+        // Sibling of recording_config on live_recording_config - see AlternateTranscodeStore.CreateAlternateTranscode.
         if(alternateTranscodes !== undefined) liveRecordingConfigUpdate.alternate_transcodes = alternateTranscodes;
 
         await this.client.ReplaceMetadata({
@@ -2266,284 +1881,6 @@ class StreamEditStore {
 
   // VOD
 
-  *FetchLiveRecordingCopies({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Record<string, {create_time: number, endTime: number, startTime: number, title: string, unavailable?: boolean}>> {
-    if(!libraryId) {
-      libraryId = yield this.client.ContentObjectLibraryId({objectId});
-    }
-
-    const copiesMeta = yield this.client.ContentObjectMetadata({
-      objectId,
-      libraryId,
-      metadataSubtree: "live_recording_copies"
-    });
-
-    yield Promise.all(
-      Object.keys(copiesMeta || {}).map(async(copyId) => {
-        try {
-          copiesMeta[copyId].title = await this.client.ContentObjectMetadata({
-            libraryId: await this.client.ContentObjectLibraryId({objectId: copyId}),
-            objectId: copyId,
-            metadataSubtree: "public/name"
-          });
-        } catch(error) {
-          // The metadata entry exists but its content object could not be
-          // reached - most likely it was deleted from the Fabric. Flag it so
-          // the UI can mark the row as unavailable and disable edit actions.
-          copiesMeta[copyId].unavailable = true;
-          // eslint-disable-next-line no-console
-          console.error(`Failed to load name. Has object ${copyId} been deleted?`, error);
-        }
-      })
-    );
-
-    return copiesMeta;
-  }
-
-  *DeleteLiveRecordingCopy({streamId, recordingCopyId}: {streamId: string, recordingCopyId: string}) : Generator<any, FinalizeContentObjectResponse> {
-    const liveRecordingCopies = yield this.FetchLiveRecordingCopies({objectId: streamId});
-
-    delete liveRecordingCopies[recordingCopyId];
-
-    const libraryId = yield this.client.ContentObjectLibraryId({objectId: streamId});
-    const {writeToken} = yield this.client.EditContentObject({
-      objectId: streamId,
-      libraryId
-    });
-
-    yield this.client.ReplaceMetadata({
-      objectId: streamId,
-      libraryId,
-      writeToken,
-      metadataSubtree: "live_recording_copies",
-      metadata: liveRecordingCopies
-    });
-
-    return this.client.FinalizeContentObject({
-      objectId: streamId,
-      libraryId,
-      writeToken,
-      commitMessage: "Remove live recording copy"
-    });
-  }
-
-  *EditLiveRecordingCopy({streamId, recordingCopyId, title}: {streamId: string, recordingCopyId: string, title: string}) : Generator<any, FinalizeContentObjectResponse> {
-    try {
-      const liveRecordingCopies = yield this.FetchLiveRecordingCopies({objectId: streamId});
-
-      if(!liveRecordingCopies?.[recordingCopyId]) {
-        throw Error(`Live recording copy ${recordingCopyId} not found`);
-      }
-
-      // The metadata entry is present but its content object is unreachable -
-      // it was deleted between table load and this edit. Signal the UI so it
-      // can offer to remove the stale entry rather than surfacing a raw error.
-      if(liveRecordingCopies[recordingCopyId].unavailable) {
-        throw new RecordingCopyMissingError(recordingCopyId);
-      }
-
-      liveRecordingCopies[recordingCopyId].title = title;
-
-      // Update the recording copy content object's own name
-      const recordingLibraryId = yield this.client.ContentObjectLibraryId({objectId: recordingCopyId});
-      const {writeToken: recordingWriteToken} = yield this.client.EditContentObject({
-        objectId: recordingCopyId,
-        libraryId: recordingLibraryId
-      });
-
-      yield this.client.ReplaceMetadata({
-        objectId: recordingCopyId,
-        libraryId: recordingLibraryId,
-        writeToken: recordingWriteToken,
-        metadataSubtree: "public/name",
-        metadata: title
-      });
-
-      yield this.client.FinalizeContentObject({
-        objectId: recordingCopyId,
-        libraryId: recordingLibraryId,
-        writeToken: recordingWriteToken,
-        commitMessage: "Update name"
-      });
-
-      // Update stream object copies meta
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId: streamId});
-      const {writeToken} = yield this.client.EditContentObject({
-        objectId: streamId,
-        libraryId
-      });
-
-      yield this.client.ReplaceMetadata({
-        objectId: streamId,
-        libraryId,
-        writeToken,
-        metadataSubtree: "live_recording_copies",
-        metadata: liveRecordingCopies
-      });
-
-      return this.client.FinalizeContentObject({
-        objectId: streamId,
-        libraryId,
-        writeToken,
-        commitMessage: "Update live recording copy"
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to update live recording copy.", error);
-      throw error;
-    }
-  }
-
-  *CopyToVod({
-    objectId,
-    targetLibraryId,
-    accessGroup,
-    selectedPeriods=[],
-    title
-  }: CopyToVodParams): Generator<any, StreamStatus> {
-    let recordingPeriod: number, startTime: string, endTime: string;
-    const timeSeconds: Partial<{startTime: number, endTime: number}> = {};
-    const sortedPeriods = [...selectedPeriods].sort((a, b) => a?.start_time_epoch_sec - b?.start_time_epoch_sec);
-    const firstPeriod = sortedPeriods[0];
-    const currentDateTime = new Date();
-
-    if(sortedPeriods.length > 1) {
-      const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
-      recordingPeriod = null;
-      startTime = new Date(firstPeriod?.start_time_epoch_sec * 1000).toISOString();
-      endTime = new Date(lastPeriod?.end_time_epoch_sec * 1000).toISOString();
-
-      timeSeconds.startTime = firstPeriod?.start_time_epoch_sec;
-      timeSeconds.endTime = lastPeriod?.end_time_epoch_sec;
-    } else {
-      recordingPeriod = firstPeriod.id;
-      timeSeconds.startTime = firstPeriod?.start_time_epoch_sec;
-      timeSeconds.endTime = firstPeriod?.end_time_epoch_sec;
-    }
-
-    if(!timeSeconds.endTime) {
-      timeSeconds.endTime = Math.floor(currentDateTime.getTime() / 1000);
-    }
-
-    const titleType = this.rootStore.dataStore.titleContentType;
-
-    if(!targetLibraryId) {
-      targetLibraryId = yield this.client.ContentObjectLibraryId({objectId});
-    }
-
-    const streams = this.rootStore.streamStatusStore.streams;
-    const streamSlug = Object.keys(streams || {}).find(slug => (
-      streams[slug].objectId === objectId
-    ));
-    const targetTitle = title || `${streams[streamSlug]?.title || objectId} VoD`;
-
-    const createResponse = yield this.client.CreateContentObject({
-      libraryId: targetLibraryId,
-      options: titleType ?
-        {
-          type: titleType,
-          meta: {
-            public: {
-              name: targetTitle
-            }
-          }
-        } :
-        {}
-    });
-    const targetObjectId = createResponse.id;
-
-    try {
-      yield this.client.FinalizeContentObject({
-        libraryId: targetLibraryId,
-        objectId: targetObjectId,
-        writeToken: createResponse.writeToken,
-        awaitCommitConfirmation: true,
-        commitMessage: "Create VoD object"
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to finalize object", error);
-      throw error;
-    }
-
-    try {
-      yield this.client.SetPermission({
-        objectId: targetObjectId,
-        permission: "editable"
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to set permission", error);
-      throw error;
-    }
-
-    if(accessGroup) {
-      this.AddAccessGroupPermission({
-        objectId: targetObjectId,
-        groupName: accessGroup
-      });
-    }
-
-    let response: StreamStatus;
-    try {
-      response = yield this.client.StreamCopyToVod({
-        name: objectId,
-        targetObjectId,
-        recordingPeriod,
-        startTime,
-        endTime,
-        fcTimeout: 900
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to copy to VoD.", error);
-      throw error;
-    }
-
-    if(!response) {
-      throw Error("Unable to copy to VoD. Is part available?");
-    } else if(response) {
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      const {writeToken} = yield this.client.EditContentObject({
-        objectId,
-        libraryId
-      });
-
-      let copiesMetadata = yield this.client.ContentObjectMetadata({
-        objectId,
-        libraryId,
-        metadataSubtree: "live_recording_copies"
-      });
-
-      if(!copiesMetadata) {
-        copiesMetadata = {};
-      }
-
-      copiesMetadata[targetObjectId] = {
-        startTime: timeSeconds.startTime,
-        endTime: timeSeconds.endTime,
-        create_time: currentDateTime.getTime(),
-        title: targetTitle
-      };
-
-      yield this.client.ReplaceMetadata({
-        objectId,
-        libraryId,
-        writeToken,
-        metadataSubtree: "/live_recording_copies",
-        metadata: copiesMetadata
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        awaitCommitConfirmation: true,
-        commitMessage: "Update live recording copies"
-      });
-
-      return response;
-    }
-  }
   *SaveStreamTags({objectId, slug, tags}: {objectId: string, slug: string, tags: string[]}): Generator<any, void> {
     try {
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});

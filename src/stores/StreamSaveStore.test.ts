@@ -1,4 +1,4 @@
-import {describe, it, expect, vi} from "vitest";
+import {describe, it, expect, vi, type Mock} from "vitest";
 
 vi.mock("mobx", async () => ({
   ...(await vi.importActual("mobx")),
@@ -14,7 +14,7 @@ import StreamSaveStore, {type SavablePanelId} from "@/stores/StreamSaveStore";
 // a bare, empty root store stub is enough for every describe block below.
 const makeRootStore = () => ({} as any);
 
-const makePanel = (overrides: Partial<{Save: () => Promise<void>, Discard: () => void}> = {}) => ({
+const makePanel = (overrides: Partial<{Save: Mock, Discard: Mock}> = {}) => ({
   Save: vi.fn().mockResolvedValue(undefined),
   Discard: vi.fn(),
   ...overrides

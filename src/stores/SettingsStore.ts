@@ -74,6 +74,7 @@ class SettingsStore {
   dedicatedNodes: DedicatedNodeMap;
   loadedDedicatedNodes = false;
   srtUrlsByStream: Record<string, SrtUrlInfo>;
+  // Saved order; the Declared Tags settings page edits this list as-is.
   declaredTags: string[] = [];
   loadedDeclaredTags = false;
   customDomain = "";
@@ -86,6 +87,10 @@ class SettingsStore {
 
   get client() {
     return this.rootStore.client;
+  }
+
+  get sortedDeclaredTags(): string[] {
+    return [...(this.declaredTags ?? [])].sort();
   }
 
   get siteId(): string {

@@ -4,7 +4,7 @@ import {ActionIcon, Box, Button, Divider, Group, Stack, Text, Title, Tooltip} fr
 import {DataTable} from "mantine-datatable";
 import {IconPencil, IconPlayerPlay, IconPlayerStop, IconPlus, IconTrash} from "@tabler/icons-react";
 import {notifications} from "@mantine/notifications";
-import {settingsStore, modalStore, streamEditStore, streamStatusStore} from "@/stores/index.ts";
+import {settingsStore, modalStore, alternateTranscodeStore, streamStatusStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS, STATUS_MAP} from "@/utils/constants.ts";
 import {VideoBitrateReadable} from "@/utils/formatters.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
@@ -92,8 +92,8 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
     setSaving(true);
     try {
       const record = values.id ?
-        await streamEditStore.SaveAlternateTranscode({objectId: values.id, ...values}) :
-        await streamEditStore.CreateAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, ...values});
+        await alternateTranscodeStore.SaveAlternateTranscode({objectId: values.id, ...values}) :
+        await alternateTranscodeStore.CreateAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, ...values});
 
       const exists = (records || []).some(r => r.id === record.id);
       onChange(exists ? records.map(r => r.id === record.id ? record : r) : [...(records || []), record]);
@@ -113,7 +113,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
 
   const HandleDelete = async(id) => {
     try {
-      await streamEditStore.RemoveAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, id});
+      await alternateTranscodeStore.RemoveAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, id});
       onChange((records || []).filter(r => r.id !== id));
     } catch(error) {
       notifications.show({

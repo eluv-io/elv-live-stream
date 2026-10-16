@@ -30,7 +30,7 @@ afterEach(() => {
 // Factory
 // ---------------------------------------------------------------------------
 
-const makeClient = (overrides: Record<string, unknown> = {}) => ({
+const makeClient = (overrides: Record<string, unknown> = {}): Record<string, any> => ({
   ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-outputs"),
   ContentObjectMetadata: vi.fn().mockResolvedValue(null),
   OutputsList: vi.fn().mockResolvedValue({}),

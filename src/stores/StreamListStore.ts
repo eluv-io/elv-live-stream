@@ -100,13 +100,9 @@ class StreamListStore {
     return this.rootStore.client;
   }
 
-  get declaredTags(): string[] {
-    return [...(this.rootStore.settingsStore.declaredTags ?? [])].sort();
-  }
-
   // Tags found on streams that aren't declared in settings
   get discoverTags(): string[] {
-    const declared = new Set(this.declaredTags);
+    const declared = new Set(this.rootStore.settingsStore.declaredTags);
     const tags = new Set<string>();
     Object.values(this.rootStore.streamStatusStore.streams || {}).forEach(s => s.tags?.forEach(t => declared.has(t) || tags.add(t)));
     return Array.from(tags).sort();
@@ -114,12 +110,12 @@ class StreamListStore {
 
   // Declared tags first, then discover
   get allTags(): string[] {
-    return [...this.declaredTags, ...this.discoverTags];
+    return [...this.rootStore.settingsStore.sortedDeclaredTags, ...this.discoverTags];
   }
 
   // Only the RADIO tag filters by name; every other tag matches the stream's own tags
   IsNameTag = (tag: string): boolean => {
-    return this.declaredTags.includes(tag) && tag.toLowerCase() === "radio";
+    return this.rootStore.settingsStore.declaredTags.includes(tag) && tag.toLowerCase() === "radio";
   };
 
   StreamMatchesTag = (stream: StreamInfo, tag: string): boolean => {
