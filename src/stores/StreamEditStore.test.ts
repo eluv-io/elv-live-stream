@@ -2261,7 +2261,8 @@ describe("CreateAlternateTranscode cleanup", () => {
       EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-node"}),
       MergeMetadata: vi.fn().mockResolvedValue(undefined),
       DeleteWriteToken: vi.fn().mockResolvedValue(undefined),
-      DeleteContentObject: vi.fn().mockResolvedValue(undefined)
+      DeleteContentObject: vi.fn().mockResolvedValue(undefined),
+      CreateSignedToken: vi.fn().mockResolvedValue("aessjc-token")
     };
     const store = new StreamEditStore({
       client: mockClient,

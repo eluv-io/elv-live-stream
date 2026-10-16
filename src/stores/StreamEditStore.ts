@@ -24,7 +24,8 @@ import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/StreamStore";
 import {PermissionLevel} from "@/stores/DataStore";
 
-// Resolve a fabric region (elvgeo) to a concrete node ID
+const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+
 const ResolveIngestNodeId = async({client, geo}: {client: any, geo?: string}): Promise<string> => {
   const configUrl = new URL(await client.ConfigUrl());
   configUrl.pathname = "/config";
@@ -46,8 +47,8 @@ const ResolveIngestNodeId = async({client, geo}: {client: any, geo?: string}): P
 };
 
 // Empty clears the value (null); anything else must be a positive integer
-const ParseBitrate = (value: string, label: string): number | null => {
-  if(!value.trim()) { return null; }
+const ParseBitrate = (value: string | number, label: string): number | null => {
+  if(typeof value === "string" && !value.trim()) { return null; }
 
   const bitrate = Number(value);
   if(!Number.isInteger(bitrate) || bitrate <= 0) {
@@ -90,8 +91,8 @@ interface AlternateTranscodeFormParams {
   geo?: string;
   protocol: string;
   resolution?: string;
-  videoBitrate?: string;
-  streamBitrate?: string;
+  videoBitrate?: string | number;
+  streamBitrate?: string | number;
   advancedEncodingParams?: Record<string, unknown> | null;
   programPidSelection?: ProgramPidSelection;
 }
@@ -166,8 +167,8 @@ interface UpdateConfigMetadataParams {
   // videoBitrate/streamBitrate are written to
   // live_recording/recording_config/recording_params/xc_params, not the
   // recording_config above.
-  videoBitrate?: string;
-  streamBitrate?: string;
+  videoBitrate?: string | number;
+  streamBitrate?: string | number;
   programPidSelection?: ProgramPidSelection;
   // Replaces live_recording_config/recording_params/xc_params; empty/null/undefined is a no-op.
   advancedEncodingParams?: Record<string, unknown> | null;
@@ -464,9 +465,21 @@ class StreamEditStore {
         commitMessage: "Reserve alternate transcode object"
       });
 
+      const inputStreamToken = yield this.client.CreateSignedToken({
+        objectId: parentObjectId,
+        duration: ONE_MONTH_MS
+      });
+
+      const baseProfile = {
+        ...defaultConfigProfile,
+        recording_params: {
+          ...defaultConfigProfile.recording_params,
+          input_stream: {stream: parentObjectId, token: inputStreamToken}
+        }
+      };
       const configProfile = (resolvedNodeId && parentProbeInfo) ?
-        {...defaultConfigProfile, input_stream_info: parentProbeInfo} :
-        defaultConfigProfile;
+        {...baseProfile, input_stream_info: parentProbeInfo} :
+        baseProfile;
 
       yield this.client.StreamCreate({
         libraryId: parentLibraryId,

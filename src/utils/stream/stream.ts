@@ -150,8 +150,8 @@ export interface AlternateTranscode {
   resolvedNodeId?: string;
   protocol: string;
   resolution?: string;
-  videoBitrate?: string;
-  streamBitrate?: string;
+  videoBitrate?: string | number;
+  streamBitrate?: string | number;
   advancedEncodingParams?: Record<string, unknown> | null;
   programPidSelection?: ProgramPidSelection;
 }
@@ -298,7 +298,7 @@ export interface LiveRecordingConfigProfile {
   playout_config?: PlayoutConfig;
   recording_stream_config?: { audio?: Record<string, AudioStreamConfig> };
   input_stream_info?: Record<string, unknown>;
-  recording_params?: { xc_params?: XcParams };
+  recording_params?: { xc_params?: XcParams; input_stream?: { stream: string; token: string } };
   probe_info?: Record<string, unknown>;
 }
 
