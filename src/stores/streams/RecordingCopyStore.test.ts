@@ -44,7 +44,7 @@ const makeCopyToVodStore = ({
 
   const mockRootStore = {
     client: mockClient,
-    dataStore: {titleContentType},
+    tenantStore: {titleContentType},
     profileStore: {profiles: {}},
     streamStatusStore: {streams}
   };
@@ -268,7 +268,7 @@ describe("FetchLiveRecordingCopies", () => {
     };
     const store = new RecordingCopyStore({
       client: mockClient,
-      dataStore: {},
+      tenantStore: {},
       profileStore: {profiles: {}},
       streamStatusStore: {}
     }) as any;
@@ -337,7 +337,7 @@ const makeDeleteCopyStore = (initialCopies: Record<string, {title: string}> = {"
   const fetchCopiesSpy = stubFlow("FetchLiveRecordingCopies", {...initialCopies});
   const store = new RecordingCopyStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
     streamStatusStore: {}
   }) as any;

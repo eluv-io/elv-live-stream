@@ -51,10 +51,9 @@ flowchart TD
     G -->|no| I
     H --> I[FinalizeContentObject stream<br/>'Apply general config']
     I --> J[StreamStatusStore.SetStream<br/>tags, configProfile]
-    J --> K[return probeCleared]
 ```
 
-Note: `probeCleared` returned from `SaveGeneralConfig` is not read by `GeneralPanel.Save()` — the UI does not branch on it. Worth knowing if you're tracing "why didn't anything visibly change" on a profile apply.
+`probeCleared` only drives the audio-resync branch inside `ApplyStreamProfile`; `SaveGeneralConfig` doesn't surface it, so the UI shows no signal when a profile apply clears probe data.
 
 ## `ProfileStore` — where profiles come from
 
@@ -69,7 +68,7 @@ Note: `probeCleared` returned from `SaveGeneralConfig` is not read by `GeneralPa
 - `src/stores/streams/StreamEditStore.ts` — `ApplyStreamProfile`
 - `src/stores/streams/StreamEditStore.ts` — `SaveGeneralConfig` (primary caller)
 - `src/stores/streams/StreamEditStore.ts` — `SaveStreamAudioSettings` fallback branch (reconstructs audio index from ladder specs when no probe data exists yet)
-- `src/pages/streams/details/general/GeneralPanel.jsx` — `Save()`, which calls `SaveGeneralConfig` and ignores its `probeCleared` result
+- `src/pages/streams/details/general/GeneralPanel.jsx` — `Save()`, which calls `SaveGeneralConfig`
 - `src/stores/ProfileStore.ts` — `LoadProfiles`
 - `src/stores/ProfileStore.ts` — `SaveProfiles` (includes rename migration of `profile_streams`)
 - `src/stores/ProfileStore.ts` — `DeleteProfile`

@@ -1,6 +1,6 @@
 import {configure, makeAutoObservable} from "mobx";
 import {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
-import DataStore from "@/stores/DataStore";
+import TenantStore from "@/stores/TenantStore";
 import StreamStatusStore from "@/stores/streams/StreamStatusStore";
 import StreamDetailStore from "@/stores/streams/StreamDetailStore";
 import StreamListStore from "@/stores/streams/StreamListStore";
@@ -37,7 +37,7 @@ class RootStore {
   contentSpaceId?: string;
   errorMessage?: string;
 
-  dataStore: DataStore;
+  tenantStore: TenantStore;
   streamStatusStore: StreamStatusStore;
   streamDetailStore: StreamDetailStore;
   streamListStore: StreamListStore;
@@ -56,7 +56,7 @@ class RootStore {
   versionStore: VersionStore;
 
   constructor() {
-    this.dataStore = new DataStore(this);
+    this.tenantStore = new TenantStore(this);
     this.streamStatusStore = new StreamStatusStore(this);
     this.streamDetailStore = new StreamDetailStore(this);
     this.streamListStore = new StreamListStore(this);
@@ -88,14 +88,14 @@ class RootStore {
       this.contentSpaceId = yield this.client.ContentSpaceId();
 
       yield Promise.all([
-        this.dataStore.Initialize(),
+        this.tenantStore.Initialize(),
         this.userSettingsStore.Load()
       ]);
 
       this.streamListStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.streams);
       this.outputStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.outputs);
 
-      // Needs siteId from dataStore.Initialize; started here so it's in flight before the streams page mounts.
+      // Needs siteId from tenantStore.Initialize; started here so it's in flight before the streams page mounts.
       this.streamListStore.PrefetchStreamList();
     } catch(error) {
       /* eslint-disable no-console */

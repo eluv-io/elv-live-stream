@@ -192,7 +192,7 @@ class RecordingCopyStore {
       timeSeconds.endTime = Math.floor(currentDateTime.getTime() / 1000);
     }
 
-    const titleType = this.rootStore.dataStore.titleContentType;
+    const titleType = this.rootStore.tenantStore.titleContentType;
 
     if(!targetLibraryId) {
       targetLibraryId = yield this.client.ContentObjectLibraryId({objectId});

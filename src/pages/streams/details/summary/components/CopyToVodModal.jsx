@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {Box, Button, Flex, Loader, Modal, Select, Text, TextInput} from "@mantine/core";
-import {dataStore} from "@/stores/index.ts";
+import {tenantStore} from "@/stores/index.ts";
 
 const CopyToVodModal = observer(({
   show,
@@ -22,7 +22,7 @@ const CopyToVodModal = observer(({
   useEffect(() => {
     const SetDefaultLibrary = () => {
       // Default to title mezzanine library
-      const libraryMatchMezz = Object.keys(dataStore.libraries || {}).find(libId => dataStore.libraries[libId].name.toLowerCase().includes("title mezzanines"));
+      const libraryMatchMezz = Object.keys(tenantStore.libraries || {}).find(libId => tenantStore.libraries[libId].name.toLowerCase().includes("title mezzanines"));
 
       if(libraryMatchMezz) {
         setLibraryId(libraryMatchMezz);
@@ -31,7 +31,7 @@ const CopyToVodModal = observer(({
 
     const SetDefaultGroup = () => {
       // Default to content admin group
-      const groupMatchAdmin = Object.keys(dataStore.accessGroups || {})
+      const groupMatchAdmin = Object.keys(tenantStore.accessGroups || {})
         .find(groupName => groupName.toLowerCase().includes("content admin"));
 
       if(groupMatchAdmin) {
@@ -43,7 +43,7 @@ const CopyToVodModal = observer(({
       try {
         setLoadingLibraries(true);
 
-        await dataStore.LoadLibraries();
+        await tenantStore.LoadLibraries();
 
         SetDefaultLibrary();
       } finally {
@@ -55,20 +55,20 @@ const CopyToVodModal = observer(({
       try {
         setLoadingGroups(true);
 
-        await dataStore.LoadAccessGroups();
+        await tenantStore.LoadAccessGroups();
         SetDefaultGroup();
       } finally {
         setLoadingGroups(false);
       }
     };
 
-    if(!dataStore.libraries) {
+    if(!tenantStore.libraries) {
       LoadLibraries();
     } else {
       SetDefaultLibrary();
     }
 
-    if(!dataStore.accessGroups) {
+    if(!tenantStore.accessGroups) {
       LoadGroups();
     } else {
       SetDefaultGroup();
@@ -87,16 +87,16 @@ const CopyToVodModal = observer(({
     >
       <Box w="100%">
         {
-          (!dataStore.libraries || loadingLibraries) ?
+          (!tenantStore.libraries || loadingLibraries) ?
             <Box><Loader /></Box> :
             (
               <Select
                 label="Library"
                 required={true}
                 data={
-                  Object.keys(dataStore.libraries || {}).map(libraryId => (
+                  Object.keys(tenantStore.libraries || {}).map(libraryId => (
                     {
-                      label: dataStore.libraries[libraryId].name || "",
+                      label: tenantStore.libraries[libraryId].name || "",
                       value: libraryId
                     }
                   ))
@@ -110,14 +110,14 @@ const CopyToVodModal = observer(({
         }
 
         {
-          (!dataStore.accessGroups || loadingGroups) ?
+          (!tenantStore.accessGroups || loadingGroups) ?
             <Box mt={12}><Loader /></Box> :
             (
               <Select
                 label="Access Group"
                 description="This is the Access Group that will manage your live stream object."
                 data={
-                  Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
+                  Object.keys(tenantStore.accessGroups || {}).map(accessGroupName => (
                     {
                       label: accessGroupName,
                       value: accessGroupName

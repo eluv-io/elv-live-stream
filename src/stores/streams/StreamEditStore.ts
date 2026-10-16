@@ -19,7 +19,7 @@ import {slugify} from "@/utils/helpers";
 import {WithWriteToken} from "@/utils/fabric/withWriteToken";
 import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/streams/StreamDetailStore";
-import {PermissionLevel} from "@/stores/DataStore";
+import {PermissionLevel} from "@/stores/TenantStore";
 
 // Empty clears the value (null); anything else must be a positive integer
 const ParseBitrate = (value: string | number, label: string): number | null => {
@@ -278,7 +278,7 @@ class StreamEditStore {
         persistent
       });
 
-      const groupAddress = this.rootStore.dataStore.accessGroups[accessGroup]?.address;
+      const groupAddress = this.rootStore.tenantStore.accessGroups[accessGroup]?.address;
 
       const response = yield this.client.StreamCreate({
         libraryId,
@@ -354,7 +354,7 @@ class StreamEditStore {
         libraryId,
         originalVersionHash: originalVersionHash || originalStream?.versionHash,
         options: {
-          type: this.rootStore.dataStore.titleContentType,
+          type: this.rootStore.tenantStore.titleContentType,
           meta: {
             public: {
               name: targetTitle
@@ -444,8 +444,8 @@ class StreamEditStore {
     }));
 
     const {writeToken} = yield this.client.EditContentObject({
-      libraryId: this.rootStore.dataStore.siteLibraryId,
-      objectId: this.rootStore.dataStore.siteId
+      libraryId: this.rootStore.tenantStore.siteLibraryId,
+      objectId: this.rootStore.tenantStore.siteId
     });
 
     for(const {objectId, slug} of resolved) {
@@ -465,8 +465,8 @@ class StreamEditStore {
     }
 
     yield this.client.FinalizeContentObject({
-      libraryId: this.rootStore.dataStore.siteLibraryId,
-      objectId: this.rootStore.dataStore.siteId,
+      libraryId: this.rootStore.tenantStore.siteLibraryId,
+      objectId: this.rootStore.tenantStore.siteId,
       writeToken,
       commitMessage: "Remove live streams",
       awaitCommitConfirmation: true
@@ -500,7 +500,7 @@ class StreamEditStore {
   }: {objectId: string, groupName?: string, groupAddress?: string}): Generator<any, void> {
     try {
       if(!groupAddress) {
-        groupAddress = this.rootStore.dataStore.accessGroups[groupName]?.address;
+        groupAddress = this.rootStore.tenantStore.accessGroups[groupName]?.address;
       }
 
       yield this.client.AddContentObjectGroupPermission({
@@ -997,7 +997,7 @@ class StreamEditStore {
     updatePermission=false,
     updateAccessGroup=false,
     removeAccessGroup
-  }: UpdateGeneralConfigParams): Generator<any, {probeCleared: boolean}> {
+  }: UpdateGeneralConfigParams): Generator<any, void> {
     const {accessGroup, name, url, description, displayTitle, permission, tags} = formData;
 
     if(!libraryId) {
@@ -1057,21 +1057,18 @@ class StreamEditStore {
       }
     }
 
-    let probeCleared = false;
     if(configProfile) {
-      const {siteWriteToken, probeCleared: cleared} = yield this.ApplyStreamProfile({
+      const {siteWriteToken} = yield this.ApplyStreamProfile({
         objectId,
         writeToken,
         profileSlug: configProfile,
         finalize: false
       });
 
-      probeCleared = cleared ?? false;
-
       if(siteWriteToken) {
         yield this.client.FinalizeContentObject({
-          libraryId: this.rootStore.dataStore.siteLibraryId,
-          objectId: this.rootStore.dataStore.siteId,
+          libraryId: this.rootStore.tenantStore.siteLibraryId,
+          objectId: this.rootStore.tenantStore.siteId,
           writeToken: siteWriteToken,
           commitMessage: "Update profile streams"
         });
@@ -1107,8 +1104,6 @@ class StreamEditStore {
         ...(configProfile ? {configProfile} : {})
       }
     });
-
-    return {probeCleared};
   }
 
   *SavePlayoutConfig({
@@ -1212,8 +1207,8 @@ class StreamEditStore {
 
       if(response?.siteWriteToken) {
         yield this.client.FinalizeContentObject({
-          libraryId: this.rootStore.dataStore.siteLibraryId,
-          objectId: this.rootStore.dataStore.siteId,
+          libraryId: this.rootStore.tenantStore.siteLibraryId,
+          objectId: this.rootStore.tenantStore.siteId,
           writeToken: response.siteWriteToken,
           commitMessage: "Apply stream profile",
           awaitCommitConfirmation: true

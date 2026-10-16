@@ -37,7 +37,7 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
   const rootStore = {
     client: mockClient,
     streamGroupStore: {BuildGroups: vi.fn()},
-    dataStore: {},
+    tenantStore: {},
     settingsStore: {}
   };
 

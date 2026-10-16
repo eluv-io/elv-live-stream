@@ -73,7 +73,7 @@ class AlternateTranscodeStore {
         parentLibraryId = yield this.client.ContentObjectLibraryId({objectId: parentObjectId});
       }
 
-      const {contentTypes} = yield this.rootStore.dataStore.LoadTenantSiteData();
+      const {contentTypes} = yield this.rootStore.tenantStore.LoadTenantSiteData();
 
       // alternate_transcodes is appended to below; probe_info seeds
       // input_stream_info below.

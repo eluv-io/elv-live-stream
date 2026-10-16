@@ -82,7 +82,7 @@ vi.mock("@/stores", () => {
         }
       }
     },
-    dataStore: {
+    tenantStore: {
       tenantId: "tenant123",
       libraries: { "ilib123": { name: "Test Library" } },
       accessGroups: {},

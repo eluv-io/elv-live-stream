@@ -89,7 +89,7 @@ export interface StreamInfo {
 }
 
 
-class DataStore {
+class TenantStore {
   rootStore: RootStore;
   loaded = false;
   libraries: LibraryMap;
@@ -313,4 +313,4 @@ class DataStore {
   }
 }
 
-export default DataStore;
+export default TenantStore;

@@ -42,7 +42,7 @@ const makeStore = ({siteId = "iq__site", siteLibraryId = "ilib-site", client = {
   };
   const rootStore = {
     client: mockClient,
-    dataStore: {siteId, siteLibraryId}
+    tenantStore: {siteId, siteLibraryId}
   };
   const store = new ProfileStore(rootStore as any);
   return {store, mockClient};

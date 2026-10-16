@@ -8,7 +8,7 @@ import {
 } from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {dataStore, settingsStore, streamStatusStore, streamDetailStore} from "@/stores/index.ts";
+import {tenantStore, settingsStore, streamStatusStore, streamDetailStore} from "@/stores/index.ts";
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router-dom";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
@@ -67,7 +67,7 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
     const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === item.region)?.label || "";
 
     const token = item.url?.match(/aessjc[a-zA-Z0-9]+/);
-    const decoded = token ? dataStore.client.utils.DecodeSignedToken(token[0]) : {};
+    const decoded = token ? tenantStore.client.utils.DecodeSignedToken(token[0]) : {};
 
     return ({
       value: item.url,

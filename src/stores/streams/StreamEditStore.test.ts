@@ -50,7 +50,7 @@ const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => 
 
   const mockRootStore = {
     client: mockClient,
-    dataStore: {siteId: "site123", siteLibraryId: "ilib-site"},
+    tenantStore: {siteId: "site123", siteLibraryId: "ilib-site"},
     profileStore: {
       profiles: {[profileSlug]: profile}
     },
@@ -129,7 +129,7 @@ const makeApplyProfileStore = () => {
 
   const mockRootStore = {
     client: mockClient,
-    dataStore: {siteId: "site123", siteLibraryId: "ilib-site"},
+    tenantStore: {siteId: "site123", siteLibraryId: "ilib-site"},
     profileStore: {
       profiles: {
         "new-profile": {
@@ -166,7 +166,7 @@ const makeSyncStore = (metadataResponse = {}) => {
     ContentObjectMetadata: vi.fn().mockResolvedValue(metadataResponse)
   };
   const updateAudioSpy = stubFlow("SaveStreamAudioSettings");
-  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStatusStore: {}}) as any;
+  const store = new StreamEditStore({client: mockClient, tenantStore: {}, profileStore: {profiles: {}}, streamStatusStore: {}}) as any;
   return {store, mockClient, updateAudioSpy};
 };
 
@@ -191,7 +191,7 @@ const makeUpdateAudioStore = ({ladderSpecs = null, xcParams = null} = {}) => {
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined)
   };
   const updateLadderSpy = stubFlow("SaveAudioLadderSpecs", defaultLadderResult);
-  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStatusStore: {}}) as any;
+  const store = new StreamEditStore({client: mockClient, tenantStore: {}, profileStore: {profiles: {}}, streamStatusStore: {}}) as any;
   return {store, mockClient, updateLadderSpy};
 };
 
@@ -321,7 +321,7 @@ const makeLadderStore = ({metadataAudioData = null} = {}) => {
   const mockClient = {
     ContentObjectMetadata: vi.fn().mockResolvedValue(metadataAudioData),
   };
-  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStatusStore: {}}) as any;
+  const store = new StreamEditStore({client: mockClient, tenantStore: {}, profileStore: {profiles: {}}, streamStatusStore: {}}) as any;
   return {store, mockClient};
 };
 
@@ -829,7 +829,7 @@ const makeConfigureStreamStore = ({
   const syncAudioSpy = stubFlow("SyncAudioToProbe");
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
     streamStatusStore: mockStreamStatusStore,
     streamDetailStore: mockStreamDetailStore,
@@ -973,7 +973,7 @@ const makeWatermarkStore = ({checkStatusState = "running"} = {}) => {
   const removeWatermarkSpy = stubFlow("RemoveWatermark");
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
     streamStatusStore: mockStreamStatusStore,
   }) as any;
@@ -1184,7 +1184,7 @@ const makeDrmStore = ({checkStatusState = "running"} = {}) => {
 
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
     streamStatusStore: mockStreamStatusStore,
   }) as any;
@@ -1360,7 +1360,7 @@ const makeDeleteStreamStore = (streams = {}) => {
   const mockStreamListStore = {SetStreams: vi.fn()};
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {siteId: "iq__site", siteLibraryId: "ilib-site"},
+    tenantStore: {siteId: "iq__site", siteLibraryId: "ilib-site"},
     profileStore: {profiles: {}},
     streamStatusStore: mockStreamStatusStore,
     streamListStore: mockStreamListStore,
@@ -1480,7 +1480,7 @@ const makeConfigMetaStore = ({existingConfig = {}} = {}) => {
   const mockStreamStatusStore = {SetStream: vi.fn()};
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
     streamStatusStore: mockStreamStatusStore,
   }) as any;
@@ -1644,7 +1644,7 @@ const makeAddWatermarkStore = () => {
   const mockStreamStatusStore = {SetStream: vi.fn()};
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
     streamStatusStore: mockStreamStatusStore,
   }) as any;
@@ -1711,7 +1711,7 @@ const makeRemoveWatermarkStore = () => {
   const mockStreamStatusStore = {SetStream: vi.fn()};
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
     streamStatusStore: mockStreamStatusStore,
   }) as any;
@@ -1775,7 +1775,7 @@ const makePlayoutConfigStore = ({status = "inactive"} = {}) => {
   const configMetaSpy = stubFlow("SaveConfigMetadata");
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
     streamStatusStore: mockStreamStatusStore,
   }) as any;

@@ -4,7 +4,7 @@ import UrlJoin from "url-join";
 import {WithTimeout} from "@/utils/helpers";
 import {STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import type RootStore from "@/stores/RootStore";
-import {StreamInfo} from "@/stores/DataStore";
+import {StreamInfo} from "@/stores/TenantStore";
 import {StreamOp} from "@/stores/streams/StreamModalStore";
 
 interface StreamFrameUrl {

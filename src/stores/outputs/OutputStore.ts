@@ -155,8 +155,8 @@ class OutputStore {
 
   *LoadOutputSettingsId(): Generator<any, void> {
     try {
-      let siteLibraryId = this.rootStore.dataStore.siteLibraryId;
-      let siteObjectId = this.rootStore.dataStore.siteId;
+      let siteLibraryId = this.rootStore.tenantStore.siteLibraryId;
+      let siteObjectId = this.rootStore.tenantStore.siteId;
 
       if(!siteLibraryId) {
         ({siteLibraryId, siteObjectId} = yield this.client.StreamSiteSettings({resolveLinks: false}));
@@ -414,7 +414,7 @@ class OutputStore {
    * Load candidate egress nodes for a region, for the optional "pick a specific
    * node" dropdown under Public. Only ever driven by one mounted form at a time,
    * so this uses a request-id guard (rather than full promise-dedupe like
-   * DataStore.LoadAccessGroups) to drop stale responses if the user flips
+   * TenantStore.LoadAccessGroups) to drop stale responses if the user flips
    * regions before the previous fetch resolves.
    */
   *LoadNodesByRegion({region, force = false}: {region: string, force?: boolean}): Generator<any, void> {

@@ -17,7 +17,7 @@ const makeStore = () => {
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
     DeleteWriteToken: vi.fn().mockResolvedValue(undefined)
   };
-  const store = new SettingsStore({client, dataStore: {siteId: "iq__site", siteLibraryId: "ilib-site"}} as any) as any;
+  const store = new SettingsStore({client, tenantStore: {siteId: "iq__site", siteLibraryId: "ilib-site"}} as any) as any;
   return {store, client};
 };
 

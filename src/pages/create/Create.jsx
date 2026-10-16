@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {dataStore, settingsStore, rootStore, streamEditStore, profileStore} from "@/stores/index.ts";
+import {tenantStore, settingsStore, rootStore, streamEditStore, profileStore} from "@/stores/index.ts";
 import {useNavigate} from "react-router-dom";
 import {
   Box,
@@ -80,8 +80,8 @@ const Create = observer(() => {
 
   useEffect(() => {
     const promises = [
-      dataStore.LoadAccessGroups(),
-      dataStore.LoadLibraries(),
+      tenantStore.LoadAccessGroups(),
+      tenantStore.LoadLibraries(),
       settingsStore.LoadStreamUrls()
     ];
 
@@ -279,7 +279,7 @@ const Create = observer(() => {
             name="accessGroup"
             description="Access Group responsible for managing your live stream object."
             data={
-              Object.keys(dataStore.accessGroups || {}).map(accessGroupName => (
+              Object.keys(tenantStore.accessGroups || {}).map(accessGroupName => (
                 {
                   label: accessGroupName,
                   value: accessGroupName
@@ -299,9 +299,9 @@ const Create = observer(() => {
           description="Select the library where your live stream object will be stored."
           required={true}
           data={
-            Object.keys(dataStore.libraries || {}).map(libraryId => (
+            Object.keys(tenantStore.libraries || {}).map(libraryId => (
               {
-                label: dataStore.libraries[libraryId].name || "",
+                label: tenantStore.libraries[libraryId].name || "",
                 value: libraryId
               }
             ))

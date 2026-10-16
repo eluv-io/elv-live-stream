@@ -24,7 +24,7 @@ describe("SaveAlternateTranscode", () => {
       MergeMetadata: vi.fn().mockResolvedValue(undefined),
       DeleteWriteToken: vi.fn().mockResolvedValue(undefined)
     };
-    const store = new AlternateTranscodeStore({client: mockClient, dataStore: {}, streamEditStore: {SaveConfigMetadata: configMetaSpy}} as any) as any;
+    const store = new AlternateTranscodeStore({client: mockClient, tenantStore: {}, streamEditStore: {SaveConfigMetadata: configMetaSpy}} as any) as any;
     return {store, mockClient, configMetaSpy};
   };
 
@@ -65,7 +65,7 @@ describe("CreateAlternateTranscode cleanup", () => {
     };
     const store = new AlternateTranscodeStore({
       client: mockClient,
-      dataStore: {LoadTenantSiteData: vi.fn().mockResolvedValue({contentTypes: {}})},
+      tenantStore: {LoadTenantSiteData: vi.fn().mockResolvedValue({contentTypes: {}})},
       streamEditStore: {SaveConfigMetadata: configMetaSpy}
     } as any) as any;
     return {store, mockClient, configMetaSpy};

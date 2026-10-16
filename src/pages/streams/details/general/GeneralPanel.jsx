@@ -16,7 +16,7 @@ import {
 import {useEffect, useMemo, useRef, useState} from "react";
 import {toJS} from "mobx";
 import {useForm} from "@mantine/form";
-import {dataStore, streamEditStore, streamStatusStore, streamDetailStore, profileStore, streamSaveStore, streamListStore} from "@/stores/index.ts";
+import {tenantStore, streamEditStore, streamStatusStore, streamDetailStore, profileStore, streamSaveStore, streamListStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
@@ -68,7 +68,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
         const libraryId = streamStatusStore.streams[slug]?.libraryId;
         await Promise.all([
           streamDetailStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug}),
-          dataStore.LoadAccessGroups(),
+          tenantStore.LoadAccessGroups(),
           profileStore.state !== "loaded" ? profileStore.LoadProfiles() : Promise.resolve()
         ]);
         const stream = streamStatusStore.streams[slug];
@@ -119,7 +119,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
 
     const values = form.getValues();
 
-    const result = await streamEditStore.SaveGeneralConfig({
+    await streamEditStore.SaveGeneralConfig({
       objectId: params.id,
       slug,
       formData: values,
@@ -132,8 +132,6 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
 
     setCurrentSettings({permission: values.permission, accessGroup: values.accessGroup});
     form.resetDirty(values);
-
-    return result;
   };
 
   const SaveRef = useRef();
@@ -155,23 +153,23 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
   ], [profileStore.sortedProfiles, profileStore.profiles]);
 
   const accessGroupOptions = useMemo(() =>
-    Object.keys(dataStore.accessGroups || {}).map(name => ({
+    Object.keys(tenantStore.accessGroups || {}).map(name => ({
       label: name,
-      value: dataStore.accessGroups[name]?.address
+      value: tenantStore.accessGroups[name]?.address
     })),
-    [dataStore.accessGroups]
+    [tenantStore.accessGroups]
   );
 
   const permissionOptions = useMemo(() =>
-    Object.keys(dataStore.client.permissionLevels || {}).map(name => ({
-      label: dataStore.client.permissionLevels[name].short,
+    Object.keys(tenantStore.client.permissionLevels || {}).map(name => ({
+      label: tenantStore.client.permissionLevels[name].short,
       value: name
     })),
     []
   );
 
   const permissionTooltipContent = useMemo(() =>
-    Object.values(dataStore.client.permissionLevels).map(({short, description}) =>
+    Object.values(tenantStore.client.permissionLevels).map(({short, description}) =>
       <Flex key={`permission-info-${short}`} gap="1rem" lh={1.25} pb={5}>
         <Flex flex="0 0 25%">{short}:</Flex>
         <Text fz="sm">{description}</Text>

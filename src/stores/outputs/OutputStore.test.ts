@@ -55,7 +55,7 @@ const makeStore = (clientOverrides: Record<string, unknown> = {}, streamStatusSt
 
   const mockRootStore = {
     client: mockClient,
-    dataStore: {
+    tenantStore: {
       siteLibraryId: "ilib-site",
       siteId: "iq__site"
     },

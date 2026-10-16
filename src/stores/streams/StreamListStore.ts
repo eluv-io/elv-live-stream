@@ -2,7 +2,7 @@
 import {makeAutoObservable} from "mobx";
 import {WithTimeout, FormatDateFilter, FormatStreamDate, GetDateRangePreset, DEFAULT_DATE_PRESET, type DateRangePreset} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
-import type {StreamInfo} from "@/stores/DataStore";
+import type {StreamInfo} from "@/stores/TenantStore";
 import {
   NextTenantPageStart,
   StreamInfoFromTenantVersion,
@@ -261,7 +261,7 @@ class StreamListStore {
 
   /** Tenant query params for the streams page's current search, tag and date filters. */
   _TenantQuery({scoped=true}: {scoped?: boolean} = {}) {
-    const {siteId} = this.rootStore.dataStore;
+    const {siteId} = this.rootStore.tenantStore;
     const {useDateFilter} = this.rootStore.settingsStore;
     // An object-id search ("iq__…") can't be expressed as a TenantContent filter, and
     // client-side tag matches need every stream, so both load the full set.
@@ -302,8 +302,8 @@ class StreamListStore {
     this.loadingMoreStreams = false;
     try {
       // Need the site object id for the tenant query scope (and any site-list fallback)
-      if(!this.rootStore.dataStore.siteId || !this.rootStore.dataStore.siteLibraryId) {
-        yield this.rootStore.dataStore.LoadTenantSiteData();
+      if(!this.rootStore.tenantStore.siteId || !this.rootStore.tenantStore.siteLibraryId) {
+        yield this.rootStore.tenantStore.LoadTenantSiteData();
       }
 
       // useContentGroup picks the source of truth outright - no fall-through between the two.
@@ -624,7 +624,7 @@ class StreamListStore {
     this.loadingAllStreams = true;
 
     try {
-      const siteId = this.rootStore.dataStore.siteId;
+      const siteId = this.rootStore.tenantStore.siteId;
       let streamMetadata: StreamMap = {};
 
       if(siteId && this.rootStore.settingsStore.useContentGroup) {
@@ -696,7 +696,7 @@ class StreamListStore {
    * TODO: server-side title_id filter once the group-data source lands.
    */
   *FetchStreamsByTitleId(titleId: string): Generator<any, StreamMap> {
-    const siteId = this.rootStore.dataStore.siteId;
+    const siteId = this.rootStore.tenantStore.siteId;
     if(!siteId || !titleId) { return {}; }
 
     const filter = TenantContentFilter(siteId);
@@ -761,13 +761,13 @@ class StreamListStore {
   // the tenant-wide tag query (LoadTenantLiveStreamContent) returns no content.
   *_LoadSiteStreams(): Generator<any, StreamMap> {
     try {
-      if(!this.rootStore.dataStore.siteLibraryId || !this.rootStore.dataStore.siteId) {
-        yield this.rootStore.dataStore.LoadTenantSiteData();
+      if(!this.rootStore.tenantStore.siteLibraryId || !this.rootStore.tenantStore.siteId) {
+        yield this.rootStore.tenantStore.LoadTenantSiteData();
       }
 
       const streamMetadata = yield this.client.ContentObjectMetadata({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId,
+        libraryId: this.rootStore.tenantStore.siteLibraryId,
+        objectId: this.rootStore.tenantStore.siteId,
         metadataSubtree: "public/asset_metadata/live_streams",
         resolveIncludeSource: true,
         resolveLinks: true,

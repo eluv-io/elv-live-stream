@@ -38,7 +38,7 @@ vi.mock("@/stores", () => ({
     LoadDeclaredTags: vi.fn().mockResolvedValue(undefined),
     dedicatedNodesList: []
   },
-  dataStore: {
+  tenantStore: {
     LoadDetails: vi.fn().mockResolvedValue(undefined),
     LoadPermission: vi.fn().mockResolvedValue("editable"),
     LoadAccessGroupPermissions: vi.fn().mockResolvedValue(""),

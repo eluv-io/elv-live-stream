@@ -32,7 +32,7 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, tenantContent} = {}
     client: mockClient,
     streamStatusStore,
     streamGroupStore: {BuildGroups: vi.fn()},
-    dataStore: {},
+    tenantStore: {},
     settingsStore: {
       declaredTags: [] as string[],
       get sortedDeclaredTags() { return [...this.declaredTags].sort(); }
@@ -248,7 +248,7 @@ describe("StreamListStore._TenantQuery", () => {
 
   it("scopes by date and pages when the site uses the date filter", () => {
     const {store} = makeStore();
-    Object.assign(store.rootStore.dataStore, {siteId: "iq__site"});
+    Object.assign(store.rootStore.tenantStore, {siteId: "iq__site"});
     store.rootStore.settingsStore.useDateFilter = true;
     store.dateRangeFilter = range;
 
@@ -257,7 +257,7 @@ describe("StreamListStore._TenantQuery", () => {
 
   it("loads the full unpaged set for an object-id search", () => {
     const {store} = makeStore();
-    Object.assign(store.rootStore.dataStore, {siteId: "iq__site"});
+    Object.assign(store.rootStore.tenantStore, {siteId: "iq__site"});
     store.rootStore.settingsStore.useDateFilter = true;
     store.dateRangeFilter = range;
     store.SetTableFilter("iq__abc");
@@ -267,7 +267,7 @@ describe("StreamListStore._TenantQuery", () => {
 
   it("drops scoping, name terms and paging when unscoped", () => {
     const {store} = makeStore();
-    Object.assign(store.rootStore.dataStore, {siteId: "iq__site"});
+    Object.assign(store.rootStore.tenantStore, {siteId: "iq__site"});
     store.rootStore.settingsStore.useDateFilter = true;
     store.dateRangeFilter = range;
 

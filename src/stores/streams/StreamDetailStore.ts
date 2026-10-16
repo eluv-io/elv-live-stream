@@ -13,7 +13,7 @@ import {
 } from "@/utils/stream/stream";
 import type RootStore from "@/stores/RootStore";
 import {ALL_DRMS, DropEmbedAuth, NamedNetworkUrl, PLAYOUT_FORMATS, PublicLicenseServerUrl, SdkPlayoutUrl, SrtPlayoutUrl} from "@/stores/lib/playoutUrls";
-import {PermissionLevel} from "@/stores/DataStore";
+import {PermissionLevel} from "@/stores/TenantStore";
 
 type SummaryData = Pick<StreamMetadata,
   "videoStreamProbe" | "publishingVideo" | "publishingAudio" | "partTtl" | "persistent"
@@ -184,8 +184,8 @@ class StreamDetailStore {
           objectId,
           metadataSubtree: "live_recording/recording_config/recording_params/origin_url"
         }),
-        this.rootStore.dataStore.LoadPermission({libraryId, objectId}),
-        this.rootStore.dataStore.LoadAccessGroupPermissions({objectId})
+        this.rootStore.tenantStore.LoadPermission({libraryId, objectId}),
+        this.rootStore.tenantStore.LoadAccessGroupPermissions({objectId})
       ]);
 
       const generalConfigData = {

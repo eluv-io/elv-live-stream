@@ -4,7 +4,7 @@ import {Alert} from "@mantine/core";
 import {IconAlertTriangle} from "@tabler/icons-react";
 
 // Top-level banner for runtime failures (e.g. tenant data load errors set via
-// rootStore.SetErrorMessage in DataStore). Mirrors the Outputs "not set up"
+// rootStore.SetErrorMessage in TenantStore). Mirrors the Outputs "not set up"
 // warning layout - icon, title, description - but red, since this is a failure
 // rather than a setup gap.
 const ErrorBanner = observer(() => {

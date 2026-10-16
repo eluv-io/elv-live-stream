@@ -2,7 +2,7 @@
 import {FormatDateFilter} from "@/utils/helpers";
 import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX} from "@/utils/constants";
 import {DeriveSourceAndPackaging, StreamMetadata} from "@/utils/stream/stream";
-import type {StreamInfo} from "@/stores/DataStore";
+import type {StreamInfo} from "@/stores/TenantStore";
 
 export type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "ladderSpecs" | "tags" | "date" | "eventTime"> & {
   configured: boolean;

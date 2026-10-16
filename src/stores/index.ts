@@ -11,7 +11,7 @@ export const rootStore = new RootStore();
 window["rootStore"] = rootStore;
 window["client"] = rootStore.client;
 
-export const dataStore = rootStore.dataStore;
+export const tenantStore = rootStore.tenantStore;
 export const streamStatusStore = rootStore.streamStatusStore;
 export const streamDetailStore = rootStore.streamDetailStore;
 export const streamListStore = rootStore.streamListStore;

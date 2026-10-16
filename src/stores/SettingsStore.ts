@@ -78,7 +78,7 @@ class SettingsStore {
   declaredTags: string[] = [];
   loadedDeclaredTags = false;
   customDomain = "";
-  // From live_management_settings, loaded with the site ids in DataStore.LoadTenantSiteData.
+  // From live_management_settings, loaded with the site ids in TenantStore.LoadTenantSiteData.
   //  - useContentGroup: tenant-wide content-group query (new) vs. the site object's registered stream list (legacy).
   //  - useDateFilter: scope the stream list by date and show the streams-page date controls.
   useContentGroup = false;
@@ -99,11 +99,11 @@ class SettingsStore {
   }
 
   get siteId(): string {
-    return this.rootStore.dataStore.siteId;
+    return this.rootStore.tenantStore.siteId;
   }
 
   get siteLibraryId(): string {
-    return this.rootStore.dataStore.siteLibraryId;
+    return this.rootStore.tenantStore.siteLibraryId;
   }
 
   get dedicatedNodesList(): {label: string, value: string}[] {
@@ -121,7 +121,7 @@ class SettingsStore {
     this.loadedDedicatedNodes = false;
     try {
       if(!this.siteLibraryId) {
-        yield this.rootStore.dataStore.LoadTenantSiteData();
+        yield this.rootStore.tenantStore.LoadTenantSiteData();
       }
 
       const nodes = yield this.client.ContentObjectMetadata({
@@ -140,7 +140,7 @@ class SettingsStore {
   // Reads a subtree of the site object, loading site data first if needed
   *_ReadSiteMetadata(metadataSubtree: string): Generator<any, any> {
     if(!this.siteLibraryId) {
-      yield this.rootStore.dataStore.LoadTenantSiteData();
+      yield this.rootStore.tenantStore.LoadTenantSiteData();
     }
 
     return yield this.client.ContentObjectMetadata({
@@ -153,7 +153,7 @@ class SettingsStore {
   // Replaces a subtree of the site object in its own edit + finalize
   *_WriteSiteMetadata({metadataSubtree, metadata, commitMessage}: {metadataSubtree: string, metadata: unknown, commitMessage: string}): Generator<any, void> {
     if(!this.siteLibraryId) {
-      yield this.rootStore.dataStore.LoadTenantSiteData();
+      yield this.rootStore.tenantStore.LoadTenantSiteData();
     }
 
     const libraryId = this.siteLibraryId;
@@ -331,7 +331,7 @@ class SettingsStore {
   *SaveDedicatedNodes({nodes, commitMessage="Update dedicated nodes"}: {nodes: DedicatedNodeMap, commitMessage?: string}): Generator<any, void> {
     try {
       if(!this.siteLibraryId) {
-        yield this.rootStore.dataStore.LoadTenantSiteData();
+        yield this.rootStore.tenantStore.LoadTenantSiteData();
       }
 
       const {writeToken} = yield this.client.EditContentObject({
