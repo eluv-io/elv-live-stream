@@ -4,7 +4,7 @@ import {ActionIcon, Box, Button, Divider, Group, Stack, Text, Title, Tooltip} fr
 import {DataTable} from "mantine-datatable";
 import {IconPencil, IconPlayerPlay, IconPlayerStop, IconPlus, IconTrash} from "@tabler/icons-react";
 import {notifications} from "@mantine/notifications";
-import {settingsStore, modalStore, streamEditStore, streamStore} from "@/stores/index.ts";
+import {settingsStore, modalStore, streamEditStore, streamStatusStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS, STATUS_MAP} from "@/utils/constants.ts";
 import {VideoBitrateReadable} from "@/utils/formatters.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
@@ -51,7 +51,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
   const LoadStatuses = useCallback(() => {
     if(!idsKey) { return Promise.resolve(); }
 
-    return streamStore.StreamStatuses(idsKey.split(","))
+    return streamStatusStore.StreamStatuses(idsKey.split(","))
       .then(result => setStatuses(result));
   }, [idsKey]);
 
@@ -74,7 +74,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
     setStartingIds(ids => [...ids, id]);
 
     try {
-      await streamStore.StartStream({objectId: id});
+      await streamStatusStore.StartStream({objectId: id});
     } catch(error) {
       notifications.show({
         title: "Error",
@@ -82,7 +82,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
         message: `Unable to start alternate transcode: ${error?.message || error}`
       });
     } finally {
-      const result = await streamStore.StreamStatuses([id]);
+      const result = await streamStatusStore.StreamStatuses([id]);
       setStatuses(prev => ({...prev, ...result}));
       setStartingIds(ids => ids.filter(startingId => startingId !== id));
     }

@@ -27,7 +27,8 @@ const {LoadAllStreams, state} = vi.hoisted(() => ({
 }));
 
 vi.mock("@/stores/index.ts", () => ({
-  streamStore: {
+  streamStatusStore: {},
+  streamListStore: {
     get allStreams() { return state.streams; },
     loadingAllStreams: false,
     LoadAllStreams

@@ -3,7 +3,7 @@ import {Box, Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/
 import styles from "./modals.module.css";
 import {SortTable} from "@/utils/helpers.ts";
 import {useEffect, useState} from "react";
-import {outputStore, streamStore} from "@/stores/index.ts";
+import {outputStore, streamListStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {IconSearch} from "@tabler/icons-react";
@@ -21,12 +21,12 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
     // OutputModals is mounted app-wide, so only load once the modal is actually opened.
     // Uses its own full stream set so it neither disturbs nor is disturbed by the
     // Streams page's date-scoped list.
-    if(show) { streamStore.LoadAllStreams(); }
+    if(show) { streamListStore.LoadAllStreams(); }
   }, [show]);
 
   const CanMapStream = record => !!record.inputCfg && !!record.packaging?.includes("ts");
 
-  const records = Object.values(streamStore.allStreams || {})
+  const records = Object.values(streamListStore.allStreams || {})
     .filter(record => (
       record.title?.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
       record.objectId?.toLowerCase().includes(debouncedFilter.toLowerCase())
@@ -97,7 +97,7 @@ const MapToStreamModal = observer(({show, onCloseModal, outputs}) => {
         <Box style={{flex: 1, minHeight: 0}}>
           <StreamsTable
             records={records}
-            fetching={streamStore.loadingAllStreams && records.length === 0}
+            fetching={streamListStore.loadingAllStreams && records.length === 0}
             isRecordSelectable={CanMapStream}
             sortStatus={sortStatus}
             onSortStatusChange={setSortStatus}

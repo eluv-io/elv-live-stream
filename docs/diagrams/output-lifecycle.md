@@ -6,7 +6,7 @@ An **output** is not itself a live stream — it's a separate fabric object (`li
 
 ```mermaid
 flowchart TD
-    A[Outputs.jsx mounts] --> B["dataStore.LoadStreamList (must finish first)"]
+    A[Outputs.jsx mounts] --> B["streamListStore.LoadStreamList (must finish first)"]
     B --> C[LoadOutputSettingsId]
     C --> D["resolves outputSettingsId from site's<br/>live_outputs metadata"]
     D --> E["LoadOutputs: client.OutputsList<br/>(replaces outputs map wholesale)"]
@@ -79,7 +79,7 @@ On error, `OutputConfirmModal` shows a red notification but deliberately leaves 
 
 ## Status polling
 
-Mirrors the stream-status loop, run from the same `DataWrapper` cycle, sequentially **after** `streamStore.AllStreamsStatus()`:
+Mirrors the stream-status loop, run from the same `DataWrapper` cycle, sequentially **after** `streamStatusStore.AllStreamsStatus()`:
 
 ```mermaid
 sequenceDiagram

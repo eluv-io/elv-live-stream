@@ -10,7 +10,7 @@ import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import OutputUrlsBySource from "@/pages/streams/groups/OutputUrlsBySource.jsx";
 import {SortTable} from "@/utils/helpers.ts";
-import {streamStore, streamGroupStore} from "@/stores/index.ts";
+import {streamStatusStore, streamDetailStore, streamGroupStore, streamListStore} from "@/stores/index.ts";
 import {TsPackagingOnly} from "@/utils/stream/streamActions.jsx";
 
 // Preview is the only row action on the group summary table.
@@ -55,7 +55,7 @@ const GroupSummary = observer(() => {
     streamGroupStore.LoadGroupData({titleId});
 
     // Load + enrich only this group's streams, not the whole tenant.
-    const map = await streamStore.LoadStreamsByTitleId(titleId);
+    const map = await streamListStore.FetchStreamsByTitleId(titleId);
     if(runId !== loadId.current) { return; }
     setStreams(map);
     setLoading(false);
@@ -67,7 +67,7 @@ const GroupSummary = observer(() => {
 
     await Promise.all([
       (async () => {
-        const statuses = await streamStore.StreamStatuses(objectIds);
+        const statuses = await streamStatusStore.StreamStatuses(objectIds);
         if(runId !== loadId.current) { return; }
         setStreams(current => {
           const next = {...current};
@@ -84,7 +84,7 @@ const GroupSummary = observer(() => {
             .filter(stream => stream.packaging?.length && !stream.packaging.includes("fmp4"))
             .map(stream => stream.objectId)
         );
-        await streamStore.StreamOutputUrls(objectIds, {
+        await streamDetailStore.StreamOutputUrls(objectIds, {
           tsOnlyIds,
           onStreamUrls: (objectId, urls) => {
             if(runId !== loadId.current) { return; }

@@ -1,5 +1,5 @@
 import {useEffect} from "react";
-import {outputStore, streamStore} from "@/stores/index.ts";
+import {outputStore, streamStatusStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 
 const DataWrapper = observer(({children}) => {
@@ -23,7 +23,7 @@ const DataWrapper = observer(({children}) => {
     // The full list/config reload still happens on page mount and manual refresh.
     const Poll = async () => {
       try {
-        await streamStore.AllStreamsStatus();
+        await streamStatusStore.AllStreamsStatus();
       } catch(error) {
         // eslint-disable-next-line no-console
         console.error("Unable to get stream status.", error);

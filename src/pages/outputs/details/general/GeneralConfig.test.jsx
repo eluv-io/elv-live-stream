@@ -17,12 +17,12 @@ vi.mock("@/stores/index.ts", () => ({
   outputStore: {nodesByRegion: {}, loadingNodesRegion: null, LoadNodesByRegion: vi.fn()},
   outputSaveStore: {},
   outputModalStore: {OpenModal: vi.fn()},
-  streamStore: {allStreams: {}, loadingAllStreams: false, LoadAllStreams: vi.fn()}
+  streamListStore: {allStreams: {}, loadingAllStreams: false, LoadAllStreams: vi.fn()}
 }));
 
 // Imports must come AFTER vi.mock so the module picks up the mocks
 import GeneralConfig from "./GeneralConfig.jsx";
-import {streamStore} from "@/stores/index.ts";
+import {streamListStore} from "@/stores/index.ts";
 
 // --- Factories -----------------------------------------------------------
 
@@ -62,7 +62,7 @@ const renderConfig = (props) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  streamStore.allStreams = {};
+  streamListStore.allStreams = {};
 });
 
 describe("GeneralConfig - Input Failover section", () => {
@@ -88,7 +88,7 @@ describe("GeneralConfig - Input Failover section", () => {
   });
 
   it("should render the chosen stream as a row and load the stream set", () => {
-    streamStore.allStreams = {
+    streamListStore.allStreams = {
       s1: {objectId: "iq__failover", title: "Backup Stream", originUrl: "udp://host:1234", source: ["ts"], packaging: ["ts"]}
     };
     renderConfig({
@@ -99,7 +99,7 @@ describe("GeneralConfig - Input Failover section", () => {
     expect(screen.getByText("Backup Stream")).toBeInTheDocument();
     expect(screen.getByText("iq__failover")).toBeInTheDocument();
     expect(screen.getByText("udp://host:1234")).toBeInTheDocument();
-    expect(streamStore.LoadAllStreams).toHaveBeenCalled();
+    expect(streamListStore.LoadAllStreams).toHaveBeenCalled();
   });
 
   it("should show Timeout and Reset Clients and Change once a stream is set", () => {

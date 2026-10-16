@@ -172,7 +172,7 @@ class OutputStore {
 
   /** Flatten a raw output into the derived shape used by tables and detail views. */
   FlattenOutput = (slug: string, output: Output): FlatOutput => {
-    const {streamsByObjectId, streams} = this.rootStore.streamStore;
+    const {streamsByObjectId, streams} = this.rootStore.streamStatusStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
     // srt_pull stores urls as an array; other types store a single url string.
     const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url ?? output.rtmp?.url;
@@ -296,7 +296,7 @@ class OutputStore {
   }
 
   /**
-   * Fetch a single output's live egress state (mirrors StreamStore.CheckStatus).
+   * Fetch a single output's live egress state (mirrors StreamStatusStore.CheckStatus).
    * With update=true, merges only `state` onto the stored output so derived table
    * columns react without a full OutputsList reload and without clobbering the
    * enriched input fields from LoadOutputStreamInfo or the persisted config.
@@ -392,7 +392,7 @@ class OutputStore {
     // others - the live quality/stats must land even if the URL derivation fails.
     if(this.rootStore.dataStore.useContentGroup) {
       try {
-        const record: any = yield this.rootStore.streamStore.LoadTenantStreamInfo(streamObjectId);
+        const record: any = yield this.rootStore.streamListStore.FetchStreamInfo(streamObjectId);
         streamInfo.url = record?.originUrl;
         streamInfo.source = record?.source;
         streamInfo.packaging = record?.packaging;
@@ -690,7 +690,7 @@ class OutputStore {
         output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
-      const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
+      const stream = (Object.values(this.rootStore.streamStatusStore.streams || {}) as any[])
         .find(s => s.objectId === streamObjectId);
 
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
@@ -761,7 +761,7 @@ class OutputStore {
         outputs: outputsMap
       });
 
-      const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
+      const stream = (Object.values(this.rootStore.streamStatusStore.streams || {}) as any[])
         .find(s => s.objectId === streamObjectId);
 
       Object.entries(outputsMap).forEach(([outputId, output]) => {

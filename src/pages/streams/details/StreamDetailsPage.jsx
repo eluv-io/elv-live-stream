@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useBlocker, useNavigate, useParams} from "react-router-dom";
-import {rootStore, streamStore, streamSaveStore, dataStore} from "@/stores/index.ts";
+import {rootStore, streamStatusStore, streamDetailStore, streamSaveStore, dataStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Button, Flex, Indicator, Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
@@ -49,18 +49,18 @@ const StreamDetailsPage = observer(() => {
     )
   );
 
-  const streamSlug = streamStore.streamsByObjectId[params.id];
-  const stream = streamSlug ? streamStore.streams[streamSlug] : undefined;
+  const streamSlug = streamStatusStore.streamsByObjectId[params.id];
+  const stream = streamSlug ? streamStatusStore.streams[streamSlug] : undefined;
 
   const GetStatus = useCallback(async () => {
-    await streamStore.CheckStatus({
+    await streamStatusStore.CheckStatus({
       objectId: params.id,
       update: true
     });
   }, [params.id]);
 
   const LoadEdgeWriteTokenMeta = useCallback(async() => {
-    const metadata = await streamStore.LoadEdgeWriteTokenMeta({
+    const metadata = await streamDetailStore.LoadEdgeWriteTokenMeta({
       objectId: params.id
     });
 
@@ -148,7 +148,7 @@ const StreamDetailsPage = observer(() => {
   }
 
   const streamActions = GetStreamActions({
-    record: streamStore.streams?.[streamSlug],
+    record: streamStatusStore.streams?.[streamSlug],
     onCheckComplete: () => setCheckVersion(prev => prev + 1),
     onDeleteComplete: () => navigate("/streams"),
     view: "stream-details"
@@ -185,11 +185,11 @@ const StreamDetailsPage = observer(() => {
 
   return (
     <PageContainer
-      title={streamStore.streams?.[streamSlug]?.title || stream.objectId}
+      title={streamStatusStore.streams?.[streamSlug]?.title || stream.objectId}
       titleBadge={
         <StatusIndicator
           status={stream.status}
-          showWarning={streamStore.streams?.[streamSlug]?.quality && streamStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
+          showWarning={streamStatusStore.streams?.[streamSlug]?.quality && streamStatusStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
           size="md"
           withBorder
         />

@@ -2,7 +2,7 @@ import {StreamIsActive} from "@/utils/stream/stream.ts";
 import {SanitizeUrl} from "@/utils/helpers.ts";
 import {STATUS_MAP} from "@/utils/constants.ts";
 import {Stack, Text} from "@mantine/core";
-import {rootStore, modalStore, streamStore} from "@/stores/index.ts";
+import {rootStore, modalStore, streamStatusStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import {
   IconDeviceAnalytics,
@@ -34,8 +34,8 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       mutatesStream: true,
       hidden: ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status),
       onClick: async() => {
-        const url = await streamStore.client.ContentObjectMetadata({
-          libraryId: await streamStore.client.ContentObjectLibraryId({objectId: record.objectId}),
+        const url = await streamStatusStore.client.ContentObjectMetadata({
+          libraryId: await streamStatusStore.client.ContentObjectLibraryId({objectId: record.objectId}),
           objectId: record.objectId,
           metadataSubtree: "live_recording_config/url"
         });

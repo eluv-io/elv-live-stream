@@ -50,7 +50,7 @@ const makeClient = (overrides: Record<string, unknown> = {}) => ({
   ...overrides
 });
 
-const makeStore = (clientOverrides: Record<string, unknown> = {}, streamStoreOverrides: Record<string, unknown> = {}) => {
+const makeStore = (clientOverrides: Record<string, unknown> = {}, streamStatusStoreOverrides: Record<string, unknown> = {}) => {
   const mockClient = makeClient(clientOverrides);
 
   const mockRootStore = {
@@ -60,10 +60,10 @@ const makeStore = (clientOverrides: Record<string, unknown> = {}, streamStoreOve
       siteId: "iq__site"
     },
     settingsStore: {},
-    streamStore: {
+    streamStatusStore: {
       streams: {},
       streamsByObjectId: {},
-      ...streamStoreOverrides
+      ...streamStatusStoreOverrides
     }
   };
 
@@ -942,13 +942,13 @@ describe("MapStreamBatch", () => {
   });
 
   it("should update local outputs after batch modify", async () => {
-    const streamStore = {
+    const streamStatusStore = {
       streams: {"my-stream": {objectId: "iq__stream-1", title: "My Stream", status: "running"}},
       streamsByObjectId: {}
     };
     const {store: s2} = makeStore(
       {ContentObjectMetadata: vi.fn().mockResolvedValue({name: "Out", enabled: false, input: null})},
-      streamStore
+      streamStatusStore
     );
     s2.outputs = {"out-1": {name: "Out"}};
 

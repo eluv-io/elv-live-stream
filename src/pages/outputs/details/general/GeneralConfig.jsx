@@ -24,7 +24,7 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import SelectFailoverStreamModal from "@/pages/outputs/modals/SelectFailoverStreamModal.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {settingsStore, outputStore, streamStore} from "@/stores/index.ts";
+import {settingsStore, outputStore, streamListStore} from "@/stores/index.ts";
 import {
   FABRIC_NODE_REGIONS,
   FAILOVER_TIMEOUT_OPTIONS,
@@ -114,7 +114,7 @@ const GeneralConfig = observer(({form, output}) => {
   // The failover row needs the full stream record (url / source / packaging) -
   // allStreams is the unscoped set the picker also uses.
   useEffect(() => {
-    if(stream || (hasPrimary && failoverStream)) { streamStore.LoadAllStreams(); }
+    if(stream || (hasPrimary && failoverStream)) { streamListStore.LoadAllStreams(); }
   }, [stream, hasPrimary, failoverStream]);
 
   // Preload the region's node list on mount if the output already targets a
@@ -124,7 +124,7 @@ const GeneralConfig = observer(({form, output}) => {
   }, []);
 
   const loadedStreamRecord = stream ?
-    Object.values(streamStore.allStreams || {}).find(s => s.objectId === stream) :
+    Object.values(streamListStore.allStreams || {}).find(s => s.objectId === stream) :
     undefined;
   const streamRecord = loadedStreamRecord ? {...loadedStreamRecord, status: output?.input?.status} : {
     objectId: stream,
@@ -136,7 +136,7 @@ const GeneralConfig = observer(({form, output}) => {
   };
 
   const failoverRecord = failoverStream ?
-    Object.values(streamStore.allStreams || {}).find(s => s.objectId === failoverStream) :
+    Object.values(streamListStore.allStreams || {}).find(s => s.objectId === failoverStream) :
     undefined;
 
   return (

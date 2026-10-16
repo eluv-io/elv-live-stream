@@ -3,7 +3,7 @@ import {Box, Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/
 import styles from "./modals.module.css";
 import {SortTable} from "@/utils/helpers.ts";
 import {useEffect, useState} from "react";
-import {streamStore} from "@/stores/index.ts";
+import {streamStatusStore, streamListStore} from "@/stores/index.ts";
 import {IconSearch} from "@tabler/icons-react";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import {useDebouncedValue} from "@mantine/hooks";
@@ -21,12 +21,12 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
   const [statuses, setStatuses] = useState({});
 
   useEffect(() => {
-    if(show) { streamStore.LoadAllStreams(); }
+    if(show) { streamListStore.LoadAllStreams(); }
   }, [show]);
 
   // allStreams is keyed by slug, so look the primary up by objectId.
   const primaryLadder = primaryStreamId ?
-    Object.values(streamStore.allStreams || {}).find(record => record.objectId === primaryStreamId)?.ladderSpecs :
+    Object.values(streamListStore.allStreams || {}).find(record => record.objectId === primaryStreamId)?.ladderSpecs :
     undefined;
 
   // Same eligibility as primary mapping, minus the output's own primary stream. The fabric
@@ -38,24 +38,24 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
     record.objectId !== primaryStreamId &&
     !(primaryLadder && FailoverLadderError(primaryLadder, record.ladderSpecs || []));
 
-  const allRecords = Object.values(streamStore.allStreams || {});
+  const allRecords = Object.values(streamListStore.allStreams || {});
 
   // All streams carries no live status - fetch it for the selectable streams only.
   useEffect(() => {
-    if(!show || !streamStore.allStreamsLoaded) { return; }
+    if(!show || !streamListStore.allStreamsLoaded) { return; }
 
     let canceled = false;
-    const objectIds = Object.values(streamStore.allStreams || {})
+    const objectIds = Object.values(streamListStore.allStreams || {})
       .filter(record => CanSelectStream(record) && record.configured !== false)
       .map(record => record.objectId);
 
-    streamStore.StreamStatuses(objectIds).then(result => {
+    streamStatusStore.StreamStatuses(objectIds).then(result => {
       if(!canceled) { setStatuses(result); }
     });
 
     return () => { canceled = true; };
 
-  }, [show, streamStore.allStreamsLoaded]);
+  }, [show, streamListStore.allStreamsLoaded]);
 
   const records = allRecords
     .map(record => ({
@@ -113,7 +113,7 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
         <Box style={{flex: 1, minHeight: 0}}>
           <StreamsTable
             records={records}
-            fetching={streamStore.loadingAllStreams && records.length === 0}
+            fetching={streamListStore.loadingAllStreams && records.length === 0}
             isRecordSelectable={CanSelectStream}
             sortStatus={sortStatus}
             onSortStatusChange={setSortStatus}

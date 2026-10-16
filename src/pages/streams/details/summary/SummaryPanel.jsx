@@ -1,5 +1,5 @@
 import {Divider, Flex} from "@mantine/core";
-import {streamStore} from "@/stores/index.ts";
+import {streamStatusStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import RecordingPeriodsTable from "@/pages/streams/details/summary/components/RecordingPeriodsTable.jsx";
 import RecordingCopiesTable from "@/pages/streams/details/summary/components/RecordingCopiesTable.jsx";
@@ -9,7 +9,7 @@ import EmbedUrlSection from "@/pages/streams/details/summary/components/EmbedUrl
 import useSummaryData from "@/pages/streams/details/summary/useSummaryData.js";
 
 const SummaryPanel = observer(({recordingInfo, slug}) => {
-  const libraryId = streamStore.streams?.[slug]?.libraryId;
+  const libraryId = streamStatusStore.streams?.[slug]?.libraryId;
   const currentTimeMs = new Date().getTime();
 
   const {
@@ -22,7 +22,7 @@ const SummaryPanel = observer(({recordingInfo, slug}) => {
     LoadLiveRecordingCopies
   } = useSummaryData({slug, libraryId});
 
-  const stream = streamStore.streams[slug];
+  const stream = streamStatusStore.streams[slug];
 
   return (
     <>
@@ -56,7 +56,7 @@ const SummaryPanel = observer(({recordingInfo, slug}) => {
         libraryId={libraryId}
         objectId={objectId}
         records={recordingInfo?.live_offering}
-        title={streamStore.streams?.[slug]?.title}
+        title={streamStatusStore.streams?.[slug]?.title}
         CopyCallback={LoadLiveRecordingCopies}
         currentTimeMs={currentTimeMs}
         status={status}

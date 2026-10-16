@@ -1,4 +1,4 @@
-import {describe, it, expect, vi, beforeEach} from "vitest";
+import {describe, it, expect, vi} from "vitest";
 
 vi.mock("mobx", async () => ({
   ...(await vi.importActual("mobx")),
@@ -8,131 +8,40 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
-import StreamStore from "@/stores/StreamStore";
-import {STATUS_MAP} from "@/utils/constants";
-
-// Sequential stand-in for client.utils.LimitedMap.
-const LimitedMap = async (_n: number, items: unknown[], fn: (item: unknown) => Promise<unknown>) => {
-  for(const item of items) { await fn(item); }
-};
+import StreamListStore from "@/stores/StreamListStore";
 
 interface MetaByObject {
   [objectId: string]: unknown;
 }
 
-const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "running", tenantContent} = {} as any) => {
+const makeStore = ({streams = {}, meta = {} as MetaByObject, tenantContent} = {} as any) => {
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-x"),
     ContentObjectMetadata: vi.fn().mockImplementation(({objectId}) => Promise.resolve(meta[objectId] ?? null)),
-    StreamStatus: vi.fn().mockImplementation(({name}) => Promise.resolve({state: statusState, name})),
-    StreamStartRecording: vi.fn().mockResolvedValue(undefined),
-    StreamStartOrStopOrReset: vi.fn().mockResolvedValue({state: "starting"}),
-    StreamStopRecording: vi.fn().mockResolvedValue({state: "inactive"}),
     TenantContent: vi.fn().mockImplementation(tenantContent ?? (() => Promise.resolve({versions: [], paging: {more: false}}))),
     SetNodes: vi.fn(),
-    ResetRegion: vi.fn().mockResolvedValue(undefined),
-    utils: {LimitedMap}
+    ResetRegion: vi.fn().mockResolvedValue(undefined)
+  };
+
+  const streamStatusStore = {
+    streams,
+    UpdateStreams: vi.fn(({streams: next}) => { streamStatusStore.streams = next; })
   };
 
   const rootStore = {
     client: mockClient,
+    streamStatusStore,
     streamGroupStore: {BuildGroups: vi.fn()},
     dataStore: {},
-    settingsStore: {}
+    settingsStore: {},
+    userSettingsStore: {Persist: vi.fn()}
   };
 
-  const store = new StreamStore(rootStore as any) as any;
-  store.streams = streams;
+  const store = new StreamListStore(rootStore as any) as any;
   return {store, mockClient};
 };
 
-const streamMeta = ({url = "srt://in", token = "", ingress = "https://node", initialized = true} = {}) => ({
-  live_recording_config: url ? {url} : undefined,
-  live_recording: {
-    fabric_config: {ingress_node_api: ingress, edge_write_token: ""},
-    playout_config: initialized ? {} : undefined,
-    recording_config: initialized ? {} : undefined,
-    status: {edge_write_token: token}
-  }
-});
-
-beforeEach(() => vi.clearAllMocks());
-
-describe("StreamStore._ClassifyStreams", () => {
-  it("classifies streams from local metadata without a StreamStatus call", async () => {
-    const streams = {
-      unconf: {slug: "unconf", objectId: "iq__1", libraryId: "ilib1"},
-      uninit: {slug: "uninit", objectId: "iq__2", libraryId: "ilib2"},
-      idle: {slug: "idle", objectId: "iq__3", libraryId: "ilib3"},
-      live: {slug: "live", objectId: "iq__4", libraryId: "ilib4"}
-    };
-    const meta = {
-      iq__1: streamMeta({url: ""}),
-      iq__2: streamMeta({initialized: false}),
-      iq__3: streamMeta({token: ""}),
-      iq__4: streamMeta({token: "tqw__live"})
-    };
-    const {store, mockClient} = makeStore({streams, meta});
-
-    const active = await store._ClassifyStreams({slugs: Object.keys(streams)});
-
-    expect(active).toEqual(["live"]);
-    expect([...store.activeStreamSlugs]).toEqual(["live"]);
-    expect(store.streams.unconf.status).toBe(STATUS_MAP.UNCONFIGURED);
-    expect(store.streams.uninit.status).toBe(STATUS_MAP.UNINITIALIZED);
-    expect(store.streams.idle.status).toBe(STATUS_MAP.INACTIVE);
-    expect(store.streams.live.status).toBeUndefined();
-    expect(mockClient.StreamStatus).not.toHaveBeenCalled();
-  });
-
-  it("reuses the cached libraryId instead of resolving it", async () => {
-    const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "ilib-cached"}};
-    const {store, mockClient} = makeStore({streams, meta: {iq__a: streamMeta({token: "t"})}});
-
-    await store._ClassifyStreams({slugs: ["a"]});
-
-    expect(mockClient.ContentObjectLibraryId).not.toHaveBeenCalled();
-    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({libraryId: "ilib-cached", objectId: "iq__a"})
-    );
-  });
-});
-
-describe("StreamStore.AllStreamsStatus", () => {
-  it("polls full status only for active streams", async () => {
-    const streams = {
-      idle: {slug: "idle", objectId: "iq__i", libraryId: "l"},
-      live: {slug: "live", objectId: "iq__l", libraryId: "l"}
-    };
-    const meta = {
-      iq__i: streamMeta({token: ""}),
-      iq__l: streamMeta({token: "t"})
-    };
-    const {store, mockClient} = makeStore({streams, meta, statusState: "running"});
-
-    await store.AllStreamsStatus();
-
-    expect(mockClient.StreamStatus).toHaveBeenCalledTimes(1);
-    expect(mockClient.StreamStatus).toHaveBeenCalledWith(expect.objectContaining({name: "iq__l"}));
-    expect(store.streams.live.status).toBe("running");
-    expect(store.streams.idle.status).toBe(STATUS_MAP.INACTIVE);
-  });
-});
-
-describe("StreamStore._SetStreamActive", () => {
-  it("adds and removes slugs, writing the resolved state on removal", () => {
-    const {store} = makeStore({streams: {a: {slug: "a", objectId: "iq__a"}}});
-
-    store._SetStreamActive({slug: "a", active: true});
-    expect(store.activeStreamSlugs.has("a")).toBe(true);
-
-    store._SetStreamActive({slug: "a", active: false, state: STATUS_MAP.INACTIVE});
-    expect(store.activeStreamSlugs.has("a")).toBe(false);
-    expect(store.streams.a.status).toBe(STATUS_MAP.INACTIVE);
-  });
-});
-
-describe("StreamStore tenant-query", () => {
+describe("StreamListStore tenant-query", () => {
   it("pages through every TenantContent page without rerouting the client's nodes", async () => {
     const tenantContent = vi.fn()
       .mockResolvedValueOnce({versions: [{id: "iq__1", hash: "hq__1"}], paging: {more: true}})
@@ -140,10 +49,10 @@ describe("StreamStore tenant-query", () => {
     const {store, mockClient} = makeStore({tenantContent});
 
     // Non-paged load pages through everything in one call.
-    await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
+    const content = await store.LoadTenantLiveStreamContent({siteId: "iq__site"});
 
     expect(tenantContent).toHaveBeenCalledTimes(2);
-    expect(Object.keys(store.tenantLiveStreamContent)).toEqual(["iq__1", "iq__2"]);
+    expect(Object.keys(content)).toEqual(["iq__1", "iq__2"]);
     expect(mockClient.SetNodes).not.toHaveBeenCalled();
     expect(mockClient.ResetRegion).not.toHaveBeenCalled();
   });
@@ -191,7 +100,7 @@ describe("StreamStore tenant-query", () => {
   });
 });
 
-describe("StreamStore.filteredStreams", () => {
+describe("StreamListStore.filteredStreams", () => {
   const streams = {
     a: {slug: "a", objectId: "iq__a", title: "Alpha", tags: ["x"]},
     b: {slug: "b", objectId: "iq__b", title: "Beta", tags: ["y"]}
@@ -241,7 +150,7 @@ describe("StreamStore.filteredStreams", () => {
   });
 });
 
-describe("StreamStore declared tags (OR semantics)", () => {
+describe("StreamListStore declared tags (OR semantics)", () => {
   const streams = {
     r: {slug: "r", objectId: "iq__r", title: "Radio One", tags: []},
     f: {slug: "f", objectId: "iq__f", title: "Finals", tags: ["Finals"]},
@@ -280,12 +189,11 @@ describe("StreamStore declared tags (OR semantics)", () => {
   });
 });
 
-describe("StreamStore.LoadTenantStreamInfo", () => {
+describe("StreamListStore.FetchStreamInfo", () => {
   it("returns a stream from the loaded maps without any reads", async () => {
-    const {store, mockClient} = makeStore({streams: {a: {slug: "a", objectId: "iq__a", originUrl: "srt://a"}}});
-    store.streams = {iq__a: {slug: "a", objectId: "iq__a", originUrl: "srt://a"}};
+    const {store, mockClient} = makeStore({streams: {iq__a: {slug: "a", objectId: "iq__a", originUrl: "srt://a"}}});
 
-    const info = await store.LoadTenantStreamInfo("iq__a");
+    const info = await store.FetchStreamInfo("iq__a");
 
     expect(info.originUrl).toBe("srt://a");
     expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
@@ -295,7 +203,7 @@ describe("StreamStore.LoadTenantStreamInfo", () => {
   it("reads only that object on a miss, without paging the tenant", async () => {
     const {store, mockClient} = makeStore({meta: {iq__x: {live_recording_config: {url: "srt://x"}}}});
 
-    const info = await store.LoadTenantStreamInfo("iq__x");
+    const info = await store.FetchStreamInfo("iq__x");
 
     expect(info.originUrl).toBe("srt://x");
     expect(mockClient.TenantContent).not.toHaveBeenCalled();
@@ -307,40 +215,56 @@ describe("StreamStore.LoadTenantStreamInfo", () => {
     mockClient.ContentObjectMetadata.mockRejectedValue(new Error("not found"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    expect(await store.LoadTenantStreamInfo("iq__missing")).toBeUndefined();
+    expect(await store.FetchStreamInfo("iq__missing")).toBeUndefined();
   });
 });
 
-describe("StreamStore active-set maintenance", () => {
-  it("StartStream marks the stream active before the next poll", async () => {
-    const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "l"}};
-    const {store, mockClient} = makeStore({streams});
-    mockClient.StreamStatus.mockResolvedValueOnce({state: "inactive"});
+describe("StreamListStore.SetStreams", () => {
+  it("replaces streamStatusStore.streams and drops selections no longer listed", () => {
+    const {store} = makeStore({streams: {a: {slug: "a"}, b: {slug: "b"}}});
+    store.SetSelectedRecords([{slug: "a"}, {slug: "b"}]);
 
-    await store.StartStream({slug: "a"});
+    store.SetStreams({streams: {a: {slug: "a"}}});
 
-    expect(store.activeStreamSlugs.has("a")).toBe(true);
+    expect(store.rootStore.streamStatusStore.UpdateStreams).toHaveBeenCalledWith({streams: {a: {slug: "a"}}});
+    expect(store.selectedRecords.map((r: any) => r.slug)).toEqual(["a"]);
   });
 
-  it("DeactivateStream drops the stream from the active set", async () => {
-    const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "l"}};
-    const {store} = makeStore({streams});
-    store.activeStreamSlugs.add("a");
+  it("invalidates the unscoped set so the next LoadAllStreams refetches", () => {
+    const {store} = makeStore();
+    store.allStreamsLoaded = true;
 
-    await store.DeactivateStream({objectId: "iq__a", slug: "a"});
+    store.SetStreams({streams: {}});
 
-    expect(store.activeStreamSlugs.has("a")).toBe(false);
-    expect(store.streams.a.status).toBe("inactive");
+    expect(store.allStreamsLoaded).toBe(false);
+  });
+});
+
+describe("StreamListStore._TenantQuery", () => {
+  const range: [Date, Date] = [new Date(2026, 0, 1), new Date(2026, 0, 7)];
+
+  it("scopes by date and pages when the site uses the date filter", () => {
+    const {store} = makeStore();
+    Object.assign(store.rootStore.dataStore, {siteId: "iq__site", useDateFilter: true});
+    store.dateRangeFilter = range;
+
+    expect(store._TenantQuery()).toEqual({siteId: "iq__site", dateRange: range, nameFilter: [], paged: true});
   });
 
-  it("UpdateStreams prunes active slugs no longer in the list", () => {
-    const {store} = makeStore({streams: {a: {slug: "a", objectId: "iq__a"}}});
-    store.activeStreamSlugs.add("a");
-    store.activeStreamSlugs.add("gone");
+  it("loads the full unpaged set for an object-id search", () => {
+    const {store} = makeStore();
+    Object.assign(store.rootStore.dataStore, {siteId: "iq__site", useDateFilter: true});
+    store.dateRangeFilter = range;
+    store.SetTableFilter("iq__abc");
 
-    store.UpdateStreams({streams: {a: {slug: "a", objectId: "iq__a"}}});
+    expect(store._TenantQuery()).toEqual({siteId: "iq__site", dateRange: [null, null], nameFilter: [], paged: false});
+  });
 
-    expect(store.activeStreamSlugs.has("a")).toBe(true);
-    expect(store.activeStreamSlugs.has("gone")).toBe(false);
+  it("drops scoping, name terms and paging when unscoped", () => {
+    const {store} = makeStore();
+    Object.assign(store.rootStore.dataStore, {siteId: "iq__site", useDateFilter: true});
+    store.dateRangeFilter = range;
+
+    expect(store._TenantQuery({scoped: false})).toEqual({siteId: "iq__site", dateRange: [null, null], nameFilter: [], paged: false});
   });
 });

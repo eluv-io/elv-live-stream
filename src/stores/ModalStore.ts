@@ -146,7 +146,7 @@ class ModalStore {
       title: "Start Stream Confirmation",
       message: "Are you sure you want to start the stream? Once started, the stream will go live, and any changes may require restarting. Please confirm before proceeding.",
       confirmText: "Start Stream",
-      Method: ({objectId, slug}) => this.rootStore.streamStore.StartStream({objectId, slug}),
+      Method: ({objectId, slug}) => this.rootStore.streamStatusStore.StartStream({objectId, slug}),
       notification: () => ({
         success: {title: "Started Stream", message: "Stream was successfully started"},
         error: {title: "Error", message: "Unable to start stream"}
@@ -161,7 +161,7 @@ class ModalStore {
       title: "Stop Stream Confirmation",
       message: "Are you sure you want to stop the stream? Once stopped, viewers will be disconnected, and the stream cannot be resumed. You can start a new session later if needed.",
       confirmText: "Stop Stream",
-      Method: ({objectId, slug}) => this.rootStore.streamStore.OperateLRO({
+      Method: ({objectId, slug}) => this.rootStore.streamStatusStore.OperateLRO({
         objectId,
         slug,
         operation: "STOP"
@@ -180,7 +180,7 @@ class ModalStore {
       title: "Restart Recording Confirmation",
       message: "Are you sure you want to restart the recording? The current recording session will be stopped and a new one started with a new edge write token.",
       confirmText: "Restart Recording",
-      Method: ({objectId, slug}) => this.rootStore.streamStore.RestartRecording({
+      Method: ({objectId, slug}) => this.rootStore.streamStatusStore.RestartRecording({
         objectId,
         slug
       }),
@@ -198,7 +198,7 @@ class ModalStore {
       title: "Deactivate Stream Confirmation",
       message: "Are you sure you want to deactivate the stream?",
       confirmText: "Deactivate Stream",
-      Method: ({objectId, slug}) => this.rootStore.streamStore.DeactivateStream({
+      Method: ({objectId, slug}) => this.rootStore.streamStatusStore.DeactivateStream({
         objectId,
         slug
       }),
@@ -367,7 +367,7 @@ class ModalStore {
   // Shows the "Include dependent streams" checkbox when the stream has alternate transcodes.
   *LoadDependents({objectId}: {objectId: string}): Generator<any, void> {
     try {
-      const client = this.rootStore.streamStore.client;
+      const client = this.rootStore.streamStatusStore.client;
       const libraryId = yield client.ContentObjectLibraryId({objectId});
       const ids: string[] = (yield client.ContentObjectMetadata({
         libraryId,
@@ -377,7 +377,7 @@ class ModalStore {
 
       if(ids.length === 0) { return; }
 
-      const statuses = yield this.rootStore.streamStore.StreamStatuses(ids);
+      const statuses = yield this.rootStore.streamStatusStore.StreamStatuses(ids);
 
       // Modal was closed or replaced while loading.
       if(this.modalData.objectId !== objectId) { return; }
@@ -404,7 +404,7 @@ class ModalStore {
     if(!this.modalData.includeDependents || this.dependents.length === 0) { return []; }
 
     const {statuses: readyStatuses} = BATCH_READY_STATUSES[op as BatchOp];
-    const current = await this.rootStore.streamStore.StreamStatuses(this.dependents.map(d => d.id));
+    const current = await this.rootStore.streamStatusStore.StreamStatuses(this.dependents.map(d => d.id));
 
     return this.dependents
       .filter(d => readyStatuses.includes(current[d.id]?.status as StreamStatus))

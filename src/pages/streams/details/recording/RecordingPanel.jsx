@@ -5,7 +5,7 @@ import {notifications} from "@mantine/notifications";
 import AudioTracksTable from "@/pages/streams/details/recording/audio-tracks-table/AudioTracksTable.jsx";
 import AlternateTranscodesTable from "@/pages/streams/details/recording/alternate-transcodes/AlternateTranscodesTable.jsx";
 import JsonEditorCard from "@/components/json-editor-card/JsonEditorCard.jsx";
-import {outputStore, streamEditStore, streamStore, streamSaveStore} from "@/stores/index.ts";
+import {outputStore, streamEditStore, streamStatusStore, streamDetailStore, streamSaveStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
 import {
   Box,
@@ -88,7 +88,7 @@ const RecordingPanel = observer(({
         alternateTranscodes: alternateTranscodesMeta,
         programPidSelection: programPidSelectionMeta,
         advancedEncodingParams: advancedEncodingParamsMeta
-      } = await streamStore.LoadRecordingConfigData({objectId: params.id, slug});
+      } = await streamDetailStore.LoadRecordingConfigData({objectId: params.id, slug});
 
       retentionMeta = persistentMeta ? "indefinite" : retentionMeta ? retentionMeta.toString() : null;
       connectionTimeoutMeta = connectionTimeoutMeta ? connectionTimeoutMeta.toString() : null;
@@ -289,7 +289,7 @@ const RecordingPanel = observer(({
       </DisabledTooltipWrapper>
 
       {
-        !(streamStore.streams?.[slug].originUrl || "").includes("rtmp") &&
+        !(streamStatusStore.streams?.[slug].originUrl || "").includes("rtmp") &&
         <>
           <DisabledTooltipWrapper
             disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
@@ -322,7 +322,7 @@ const RecordingPanel = observer(({
                       value="rtp_ts"
                       label="RTP wrapped MPEG-TS (ST 2022-2, ST 2022-7)"
                       description=""
-                      disabled={!streamStore.streams[slug]?.source?.some(s => s === "rtp" || s === "srt")}
+                      disabled={!streamStatusStore.streams[slug]?.source?.some(s => s === "rtp" || s === "srt")}
                     />
                   </Group>
                 </Radio.Group>
@@ -364,7 +364,7 @@ const RecordingPanel = observer(({
                       streamSaveStore.SetDirty({id: "recording", isDirty: form.isDirty()});
                     }}
                     parentObjectId={params.id}
-                    parentLibraryId={streamStore.streams[slug]?.libraryId}
+                    parentLibraryId={streamStatusStore.streams[slug]?.libraryId}
                     parentSlug={slug}
                   />
                 </Box>

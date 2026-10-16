@@ -11,13 +11,18 @@ vi.mock("react-router-dom", async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-const { mockDataStore, mockSettingsStore, mockStreamStore, mockModalStore, mockStreamGroupStore } = vi.hoisted(() => {
+const { mockDataStore, mockSettingsStore, mockStreamStatusStore, mockStreamListStore, mockModalStore, mockStreamGroupStore } = vi.hoisted(() => {
+  const mockStreamStatusStore = {
+    streams: {
+      "stream-1": { objectId: "123", slug: "stream-1", title: "Live Sports News" },
+      "stream-2": { objectId: "456", slug: "stream-2", title: "Music Festival Feed" },
+    },
+    CheckStatus: vi.fn().mockResolvedValue({}),
+  };
+
   return {
     mockStreamGroupStore: { groups: {}, LoadGroupData: vi.fn() },
-    mockDataStore: {
-      streamsLoaded: true,
-      LoadStreamList: vi.fn()
-    },
+    mockDataStore: {},
     mockSettingsStore: {
       LoadStreamUrls: vi.fn().mockResolvedValue([]),
       loadedDedicatedNodes: true,
@@ -26,24 +31,24 @@ const { mockDataStore, mockSettingsStore, mockStreamStore, mockModalStore, mockS
       loadedDeclaredTags: true,
       LoadDeclaredTags: vi.fn().mockResolvedValue([])
     },
-    mockStreamStore: {
+    mockStreamStatusStore,
+    mockStreamListStore: {
+      streamsLoaded: true,
+      LoadStreamList: vi.fn(),
       tableFilter: "",
       tableTagFilter: [],
-      streams: {
-        "stream-1": { objectId: "123", slug: "stream-1", title: "Live Sports News" },
-        "stream-2": { objectId: "456", slug: "stream-2", title: "Music Festival Feed" },
-      },
-      get filteredStreams() { return Object.values(this.streams); },
+      activeTagFilter: [],
+      declaredTagsOnServer: [],
+      get filteredStreams() { return Object.values(mockStreamStatusStore.streams); },
       get allTags() { return []; },
       TagOptions: () => [],
       datePreset: "day",
-      SetSelectedRecords: (records) => { mockStreamStore.selectedRecords = records; },
-      SetSortStatus: (status) => { mockStreamStore.sortStatus = status; },
+      SetSelectedRecords: (records) => { mockStreamListStore.selectedRecords = records; },
+      SetSortStatus: (status) => { mockStreamListStore.sortStatus = status; },
       referenceDate: new Date(),
       SetTableFilter: vi.fn(),
       SetTableTagFilter: vi.fn(),
       SetDateFilter: vi.fn(),
-      CheckStatus: vi.fn().mockResolvedValue({}),
     },
     mockModalStore: { SetBatchModal: vi.fn() }
   };
@@ -63,7 +68,7 @@ vi.mock("@tanstack/react-virtual", () => ({
 // Selection/sort live in the store, so they must be observable for the component to re-render.
 vi.mock("@/stores", async () => {
   const {extendObservable} = await import("mobx");
-  extendObservable(mockStreamStore, {
+  extendObservable(mockStreamListStore, {
     selectedRecords: [],
     sortStatus: {columnAccessor: "date", direction: "desc"}
   });
@@ -71,7 +76,8 @@ vi.mock("@/stores", async () => {
   return {
     dataStore: mockDataStore,
     settingsStore: mockSettingsStore,
-    streamStore: mockStreamStore,
+    streamStatusStore: mockStreamStatusStore,
+    streamListStore: mockStreamListStore,
     modalStore: mockModalStore,
     streamGroupStore: mockStreamGroupStore,
   };
@@ -91,17 +97,17 @@ const renderWithProviders = (ui) => {
 describe("Streams Dashboard Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDataStore.streamsLoaded = true;
-    mockStreamStore.tableFilter = "";
-    mockStreamStore.selectedRecords = [];
+    mockStreamListStore.streamsLoaded = true;
+    mockStreamListStore.tableFilter = "";
+    mockStreamListStore.selectedRecords = [];
   });
 
   it("should trigger LoadStreamList on mount if streams are not loaded", () => {
-    mockDataStore.streamsLoaded = false;
+    mockStreamListStore.streamsLoaded = false;
 
     renderWithProviders(<Streams />);
 
-    expect(mockDataStore.LoadStreamList).toHaveBeenCalledTimes(1);
+    expect(mockStreamListStore.LoadStreamList).toHaveBeenCalledTimes(1);
   });
 
   it("should display the records passed from the stream store", async () => {
@@ -120,12 +126,12 @@ describe("Streams Dashboard Component", () => {
     const searchInput = screen.getByRole("textbox");
     fireEvent.change(searchInput, { target: { value: "Sports" } });
 
-    expect(mockStreamStore.SetTableFilter).toHaveBeenCalledWith("Sports");
+    expect(mockStreamListStore.SetTableFilter).toHaveBeenCalledWith("Sports");
   });
 
   it("should manage button disabled states conditionally based on record selection", async () => {
-    mockDataStore.streamsLoaded = true;
-    mockStreamStore.streams = {
+    mockStreamListStore.streamsLoaded = true;
+    mockStreamStatusStore.streams = {
       "stream-1": { objectId: "123", slug: "stream-1", title: "Live Sports News" },
     };
 
@@ -158,7 +164,7 @@ describe("Streams Dashboard Component", () => {
 
   it("group row count reflects the members actually shown, not the full group", () => {
     // Group declares 3 streams, but only 2 are present in the current (filtered) list.
-    mockStreamStore.streams = {
+    mockStreamStatusStore.streams = {
       "stream-1": { objectId: "111", slug: "stream-1", title: "A", titleId: "grp" },
       "stream-2": { objectId: "222", slug: "stream-2", title: "B", titleId: "grp" },
     };

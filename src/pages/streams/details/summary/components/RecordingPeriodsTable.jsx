@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useDisclosure} from "@mantine/hooks";
-import {streamEditStore, streamStore} from "@/stores/index.ts";
+import {streamEditStore, streamStatusStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} from "@mantine/core";
@@ -53,8 +53,8 @@ const RecordingPeriodsTable = observer(({
     direction: "desc"
   });
 
-  const persistent = streamStore.streams?.[slug]?.persistent;
-  const retention = streamStore.streams?.[slug]?.partTtl;
+  const persistent = streamStatusStore.streams?.[slug]?.persistent;
+  const retention = streamStatusStore.streams?.[slug]?.partTtl;
 
   const [showExpired, setShowExpired] = useState(false);
 

@@ -1,7 +1,9 @@
 import {configure, makeAutoObservable} from "mobx";
 import {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
 import DataStore from "@/stores/DataStore";
-import StreamStore from "@/stores/StreamStore";
+import StreamStatusStore from "@/stores/StreamStatusStore";
+import StreamDetailStore from "@/stores/StreamDetailStore";
+import StreamListStore from "@/stores/StreamListStore";
 import StreamEditStore from "@/stores/StreamEditStore";
 import ModalStore from "@/stores/ModalStore";
 import SettingsStore from "@/stores/SettingsStore";
@@ -34,7 +36,9 @@ class RootStore {
   errorMessage?: string;
 
   dataStore: DataStore;
-  streamStore: StreamStore;
+  streamStatusStore: StreamStatusStore;
+  streamDetailStore: StreamDetailStore;
+  streamListStore: StreamListStore;
   streamEditStore: StreamEditStore;
   streamSaveStore: StreamSaveStore;
   modalStore: ModalStore;
@@ -49,7 +53,9 @@ class RootStore {
 
   constructor() {
     this.dataStore = new DataStore(this);
-    this.streamStore = new StreamStore(this);
+    this.streamStatusStore = new StreamStatusStore(this);
+    this.streamDetailStore = new StreamDetailStore(this);
+    this.streamListStore = new StreamListStore(this);
     this.streamEditStore = new StreamEditStore(this);
     this.streamSaveStore = new StreamSaveStore(this);
     this.modalStore = new ModalStore(this);
@@ -80,23 +86,11 @@ class RootStore {
         this.userSettingsStore.Load()
       ]);
 
-      this.streamStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.streams);
+      this.streamListStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.streams);
       this.outputStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.outputs);
 
-      // The tenant-wide live-stream query is scoped by siteId (group:eq:<siteId>), so it can't
-      // fire until site settings (dataStore.Initialize -> LoadTenantSiteData) have resolved siteId.
-      // Only used when the site opts into the content-group query; kick it off here (not awaited)
-      // so it's in flight before the streams page mounts; LoadStreamList picks up the same
-      // in-flight promise via the filter-key cache.
-      if(this.dataStore.useContentGroup) {
-        const fullScan = this.streamStore.tableFilterIsObjectId || this.streamStore.declaredTagsNeedFullLoad;
-        this.streamStore.LoadTenantLiveStreamContent({
-          siteId: this.dataStore.siteId,
-          dateRange: this.dataStore.useDateFilter && !fullScan ? this.streamStore.dateRangeFilter : [null, null],
-          nameFilter: this.streamStore.tenantNameTerms,
-          paged: !this.streamStore.searchNeedsFullLoad && !this.streamStore.declaredTagsNeedFullLoad
-        });
-      }
+      // Needs siteId from dataStore.Initialize; started here so it's in flight before the streams page mounts.
+      this.streamListStore.PrefetchStreamList();
     } catch(error) {
       /* eslint-disable no-console */
       console.error("Failed to initialize application");
@@ -120,7 +114,7 @@ class RootStore {
       libraryId = await this.client.ContentObjectLibraryId({objectId});
     }
 
-    await this.streamStore.client.SendMessage({
+    await this.client.SendMessage({
       options: {
         operation: "OpenLink",
         libraryId,

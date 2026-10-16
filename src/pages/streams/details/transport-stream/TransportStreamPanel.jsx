@@ -8,7 +8,7 @@ import {
 } from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {dataStore, settingsStore, streamStore} from "@/stores/index.ts";
+import {dataStore, settingsStore, streamStatusStore, streamDetailStore} from "@/stores/index.ts";
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router-dom";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
@@ -28,7 +28,7 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
     regionValue: "",
     label: ""
   };
-  const url = streamStore.streams?.[slug].originUrl;
+  const url = streamStatusStore.streams?.[slug].originUrl;
 
   const [loading, setLoading] = useState(false);
   const [copyMpegTs, setCopyMpegTs] = useState(false);
@@ -38,7 +38,7 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
     const LoadConfigData = async() => {
       let {
         copyMpegTs: copyMpegTsMeta
-      } = await streamStore.LoadRecordingConfigData({objectId: params.id, slug});
+      } = await streamDetailStore.LoadRecordingConfigData({objectId: params.id, slug});
       await settingsStore.LoadSrtPlayoutUrls();
 
       setCopyMpegTs(copyMpegTsMeta);

@@ -22,7 +22,7 @@ import {slugify} from "@/utils/helpers";
 import {WithWriteToken} from "@/utils/fabric/withWriteToken";
 import {ResolveIngestNodeId} from "@/stores/lib/fabricNodes";
 import type RootStore from "@/stores/RootStore";
-import type {AudioDataMap, ProbeData} from "@/stores/StreamStore";
+import type {AudioDataMap, ProbeData} from "@/stores/StreamDetailStore";
 import {PermissionLevel} from "@/stores/DataStore";
 
 const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
@@ -346,7 +346,7 @@ class StreamEditStore {
 
       const createdObjectId = response.objectId;
 
-      const statusResponse = yield this.rootStore.streamStore.CheckStatus({
+      const statusResponse = yield this.rootStore.streamStatusStore.CheckStatus({
         objectId: createdObjectId
       });
 
@@ -356,7 +356,7 @@ class StreamEditStore {
         status: statusResponse.state,
       };
 
-      const streamDetails = yield this.rootStore.streamStore.LoadStreamMetadata({
+      const streamDetails = yield this.rootStore.streamDetailStore.LoadStreamMetadata({
         objectId: createdObjectId,
         libraryId
       }) || {};
@@ -365,7 +365,7 @@ class StreamEditStore {
         streamValue[detail] = streamDetails[detail];
       });
 
-      this.rootStore.streamStore.UpdateStream({
+      this.rootStore.streamStatusStore.UpdateStream({
         key: slugify(name),
         value: streamValue
       });
@@ -727,7 +727,7 @@ class StreamEditStore {
     nodeId
   }: DuplicateStreamParams): Generator<any, FinalizeContentObjectResponse> {
     try {
-      const originalStream = this.rootStore.streamStore.streams[originalSlug];
+      const originalStream = this.rootStore.streamStatusStore.streams[originalSlug];
       const targetTitle = name ?? `Copy ${originalStream?.name}`;
 
       if(!libraryId) {
@@ -763,7 +763,7 @@ class StreamEditStore {
       });
 
 
-      const statusResponse = yield this.rootStore.streamStore.CheckStatus({
+      const statusResponse = yield this.rootStore.streamStatusStore.CheckStatus({
         objectId: response.id
       });
 
@@ -773,7 +773,7 @@ class StreamEditStore {
         status: statusResponse.state,
       };
 
-      const streamDetails = yield this.rootStore.streamStore.LoadStreamMetadata({
+      const streamDetails = yield this.rootStore.streamDetailStore.LoadStreamMetadata({
         objectId: response.id,
         libraryId
       }) || {};
@@ -782,7 +782,7 @@ class StreamEditStore {
         streamValue[detail] = streamDetails[detail];
       });
 
-      this.rootStore.streamStore.UpdateStream({
+      this.rootStore.streamStatusStore.UpdateStream({
         key: slugify(targetTitle),
         value: streamValue
       });
@@ -796,7 +796,7 @@ class StreamEditStore {
   }
 
   *DeleteStream({objectId, slug}: {objectId: string, slug?: string}): Generator<any, void> {
-    const streams = Object.assign({}, this.rootStore.streamStore.streams);
+    const streams = Object.assign({}, this.rootStore.streamStatusStore.streams);
 
     if(!slug) {
       slug = Object.keys(streams).find(streamSlug => {
@@ -817,11 +817,11 @@ class StreamEditStore {
     }
 
     delete streams[slug];
-    this.rootStore.streamStore.UpdateStreams({streams});
+    this.rootStore.streamListStore.SetStreams({streams});
   }
 
   *DeleteStreamBatch({objects}: {objects: StreamRecord[]}): Generator<any, void> {
-    const streams = Object.assign({}, this.rootStore.streamStore.streams);
+    const streams = Object.assign({}, this.rootStore.streamStatusStore.streams);
 
     const resolved = objects.map(object => ({
       objectId: object.objectId,
@@ -857,7 +857,7 @@ class StreamEditStore {
       awaitCommitConfirmation: true
     });
 
-    this.rootStore.streamStore.UpdateStreams({streams});
+    this.rootStore.streamListStore.SetStreams({streams});
   }
 
   // Permissions & Access
@@ -1026,7 +1026,7 @@ class StreamEditStore {
         });
       }
 
-      this.rootStore.streamStore.UpdateStream({
+      this.rootStore.streamStatusStore.UpdateStream({
         key: slug,
         value: updateValue
       });
@@ -1298,7 +1298,7 @@ class StreamEditStore {
       }
     ));
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamStatusStore.UpdateStream({
       key: slug,
       value: {
         connectionTimeout: connectionTimeout !== undefined ? parseInt(connectionTimeout) : undefined,
@@ -1485,7 +1485,7 @@ class StreamEditStore {
       commitMessage: "Apply general config"
     });
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamStatusStore.UpdateStream({
       key: slug,
       value: {
         tags: tags ?? [],
@@ -1542,11 +1542,11 @@ class StreamEditStore {
       commitMessage: "Apply playout settings"
     });
 
-    const statusResponse = yield this.rootStore.streamStore.CheckStatus({
+    const statusResponse = yield this.rootStore.streamStatusStore.CheckStatus({
       objectId
     });
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamStatusStore.UpdateStream({
       key: slug,
       value: {
         status: statusResponse.state
@@ -1662,15 +1662,15 @@ class StreamEditStore {
 
       yield this.rootStore.settingsStore.SaveStreamLink({objectId, slug});
 
-      const response = yield this.rootStore.streamStore.CheckStatus({
+      const response = yield this.rootStore.streamStatusStore.CheckStatus({
         objectId
       });
 
-      const streamDetails = yield this.rootStore.streamStore.LoadStreamMetadata({
+      const streamDetails = yield this.rootStore.streamDetailStore.LoadStreamMetadata({
         objectId
       });
 
-      this.rootStore.streamStore.UpdateStream({
+      this.rootStore.streamStatusStore.UpdateStream({
         key: slug,
         value: {
           status: response.state,
@@ -1715,7 +1715,7 @@ class StreamEditStore {
       }
     });
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamStatusStore.UpdateStream({
       key: slug,
       value: updateValue
     });
@@ -1762,7 +1762,7 @@ class StreamEditStore {
     }
 
     if(response) {
-      this.rootStore.streamStore.UpdateStream({
+      this.rootStore.streamStatusStore.UpdateStream({
         key: slug,
         value: {
           imageWatermark: response.imageWatermark,
@@ -1869,7 +1869,7 @@ class StreamEditStore {
         commitMessage: "Configure watermark"
       });
 
-      const statusResponse = yield this.rootStore.streamStore.CheckStatus({
+      const statusResponse = yield this.rootStore.streamStatusStore.CheckStatus({
         objectId
       });
 
@@ -1878,7 +1878,7 @@ class StreamEditStore {
       updateValue["watermarkType"] = watermarkType;
     }
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamStatusStore.UpdateStream({
       key: slug,
       value: updateValue
     });
@@ -1941,7 +1941,7 @@ class StreamEditStore {
         commitMessage: "Update drm type metadata"
       });
 
-      const statusResponse = yield this.rootStore.streamStore.CheckStatus({
+      const statusResponse = yield this.rootStore.streamStatusStore.CheckStatus({
         objectId
       });
 
@@ -1951,7 +1951,7 @@ class StreamEditStore {
       drmNeedsInit = true;
     }
 
-    this.rootStore.streamStore.UpdateStream({
+    this.rootStore.streamStatusStore.UpdateStream({
       key: slug,
       value: updateValue
     });
@@ -2430,7 +2430,7 @@ class StreamEditStore {
       targetLibraryId = yield this.client.ContentObjectLibraryId({objectId});
     }
 
-    const streams = this.rootStore.streamStore.streams;
+    const streams = this.rootStore.streamStatusStore.streams;
     const streamSlug = Object.keys(streams || {}).find(slug => (
       streams[slug].objectId === objectId
     ));
@@ -2565,7 +2565,7 @@ class StreamEditStore {
         awaitCommitConfirmation: true
       });
 
-      this.rootStore.streamStore.SetStreamTags({slug, tags});
+      this.rootStore.streamListStore.SetStreamTags({slug, tags});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to update stream tags.", error);

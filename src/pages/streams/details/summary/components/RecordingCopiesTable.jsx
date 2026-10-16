@@ -4,7 +4,7 @@ import {DataTable} from "mantine-datatable";
 import {ActionIcon, Badge, Box, Button, Flex, Group, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
 import {DateFormat} from "@/utils/formatters.ts";
 import {SortTable} from "@/utils/helpers.ts";
-import {streamStore, streamEditStore} from "@/stores/index.ts";
+import {streamStatusStore, streamEditStore} from "@/stores/index.ts";
 import {RecordingCopyMissingError} from "@/stores/StreamEditStore.ts";
 import {IconExternalLink, IconPencil, IconTrash} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
@@ -179,7 +179,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
                     variant="subtle"
                     color="elv-gray.6"
                     disabled={record.unavailable}
-                    onClick={() => streamStore.client.SendMessage({
+                    onClick={() => streamStatusStore.client.SendMessage({
                       options: {
                         operation: "OpenLink",
                         objectId: record._id

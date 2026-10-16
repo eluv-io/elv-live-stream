@@ -5,7 +5,7 @@ import {IconChevronRight} from "@tabler/icons-react";
 import sharedStyles from "@/assets/shared.module.css";
 
 // Used in FMP4/CMAF Packaging and AlternateTranscodeModal. `programs` comes
-// from input_cfg.mpegts_selection (see StreamStore.LoadRecordingConfigData) -
+// from input_cfg.mpegts_selection (see StreamDetailStore.LoadRecordingConfigData) -
 // fabric only exposes program numbers and a flat PID list there, so per-PID
 // type/codec/description aren't populated yet.
 const ProgramPidSelector = ({value, onChange, disabled}) => {

@@ -6,7 +6,7 @@ import Actions from "@/components/table/actions/Actions.jsx";
 import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import {useWindowVirtualizer} from "@tanstack/react-virtual";
 
-import {dataStore, modalStore, rootStore, streamStore} from "@/stores/index.ts";
+import {modalStore, rootStore, streamStatusStore, streamDetailStore, streamListStore} from "@/stores/index.ts";
 import {StreamIsActive} from "@/utils/stream/stream.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
@@ -54,7 +54,7 @@ const OverflowMenu = observer(({stream}) => {
       Icon: <IconCopy {...iconProps} />,
       hide: !stream.embedUrl,
       onClick: async() => {
-        const url = await streamStore.EmbedUrl({objectId: stream.objectId});
+        const url = await streamDetailStore.EmbedUrl({objectId: stream.objectId});
         clipboard.copy(url);
         notifications.show({title: "Copied embed url", message: ""});
       }
@@ -164,7 +164,7 @@ const OverflowMenu = observer(({stream}) => {
 });
 
 const GridItem = observer(({stream, index}) => {
-  const record = streamStore.streams?.[stream.slug] ?? stream;
+  const record = streamStatusStore.streams?.[stream.slug] ?? stream;
   const tsPackagingOnly = TsPackagingOnly(record);
 
   return (
@@ -172,7 +172,7 @@ const GridItem = observer(({stream, index}) => {
       <VideoContainer
         index={index}
         slug={record.slug}
-        showPreview={streamStore.showMonitorPreviews && !tsPackagingOnly}
+        showPreview={streamStatusStore.showMonitorPreviews && !tsPackagingOnly}
         playable={record.status === "running" && !tsPackagingOnly}
         capLevelToPlayerSize
       />
@@ -237,25 +237,25 @@ const Monitor = observer(() => {
 
   useEffect(() => {
     // Monitor needs every stream, not just the streams page's date-filtered set.
-    if(!dataStore.streamsLoaded || dataStore.streamsScoped) {
-      dataStore.LoadStreamList({scoped: false});
+    if(!streamListStore.streamsLoaded || streamListStore.streamsScoped) {
+      streamListStore.LoadStreamList({scoped: false});
     }
   }, []);
 
   const streams = useMemo(() => {
-    if(!streamStore.streams) { return undefined; }
+    if(!streamStatusStore.streams) { return undefined; }
     const textFilter = debouncedFilter.toLowerCase();
-    return Object.values(streamStore.streams)
+    return Object.values(streamStatusStore.streams)
       .filter(record => {
         const matchesText = !textFilter ||
           record.title?.toLowerCase().includes(textFilter) ||
           record.objectId?.toLowerCase().includes(textFilter);
         const matchesTags = tagFilter.length === 0 ||
-          tagFilter.some(tag => streamStore.StreamMatchesTag(record, tag));
+          tagFilter.some(tag => streamListStore.StreamMatchesTag(record, tag));
         return matchesText && matchesTags;
       })
       .sort(SortTable({sortStatus: {columnAccessor: "title", direction: "asc"}}));
-  }, [streamStore.streams, debouncedFilter, tagFilter]);
+  }, [streamStatusStore.streams, debouncedFilter, tagFilter]);
 
   const rows = useMemo(() => {
     if(!streams) return [];
@@ -280,19 +280,19 @@ const Monitor = observer(() => {
       <Actions
         mb={16}
         actions={[{
-          label: streamStore.showMonitorPreviews ? "Hide Previews" : "Show Previews",
+          label: streamStatusStore.showMonitorPreviews ? "Hide Previews" : "Show Previews",
           id: "toggle-previews",
           variant: "outline",
-          onClick: () => streamStore.ToggleMonitorPreviews()
+          onClick: () => streamStatusStore.ToggleMonitorPreviews()
         }]}
         searchValue={filter}
         onSearchChange={event => setFilter(event.target.value)}
-        tagOptions={streamStore.allTags}
+        tagOptions={streamListStore.allTags}
         tagFilter={tagFilter}
         onTagFilterChange={setTagFilter}
       />
       <TagFilterRow
-        tags={streamStore.allTags}
+        tags={streamListStore.allTags}
         selectedTags={tagFilter}
         onTagToggle={(tag) => setTagFilter(current =>
           current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag]

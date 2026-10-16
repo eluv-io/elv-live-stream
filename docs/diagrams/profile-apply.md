@@ -50,7 +50,7 @@ flowchart TD
     G -->|yes| H[SetPermission /<br/>UpdateAccessGroupPermission]
     G -->|no| I
     H --> I[FinalizeContentObject stream<br/>'Apply general config']
-    I --> J[StreamStore.UpdateStream<br/>tags, configProfile]
+    I --> J[StreamStatusStore.UpdateStream<br/>tags, configProfile]
     J --> K[return probeCleared]
 ```
 

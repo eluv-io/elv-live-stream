@@ -16,7 +16,7 @@ import {
 import {useEffect, useMemo, useRef, useState} from "react";
 import {toJS} from "mobx";
 import {useForm} from "@mantine/form";
-import {dataStore, streamEditStore, streamStore, profileStore, streamSaveStore} from "@/stores/index.ts";
+import {dataStore, streamEditStore, streamStatusStore, streamDetailStore, profileStore, streamSaveStore, streamListStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
@@ -25,7 +25,7 @@ import {StreamIsActive} from "@/utils/stream/stream.ts";
 import {IconInfoCircle} from "@tabler/icons-react";
 
 const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) => {
-  const currentConfigProfile = streamStore.streams?.[slug].configProfile;
+  const currentConfigProfile = streamStatusStore.streams?.[slug].configProfile;
   const [applyingProfileChanges, setApplyingProfileChanges] = useState(false);
   const [currentSettings, setCurrentSettings] = useState({
     accessGroup: "",
@@ -65,13 +65,13 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
     const LoadData = async() => {
       try {
         setLoading(true);
-        const libraryId = streamStore.streams[slug]?.libraryId;
+        const libraryId = streamStatusStore.streams[slug]?.libraryId;
         await Promise.all([
-          streamStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug}),
+          streamDetailStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug}),
           dataStore.LoadAccessGroups(),
           profileStore.state !== "loaded" ? profileStore.LoadProfiles() : Promise.resolve()
         ]);
-        const stream = streamStore.streams[slug];
+        const stream = streamStatusStore.streams[slug];
 
         const values = {
           name: stream.title || "",
@@ -249,7 +249,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
                 {...form.getInputProps("applyConfigProfile", {type: "checkbox"})}
               />
               {
-                (profileStore.profiles[currentConfigProfile]?.last_updated > streamStore.streams[slug]?.profileLastUpdated) ?
+                (profileStore.profiles[currentConfigProfile]?.last_updated > streamStatusStore.streams[slug]?.profileLastUpdated) ?
                   <Box>
                     <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
                     <Button
@@ -278,7 +278,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
             label="Tags"
             description="Add tags to organize and quickly find streams."
             placeholder="Type and press Enter to add a tag"
-            data={streamStore.TagOptions()}
+            data={streamListStore.TagOptions()}
             key={form.key("tags")}
             {...form.getInputProps("tags")}
             mb={29}

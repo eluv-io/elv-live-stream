@@ -22,12 +22,12 @@ const {
 
 vi.mock("@/stores/index.ts", () => ({
   streamEditStore: {UpdateRecordingConfig: mockUpdateRecordingConfig},
-  streamStore: {
+  streamStatusStore: {
     streams: {
       "test-slug": {originUrl: "udp://host.example.com:1234", protocol: "udp"}
-    },
-    LoadRecordingConfigData: mockLoadRecordingConfigData
+    }
   },
+  streamDetailStore: {LoadRecordingConfigData: mockLoadRecordingConfigData},
   outputStore: {LoadOutputStreamInfo: mockLoadOutputStreamInfo},
   // AlternateTranscodesTable/AlternateTranscodeModal (rendered inside the
   // Transport Stream Packaging section) read settingsStore.dedicatedNodesList

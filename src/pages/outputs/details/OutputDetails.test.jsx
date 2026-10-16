@@ -4,7 +4,7 @@ import {MantineProvider} from "@mantine/core";
 
 // --- Module mocks (hoisted) -------------------------------------------------
 
-// The video player pulls in the heaviest deps in the bundle and needs streamStore
+// The video player pulls in the heaviest deps in the bundle and needs streamStatusStore
 // state jsdom can't provide - the failover card is presentational, so stub it out.
 vi.mock("@/components/video-container/VideoContainer.jsx", () => ({
   default: () => <div data-testid="video-container" />
@@ -21,12 +21,12 @@ vi.mock("@/stores/index.ts", () => ({
   outputStore: {OutputItem: vi.fn(() => undefined)},
   outputSaveStore: {},
   outputModalStore: {OpenModal: vi.fn()},
-  streamStore: {allStreams: {}, loadingAllStreams: false, LoadAllStreams: vi.fn()}
+  streamListStore: {allStreams: {}, loadingAllStreams: false, LoadAllStreams: vi.fn()}
 }));
 
 // Imports must come AFTER vi.mock so the module picks up the mocks
 import {SummaryPanel} from "./OutputDetails.jsx";
-import {streamStore, outputModalStore, outputStore} from "@/stores/index.ts";
+import {streamListStore, outputModalStore, outputStore} from "@/stores/index.ts";
 
 // --- Factories -----------------------------------------------------------
 
@@ -69,7 +69,7 @@ const rowValue = (label) => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  streamStore.allStreams = {};
+  streamListStore.allStreams = {};
   outputStore.OutputItem = vi.fn(() => undefined);
 });
 

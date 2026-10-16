@@ -20,7 +20,7 @@ import {
   PLAYOUT_FORMAT_OPTIONS,
   STATUS_MAP
 } from "@/utils/constants.ts";
-import {streamEditStore, streamStore, streamSaveStore} from "@/stores/index.ts";
+import {streamEditStore, streamStatusStore, streamDetailStore, streamSaveStore} from "@/stores/index.ts";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
@@ -35,10 +35,10 @@ const PlayoutPanel = observer(({
   const params = useParams();
   const loadedRef = useRef(null);
 
-  const currentDrm = streamStore.streams?.[slug].drm;
-  const simpleWatermark = streamStore.streams?.[slug].simpleWatermark;
-  const imageWatermark = streamStore.streams?.[slug].imageWatermark;
-  const forensicWatermark = streamStore.streams?.[slug].forensicWatermark;
+  const currentDrm = streamStatusStore.streams?.[slug].drm;
+  const simpleWatermark = streamStatusStore.streams?.[slug].simpleWatermark;
+  const imageWatermark = streamStatusStore.streams?.[slug].imageWatermark;
+  const forensicWatermark = streamStatusStore.streams?.[slug].forensicWatermark;
 
   const form = useForm({
     mode: "uncontrolled",
@@ -68,7 +68,7 @@ const PlayoutPanel = observer(({
         imageWatermark: imageWatermarkMeta,
         simpleWatermark: simpleWatermarkMeta,
         watermarkType: watermarkTypeMeta
-      } = await streamStore.LoadPlayoutConfigData({objectId: params.id, slug});
+      } = await streamDetailStore.LoadPlayoutConfigData({objectId: params.id, slug});
 
       const values = {
         drm: drmMeta ?? [],

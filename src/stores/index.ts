@@ -12,7 +12,9 @@ window["rootStore"] = rootStore;
 window["client"] = rootStore.client;
 
 export const dataStore = rootStore.dataStore;
-export const streamStore = rootStore.streamStore;
+export const streamStatusStore = rootStore.streamStatusStore;
+export const streamDetailStore = rootStore.streamDetailStore;
+export const streamListStore = rootStore.streamListStore;
 export const streamEditStore = rootStore.streamEditStore;
 export const streamSaveStore = rootStore.streamSaveStore;
 export const modalStore = rootStore.modalStore;
