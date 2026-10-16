@@ -6,7 +6,7 @@ import {ActionIcon, Button, Divider, Group, Popover, Select, Text, Tooltip} from
 import {DatePicker} from "@mantine/dates";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
-import {dataStore, settingsStore, modalStore, streamStatusStore, streamGroupStore, streamListStore} from "@/stores/index.ts";
+import {dataStore, settingsStore, streamModalStore, streamStatusStore, streamGroupStore, streamListStore} from "@/stores/index.ts";
 import {DATE_RANGE_PRESET_OPTIONS, FormatDateFilter, FormatDateRangeLabel, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -139,7 +139,7 @@ const Streams = observer(() => {
     Promise.all(selectedRecords.map(r => streamStatusStore.CheckStatus({objectId: r.objectId, slug: r.slug, update: true})));
 
   const openBatchModal = (op) => {
-    modalStore.SetBatchModal({
+    streamModalStore.SetBatchModal({
       op,
       records: selectedRecords.map(r => streamStatusStore.streams[r.slug] ?? r),
       notifications,
@@ -180,7 +180,7 @@ const Streams = observer(() => {
       label: "Delete",
       id: "delete-batch-action",
       icon: IconTrash,
-      onClick: () => modalStore.SetBatchModal({
+      onClick: () => streamModalStore.SetBatchModal({
         op: "DELETE",
         records: selectedRecords.map(r => streamStatusStore.streams[r.slug] ?? r),
         notifications,

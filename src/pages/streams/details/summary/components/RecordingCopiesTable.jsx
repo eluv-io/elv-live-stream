@@ -5,7 +5,7 @@ import {ActionIcon, Badge, Box, Button, Flex, Group, Modal, Stack, Text, TextInp
 import {DateFormat} from "@/utils/formatters.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import {streamStatusStore, recordingCopyStore} from "@/stores/index.ts";
-import {RecordingCopyMissingError} from "@/stores/RecordingCopyStore.ts";
+import {RecordingCopyMissingError} from "@/stores/streams/RecordingCopyStore.ts";
 import {IconExternalLink, IconPencil, IconTrash} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import {useForm} from "@mantine/form";

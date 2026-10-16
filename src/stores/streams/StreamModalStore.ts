@@ -101,7 +101,7 @@ const BATCH_READY_STATUSES: Record<BatchOp, BatchActionProps> = {
 };
 
 // Centralizes control over all modal windows, managing their visibility, content, and properties.
-class ModalStore {
+class StreamModalStore {
   rootStore: RootStore;
   modalData: ModalDataProps = {
     objectId: null,
@@ -459,4 +459,4 @@ class ModalStore {
   };
 }
 
-export default ModalStore;
+export default StreamModalStore;

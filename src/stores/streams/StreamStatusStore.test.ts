@@ -8,7 +8,7 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
-import StreamStatusStore from "@/stores/StreamStatusStore";
+import StreamStatusStore from "@/stores/streams/StreamStatusStore";
 import {STATUS_MAP} from "@/utils/constants";
 
 // Sequential stand-in for client.utils.LimitedMap.

@@ -100,14 +100,14 @@ Per-output errors are caught individually so one failing output doesn't block re
 
 ## Key files
 
-- `src/stores/OutputStore.ts:218-256` — `LoadOutputSettingsId` / `LoadOutputs`
-- `src/stores/OutputStore.ts:390-457` — `CreateOutput`
-- `src/stores/OutputStore.ts:459-567` — `MapStream` / `MapStreamBatch`
-- `src/stores/OutputStore.ts:569-617` — `UnmapStreamBatch`
-- `src/stores/OutputStore.ts:683-851` — `EnableOutput`/`DisableOutput` (single + batch)
-- `src/stores/OutputStore.ts:619-681` — `SaveOutput`
-- `src/stores/OutputStore.ts:926-954` — `ResetOutput`
-- `src/stores/OutputStore.ts:853-891` — `DeleteOutput`/`DeleteOutputBatch`
-- `src/stores/OutputStore.ts:263-310` — `CheckOutputState` / `LoadAllOutputsState` (poll batch)
-- `src/stores/OutputModalStore.ts:113-165` — `OpenModal` / `Confirm` orchestration, `MODAL_CONFIG`
+- `src/stores/outputs/OutputStore.ts:218-256` — `LoadOutputSettingsId` / `LoadOutputs`
+- `src/stores/outputs/OutputStore.ts:390-457` — `CreateOutput`
+- `src/stores/outputs/OutputStore.ts:459-567` — `MapStream` / `MapStreamBatch`
+- `src/stores/outputs/OutputStore.ts:569-617` — `UnmapStreamBatch`
+- `src/stores/outputs/OutputStore.ts:683-851` — `EnableOutput`/`DisableOutput` (single + batch)
+- `src/stores/outputs/OutputStore.ts:619-681` — `SaveOutput`
+- `src/stores/outputs/OutputStore.ts:926-954` — `ResetOutput`
+- `src/stores/outputs/OutputStore.ts:853-891` — `DeleteOutput`/`DeleteOutputBatch`
+- `src/stores/outputs/OutputStore.ts:263-310` — `CheckOutputState` / `LoadAllOutputsState` (poll batch)
+- `src/stores/outputs/OutputModalStore.ts:113-165` — `OpenModal` / `Confirm` orchestration, `MODAL_CONFIG`
 - `src/components/data-wrapper/DataWrapper.jsx` — shared polling loop (see stream-lifecycle.md)

@@ -6,7 +6,7 @@ import Actions from "@/components/table/actions/Actions.jsx";
 import TagFilterRow from "@/components/table/tag-filter-row/TagFilterRow.jsx";
 import {useWindowVirtualizer} from "@tanstack/react-virtual";
 
-import {modalStore, rootStore, streamStatusStore, streamDetailStore, streamListStore} from "@/stores/index.ts";
+import {streamModalStore, rootStore, streamStatusStore, streamDetailStore, streamListStore} from "@/stores/index.ts";
 import {StreamIsActive} from "@/utils/stream/stream.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import VideoContainer from "@/components/video-container/VideoContainer.jsx";
@@ -74,7 +74,7 @@ const OverflowMenu = observer(({stream}) => {
       label: "Check Stream",
       Icon: <IconListCheck {...iconProps} />,
       hide: ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(stream.status),
-      onClick: () => modalStore.SetModal({
+      onClick: () => streamModalStore.SetModal({
         data,
         slug: stream.slug,
         op: "CHECK",
@@ -86,7 +86,7 @@ const OverflowMenu = observer(({stream}) => {
       label: "Stop Stream",
       Icon: <IconPlayerStop {...iconProps} />,
       hide: !stream.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(stream.status),
-      onClick: () => modalStore.SetModal({
+      onClick: () => streamModalStore.SetModal({
         data,
         slug: stream.slug,
         op: "STOP",
@@ -111,7 +111,7 @@ const OverflowMenu = observer(({stream}) => {
       label: "Deactivate Stream",
       Icon: <IconCircleX {...iconProps} />,
       hide: !stream.status || stream.status !== STATUS_MAP.STOPPED,
-      onClick: () => modalStore.SetModal({
+      onClick: () => streamModalStore.SetModal({
         data,
         slug: stream.slug,
         op: "DEACTIVATE",
@@ -123,7 +123,7 @@ const OverflowMenu = observer(({stream}) => {
       label: "Delete Stream",
       Icon: <TrashIcon {...iconProps} />,
       disabled: StreamIsActive(stream.status),
-      onClick: () => modalStore.SetModal({
+      onClick: () => streamModalStore.SetModal({
         data,
         slug: stream.slug,
         op: "DELETE",
@@ -188,7 +188,7 @@ const GridItem = observer(({stream, index}) => {
                 h={25}
                 leftSection={<IconPlayerPlay height={12} width={12} />}
                 onClick={() => {
-                  modalStore.SetModal({
+                  streamModalStore.SetModal({
                     data: {
                       objectId: record.objectId,
                       name: record.title

@@ -20,7 +20,7 @@ vi.mock("@/utils/stream", () => ({
   DeriveSourceAndPackaging: vi.fn().mockReturnValue({source: ["srt"], packaging: ["hls"]}),
 }));
 
-import OutputStore from "@/stores/OutputStore";
+import OutputStore from "@/stores/outputs/OutputStore";
 
 afterEach(() => {
   vi.clearAllMocks();

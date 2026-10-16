@@ -12,7 +12,7 @@ vi.mock("@/utils/constants", () => ({
   DETAILS_TABS: []
 }));
 
-import StreamEditStore, {UpdatePlayoutConfigParams} from "@/stores/StreamEditStore";
+import StreamEditStore, {UpdatePlayoutConfigParams} from "@/stores/streams/StreamEditStore";
 
 // autoBind defines bound flows as non-writable, non-configurable OWN properties on
 // each instance, so they can't be reassigned or spied after construction. The only

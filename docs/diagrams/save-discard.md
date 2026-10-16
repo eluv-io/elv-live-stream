@@ -74,10 +74,10 @@ The `Back` button pre-checks dirty state rather than letting the blocker interce
 
 ## Key files
 
-- `src/stores/StreamSaveStore.ts:9-23` — state shape (`panels`, `dirty`, `saving`, `failedPanelId`)
-- `src/stores/StreamSaveStore.ts:42-60` — `Register` / `Unregister` / `Reset`
-- `src/stores/StreamSaveStore.ts:71-93` — `SaveAll` (generator/flow, sequential by `PANEL_ORDER`)
-- `src/stores/StreamSaveStore.ts:95-100` — `DiscardAll`
+- `src/stores/streams/StreamSaveStore.ts:9-23` — state shape (`panels`, `dirty`, `saving`, `failedPanelId`)
+- `src/stores/streams/StreamSaveStore.ts:42-60` — `Register` / `Unregister` / `Reset`
+- `src/stores/streams/StreamSaveStore.ts:71-93` — `SaveAll` (generator/flow, sequential by `PANEL_ORDER`)
+- `src/stores/streams/StreamSaveStore.ts:95-100` — `DiscardAll`
 - `src/pages/streams/details/StreamDetailsPage.jsx:44-50` — `useBlocker` for route-change guard
 - `src/pages/streams/details/StreamDetailsPage.jsx:93-132` — `HandleSaveAll` / `HandleDiscardAll` / `HandleBack`
 - `src/pages/streams/details/StreamDetailsPage.jsx:138-147` — `mutatesStream` action disabling
@@ -86,4 +86,4 @@ The `Back` button pre-checks dirty state rather than letting the blocker interce
 
 ## Output details page
 
-The output details page (`src/pages/outputs/details/OutputDetails.jsx`) mirrors this exact architecture via a separate `OutputSaveStore` (`src/stores/OutputSaveStore.ts`), currently coordinating a single savable tab (`generalConfig`). Same `Register`/`Unregister`/`SetDirty`/`SaveAll`/`DiscardAll` shape, same tab `Indicator` dot, same Save/Discard toolbar, same `useBlocker` + pre-checked `Back` button + `ConfirmModal` pair for the unsaved-changes guard, and the same `mutatesOutput`-flagged action disabling (Reset, Enable/Disable, Unmap/Map) while dirty.
+The output details page (`src/pages/outputs/details/OutputDetails.jsx`) mirrors this exact architecture via a separate `OutputSaveStore` (`src/stores/outputs/OutputSaveStore.ts`), currently coordinating a single savable tab (`generalConfig`). Same `Register`/`Unregister`/`SetDirty`/`SaveAll`/`DiscardAll` shape, same tab `Indicator` dot, same Save/Discard toolbar, same `useBlocker` + pre-checked `Back` button + `ConfirmModal` pair for the unsaved-changes guard, and the same `mutatesOutput`-flagged action disabling (Reset, Enable/Disable, Unmap/Map) while dirty.

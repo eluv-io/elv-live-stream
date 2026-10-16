@@ -8,7 +8,7 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
-import AlternateTranscodeStore from "@/stores/AlternateTranscodeStore";
+import AlternateTranscodeStore from "@/stores/streams/AlternateTranscodeStore";
 
 describe("SaveAlternateTranscode", () => {
   const params = {

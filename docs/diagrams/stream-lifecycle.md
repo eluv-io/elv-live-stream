@@ -26,7 +26,7 @@ sequenceDiagram
 
 ## Configuration ("Check Stream" / probe)
 
-Triggered by the "Check Stream" confirmation modal (`ModalStore.OP_MAP.CHECK`).
+Triggered by the "Check Stream" confirmation modal (`StreamModalStore.OP_MAP.CHECK`).
 
 ```mermaid
 sequenceDiagram
@@ -113,7 +113,7 @@ sequenceDiagram
 
 Defined in `STATUS_MAP`: `unconfigured`, `uninitialized`, `initialized`, `inactive`, `stopped`, `starting`, `running`, `stalled`, `degraded`, `unavailable`.
 
-`ModalStore.BATCH_READY_STATUSES` governs which batch operations are enabled from which states:
+`StreamModalStore.BATCH_READY_STATUSES` governs which batch operations are enabled from which states:
 
 | Operation | Ready from |
 |---|---|
@@ -124,17 +124,17 @@ Defined in `STATUS_MAP`: `unconfigured`, `uninitialized`, `initialized`, `inacti
 
 ## Key files
 
-- `src/stores/StreamEditStore.ts:241-317` — `InitLiveStreamObject` (creation)
-- `src/stores/StreamEditStore.ts:319-394` — `DuplicateStream`
-- `src/stores/StreamEditStore.ts:1126-1202` — `ConfigureStream`
-- `src/stores/StreamStatusStore.ts` — `StartStream`
-- `src/stores/StreamStatusStore.ts` — `OperateLRO` (shared START/STOP/RESET)
-- `src/stores/StreamStatusStore.ts` — `DeactivateStream`
-- `src/stores/StreamStatusStore.ts` — `LoadAllStreamsStatus` (classify + poll batch)
-- `src/stores/StreamListStore.ts` — `LoadStreamList` / `LoadMoreStreamList` (streams page), `LoadAllStreams` (unscoped set for stream pickers)
-- `src/stores/StreamStatusStore.ts` — `_ClassifyStreams` (cheap local-metadata classification)
-- `src/stores/StreamStatusStore.ts` — `_SetStreamActive` (active-poll set membership)
-- `src/stores/StreamStatusStore.ts` — `CheckStatus`
+- `src/stores/streams/StreamEditStore.ts:241-317` — `InitLiveStreamObject` (creation)
+- `src/stores/streams/StreamEditStore.ts:319-394` — `DuplicateStream`
+- `src/stores/streams/StreamEditStore.ts:1126-1202` — `ConfigureStream`
+- `src/stores/streams/StreamStatusStore.ts` — `StartStream`
+- `src/stores/streams/StreamStatusStore.ts` — `OperateLRO` (shared START/STOP/RESET)
+- `src/stores/streams/StreamStatusStore.ts` — `DeactivateStream`
+- `src/stores/streams/StreamStatusStore.ts` — `LoadAllStreamsStatus` (classify + poll batch)
+- `src/stores/streams/StreamListStore.ts` — `LoadStreamList` / `LoadMoreStreamList` (streams page), `LoadAllStreams` (unscoped set for stream pickers)
+- `src/stores/streams/StreamStatusStore.ts` — `_ClassifyStreams` (cheap local-metadata classification)
+- `src/stores/streams/StreamStatusStore.ts` — `_SetStreamActive` (active-poll set membership)
+- `src/stores/streams/StreamStatusStore.ts` — `CheckStatus`
 - `src/components/data-wrapper/DataWrapper.jsx:20-58` — polling loop scheduler
 - `src/utils/constants.ts:8-19` — `STATUS_MAP`
-- `src/stores/ModalStore.ts:91-96` — `BATCH_READY_STATUSES`
+- `src/stores/streams/StreamModalStore.ts:91-96` — `BATCH_READY_STATUSES`

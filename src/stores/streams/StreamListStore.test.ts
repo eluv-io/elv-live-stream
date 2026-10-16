@@ -8,7 +8,7 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
-import StreamListStore from "@/stores/StreamListStore";
+import StreamListStore from "@/stores/streams/StreamListStore";
 
 interface MetaByObject {
   [objectId: string]: unknown;

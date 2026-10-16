@@ -11,7 +11,7 @@ vi.mock("react-router-dom", async () => {
   return { ...actual, useNavigate: () => mockNavigate };
 });
 
-const { mockDataStore, mockSettingsStore, mockStreamStatusStore, mockStreamListStore, mockModalStore, mockStreamGroupStore } = vi.hoisted(() => {
+const { mockDataStore, mockSettingsStore, mockStreamStatusStore, mockStreamListStore, mockStreamModalStore, mockStreamGroupStore } = vi.hoisted(() => {
   const mockStreamStatusStore = {
     streams: {
       "stream-1": { objectId: "123", slug: "stream-1", title: "Live Sports News" },
@@ -50,7 +50,7 @@ const { mockDataStore, mockSettingsStore, mockStreamStatusStore, mockStreamListS
       SetTableTagFilter: vi.fn(),
       SetDateFilter: vi.fn(),
     },
-    mockModalStore: { SetBatchModal: vi.fn() }
+    mockStreamModalStore: { SetBatchModal: vi.fn() }
   };
 });
 
@@ -78,7 +78,7 @@ vi.mock("@/stores", async () => {
     settingsStore: mockSettingsStore,
     streamStatusStore: mockStreamStatusStore,
     streamListStore: mockStreamListStore,
-    modalStore: mockModalStore,
+    streamModalStore: mockStreamModalStore,
     streamGroupStore: mockStreamGroupStore,
   };
 });

@@ -4,7 +4,7 @@ import {ActionIcon, Box, Button, Divider, Group, Stack, Text, Title, Tooltip} fr
 import {DataTable} from "mantine-datatable";
 import {IconPencil, IconPlayerPlay, IconPlayerStop, IconPlus, IconTrash} from "@tabler/icons-react";
 import {notifications} from "@mantine/notifications";
-import {settingsStore, modalStore, alternateTranscodeStore, streamStatusStore} from "@/stores/index.ts";
+import {settingsStore, streamModalStore, alternateTranscodeStore, streamStatusStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS, STATUS_MAP} from "@/utils/constants.ts";
 import {VideoBitrateReadable} from "@/utils/formatters.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
@@ -61,7 +61,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
 
   // Slug is omitted: alternate transcodes aren't in the streams map.
   const ConfirmStreamOp = (record, op) => {
-    modalStore.SetModal({
+    streamModalStore.SetModal({
       data: {objectId: record.id, name: record.name},
       op,
       slug: "",

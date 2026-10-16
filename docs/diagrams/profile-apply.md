@@ -66,9 +66,9 @@ Note: `probeCleared` returned from `SaveGeneralConfig` is captured by `GeneralPa
 
 ## Key files
 
-- `src/stores/StreamEditStore.ts:1069-1122` — `ApplyStreamProfile`
-- `src/stores/StreamEditStore.ts:921-1009` — `SaveGeneralConfig` (primary caller)
-- `src/stores/StreamEditStore.ts:1602-1639` — `SaveStreamAudioSettings` fallback branch (reconstructs audio index from ladder specs when no probe data exists yet)
+- `src/stores/streams/StreamEditStore.ts:1069-1122` — `ApplyStreamProfile`
+- `src/stores/streams/StreamEditStore.ts:921-1009` — `SaveGeneralConfig` (primary caller)
+- `src/stores/streams/StreamEditStore.ts:1602-1639` — `SaveStreamAudioSettings` fallback branch (reconstructs audio index from ladder specs when no probe data exists yet)
 - `src/pages/streams/details/general/GeneralPanel.jsx:115-128` — `Save()`, where `probeCleared` is returned but unused
 - `src/stores/ProfileStore.ts:33-46` — `LoadProfiles`
 - `src/stores/ProfileStore.ts:110-190` — `SaveProfiles` (includes rename migration of `profile_streams`)

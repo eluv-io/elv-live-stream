@@ -12,7 +12,7 @@ vi.mock("@/utils/constants", () => ({
   DETAILS_TABS: []
 }));
 
-import RecordingCopyStore from "@/stores/RecordingCopyStore";
+import RecordingCopyStore from "@/stores/streams/RecordingCopyStore";
 
 // autoBind makes bound flows non-writable own properties, so stub the prototype generator before construction.
 const prototypeSpies: ReturnType<typeof vi.spyOn>[] = [];

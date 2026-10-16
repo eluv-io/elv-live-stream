@@ -8,7 +8,7 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
-import OutputSaveStore from "@/stores/OutputSaveStore";
+import OutputSaveStore from "@/stores/outputs/OutputSaveStore";
 
 // OutputSaveStore is a plain registry/orchestrator with no I/O of its own —
 // a bare, empty root store stub is enough for every describe block below.

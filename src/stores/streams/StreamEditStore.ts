@@ -18,7 +18,7 @@ import {PlayoutFormat, RESOLUTION_DIMENSIONS, STATUS_MAP, StreamStatus} from "@/
 import {slugify} from "@/utils/helpers";
 import {WithWriteToken} from "@/utils/fabric/withWriteToken";
 import type RootStore from "@/stores/RootStore";
-import type {AudioDataMap, ProbeData} from "@/stores/StreamDetailStore";
+import type {AudioDataMap, ProbeData} from "@/stores/streams/StreamDetailStore";
 import {PermissionLevel} from "@/stores/DataStore";
 
 // Empty clears the value (null); anything else must be a positive integer

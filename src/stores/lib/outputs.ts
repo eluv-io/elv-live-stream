@@ -1,5 +1,5 @@
 // Output helpers: type derivation and default rtmp input.
-import type {Output, OutputType} from "@/stores/OutputStore";
+import type {Output, OutputType} from "@/stores/outputs/OutputStore";
 
 /** Display type for an output: its transport, plus RTP/TS packaging for SRT outputs. */
 export const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {

@@ -38,7 +38,7 @@ const AppLayout = observer(() => {
               <PageLoader />
           }
           <ConfirmModal
-            {...rootStore.modalStore.modalData}
+            {...rootStore.streamModalStore.modalData}
           />
           <OutputModals />
         </DataWrapper>

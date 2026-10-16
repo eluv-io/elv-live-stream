@@ -1,21 +1,21 @@
 import {configure, makeAutoObservable} from "mobx";
 import {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
 import DataStore from "@/stores/DataStore";
-import StreamStatusStore from "@/stores/StreamStatusStore";
-import StreamDetailStore from "@/stores/StreamDetailStore";
-import StreamListStore from "@/stores/StreamListStore";
-import StreamEditStore from "@/stores/StreamEditStore";
-import AlternateTranscodeStore from "@/stores/AlternateTranscodeStore";
-import RecordingCopyStore from "@/stores/RecordingCopyStore";
-import ModalStore from "@/stores/ModalStore";
+import StreamStatusStore from "@/stores/streams/StreamStatusStore";
+import StreamDetailStore from "@/stores/streams/StreamDetailStore";
+import StreamListStore from "@/stores/streams/StreamListStore";
+import StreamEditStore from "@/stores/streams/StreamEditStore";
+import AlternateTranscodeStore from "@/stores/streams/AlternateTranscodeStore";
+import RecordingCopyStore from "@/stores/streams/RecordingCopyStore";
+import StreamModalStore from "@/stores/streams/StreamModalStore";
 import SettingsStore from "@/stores/SettingsStore";
 import ProfileStore from "@/stores/ProfileStore";
-import StreamGroupStore from "@/stores/StreamGroupStore";
-import OutputStore from "@/stores/OutputStore";
-import OutputModalStore from "@/stores/OutputModalStore";
+import StreamGroupStore from "@/stores/streams/StreamGroupStore";
+import OutputStore from "@/stores/outputs/OutputStore";
+import OutputModalStore from "@/stores/outputs/OutputModalStore";
 import UserSettingsStore from "@/stores/UserSettingsStore";
-import StreamSaveStore from "@/stores/StreamSaveStore";
-import OutputSaveStore from "@/stores/OutputSaveStore";
+import StreamSaveStore from "@/stores/streams/StreamSaveStore";
+import OutputSaveStore from "@/stores/outputs/OutputSaveStore";
 import VersionStore from "@/stores/VersionStore";
 
 // Force strict mode so mutations are only allowed within actions.
@@ -45,7 +45,7 @@ class RootStore {
   alternateTranscodeStore: AlternateTranscodeStore;
   recordingCopyStore: RecordingCopyStore;
   streamSaveStore: StreamSaveStore;
-  modalStore: ModalStore;
+  streamModalStore: StreamModalStore;
   settingsStore: SettingsStore;
   profileStore: ProfileStore;
   streamGroupStore: StreamGroupStore;
@@ -64,7 +64,7 @@ class RootStore {
     this.alternateTranscodeStore = new AlternateTranscodeStore(this);
     this.recordingCopyStore = new RecordingCopyStore(this);
     this.streamSaveStore = new StreamSaveStore(this);
-    this.modalStore = new ModalStore(this);
+    this.streamModalStore = new StreamModalStore(this);
     this.settingsStore = new SettingsStore(this);
     this.profileStore = new ProfileStore(this);
     this.streamGroupStore = new StreamGroupStore(this);

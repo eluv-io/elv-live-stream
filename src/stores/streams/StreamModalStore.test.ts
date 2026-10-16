@@ -7,7 +7,7 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
-import ModalStore from "./ModalStore";
+import StreamModalStore from "./StreamModalStore";
 
 const makeStore = ({dependentIds = ["iq__dep1", "iq__dep2"], statuses = {} as Record<string, string>} = {}) => {
   const streamStatusStore = {
@@ -20,7 +20,7 @@ const makeStore = ({dependentIds = ["iq__dep1", "iq__dep2"], statuses = {} as Re
       Promise.resolve(Object.fromEntries(ids.map(id => [id, {status: statuses[id] ?? "inactive"}])))
     )
   };
-  const store = new ModalStore({streamStatusStore} as any) as any;
+  const store = new StreamModalStore({streamStatusStore} as any) as any;
   return {store, streamStatusStore};
 };
 
@@ -36,7 +36,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
-describe("ModalStore dependent streams", () => {
+describe("StreamModalStore dependent streams", () => {
   it("starts the parent and its ready dependents", async () => {
     const {store, streamStatusStore} = makeStore();
     await openStartModal(store);
