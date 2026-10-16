@@ -50,8 +50,8 @@ vi.mock("@mantine/core", async () => {
   return {...actual, Select: MockSelect};
 });
 
-const {mockDataStore} = vi.hoisted(() => ({
-  mockDataStore: {
+const {mockSettingsStore} = vi.hoisted(() => ({
+  mockSettingsStore: {
     liveStreamUrls: {},
     dedicatedNodes: null,
     dedicatedNodesList: [],
@@ -61,7 +61,7 @@ const {mockDataStore} = vi.hoisted(() => ({
   }
 }));
 
-vi.mock("@/stores/index.ts", () => ({dataStore: mockDataStore}));
+vi.mock("@/stores/index.ts", () => ({settingsStore: mockSettingsStore}));
 
 import StreamUrlSelector from "./StreamUrlSelector";
 
@@ -100,10 +100,10 @@ const switchToCustomProtocol = async (user) => {
 describe("StreamUrlSelector", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDataStore.dedicatedNodes = null;
-    mockDataStore.liveStreamUrls = {};
-    mockDataStore.dedicatedNodesList = [];
-    mockDataStore.DedicatedNodeUrls.mockReturnValue([]);
+    mockSettingsStore.dedicatedNodes = null;
+    mockSettingsStore.liveStreamUrls = {};
+    mockSettingsStore.dedicatedNodesList = [];
+    mockSettingsStore.DedicatedNodeUrls.mockReturnValue([]);
   });
 
   describe("tab visibility", () => {
@@ -118,7 +118,7 @@ describe("StreamUrlSelector", () => {
     });
 
     it("renders the Dedicated tab when dedicatedNodes is set", () => {
-      mockDataStore.dedicatedNodes = {"node-1": {urls: {}}};
+      mockSettingsStore.dedicatedNodes = {"node-1": {urls: {}}};
       renderSelector();
       expect(screen.getByRole("tab", {name: /dedicated/i})).toBeInTheDocument();
     });
@@ -174,7 +174,7 @@ describe("StreamUrlSelector", () => {
     });
 
     it("calls onUrlChange when a URL option is selected", async () => {
-      mockDataStore.liveStreamUrls = {
+      mockSettingsStore.liveStreamUrls = {
         "udp://239.0.0.1:5000": {protocol: "mpegts", active: false}
       };
       const onUrlChange = vi.fn();
@@ -187,7 +187,7 @@ describe("StreamUrlSelector", () => {
 
   describe("URL options from liveStreamUrls", () => {
     it("shows matching non-active URLs and excludes active/wrong-protocol ones", async () => {
-      mockDataStore.liveStreamUrls = {
+      mockSettingsStore.liveStreamUrls = {
         "udp://239.0.0.1:5000": {protocol: "mpegts", active: false},
         "udp://239.0.0.2:5000": {protocol: "mpegts", active: true},
         "rtp://host:5000": {protocol: "rtp", active: false},
@@ -220,7 +220,7 @@ describe("StreamUrlSelector", () => {
 
   describe("tab switching", () => {
     beforeEach(() => {
-      mockDataStore.dedicatedNodes = {"node-1": {urls: {}}};
+      mockSettingsStore.dedicatedNodes = {"node-1": {urls: {}}};
     });
 
     it("calls onActiveTabChange when switching to dedicated", async () => {
@@ -247,7 +247,7 @@ describe("StreamUrlSelector", () => {
 
   describe("dedicated tab", () => {
     beforeEach(() => {
-      mockDataStore.dedicatedNodes = {"node-1": {urls: {}}};
+      mockSettingsStore.dedicatedNodes = {"node-1": {urls: {}}};
     });
 
     it("shows a Node selector", () => {
@@ -261,7 +261,7 @@ describe("StreamUrlSelector", () => {
     });
 
     it("calls onNodeChange when a node is selected", async () => {
-      mockDataStore.dedicatedNodesList = [{label: "Node 1", value: "node-1"}];
+      mockSettingsStore.dedicatedNodesList = [{label: "Node 1", value: "node-1"}];
       const onNodeChange = vi.fn();
       const {user} = renderSelector({activeTab: "dedicated", onNodeChange});
       await user.click(screen.getByRole("textbox", {name: /Node/i}));
@@ -270,7 +270,7 @@ describe("StreamUrlSelector", () => {
     });
 
     it("calls onUrlChange with empty string when a node is selected", async () => {
-      mockDataStore.dedicatedNodesList = [{label: "Node 1", value: "node-1"}];
+      mockSettingsStore.dedicatedNodesList = [{label: "Node 1", value: "node-1"}];
       const onUrlChange = vi.fn();
       const {user} = renderSelector({activeTab: "dedicated", onUrlChange});
       await user.click(screen.getByRole("textbox", {name: /Node/i}));
@@ -279,8 +279,8 @@ describe("StreamUrlSelector", () => {
     });
 
     it("URL input becomes enabled after a node is selected", async () => {
-      mockDataStore.dedicatedNodesList = [{label: "Node 1", value: "node-1"}];
-      mockDataStore.DedicatedNodeUrls.mockReturnValue(["udp://node1:5000"]);
+      mockSettingsStore.dedicatedNodesList = [{label: "Node 1", value: "node-1"}];
+      mockSettingsStore.DedicatedNodeUrls.mockReturnValue(["udp://node1:5000"]);
       const {user} = renderSelector({activeTab: "dedicated"});
       await user.click(screen.getByRole("textbox", {name: /Node/i}));
       await user.click(await screen.findByRole("option", {name: /Node 1/i}));

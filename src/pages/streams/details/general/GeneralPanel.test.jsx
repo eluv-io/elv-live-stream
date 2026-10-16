@@ -31,16 +31,18 @@ vi.mock("@/stores", () => ({
       }
     }
   },
+  settingsStore: {
+    LoadDedicatedNodes: vi.fn().mockResolvedValue(undefined),
+    loadedDedicatedNodes: true,
+    loadedDeclaredTags: true,
+    LoadDeclaredTags: vi.fn().mockResolvedValue(undefined),
+    dedicatedNodesList: []
+  },
   dataStore: {
     LoadDetails: vi.fn().mockResolvedValue(undefined),
     LoadPermission: vi.fn().mockResolvedValue("editable"),
     LoadAccessGroupPermissions: vi.fn().mockResolvedValue(""),
     LoadAccessGroups: vi.fn().mockResolvedValue(undefined),
-    LoadDedicatedNodes: vi.fn().mockResolvedValue(undefined),
-    loadedDedicatedNodes: true,
-    loadedDeclaredTags: true,
-    LoadDeclaredTags: vi.fn().mockResolvedValue(undefined),
-    dedicatedNodesList: [],
     accessGroups: {},
     client: {
       permissionLevels: {

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import {MantineProvider} from "@mantine/core";
 
 vi.mock("@/stores/index.ts", () => ({
-  dataStore: {
+  settingsStore: {
     customDomain: "https://old.example.com",
     loadedCustomDomain: true,
     LoadCustomDomain: vi.fn().mockResolvedValue(undefined),
@@ -13,7 +13,7 @@ vi.mock("@/stores/index.ts", () => ({
 }));
 
 import CustomDomain from "./CustomDomain.jsx";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 
 const renderComponent = () => render(<MantineProvider><CustomDomain /></MantineProvider>);
 
@@ -40,7 +40,7 @@ describe("CustomDomain", () => {
     await userEvent.click(screen.getByRole("button", {name: "Save"}));
 
     expect(await screen.findByText(/valid URL/)).toBeInTheDocument();
-    expect(dataStore.SaveCustomDomain).not.toHaveBeenCalled();
+    expect(settingsStore.SaveCustomDomain).not.toHaveBeenCalled();
   });
 
   it("saves a valid URL and disables Save again", async() => {
@@ -52,7 +52,7 @@ describe("CustomDomain", () => {
     await userEvent.type(input, "https://new.example.com");
     await userEvent.click(screen.getByRole("button", {name: "Save"}));
 
-    await waitFor(() => expect(dataStore.SaveCustomDomain).toHaveBeenCalledWith({customDomain: "https://new.example.com"}));
+    await waitFor(() => expect(settingsStore.SaveCustomDomain).toHaveBeenCalledWith({customDomain: "https://new.example.com"}));
     await waitFor(() => expect(screen.getByRole("button", {name: "Save"})).toBeDisabled());
   });
 });

@@ -24,7 +24,7 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import SelectFailoverStreamModal from "@/pages/outputs/modals/SelectFailoverStreamModal.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {dataStore, outputStore, streamStore} from "@/stores/index.ts";
+import {settingsStore, outputStore, streamStore} from "@/stores/index.ts";
 import {
   FABRIC_NODE_REGIONS,
   FAILOVER_TIMEOUT_OPTIONS,
@@ -246,7 +246,7 @@ const GeneralConfig = observer(({form, output}) => {
               <Select
                 label="Node Type"
                 data={[
-                  ...(dataStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
+                  ...(settingsStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
                   {label: "Public", value: "public"}
                 ]}
                 allowDeselect={false}
@@ -265,8 +265,8 @@ const GeneralConfig = observer(({form, output}) => {
                 <LockWhenEnabled locked={locked}>
                   <Select
                     label="Node"
-                    placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
-                    data={dataStore.dedicatedNodesList}
+                    placeholder={settingsStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
+                    data={settingsStore.dedicatedNodesList}
                     allowDeselect={false}
                     disabled={locked}
                     withAsterisk

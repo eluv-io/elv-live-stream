@@ -4,7 +4,7 @@ import DataStore from "@/stores/DataStore";
 import StreamStore from "@/stores/StreamStore";
 import StreamEditStore from "@/stores/StreamEditStore";
 import ModalStore from "@/stores/ModalStore";
-import SiteStore from "@/stores/SiteStore";
+import SettingsStore from "@/stores/SettingsStore";
 import ProfileStore from "@/stores/ProfileStore";
 import StreamGroupStore from "@/stores/StreamGroupStore";
 import OutputStore from "@/stores/OutputStore";
@@ -38,7 +38,7 @@ class RootStore {
   streamEditStore: StreamEditStore;
   streamSaveStore: StreamSaveStore;
   modalStore: ModalStore;
-  siteStore: SiteStore;
+  settingsStore: SettingsStore;
   profileStore: ProfileStore;
   streamGroupStore: StreamGroupStore;
   outputStore: OutputStore;
@@ -53,7 +53,7 @@ class RootStore {
     this.streamEditStore = new StreamEditStore(this);
     this.streamSaveStore = new StreamSaveStore(this);
     this.modalStore = new ModalStore(this);
-    this.siteStore = new SiteStore(this);
+    this.settingsStore = new SettingsStore(this);
     this.profileStore = new ProfileStore(this);
     this.streamGroupStore = new StreamGroupStore(this);
     this.outputStore = new OutputStore(this);

@@ -8,7 +8,7 @@ import {
 } from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {dataStore, streamStore} from "@/stores/index.ts";
+import {dataStore, settingsStore, streamStore} from "@/stores/index.ts";
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router-dom";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
@@ -39,7 +39,7 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
       let {
         copyMpegTs: copyMpegTsMeta
       } = await streamStore.LoadRecordingConfigData({objectId: params.id, slug});
-      await dataStore.LoadSrtPlayoutUrls();
+      await settingsStore.LoadSrtPlayoutUrls();
 
       setCopyMpegTs(copyMpegTsMeta);
     };
@@ -80,10 +80,10 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
     });
   };
 
-  const srtUrls = (dataStore.srtUrlsByStream?.[params.id]?.srt_urls || [])
+  const srtUrls = (settingsStore.srtUrlsByStream?.[params.id]?.srt_urls || [])
     .map(DetailLink);
 
-  const quickLinkRegions = dataStore.srtUrlsByStream?.[params.id]?.quick_link_regions || {};
+  const quickLinkRegions = settingsStore.srtUrlsByStream?.[params.id]?.quick_link_regions || {};
 
   if(loading) { return <Loader />; }
 
@@ -114,7 +114,7 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
         show={modalData.show}
         confirmText="Delete"
         CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
-        ConfirmCallback={() => dataStore.DeleteSrtUrl({
+        ConfirmCallback={() => settingsStore.DeleteSrtUrl({
           objectId: params.id,
           region: modalData.regionValue
         })}

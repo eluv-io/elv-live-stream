@@ -30,9 +30,9 @@ vi.mock("@/stores/index.ts", () => ({
   },
   outputStore: {LoadOutputStreamInfo: mockLoadOutputStreamInfo},
   // AlternateTranscodesTable/AlternateTranscodeModal (rendered inside the
-  // Transport Stream Packaging section) read dataStore.dedicatedNodesList
+  // Transport Stream Packaging section) read settingsStore.dedicatedNodesList
   // for the Streaming Protocol Node select, even while collapsed/closed.
-  dataStore: {
+  settingsStore: {
     dedicatedNodesList: [],
     loadedDedicatedNodes: true,
     LoadDedicatedNodes: vi.fn()

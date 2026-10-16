@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {useBlocker, useNavigate, useParams} from "react-router-dom";
-import {dataStore, outputStore, outputSaveStore} from "@/stores/index.ts";
+import {settingsStore, outputStore, outputSaveStore} from "@/stores/index.ts";
 import {
   ActionIcon,
   Badge,
@@ -282,7 +282,7 @@ const OutputPanels = observer(({output, id, url}) => {
   // dedicatedNodesList is guaranteed loaded here - see the loader gate below.
   const initialLocation = ClassifyOutputLocation({
     output,
-    dedicatedNodesList: dataStore.dedicatedNodesList
+    dedicatedNodesList: settingsStore.dedicatedNodesList
   });
   const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url ?? output?.rtmp?.url;
 
@@ -449,14 +449,14 @@ const OutputDetails = observer(() => {
   const url = flatOutput?.url;
   const outputLocation = ClassifyOutputLocation({
     output,
-    dedicatedNodesList: dataStore.dedicatedNodesList
+    dedicatedNodesList: settingsStore.dedicatedNodesList
   });
   const hasDedicatedNode = outputLocation.nodeType === "dedicated";
   const geoLabel = outputLocation.geo ?
     FABRIC_NODE_REGIONS.find(geo => geo.value === outputLocation.geo)?.label :
     (!hasDedicatedNode && !outputLocation.nodeLabel ? "Automatic" : undefined);
   const nodeLabel = hasDedicatedNode ?
-    dataStore.dedicatedNodes?.[outputLocation.node]?.name :
+    settingsStore.dedicatedNodes?.[outputLocation.node]?.name :
     outputLocation.nodeLabel;
   const typeBadges = flatOutput?.type?.length ?
     <Group gap={4} wrap="nowrap">
@@ -500,7 +500,7 @@ const OutputDetails = observer(() => {
 
   // Loaded here so it's ready in parallel with the output load
   useEffect(() => {
-    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
+    if(!settingsStore.loadedDedicatedNodes) { settingsStore.LoadDedicatedNodes(); }
   }, []);
 
   useEffect(() => {
@@ -618,7 +618,7 @@ const OutputDetails = observer(() => {
 
   // Wait on dedicatedNodesList - OutputPanels needs it to classify the
   // output's node/region pick
-  if(!output || !dataStore.loadedDedicatedNodes) { return <Loader />; }
+  if(!output || !settingsStore.loadedDedicatedNodes) { return <Loader />; }
 
   return (
     <PageContainer

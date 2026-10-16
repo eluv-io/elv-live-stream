@@ -1660,7 +1660,7 @@ class StreamEditStore {
         commitMessage: "Apply live stream configuration"
       });
 
-      yield this.rootStore.siteStore.UpdateStreamLink({objectId, slug});
+      yield this.rootStore.settingsStore.SaveStreamLink({objectId, slug});
 
       const response = yield this.rootStore.streamStore.CheckStatus({
         objectId

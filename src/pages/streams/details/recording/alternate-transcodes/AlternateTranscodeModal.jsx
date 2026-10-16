@@ -1,7 +1,7 @@
 import {useEffect, useState} from "react";
 import {useForm} from "@mantine/form";
 import {observer} from "mobx-react-lite";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 import {ALTERNATE_TRANSCODE_PROTOCOLS, FABRIC_NODE_REGIONS, RESOLUTION_OPTIONS} from "@/utils/constants.ts";
 import {Button, Flex, Modal, NumberInput, Select, Stack, Tabs, Text, TextInput, Title} from "@mantine/core";
 import JsonEditorCard from "@/components/json-editor-card/JsonEditorCard.jsx";
@@ -48,7 +48,7 @@ const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) 
     form.setValues(knownFields ? {...DEFAULT_VALUES, ...knownFields} : DEFAULT_VALUES);
     form.resetDirty();
 
-    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
+    if(!settingsStore.loadedDedicatedNodes) { settingsStore.LoadDedicatedNodes(); }
 
   }, [opened, transcode]);
 
@@ -105,7 +105,7 @@ const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) 
             >
               <Tabs.List w="fit-content" mb={20}>
                 {
-                  dataStore.dedicatedNodesList.length > 0 &&
+                  settingsStore.dedicatedNodesList.length > 0 &&
                   <Tabs.Tab value="dedicated">Dedicated</Tabs.Tab>
                 }
                 <Tabs.Tab value="public">Public</Tabs.Tab>
@@ -115,8 +115,8 @@ const AlternateTranscodeModal = observer(({opened, transcode, onClose, onSave}) 
                 <Stack gap={20}>
                   <Select
                     label="Node"
-                    placeholder={dataStore.loadedDedicatedNodes ? "Select a node" : "Loading Nodes..."}
-                    data={dataStore.dedicatedNodesList}
+                    placeholder={settingsStore.loadedDedicatedNodes ? "Select a node" : "Loading Nodes..."}
+                    data={settingsStore.dedicatedNodesList}
                     allowDeselect={false}
                     withAsterisk
                     key={form.key("node")}

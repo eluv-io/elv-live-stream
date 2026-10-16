@@ -17,7 +17,7 @@ vi.mock("@/pages/streams/table/StreamsTable.jsx", () => ({
 }));
 
 vi.mock("@/stores/index.ts", () => ({
-  dataStore: {dedicatedNodesList: [], loadedDedicatedNodes: true, dedicatedNodes: {}},
+  settingsStore: {dedicatedNodesList: [], loadedDedicatedNodes: true, dedicatedNodes: {}},
   outputStore: {OutputItem: vi.fn(() => undefined)},
   outputSaveStore: {},
   outputModalStore: {OpenModal: vi.fn()},

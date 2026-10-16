@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {useEffect, useState} from "react";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 import {Box, Select, Tabs, TextInput} from "@mantine/core";
 
 const StreamUrlPanelContent = observer(({
@@ -25,7 +25,7 @@ const StreamUrlPanelContent = observer(({
         <Select
           name="nodes"
           label="Node"
-          placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
+          placeholder={settingsStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
           required={showNodeSelector}
           value={node}
           data={nodeOptions}
@@ -71,7 +71,7 @@ const StreamUrlPanelContent = observer(({
             label="URL"
             name="url"
             data={urlOptions.map(u => ({label: u, value: u}))}
-            placeholder={(!showNodeSelector && !dataStore.loadedUrls) ? "Loading URLs..." : "Select URL"}
+            placeholder={(!showNodeSelector && !settingsStore.loadedUrls) ? "Loading URLs..." : "Select URL"}
             value={url}
             onChange={onUrlChange}
             error={urlError}
@@ -110,14 +110,14 @@ const StreamUrlSelector = observer(({
   useEffect(() => {
     const urls = publicProtocol === "custom"
       ? []
-      : Object.keys(dataStore.liveStreamUrls || {})
-        .filter(u => dataStore.liveStreamUrls[u].protocol === publicProtocol && !dataStore.liveStreamUrls[u].active);
+      : Object.keys(settingsStore.liveStreamUrls || {})
+        .filter(u => settingsStore.liveStreamUrls[u].protocol === publicProtocol && !settingsStore.liveStreamUrls[u].active);
     setPublicUrlOptions(urls);
-  }, [publicProtocol, dataStore.liveStreamUrls]);
+  }, [publicProtocol, settingsStore.liveStreamUrls]);
 
   useEffect(() => {
     if(dedicatedNode && dedicatedProtocol) {
-      const options = dataStore.DedicatedNodeUrls({nodeId: dedicatedNode, protocol: dedicatedProtocol});
+      const options = settingsStore.DedicatedNodeUrls({nodeId: dedicatedNode, protocol: dedicatedProtocol});
       setDedicatedUrlOptions(options);
     }
   }, [dedicatedNode, dedicatedProtocol]);
@@ -137,7 +137,7 @@ const StreamUrlSelector = observer(({
     >
       <Tabs.List w="fit-content" mb={12}>
         {
-          dataStore.dedicatedNodes &&
+          settingsStore.dedicatedNodes &&
           <Tabs.Tab value="dedicated">Dedicated</Tabs.Tab>
         }
         <Tabs.Tab value="public">Public</Tabs.Tab>
@@ -147,7 +147,7 @@ const StreamUrlSelector = observer(({
         <StreamUrlPanelContent
           showNodeSelector
           node={dedicatedNode}
-          nodeOptions={dataStore.dedicatedNodesList}
+          nodeOptions={settingsStore.dedicatedNodesList}
           protocol={dedicatedProtocol}
           url={dedicatedUrl}
           customUrl={dedicatedCustomUrl}
@@ -156,7 +156,7 @@ const StreamUrlSelector = observer(({
             onProtocolChange(value);
             setDedicatedProtocol(value);
             setDedicatedUrl("");
-            setDedicatedUrlOptions(dataStore.DedicatedNodeUrls({nodeId: value}));
+            setDedicatedUrlOptions(settingsStore.DedicatedNodeUrls({nodeId: value}));
             onUrlChange("");
           }}
           onUrlChange={(value) => {

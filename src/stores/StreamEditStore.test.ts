@@ -1054,8 +1054,8 @@ const makeConfigureStreamStore = ({
     UpdateStream: vi.fn(),
   };
 
-  const mockSiteStore = {
-    UpdateStreamLink: vi.fn().mockResolvedValue(undefined),
+  const mockSettingsStore = {
+    SaveStreamLink: vi.fn().mockResolvedValue(undefined),
   };
 
   const syncAudioSpy = stubFlow("SyncAudioToProbe");
@@ -1064,10 +1064,10 @@ const makeConfigureStreamStore = ({
     dataStore: {},
     profileStore: {profiles: {}},
     streamStore: mockStreamStore,
-    siteStore: mockSiteStore,
+    settingsStore: mockSettingsStore,
   }) as any;
 
-  return {store, mockClient, mockStreamStore, mockSiteStore, syncAudioSpy};
+  return {store, mockClient, mockStreamStore, mockSettingsStore, syncAudioSpy};
 };
 
 describe("ConfigureStream", () => {
@@ -1146,10 +1146,10 @@ describe("ConfigureStream", () => {
     );
   });
 
-  it("calls siteStore.UpdateStreamLink with objectId and slug", async () => {
-    const {store, mockSiteStore} = makeConfigureStreamStore();
+  it("calls settingsStore.SaveStreamLink with objectId and slug", async () => {
+    const {store, mockSettingsStore} = makeConfigureStreamStore();
     await store.ConfigureStream({objectId: "iq__obj", slug: "my-stream"});
-    expect(mockSiteStore.UpdateStreamLink).toHaveBeenCalledWith({objectId: "iq__obj", slug: "my-stream"});
+    expect(mockSettingsStore.SaveStreamLink).toHaveBeenCalledWith({objectId: "iq__obj", slug: "my-stream"});
   });
 
   it("calls CheckStatus and LoadStreamMetadata after finalizing", async () => {

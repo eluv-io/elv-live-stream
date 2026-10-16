@@ -59,6 +59,7 @@ const makeStore = (clientOverrides: Record<string, unknown> = {}, streamStoreOve
       siteLibraryId: "ilib-site",
       siteId: "iq__site"
     },
+    settingsStore: {},
     streamStore: {
       streams: {},
       streamsByObjectId: {},
@@ -1618,7 +1619,7 @@ describe("ModifyOutput location", () => {
       ConfigUrl: vi.fn().mockResolvedValue("https://main.contentfabric.io/config"),
       SpaceNodes: vi.fn().mockResolvedValue([{id: "inode-auto"}])
     });
-    store.rootStore.dataStore.dedicatedNodesList = [{value: "inode-ded", label: "Dedicated 1"}];
+    store.rootStore.settingsStore.dedicatedNodesList = [{value: "inode-ded", label: "Dedicated 1"}];
 
     await store.ModifyOutput({outputId: "out-1", type: "rtp", nodeType: "public", nodeHost: "", node: "", region: ""});
 

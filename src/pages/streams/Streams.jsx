@@ -6,7 +6,7 @@ import {ActionIcon, Button, Divider, Group, Popover, Select, Text, Tooltip} from
 import {DatePicker} from "@mantine/dates";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
-import {dataStore, modalStore, streamStore, streamGroupStore} from "@/stores/index.ts";
+import {dataStore, settingsStore, modalStore, streamStore, streamGroupStore} from "@/stores/index.ts";
 import {DATE_RANGE_PRESET_OPTIONS, FormatDateFilter, FormatDateRangeLabel, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -74,9 +74,9 @@ const Streams = observer(() => {
 
   useEffect(() => {
     // A restored declared-tag selection needs the declared list before it can scope the query
-    if(!dataStore.loadedDeclaredTags) {
+    if(!settingsStore.loadedDeclaredTags) {
       const before = DeclaredTagQueryKey();
-      Promise.resolve(dataStore.LoadDeclaredTags()).then(() => {
+      Promise.resolve(settingsStore.LoadDeclaredTags()).then(() => {
         if(dataStore.useContentGroup && before !== DeclaredTagQueryKey()) {
           dataStore.LoadStreamList({reload: true});
         }

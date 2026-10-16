@@ -33,6 +33,7 @@ sequenceDiagram
     participant StreamEditStore
     participant FrameClient
     participant StreamStore
+    participant SettingsStore
 
     UI->>StreamEditStore: ConfigureStream({objectId})
     StreamEditStore->>FrameClient: EditContentObject → writeToken
@@ -42,7 +43,7 @@ sequenceDiagram
         StreamEditStore->>StreamEditStore: SyncAudioToProbe(writeToken, finalize:false)
     end
     StreamEditStore->>FrameClient: FinalizeContentObject("Apply live stream configuration")
-    StreamEditStore->>StreamStore: UpdateStreamLink(objectId, slug)
+    StreamEditStore->>SettingsStore: SaveStreamLink(objectId, slug)
     StreamEditStore->>StreamStore: CheckStatus + LoadStreamMetadata
     StreamEditStore->>StreamStore: UpdateStream(slug, {status, warnings, quality, ...})
 ```

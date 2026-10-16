@@ -197,7 +197,7 @@ class StreamStore {
   }
 
   get declaredTags(): string[] {
-    return [...(this.rootStore.dataStore.declaredTags ?? [])].sort();
+    return [...(this.rootStore.settingsStore.declaredTags ?? [])].sort();
   }
 
   // Tags found on streams that aren't declared in settings
@@ -332,7 +332,7 @@ class StreamStore {
     const remaining = this.allTags;
     // Drop stale tags only once declared tags and the full stream set are loaded; a restored tag may
     // simply be outside the first scoped page
-    if(this.rootStore.dataStore.loadedDeclaredTags && !this.tenantContentHasMore) {
+    if(this.rootStore.settingsStore.loadedDeclaredTags && !this.tenantContentHasMore) {
       this.tableTagFilter = this.tableTagFilter.filter(t => remaining.includes(t));
     }
     this.selectedRecords = this.selectedRecords.filter(r => this.streams[r.slug]);
@@ -1571,7 +1571,7 @@ class StreamStore {
 
     const namedNetwork = {
       network: this.rootStore.networkInfo?.name,
-      customDomain: this.rootStore.dataStore.customDomain
+      customDomain: this.rootStore.settingsStore.customDomain
     };
 
     // Part 2 - one full set of playout URLs per offering, in parallel

@@ -1,6 +1,6 @@
 import {observer} from "mobx-react-lite";
 import {Box, Button, Divider, Flex, Loader, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
-import {dataStore, streamEditStore, streamStore} from "@/stores/index.ts";
+import {settingsStore, streamEditStore, streamStore} from "@/stores/index.ts";
 import {useForm} from "@mantine/form";
 import {useEffect, useState} from "react";
 import {notifications} from "@mantine/notifications";
@@ -17,17 +17,17 @@ const DuplicateStreamModal = observer(({opened, onClose, records=[]}) => {
 
   useEffect(() => {
     Promise.all([
-      dataStore.LoadStreamUrls(),
-      dataStore.loadedDedicatedNodes ? Promise.resolve() : dataStore.LoadDedicatedNodes()
+      settingsStore.LoadStreamUrls(),
+      settingsStore.loadedDedicatedNodes ? Promise.resolve() : settingsStore.LoadDedicatedNodes()
     ]).then(() => {});
   }, []);
 
   useEffect(() => {
-    if(dataStore.loadedDedicatedNodes) {
-      setActiveUrlTypeTab(dataStore.dedicatedNodesList.length > 0 ? "dedicated" : "public");
+    if(settingsStore.loadedDedicatedNodes) {
+      setActiveUrlTypeTab(settingsStore.dedicatedNodesList.length > 0 ? "dedicated" : "public");
       setLoadedDedicatedNodes(true);
     }
-  }, [dataStore.loadedDedicatedNodes]);
+  }, [settingsStore.loadedDedicatedNodes]);
 
   useEffect(() => {
     if(opened) {

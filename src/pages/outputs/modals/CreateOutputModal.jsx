@@ -1,5 +1,5 @@
 import {useForm} from "@mantine/form";
-import {dataStore, outputStore} from "@/stores/index.ts";
+import {settingsStore, outputStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {toJS} from "mobx";
 import {FABRIC_NODE_REGIONS, RTMP_STREAM_KEY_DESCRIPTION, RTMP_URL_DESCRIPTION} from "@/utils/constants.ts";
@@ -66,7 +66,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
 
   useEffect(() => {
     if(!show) { return; }
-    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
+    if(!settingsStore.loadedDedicatedNodes) { settingsStore.LoadDedicatedNodes(); }
   }, [show]);
 
   const {type, nodeType} = form.getValues();
@@ -99,7 +99,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       });
 
       const locationLabel = isDedicated ?
-        (dataStore.dedicatedNodesList.find(data => data.value === node)?.label || "") :
+        (settingsStore.dedicatedNodesList.find(data => data.value === node)?.label || "") :
         (geoNode || (FABRIC_NODE_REGIONS.find(data => data.value === geo)?.label || "Automatic"));
 
       notifications.show({
@@ -193,7 +193,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
           >
             <Tabs.List w="fit-content" mb={20}>
               {
-                dataStore.dedicatedNodesList.length > 0 &&
+                settingsStore.dedicatedNodesList.length > 0 &&
                 <Tabs.Tab value="dedicated">Dedicated</Tabs.Tab>
               }
               <Tabs.Tab value="public">Public</Tabs.Tab>
@@ -203,8 +203,8 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
               <Stack gap={20}>
                 <Select
                   label="Node"
-                  placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
-                  data={dataStore.dedicatedNodesList}
+                  placeholder={settingsStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
+                  data={settingsStore.dedicatedNodesList}
                   allowDeselect={false}
                   withAsterisk
                   key={form.key("node")}

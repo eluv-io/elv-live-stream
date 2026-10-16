@@ -4,7 +4,7 @@ import {ActionIcon, Box, Button, Divider, Group, Stack, Text, Title, Tooltip} fr
 import {DataTable} from "mantine-datatable";
 import {IconPencil, IconPlayerPlay, IconPlayerStop, IconPlus, IconTrash} from "@tabler/icons-react";
 import {notifications} from "@mantine/notifications";
-import {dataStore, modalStore, streamEditStore, streamStore} from "@/stores/index.ts";
+import {settingsStore, modalStore, streamEditStore, streamStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS, STATUS_MAP} from "@/utils/constants.ts";
 import {VideoBitrateReadable} from "@/utils/formatters.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
@@ -12,17 +12,17 @@ import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import AlternateTranscodeModal from "@/pages/streams/details/recording/alternate-transcodes/AlternateTranscodeModal.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 
-// Resolves a node id to its name via dataStore.dedicatedNodesList; falls
+// Resolves a node id to its name via settingsStore.dedicatedNodesList; falls
 // back to the raw id when unregistered.
 const GeoNodeLabel = (record) => {
   if(record.node) {
-    return dataStore.dedicatedNodesList.find(n => n.value === record.node)?.label || record.node;
+    return settingsStore.dedicatedNodesList.find(n => n.value === record.node)?.label || record.node;
   }
 
   if(record.geo) {
     const geoLabel = FABRIC_NODE_REGIONS.find(g => g.value === record.geo)?.label || record.geo;
     const nodeLabel = record.resolvedNodeId &&
-      (dataStore.dedicatedNodesList.find(n => n.value === record.resolvedNodeId)?.label || record.resolvedNodeId);
+      (settingsStore.dedicatedNodesList.find(n => n.value === record.resolvedNodeId)?.label || record.resolvedNodeId);
     return nodeLabel ? `${geoLabel} / ${nodeLabel}` : geoLabel;
   }
 

@@ -37,7 +37,8 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
   const rootStore = {
     client: mockClient,
     streamGroupStore: {BuildGroups: vi.fn()},
-    dataStore: {}
+    dataStore: {},
+    settingsStore: {}
   };
 
   const store = new StreamStore(rootStore as any) as any;
@@ -250,8 +251,8 @@ describe("StreamStore declared tags (OR semantics)", () => {
   const makeTagStore = (tagFilter: string[]) => {
     const {store} = makeStore({streams});
     store.rootStore.dataStore.useContentGroup = true;
-    store.rootStore.dataStore.declaredTags = ["RADIO", "Finals"];
-    store.rootStore.dataStore.loadedDeclaredTags = true;
+    store.rootStore.settingsStore.declaredTags = ["RADIO", "Finals"];
+    store.rootStore.settingsStore.loadedDeclaredTags = true;
     store.RestoreTableTagFilter(tagFilter);
     return store;
   };

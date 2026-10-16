@@ -8,7 +8,7 @@ import NodeModal from "@/pages/settings/dedicated-nodes/NodeModal.jsx";
 import {IconPencil, IconTrash} from "@tabler/icons-react";
 import {DataTable} from "mantine-datatable";
 import sharedStyles from "@/assets/shared.module.css";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 
 const DedicatedNodes = observer(() => {
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
@@ -19,13 +19,13 @@ const DedicatedNodes = observer(() => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    dataStore.LoadDedicatedNodes();
+    settingsStore.LoadDedicatedNodes();
   }, []);
 
   const HandleRefresh = async() => {
     try {
       setRefreshing(true);
-      await dataStore.LoadDedicatedNodes();
+      await settingsStore.LoadDedicatedNodes();
     } finally {
       setRefreshing(false);
     }
@@ -44,9 +44,9 @@ const DedicatedNodes = observer(() => {
       setSaving(true);
 
       // eslint-disable-next-line no-unused-vars
-      const {[id]: _removed, ...remainingNodes} = toJS(dataStore.dedicatedNodes) ?? {};
+      const {[id]: _removed, ...remainingNodes} = toJS(settingsStore.dedicatedNodes) ?? {};
 
-      await dataStore.SaveDedicatedNodes({nodes: remainingNodes, commitMessage: "Delete dedicated node"});
+      await settingsStore.SaveDedicatedNodes({nodes: remainingNodes, commitMessage: "Delete dedicated node"});
 
       notifications.show({
         title: "Node deleted",
@@ -57,7 +57,7 @@ const DedicatedNodes = observer(() => {
     }
   };
 
-  const records = dataStore.dedicatedNodesList;
+  const records = settingsStore.dedicatedNodesList;
 
   return (
     <>
@@ -87,7 +87,7 @@ const DedicatedNodes = observer(() => {
           highlightOnHover
           styles={{header: {color: "var(--mantine-color-elv-gray-9)"}}}
           records={records}
-          fetching={refreshing || !dataStore.loadedDedicatedNodes}
+          fetching={refreshing || !settingsStore.loadedDedicatedNodes}
           minHeight={(!records || records.length === 0) ? 130 : 75}
           rowStyle={() => ({height: "50px"})}
           columns={[
@@ -162,8 +162,8 @@ const DedicatedNodes = observer(() => {
       <NodeModal
         opened={!!editNodeId}
         nodeId={editNodeId}
-        node={editNodeId ? dataStore.dedicatedNodes?.[editNodeId] : null}
-        existingNodeIds={Object.keys(dataStore.dedicatedNodes ?? {}).filter(key => key !== editNodeId)}
+        node={editNodeId ? settingsStore.dedicatedNodes?.[editNodeId] : null}
+        existingNodeIds={Object.keys(settingsStore.dedicatedNodes ?? {}).filter(key => key !== editNodeId)}
         title="Edit Dedicated Node"
         description="Update the name, ID, and URLs for this dedicated node."
         onClose={() => setEditNodeId(null)}
@@ -172,9 +172,9 @@ const DedicatedNodes = observer(() => {
             setSaving(true);
 
             // eslint-disable-next-line no-unused-vars
-            const {[editNodeId]: _removed, ...remainingNodes} = toJS(dataStore.dedicatedNodes) ?? {};
+            const {[editNodeId]: _removed, ...remainingNodes} = toJS(settingsStore.dedicatedNodes) ?? {};
 
-            await dataStore.SaveDedicatedNodes({
+            await settingsStore.SaveDedicatedNodes({
               nodes: {...remainingNodes, [newId]: updatedNode},
               commitMessage: "Update dedicated node"
             });
@@ -192,16 +192,16 @@ const DedicatedNodes = observer(() => {
         opened={addingNode}
         nodeId={null}
         node={null}
-        existingNodeIds={Object.keys(dataStore.dedicatedNodes ?? {})}
+        existingNodeIds={Object.keys(settingsStore.dedicatedNodes ?? {})}
         title="Add Dedicated Node"
         onClose={() => setAddingNode(false)}
         onSave={async(newId, newNode) => {
           try {
             setSaving(true);
 
-            await dataStore.SaveDedicatedNodes({
+            await settingsStore.SaveDedicatedNodes({
               nodes: {
-                ...toJS(dataStore.dedicatedNodes),
+                ...toJS(settingsStore.dedicatedNodes),
                 [newId]: newNode
               },
               commitMessage: "Add dedicated node"

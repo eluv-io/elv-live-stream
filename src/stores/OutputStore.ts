@@ -921,7 +921,7 @@ class OutputStore {
       // type changed, so a plain rename doesn't re-resolve to a different node.
       const touchesNodeOrRegion = node !== undefined || nodeHost !== undefined || region !== undefined;
       const locationType = nodeType ?? (node && !region ? "dedicated" : "public");
-      const dedicatedNodeIds = (this.rootStore.dataStore?.dedicatedNodesList || []).map((n: {value: string}) => n.value);
+      const dedicatedNodeIds = (this.rootStore.settingsStore?.dedicatedNodesList || []).map((n: {value: string}) => n.value);
       const savedLocation = GetOutputLocation(existing, dedicatedNodeIds);
       const pickChanged = locationType === "dedicated" ?
         (node || "") !== savedLocation.node :

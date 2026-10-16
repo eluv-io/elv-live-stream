@@ -18,7 +18,7 @@ vi.mock("mantine-datatable", () => ({
 }));
 
 vi.mock("@/stores/index.ts", () => ({
-  dataStore: {
+  settingsStore: {
     declaredTags: ["news", "sports"],
     loadedDeclaredTags: true,
     LoadDeclaredTags: vi.fn().mockResolvedValue(undefined),
@@ -27,7 +27,7 @@ vi.mock("@/stores/index.ts", () => ({
 }));
 
 import DeclaredTags from "./DeclaredTags.jsx";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 
 const renderComponent = () => render(<MantineProvider><DeclaredTags /></MantineProvider>);
 
@@ -39,7 +39,7 @@ describe("DeclaredTags", () => {
   it("loads and renders tag names", () => {
     renderComponent();
 
-    expect(dataStore.LoadDeclaredTags).toHaveBeenCalled();
+    expect(settingsStore.LoadDeclaredTags).toHaveBeenCalled();
     expect(screen.getByText("news")).toBeInTheDocument();
     expect(screen.getByText("sports")).toBeInTheDocument();
   });
@@ -48,7 +48,7 @@ describe("DeclaredTags", () => {
     renderComponent();
     await userEvent.click(screen.getByRole("button", {name: "Refresh"}));
 
-    await waitFor(() => expect(dataStore.LoadDeclaredTags).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(settingsStore.LoadDeclaredTags).toHaveBeenCalledTimes(2));
   });
 
   it("adds a tag", async() => {
@@ -57,7 +57,7 @@ describe("DeclaredTags", () => {
     await userEvent.type(await screen.findByPlaceholderText("Enter tag name"), "movies");
     await userEvent.click(screen.getByRole("button", {name: "Save"}));
 
-    await waitFor(() => expect(dataStore.SaveDeclaredTags).toHaveBeenCalledWith(
+    await waitFor(() => expect(settingsStore.SaveDeclaredTags).toHaveBeenCalledWith(
       expect.objectContaining({tags: ["news", "sports", "movies"]})
     ));
   });

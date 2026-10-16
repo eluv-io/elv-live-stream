@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {dataStore, rootStore, streamEditStore, profileStore} from "@/stores/index.ts";
+import {dataStore, settingsStore, rootStore, streamEditStore, profileStore} from "@/stores/index.ts";
 import {useNavigate} from "react-router-dom";
 import {
   Box,
@@ -82,15 +82,15 @@ const Create = observer(() => {
     const promises = [
       dataStore.LoadAccessGroups(),
       dataStore.LoadLibraries(),
-      dataStore.LoadStreamUrls()
+      settingsStore.LoadStreamUrls()
     ];
 
     if(profileStore.state !== "loaded") {
       promises.push(profileStore.LoadProfiles());
     }
 
-    if(!dataStore.loadedDedicatedNodes) {
-      promises.push(dataStore.LoadDedicatedNodes());
+    if(!settingsStore.loadedDedicatedNodes) {
+      promises.push(settingsStore.LoadDedicatedNodes());
     }
 
     Promise.all(promises)
@@ -136,11 +136,11 @@ const Create = observer(() => {
   }, [profileStore.profiles]);
 
   useEffect(() => {
-    if(dataStore.loadedDedicatedNodes) {
-      setActiveUrlTypeTab(dataStore.dedicatedNodesList.length > 0 ? "dedicated" : "public");
+    if(settingsStore.loadedDedicatedNodes) {
+      setActiveUrlTypeTab(settingsStore.dedicatedNodesList.length > 0 ? "dedicated" : "public");
       setLoadedDedicatedNodes(true);
     }
-  }, [dataStore.dedicatedNodes, dataStore.loadedDedicatedNodes]);
+  }, [settingsStore.dedicatedNodes, settingsStore.loadedDedicatedNodes]);
 
   const HandleSubmit = async () => {
     setIsCreating(true);
