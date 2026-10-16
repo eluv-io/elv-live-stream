@@ -20,31 +20,12 @@ import {defaultConfigProfile} from "@/utils/defaultProfile";
 import {PlayoutFormat, RESOLUTION_DIMENSIONS, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@/utils/helpers";
 import {WithWriteToken} from "@/utils/fabric/withWriteToken";
+import {ResolveIngestNodeId} from "@/stores/lib/fabricNodes";
 import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/StreamStore";
 import {PermissionLevel} from "@/stores/DataStore";
 
 const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-
-const ResolveIngestNodeId = async({client, geo}: {client: any, geo?: string}): Promise<string> => {
-  const configUrl = new URL(await client.ConfigUrl());
-  configUrl.pathname = "/config";
-  if(geo) { configUrl.searchParams.set("elvgeo", geo); }
-
-  const fabricInfo = await (await fetch(configUrl.toString())).json();
-  const fabricApiUrls = fabricInfo?.network?.services?.fabric_api;
-  if(!fabricApiUrls?.length) {
-    throw new Error("No fabric_api endpoints found in fabric config");
-  }
-
-  const hostname = new URL(fabricApiUrls[0]).hostname;
-  const nodes = await client.SpaceNodes({matchEndpoint: hostname});
-  if(!nodes?.length) {
-    throw new Error(`No node found matching fabric_api endpoint: ${hostname}`);
-  }
-
-  return nodes[0].id;
-};
 
 // Empty clears the value (null); anything else must be a positive integer
 const ParseBitrate = (value: string | number, label: string): number | null => {
@@ -443,9 +424,7 @@ class StreamEditStore {
       const parentProbeInfo = parentConfig?.probe_info;
 
       // Dedicated nodes use the node picked in the modal directly; public
-      // nodes resolve one from the chosen geo the same way Outputs do
-      // (OutputStore's ResolveEgressNodeId), but against fabric_api instead
-      // of live_egress - see ResolveIngestNodeId above.
+      // nodes resolve one from the chosen geo (see lib/fabricNodes).
       const resolvedNodeId = nodeType === "dedicated" ?
         node :
         (geo ? yield ResolveIngestNodeId({client: this.client, geo}) : undefined);
@@ -622,8 +601,7 @@ class StreamEditStore {
         select: ["ingress_node_id", "probe_info"]
       });
 
-      // Same dedicated/public resolution as CreateAlternateTranscode - see
-      // ResolveIngestNodeId above.
+      // Same dedicated/public resolution as CreateAlternateTranscode.
       const resolvedNodeId = nodeType === "dedicated" ?
         node :
         (geo ? yield ResolveIngestNodeId({client: this.client, geo}) : undefined);

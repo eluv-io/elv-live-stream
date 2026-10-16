@@ -2,7 +2,7 @@
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {slugify, WithTimeout, FormatDateFilter, FormatStreamDate, GetDateRangePreset, DEFAULT_DATE_PRESET, type DateRangePreset} from "@/utils/helpers";
-import {ALTERNATE_TRANSCODE_PROTOCOLS, LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
+import {ALTERNATE_TRANSCODE_PROTOCOLS, RECORDING_BITRATE_OPTIONS, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {
   AlternateTranscode,
   DeriveSourceAndPackaging,
@@ -13,6 +13,17 @@ import {
   StreamMetadata, ProbeStream, RecordingInputCfg
 } from "@/utils/stream/stream";
 import type RootStore from "@/stores/RootStore";
+import {
+  NextTenantPageStart,
+  StreamInfoFromTenantVersion,
+  StreamListDataFromMeta,
+  TENANT_CONTENT_PAGE_SIZE,
+  TENANT_CONTENT_SELECT,
+  TenantContentFilter,
+  type StreamListData,
+  type TenantContentVersion
+} from "@/stores/lib/tenantContent";
+import {ALL_DRMS, DropEmbedAuth, NamedNetworkUrl, PLAYOUT_FORMATS, PublicLicenseServerUrl, SdkPlayoutUrl, SrtPlayoutUrl} from "@/stores/lib/playoutUrls";
 import {StreamInfo, PermissionLevel} from "@/stores/DataStore";
 import {StreamOp} from "@/stores/ModalStore";
 
@@ -64,10 +75,6 @@ export interface ProbeData {
   programs?: RawProbeProgram[];
 }
 
-type StreamListData = Pick<StreamMetadata, "title" | "display_title" | "originUrl" | "source" | "packaging" | "inputCfg" | "ladderSpecs" | "tags" | "date" | "eventTime"> & {
-  configured: boolean;
-};
-
 type GeneralConfigData = Pick<StreamMetadata,
   "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
 > & {
@@ -82,92 +89,6 @@ interface StreamFrameUrl {
 }
 
 type StreamMap = Record<string, StreamInfo>;
-
-interface TenantContentVersion {
-  id: string;
-  hash: string;
-  type: string;
-  object_version: number;
-  error: string;
-  // versions[].query_fields - a value may be scalar or array per the index definition.
-  query_fields?: Record<string, unknown>;
-  // versions[].meta - selected subtree, keyed by path like ContentObjectMetadata's response.
-  meta?: Record<string, any>;
-}
-
-/** Pull a single value out of a query field (arrays -> first entry). */
-const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: string): string | undefined => {
-  const value = Array.isArray(fields?.[key]) ? (fields?.[key] as unknown[])[0] : fields?.[key];
-  return value == null || value === "" ? undefined : String(value);
-};
-
-/** Streams-list fields from a metadata subtree. Shared by LoadStreamListData and the tenant query's `meta`. */
-const StreamListDataFromMeta = (meta: Record<string, any> | undefined): StreamListData => {
-  const url = meta?.live_recording_config?.url;
-  const inputCfg =
-    meta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg ??
-    meta?.live_recording_config?.recording_config?.input_cfg;
-  const {source, packaging} = DeriveSourceAndPackaging({url, inputCfg});
-
-  return {
-    title: meta?.public?.name,
-    display_title: meta?.public?.asset_metadata?.display_title,
-    tags: meta?.public?.asset_metadata?.tags ?? [],
-    originUrl: url,
-    source,
-    packaging,
-    inputCfg,
-    ladderSpecs: meta?.live_recording?.recording_config?.recording_params?.ladder_specs,
-    configured: !!meta?.live_recording?.recording_config?.recording_params?.xc_params?.input_cfg,
-    date: meta?.public?.asset_metadata?.date,
-    eventTime: meta?.public?.asset_metadata?.time
-  };
-};
-
-/** StreamInfo fields from a tenant query version: name/date/title_id from query_fields, list fields from `meta` when present. */
-const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<StreamInfo> => {
-  const name = QueryFieldValue(version.query_fields, "name");
-  const date = QueryFieldValue(version.query_fields, "date");
-  const titleId = QueryFieldValue(version.query_fields, "title_id");
-
-  const info: Partial<StreamInfo> = {versionHash: version.hash};
-
-  if(version.meta) {
-    const listData = StreamListDataFromMeta(version.meta);
-    if(listData.title != null) { info.title = listData.title; }
-    if(listData.display_title != null) { info.display_title = listData.display_title; }
-    if(listData.tags?.length) { info.tags = listData.tags; }
-    if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
-    if(listData.source?.length) { info.source = listData.source; }
-    if(listData.packaging?.length) { info.packaging = listData.packaging; }
-    if(listData.date != null) { info.date = listData.date; }
-    if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
-    // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
-    if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
-    if(listData.ladderSpecs != null) { (info as any).ladderSpecs = listData.ladderSpecs; }
-    (info as any).configured = listData.configured;
-  }
-
-  if(name != null) {
-    info.name = name;
-    if(info.title == null) { info.title = name; }
-  }
-  // Meta's asset_metadata/date takes priority; query_fields.date is the fallback when meta wasn't fetched.
-  if(date != null && info.date == null) { info.date = date; }
-  if(titleId != null) { info.titleId = titleId; }
-
-  return info;
-};
-
-interface TenantContentPaging {
-  start?: number;
-  limit?: number;
-  total?: number;
-  items?: number;
-  pages?: number;
-  next?: number | null;
-  more?: boolean;
-}
 
 // Persisted so it survives navigation and reload - mirrors StreamGroupStore's expandedGroups.
 const STREAMS_DATE_FILTER_KEY = "elv-streams-date-filter";
@@ -185,44 +106,6 @@ const LoadPersistedDateFilter = (): {preset: DateRangePreset, referenceDate: Dat
 
 const OBJECT_LOOKUP_TIMEOUT_MS = 15000;
 const STREAM_STATUS_TIMEOUT_MS = 10000;
-const TENANT_CONTENT_PAGE_SIZE = 100;
-// Meta paths needed to build StreamInfo from a tenant query version without a per-object fetch.
-const TENANT_CONTENT_SELECT = [
-  "public/name",
-  "public/asset_metadata/display_title",
-  "public/asset_metadata/tags",
-  "public/asset_metadata/date",
-  "public/asset_metadata/time",
-  "live_recording/recording_config/recording_params/xc_params/input_cfg",
-  "live_recording/recording_config/recording_params/ladder_specs",
-  "live_recording_config/url",
-  "live_recording_config/recording_config/input_cfg"
-];
-
-// All DRM schemes to ask PlayoutOptions about, so the response covers every method.
-const ALL_DRMS = ["clear", "aes-128", "sample-aes", "widevine", "fairplay", "playready"];
-
-// Playout-format keys (PLAYOUT_FORMAT_OPTIONS) -> manifest filename + {protocol, drm},
-// so each row builds deterministically (before first run) and gets a license URL when live.
-const PLAYOUT_FORMATS: Record<string, {label: string, manifest: string, protocol: string, drm: string}> = {
-  "hls-clear":          {label: "HLS Clear",      manifest: "playlist.m3u8", protocol: "hls",  drm: "clear"},
-  "hls-aes128":         {label: "HLS AES-128",    manifest: "playlist.m3u8", protocol: "hls",  drm: "aes-128"},
-  "hls-sample-aes":     {label: "HLS Sample AES", manifest: "playlist.m3u8", protocol: "hls",  drm: "sample-aes"},
-  "hls-fairplay":       {label: "HLS FairPlay",   manifest: "playlist.m3u8", protocol: "hls",  drm: "fairplay"},
-  "hls-widevine-cenc":  {label: "HLS Widevine",   manifest: "playlist.m3u8", protocol: "hls",  drm: "widevine"},
-  "hls-playready-cenc": {label: "HLS PlayReady",  manifest: "playlist.m3u8", protocol: "hls",  drm: "playready"},
-  "dash-clear":         {label: "Dash Clear",     manifest: "dash.mpd",      protocol: "dash", drm: "clear"},
-  "dash-widevine":      {label: "Dash Widevine",  manifest: "dash.mpd",      protocol: "dash", drm: "widevine"}
-};
-
-// Named-network hosts for public playout URLs - mirrors elv-client-js's NetworkUrls.
-// Resolves close to the viewer rather than the node that served the original URL.
-const NETWORK_HOSTS: Record<string, string> = {
-  main: "main.net955305.contentfabric.io",
-  demo: "demov3.net955210.contentfabric.io",
-  test: "test.net955203.contentfabric.io"
-};
-
 export interface OutputUrlRow {
   label: string;
   url: string;
@@ -246,9 +129,6 @@ export interface StreamOutputUrls {
   srtPlayoutUrl?: string;
   publicSrtPlayoutUrl?: string;
 }
-
-// Per-network SRT port table. Mirrors DataStore.SrtPlayoutUrl.
-const SRT_PLAYOUT_PORTS: Record<string, number> = {main: 11080, demo: 11090, test: 11091};
 
 class StreamStore {
   streams: StreamMap;
@@ -1255,45 +1135,6 @@ class StreamStore {
     }
   }
 
-  /** TenantContent filter array: site + optional date range + optional name terms (each a contains match on the `name` query field). */
-  _TenantContentFilter(siteId: string, dateRange?: [Date | null, Date | null], nameFilter: string[] = []): string[] {
-    const [startDate, endDate] = dateRange || [null, null];
-    const filter = [`group:eq:${siteId}`];
-
-    nameFilter.forEach(name => filter.push(`name:co:${name}`));
-
-    if(startDate && endDate && FormatDateFilter(startDate) === FormatDateFilter(endDate)) {
-      // Single day - one exact-match tag rather than a redundant ge/le pair.
-      filter.push(`tag:eq:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`);
-    } else if(startDate || endDate) {
-      filter.push(`tag:co:${LIVE_STREAM_DATE_TAG_KEY}`);
-      if(startDate) { filter.push(`tag:ge:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(startDate)}`); }
-      if(endDate) { filter.push(`tag:le:${LIVE_STREAM_DATE_TAG_PREFIX}${FormatDateFilter(endDate)}`); }
-    }
-
-    return filter;
-  }
-
-  /**
-   * Start index of the next page, or null when none are left. The tenant query's
-   * paging shape has varied (next / more / total), so fall back to "was this page full?".
-   */
-  _NextTenantPageStart({paging, start, received, limit}: {paging?: TenantContentPaging, start: number, received: number, limit: number}): number | null {
-    const nextStart = start + limit;
-
-    if(paging) {
-      if(paging.next != null) { return paging.next > start ? paging.next : null; }
-      if(paging.more === true) { return nextStart; }
-      if(paging.more === false) { return null; }
-      if(typeof paging.pages === "number" && limit > 0) {
-        return Math.floor(start / limit) + 1 < paging.pages ? nextStart : null;
-      }
-      if(typeof paging.total === "number") { return nextStart < paging.total ? nextStart : null; }
-    }
-
-    return received >= limit && received > 0 ? nextStart : null;
-  }
-
   /**
    * paged=true fetches only the first page and records a resume cursor; callers pull
    * further pages via LoadMoreTenantLiveStreamContent. paged=false (default) loops
@@ -1337,7 +1178,7 @@ class StreamStore {
     const epoch = ++this._tenantContentEpoch;
 
     try {
-      const filter = this._TenantContentFilter(siteId, dateRange, name);
+      const filter = TenantContentFilter(siteId, dateRange, name);
       let start = 0;
       let versions: TenantContentVersion[] = [];
 
@@ -1352,7 +1193,7 @@ class StreamStore {
         const received = (page ?? []).length;
         versions = versions.concat(page ?? []);
 
-        const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+        const next = NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
 
         if(paged) {
           // One page per call - remember where to resume and stop.
@@ -1399,7 +1240,7 @@ class StreamStore {
 
     try {
       const {siteId, dateRange, nameFilter} = this._tenantContentQuery;
-      const filter = this._TenantContentFilter(siteId, dateRange, nameFilter);
+      const filter = TenantContentFilter(siteId, dateRange, nameFilter);
       const start = this._tenantContentCursor;
 
       const {versions, paging} = yield this.client.TenantContent({
@@ -1419,7 +1260,7 @@ class StreamStore {
 
       this.tenantLiveStreamContent = {...this.tenantLiveStreamContent, ...added};
 
-      const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+      const next = NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
       this._tenantContentCursor = next ?? start;
       this.tenantContentHasMore = next !== null;
     } catch(error) {
@@ -1531,7 +1372,7 @@ class StreamStore {
       let streamMetadata: StreamMap = {};
 
       if(siteId && this.rootStore.dataStore.useContentGroup) {
-        const filter = this._TenantContentFilter(siteId); // no date range - full set
+        const filter = TenantContentFilter(siteId); // no date range - full set
         let start = 0;
         let versions: TenantContentVersion[] = [];
 
@@ -1545,7 +1386,7 @@ class StreamStore {
           const received = (page ?? []).length;
           versions = versions.concat(page ?? []);
 
-          const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+          const next = NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
           if(next === null) { break; }
           start = next;
         }
@@ -1601,7 +1442,7 @@ class StreamStore {
     const siteId = this.rootStore.dataStore.siteId;
     if(!siteId || !titleId) { return {}; }
 
-    const filter = this._TenantContentFilter(siteId);
+    const filter = TenantContentFilter(siteId);
     let start = 0;
     let versions: TenantContentVersion[] = [];
 
@@ -1615,7 +1456,7 @@ class StreamStore {
       const received = (page ?? []).length;
       versions = versions.concat(page ?? []);
 
-      const next = this._NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
+      const next = NextTenantPageStart({paging, start, received, limit: TENANT_CONTENT_PAGE_SIZE});
       if(next === null) { break; }
       start = next;
     }
@@ -1675,8 +1516,8 @@ class StreamStore {
       }).catch((error: unknown) => {
         console.error(`Unable to create signed token for ${objectId}`, error);
       });
-      result.srtPlayoutUrl = token ? this._SrtPlayoutUrl({objectId, token}) : undefined;
-      result.publicSrtPlayoutUrl = this._SrtPlayoutUrl({objectId});
+      result.srtPlayoutUrl = token ? SrtPlayoutUrl({network: this.rootStore.networkInfo?.name, objectId, token}) : undefined;
+      result.publicSrtPlayoutUrl = SrtPlayoutUrl({network: this.rootStore.networkInfo?.name, objectId});
       return result;
     }
 
@@ -1720,13 +1561,18 @@ class StreamStore {
       {noAuth: true, queryParams: {authorization: signedToken}} :
       {channelAuth: true};
 
-    result.srtPlayoutUrl = signedToken ? this._SrtPlayoutUrl({objectId, token: signedToken}) : undefined;
-    result.publicSrtPlayoutUrl = this._SrtPlayoutUrl({objectId});
+    result.srtPlayoutUrl = signedToken ? SrtPlayoutUrl({network: this.rootStore.networkInfo?.name, objectId, token: signedToken}) : undefined;
+    result.publicSrtPlayoutUrl = SrtPlayoutUrl({network: this.rootStore.networkInfo?.name, objectId});
 
     if(embedUrl) {
       result.embedUrl = embedUrl;
-      result.publicEmbedUrl = this._DropEmbedAuth(embedUrl);
+      result.publicEmbedUrl = DropEmbedAuth(embedUrl);
     }
+
+    const namedNetwork = {
+      network: this.rootStore.networkInfo?.name,
+      customDomain: this.rootStore.dataStore.customDomain
+    };
 
     // Part 2 - one full set of playout URLs per offering, in parallel
     const BuildOfferingUrls = async (offering: string) => {
@@ -1777,7 +1623,7 @@ class StreamStore {
       const methods = await Promise.all(formats.map(async format => {
         const {label, manifest, protocol, drm} = PLAYOUT_FORMATS[format];
 
-        let rawUrl = this._SdkPlayoutUrl({url: liveMethods[`${protocol}-${drm}`]?.playoutUrl, signedToken});
+        let rawUrl = SdkPlayoutUrl({url: liveMethods[`${protocol}-${drm}`]?.playoutUrl, signedToken});
         if(!rawUrl) {
           try {
             rawUrl = await this.client.FabricUrl({
@@ -1798,11 +1644,11 @@ class StreamStore {
 
         return {
           label,
-          url: this._NamedNetworkUrl({url: rawUrl, objectId}),
+          url: NamedNetworkUrl({url: rawUrl, objectId, ...namedNetwork}),
           licenseServerUrl,
-          publicUrl: this._NamedNetworkUrl({url: rawUrl, objectId, dropAuthorization: true}),
+          publicUrl: NamedNetworkUrl({url: rawUrl, objectId, ...namedNetwork, dropAuthorization: true}),
           publicLicenseServerUrl: licenseServerUrl ?
-            this._PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
+            PublicLicenseServerUrl({url: licenseServerUrl, versionHash, authorizationToken: anonymousToken}) :
             undefined
         };
       }));
@@ -1811,8 +1657,8 @@ class StreamStore {
 
       return {
         offering,
-        playoutUrl: rawPlayoutUrl ? this._NamedNetworkUrl({url: rawPlayoutUrl, objectId}) : undefined,
-        publicPlayoutUrl: rawPlayoutUrl ? this._NamedNetworkUrl({url: rawPlayoutUrl, objectId, dropAuthorization: true}) : undefined,
+        playoutUrl: rawPlayoutUrl ? NamedNetworkUrl({url: rawPlayoutUrl, objectId, ...namedNetwork}) : undefined,
+        publicPlayoutUrl: rawPlayoutUrl ? NamedNetworkUrl({url: rawPlayoutUrl, objectId, ...namedNetwork, dropAuthorization: true}) : undefined,
         methods: resolvedMethods
       };
     };
@@ -1830,98 +1676,6 @@ class StreamStore {
     });
 
     return result;
-  }
-
-  /**
-   * SRT playout URL for TS packaging. The fabric reads authorization from the
-   * streamid's trailing segment (live-ts.<objectId>.<token>), not a query param.
-   * Mirrors DataStore.SrtPlayoutUrl.
-   */
-  _SrtPlayoutUrl({objectId, token}: {objectId: string, token?: string}): string | undefined {
-    if(!objectId) { return undefined; }
-    const network = this.rootStore.networkInfo?.name || "main";
-    const port = SRT_PLAYOUT_PORTS[network] || SRT_PLAYOUT_PORTS.main;
-    const streamId = `live-ts.${objectId}${token ? `.${token}` : ""}`;
-    return `srt://${network}.glb.contentfabric.io:${port}?streamid=${streamId}`;
-  }
-
-  /** PlayoutOptions URL with the signed token swapped in, matching `authArgs`. Undefined when absent or not able to parse. */
-  _SdkPlayoutUrl({url, signedToken}: {url?: string, signedToken?: string}): string | undefined {
-    if(!url) { return undefined; }
-    try {
-      const playoutUrl = new URL(url);
-      if(signedToken) { playoutUrl.searchParams.set("authorization", signedToken); }
-      return playoutUrl.toString();
-    } catch(error) {
-
-      console.error(`Unable to parse playout URL ${url}`, error);
-      return undefined;
-    }
-  }
-
-  /** Strip the signed-token param (`ath`) from an embed URL for the "public" variant. */
-  _DropEmbedAuth(url?: string): string | undefined {
-    if(!url) { return undefined; }
-    try {
-      const embedUrl = new URL(url);
-      embedUrl.searchParams.delete("ath");
-      return embedUrl.toString();
-    } catch(error) {
-
-      console.error(`Unable to strip auth from embed URL ${url}`, error);
-      return url;
-    }
-  }
-
-  /**
-   * Rebuild a fabric URL against a named-network host so it resolves close to the viewer.
-   * Path is anchored to the object id (not the version hash) so it always resolves latest.
-   * dropAuthorization strips the auth token for the "public" variant, which keeps the `s/<network>` path prefix;
-   * the authorized variant omits it.
-   * The site's custom domain, when set, replaces the network host.
-   */
-  _NamedNetworkUrl({url, objectId, dropAuthorization=false}: {url: string, objectId: string, dropAuthorization?: boolean}): string | undefined {
-    try {
-      const network = this.rootStore.networkInfo?.name || "main";
-      const customDomain = this.rootStore.dataStore.customDomain?.trim();
-      const host = customDomain ? new URL(customDomain).origin : `https://${NETWORK_HOSTS[network] || NETWORK_HOSTS.main}`;
-
-      const originalUrl = new URL(url);
-      let path = UrlJoin("rep", originalUrl.pathname.split("/rep")[1] || "");
-      if(originalUrl.pathname.includes("/meta")) {
-        path = UrlJoin("meta", originalUrl.pathname.split("/meta")[1]);
-      }
-
-      const namedNetworkUrl = new URL(host);
-      namedNetworkUrl.pathname = dropAuthorization ? UrlJoin("s", network, "q", objectId, path) : UrlJoin("q", objectId, path);
-      originalUrl.searchParams.forEach((value, key) => {
-        if(key !== "authorization") { namedNetworkUrl.searchParams.set(key, value); }
-      });
-      if(!dropAuthorization) {
-        namedNetworkUrl.searchParams.set("authorization", originalUrl.searchParams.get("authorization") || "");
-      }
-
-      return namedNetworkUrl.toString();
-    } catch(error) {
-
-      console.error(`Unable to build named-network URL for ${url}`, error);
-      return undefined;
-    }
-  }
-
-  /** License servers are a separate DRM proxy, not a fabric node - keep host/path, swap the auth token (plus qhash for object lookup). */
-  _PublicLicenseServerUrl({url, versionHash, authorizationToken}: {url: string, versionHash: string, authorizationToken: string}): string | undefined {
-    try {
-      const licenseServerUrl = new URL(url);
-      licenseServerUrl.searchParams.set("qhash", versionHash);
-      licenseServerUrl.searchParams.set("authorization", authorizationToken);
-
-      return licenseServerUrl.toString();
-    } catch(error) {
-
-      console.error(`Unable to build public license server URL for ${url}`, error);
-      return undefined;
-    }
   }
 
   /**

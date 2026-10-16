@@ -113,6 +113,8 @@ class StreamGroupStore {
     }
   }
 
+  // Future methods: CreateStreamGroup, ListGroups, StreamGroups, GroupTagsAndFields, and
+  // AddStreamToGroup are not wired up yet. Kept intentionally for upcoming content-group work.
   *CreateStreamGroup({libraryId, name}): Generator<any, void> {
     try {
       const { objectId: groupId, writeToken } = yield this.client.CreateContentGroup({

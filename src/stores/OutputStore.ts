@@ -4,6 +4,8 @@ import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/s
 import {GetOutputLocation, SortTable, WithOutputLocation} from "@/utils/helpers";
 import type {OutputLocation} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
+import {DefaultFmp4, DeriveOutputType} from "@/stores/lib/outputs";
+import {EgressNodesForRegion, NodeIdForHostname, ResolveEgressNodeId} from "@/stores/lib/fabricNodes";
 
 // Passed through verbatim from the fabric. `name`/`quality`/`stats` are
 // resolved client-side by LoadFailoverStreamInfo. Never nests.
@@ -68,7 +70,7 @@ interface OutputRtpUdp {
 }
 
 // Raw output as stored in stream metadata: nested, keyed by transport (rtp/udp/srt_*).
-interface Output {
+export interface Output {
   enabled?: boolean;
   input?: OutputInput;
   name?: string;
@@ -91,18 +93,6 @@ export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "RTMP" | "RTM
 // Spread first to clear stale transport blocks on a type change - UpdateOutput merges shallow.
 const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, rtmp: undefined, srt_pull: undefined, srt_push: undefined};
 
-const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
-  const stripRtp = output.srt_pull?.strip_rtp ?? output.srt_push?.strip_rtp;
-  const packaging: OutputType = streamSource?.includes("rtp") && !stripRtp ? "RTP" : "TS";
-
-  if(output.rtp) return ["RTP"];
-  if(output.udp) return ["UDP"];
-  if(output.rtmp) return [/^rtmps:/i.test(output.rtmp.url ?? "") ? "RTMPS" : "RTMP"];
-  if(output.srt_push) return ["SRT PUSH", packaging];
-  if(output.srt_pull) return ["SRT PULL", packaging];
-  return undefined;
-};
-
 // Output flattened for the UI: url/type/source pulled up out of the transport nesting,
 // plus the owning stream's id/name/status added on, for table rows.
 interface FlatOutput {
@@ -121,81 +111,6 @@ interface FlatOutput {
   connectedClients: number;
   input?: OutputInput;
 }
-
-// Resolve a live_egress hostname to its node ID.
-const NodeIdForHostname = async ({client, hostname}: {client: any, hostname: string}): Promise<string> => {
-  const nodes = await client.SpaceNodes({matchEndpoint: hostname});
-  if(!nodes?.length) {
-    throw new Error(`No node found matching live_egress endpoint: ${hostname}`);
-  }
-
-  return nodes[0].id;
-};
-
-/**
- * Resolve a fabric region (elvgeo) to a concrete egress node ID.
- *
- * elvgeo is a create-time convenience: OutputsCreate resolves and strips it before
- * hitting the fabric, whose output schema has no elvgeo field. OutputsModify does no
- * such resolution, so edits must resolve region -> node ID client-side or the fabric
- * rejects the request. Mirrors elv-client-js's private LiveStream.RetrieveOutputNodeId.
- */
-const ResolveEgressNodeId = async ({client, geo}: {client: any, geo?: string}): Promise<string> => {
-  const configUrl = new URL(await client.ConfigUrl());
-  configUrl.pathname = "/config";
-  if(geo) { configUrl.searchParams.set("elvgeo", geo); }
-
-  const fabricInfo = await (await fetch(configUrl.toString())).json();
-  const liveEgressUrls = fabricInfo?.network?.services?.live_egress;
-  if(!liveEgressUrls?.length) {
-    throw new Error("No live_egress endpoints found in fabric config");
-  }
-
-  return NodeIdForHostname({client, hostname: new URL(liveEgressUrls[0]).hostname});
-};
-
-/**
- * List candidate egress nodes (by hostname) for a fabric region, for the optional
- * "pick a specific node" dropdown under Public. Unlike ResolveEgressNodeId (which
- * only resolves the first live_egress endpoint), this walks the whole array. Node
- * ids are resolved from the picked hostname at save time, not here.
- */
-const GetNodesForRegion = async ({client, region}: {client: any, region: string}): Promise<{value: string, label: string}[]> => {
-  const configUrl = new URL(await client.ConfigUrl());
-  configUrl.pathname = "/config";
-  configUrl.searchParams.set("elvgeo", region);
-
-  const fabricInfo = await (await fetch(configUrl.toString())).json();
-  const liveEgressUrls: string[] = fabricInfo?.network?.services?.live_egress || [];
-
-  const hosts = new Set(liveEgressUrls.map(url => new URL(url).hostname));
-
-  return Array.from(hosts).map(host => ({value: host, label: host}));
-};
-
-// Default input.fmp4 for rtmp outputs: top video rung, default (else first) audio track.
-const DefaultFmp4 = async ({client, streamObjectId}: {client: any, streamObjectId: string}) => {
-  const streamLibraryId = await client.ContentObjectLibraryId({objectId: streamObjectId});
-  const ladderSpecs: any[] = await client.ContentObjectMetadata({
-    libraryId: streamLibraryId,
-    objectId: streamObjectId,
-    metadataSubtree: "live_recording/recording_config/recording_params/ladder_specs"
-  }) || [];
-
-  const video = ladderSpecs
-    .filter(spec => spec.media_type === 1)
-    .sort((a, b) => (b.bit_rate ?? 0) - (a.bit_rate ?? 0))[0];
-  const audioSpecs = ladderSpecs.filter(spec => spec.media_type === 2);
-  const audio = audioSpecs.find(spec => spec.default) ?? audioSpecs[0];
-
-  if(!video) { throw new Error("Stream has no video ladder to publish over RTMP"); }
-
-  return {
-    representation: video.representation,
-    ...(audio && {audio_name: audio.stream_name}),
-    latency: "750ms"
-  };
-};
 
 interface CreateOutputParams {
   name?: string;
@@ -612,7 +527,7 @@ class OutputStore {
     this.loadingNodesRegion = region;
 
     try {
-      const nodes = yield GetNodesForRegion({client: this.client, region});
+      const nodes = yield EgressNodesForRegion({client: this.client, region});
       if(requestId !== this._nodesByRegionRequestId) { return; }
       this.nodesByRegion[region] = nodes;
     } catch(error) {
