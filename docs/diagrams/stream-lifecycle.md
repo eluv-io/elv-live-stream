@@ -18,11 +18,11 @@ sequenceDiagram
     FrameClient-->>StreamEditStore: {objectId}
     StreamEditStore->>StreamStatusStore: CheckStatus({objectId})
     StreamEditStore->>StreamDetailStore: LoadStreamMetadata({objectId, libraryId})
-    StreamEditStore->>StreamStatusStore: UpdateStream(slug, streamValue)
+    StreamEditStore->>StreamStatusStore: SetStream(slug, streamValue)
     StreamEditStore-->>UI: {objectId, slug}
 ```
 
-`DuplicateStream` is a variant: `CopyContentObject` → `CheckStatus` → `StreamCreate` (options only, no `liveRecordingConfig`) → `CheckStatus` → `LoadStreamMetadata` → `UpdateStream`.
+`DuplicateStream` is a variant: `CopyContentObject` → `CheckStatus` → `StreamCreate` (options only, no `liveRecordingConfig`) → `CheckStatus` → `LoadStreamMetadata` → `SetStream`.
 
 ## Configuration ("Check Stream" / probe)
 
@@ -48,7 +48,7 @@ sequenceDiagram
     StreamEditStore->>SettingsStore: SaveStreamLink(objectId, slug)
     StreamEditStore->>StreamStatusStore: CheckStatus
     StreamEditStore->>StreamDetailStore: LoadStreamMetadata
-    StreamEditStore->>StreamStatusStore: UpdateStream(slug, {status, warnings, quality, ...})
+    StreamEditStore->>StreamStatusStore: SetStream(slug, {status, warnings, quality, ...})
 ```
 
 Errors are split into timeout vs. other for logging, then re-thrown either way.
@@ -69,21 +69,21 @@ flowchart TD
     StartRecording --> SetActive["_SetStreamActive(slug, active: true)"]
     SetActive --> Operate[OperateLRO op=START]
     Operate --> LRO[StreamStartOrStopOrReset<br/>op: start/stop/reset]
-    LRO --> UpdateStream[UpdateStream: status = response.state]
+    LRO --> SetStream[SetStream: status = response.state]
 
     StopCall([Stop / Reset request]) --> Operate
 
     Deactivate([DeactivateStream]) --> StopRecording[StreamStopRecording]
     StopRecording --> SetInactive["_SetStreamActive(slug, active: false)"]
-    SetInactive --> UpdateStream2[UpdateStream: status = response.state]
+    SetInactive --> UpdateStream2[SetStream: status = response.state]
     StopRecording -.error: log only, no throw.-> UpdateStream2
 ```
 
 ## Status polling
 
-`DataWrapper` drives a **recursive `setTimeout` loop** (not `setInterval`) at a 60s delay — the next poll is scheduled only after the previous one fully resolves, because overlapping polls were found to corrupt node routing. Each cycle awaits `streamStatusStore.AllStreamsStatus()` **then** `outputStore.AllOutputsState()` sequentially (both reroute the shared client to a live-egress node, so concurrency would race).
+`DataWrapper` drives a **recursive `setTimeout` loop** (not `setInterval`) at a 60s delay — the next poll is scheduled only after the previous one fully resolves, because overlapping polls were found to corrupt node routing. Each cycle awaits `streamStatusStore.LoadAllStreamsStatus()` **then** `outputStore.LoadAllOutputsState()` sequentially (both reroute the shared client to a live-egress node, so concurrency would race).
 
-`AllStreamsStatus` is two-phase. `_ClassifyStreams` first does a cheap, fabric-node-free pass over every stream — a narrow `ContentObjectMetadata` read that mirrors the pre-bitcode branch of client-js `StreamStatus`: no `live_recording_config/url` → `unconfigured`; missing `live_recording` fabric/playout/recording config → `uninitialized`; no `live_recording/status/edge_write_token` (nor `fabric_config/edge_write_token`) → `inactive`. Those states are written directly. Only streams that still hold an edge write token are "active" and get the full `StreamStatus` call. `activeStreamSlugs` is rebuilt every poll, and nudged optimistically by `StartStream` (add) and `DeactivateStream` (remove) so the UI reacts before the next cycle; `UpdateStreams` prunes slugs dropped from the list.
+`LoadAllStreamsStatus` is two-phase. `_ClassifyStreams` first does a cheap, fabric-node-free pass over every stream — a narrow `ContentObjectMetadata` read that mirrors the pre-bitcode branch of client-js `StreamStatus`: no `live_recording_config/url` → `unconfigured`; missing `live_recording` fabric/playout/recording config → `uninitialized`; no `live_recording/status/edge_write_token` (nor `fabric_config/edge_write_token`) → `inactive`. Those states are written directly. Only streams that still hold an edge write token are "active" and get the full `StreamStatus` call. `activeStreamSlugs` is rebuilt every poll, and nudged optimistically by `StartStream` (add) and `DeactivateStream` (remove) so the UI reacts before the next cycle; `_ReplaceStreams` prunes slugs dropped from the list.
 
 ```mermaid
 sequenceDiagram
@@ -92,20 +92,20 @@ sequenceDiagram
     participant FrameClient
 
     loop every 60s (chained via setTimeout, not setInterval)
-        DataWrapper->>StreamStatusStore: AllStreamsStatus()
+        DataWrapper->>StreamStatusStore: LoadAllStreamsStatus()
         alt already loadingStatus
             StreamStatusStore-->>DataWrapper: skip (no overlap)
         else
             StreamStatusStore->>StreamStatusStore: loadingStatus = true
             StreamStatusStore->>FrameClient: _ClassifyStreams: read local metadata per stream<br/>(LimitedMap, concurrency 15)
             FrameClient-->>StreamStatusStore: live_recording_config/url, live_recording/*/config,<br/>live_recording/status/edge_write_token
-            StreamStatusStore->>StreamStatusStore: no token -> UpdateStream(status = unconfigured / uninitialized / inactive)<br/>token -> activeStreamSlugs.add(slug)
+            StreamStatusStore->>StreamStatusStore: no token -> SetStream(status = unconfigured / uninitialized / inactive)<br/>token -> activeStreamSlugs.add(slug)
             StreamStatusStore->>FrameClient: CheckStatus per ACTIVE stream only<br/>(LimitedMap, concurrency 15)
             FrameClient-->>StreamStatusStore: {state, warnings, quality, embedUrl}
-            StreamStatusStore->>StreamStatusStore: UpdateStream per active slug
+            StreamStatusStore->>StreamStatusStore: SetStream per active slug
             StreamStatusStore->>StreamStatusStore: loadingStatus = false
         end
-        DataWrapper->>DataWrapper: outputStore.AllOutputsState() (see output-lifecycle.md)
+        DataWrapper->>DataWrapper: outputStore.LoadAllOutputsState() (see output-lifecycle.md)
     end
 ```
 
@@ -130,7 +130,7 @@ Defined in `STATUS_MAP`: `unconfigured`, `uninitialized`, `initialized`, `inacti
 - `src/stores/StreamStatusStore.ts` — `StartStream`
 - `src/stores/StreamStatusStore.ts` — `OperateLRO` (shared START/STOP/RESET)
 - `src/stores/StreamStatusStore.ts` — `DeactivateStream`
-- `src/stores/StreamStatusStore.ts` — `AllStreamsStatus` (classify + poll batch)
+- `src/stores/StreamStatusStore.ts` — `LoadAllStreamsStatus` (classify + poll batch)
 - `src/stores/StreamListStore.ts` — `LoadStreamList` / `LoadMoreStreamList` (streams page), `LoadAllStreams` (unscoped set for stream pickers)
 - `src/stores/StreamStatusStore.ts` — `_ClassifyStreams` (cheap local-metadata classification)
 - `src/stores/StreamStatusStore.ts` — `_SetStreamActive` (active-poll set membership)

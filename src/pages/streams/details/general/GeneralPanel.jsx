@@ -119,7 +119,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
 
     const values = form.getValues();
 
-    const result = await streamEditStore.UpdateGeneralConfig({
+    const result = await streamEditStore.SaveGeneralConfig({
       objectId: params.id,
       slug,
       formData: values,

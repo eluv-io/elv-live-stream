@@ -90,7 +90,7 @@ type Outputs = Record<string, Output>;
 
 export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "RTMP" | "RTMPS" | "TS";
 
-// Spread first to clear stale transport blocks on a type change - UpdateOutput merges shallow.
+// Spread first to clear stale transport blocks on a type change - SetOutput merges shallow.
 const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, rtmp: undefined, srt_pull: undefined, srt_push: undefined};
 
 // Output flattened for the UI: url/type/source pulled up out of the transport nesting,
@@ -248,7 +248,7 @@ class OutputStore {
     this.sortStatus = sortStatus;
   };
 
-  UpdateOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
+  SetOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
     // Ignore slugs that aren't real outputs, or we'd add a phantom row to outputList.
     if(!this.outputs[slug]) { return; }
 
@@ -314,7 +314,7 @@ class OutputStore {
       return {};
     }
     if(update) {
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
           state: response?.state
@@ -334,7 +334,7 @@ class OutputStore {
    * output's egress node and restores afterward; concurrent calls corrupt each
    * other's routing.
    */
-  *AllOutputsState(): Generator<any, void> {
+  *LoadAllOutputsState(): Generator<any, void> {
     for(const outputId of Object.keys(this.outputs || {})) {
       try {
         yield this.CheckOutputState({outputId, update: true});
@@ -363,7 +363,7 @@ class OutputStore {
       // so the live fields from LoadOutputStreamInfo / LoadFailoverStreamInfo
       // survive a reload. A null/undefined input (unmapped) passes through.
       const existingInput = this.outputs[outputId]?.input;
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
           ...CLEARED_TRANSPORT_KEYS,
@@ -446,7 +446,7 @@ class OutputStore {
     }
 
     if(slug) {
-      this.UpdateOutput({
+      this.SetOutput({
         slug,
         updates: {
           input: {
@@ -473,7 +473,7 @@ class OutputStore {
     const MergeFailover = (updates: Partial<OutputInputFailover>) => {
       const current = this.outputs[outputId]?.input;
       if(!current?.failover) { return; }
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {input: {...current, failover: {...current.failover, ...updates}}}
       });
@@ -696,7 +696,7 @@ class OutputStore {
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {failover: _localFailover, ...localInput} = this.outputs[outputId]?.input || {};
 
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
           enabled: !existing.input?.stream ? true : existing.enabled,
@@ -768,7 +768,7 @@ class OutputStore {
         // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
         const {failover: _localFailover, ...localInput} = this.outputs[outputId]?.input || {};
 
-        this.UpdateOutput({
+        this.SetOutput({
           slug: outputId,
           updates: {
             enabled: output.enabled,
@@ -823,7 +823,7 @@ class OutputStore {
       });
 
       updatedOutputs.forEach(({outputId}) => {
-        this.UpdateOutput({
+        this.SetOutput({
           slug: outputId,
           updates: {
             enabled: false,
@@ -843,7 +843,7 @@ class OutputStore {
    * the applicable transport block fresh (so a type change drops the old one), and
    * only re-resolves node/region when the pick actually changed.
    */
-  *ModifyOutput({
+  *SaveOutput({
     outputId,
     name,
     type,
@@ -995,7 +995,7 @@ class OutputStore {
 
       const updatedOutput = yield this.client.OutputsListItem({objectId, outputId});
 
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
           ...CLEARED_TRANSPORT_KEYS,
@@ -1037,7 +1037,7 @@ class OutputStore {
         output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: { enabled }
       });
@@ -1082,7 +1082,7 @@ class OutputStore {
       });
 
       updatedOutputs.forEach(({outputId}) => {
-        this.UpdateOutput({
+        this.SetOutput({
           slug: outputId,
           updates: {
             enabled: true
@@ -1120,7 +1120,7 @@ class OutputStore {
         output: JSON.parse(JSON.stringify(updatedOutput))
       });
 
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: { enabled }
       });
@@ -1165,7 +1165,7 @@ class OutputStore {
       });
 
       updatedOutputs.forEach(({outputId}) => {
-        this.UpdateOutput({
+        this.SetOutput({
           slug: outputId,
           updates: {
             enabled: false
@@ -1219,7 +1219,7 @@ class OutputStore {
     }
   }
 
-  *UpdateOutputTags({outputId, tags}: {outputId: string, tags: string[]}): Generator<any, void> {
+  *SaveOutputTags({outputId, tags}: {outputId: string, tags: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -1244,7 +1244,7 @@ class OutputStore {
         output: JSON.parse(JSON.stringify(output))
       });
 
-      this.UpdateOutput({slug: outputId, updates: {tags}});
+      this.SetOutput({slug: outputId, updates: {tags}});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to update output tags.", error);
@@ -1269,7 +1269,7 @@ class OutputStore {
         outputId
       });
 
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
           state: newState

@@ -49,7 +49,7 @@ class StreamStatusStore {
     this.showMonitorPreviews = !this.showMonitorPreviews;
   }
 
-  UpdateStream = ({key, value={}}: {key: string, value?: Partial<StreamInfo>}) => {
+  SetStream = ({key, value={}}: {key: string, value?: Partial<StreamInfo>}) => {
     if(!key) { return; }
 
     this.streams[key] = {
@@ -60,7 +60,7 @@ class StreamStatusStore {
   };
 
   // Use streamListStore.SetStreams, which also prunes list state (selection, tag filter, allStreams).
-  UpdateStreams = ({streams}: {streams: StreamMap}) => {
+  _ReplaceStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
     // Stop any in-flight status/classify pass over the previous list.
     this._streamListEpoch++;
@@ -79,7 +79,7 @@ class StreamStatusStore {
     } else {
       this.activeStreamSlugs.delete(slug);
       if(state && this.streams?.[slug]) {
-        this.UpdateStream({key: slug, value: {status: state}});
+        this.SetStream({key: slug, value: {status: state}});
       }
     }
   };
@@ -175,7 +175,7 @@ class StreamStatusStore {
         ));
       }
 
-      this.UpdateStream({
+      this.SetStream({
         key: slug,
         value: {
           status: response.state,
@@ -193,7 +193,7 @@ class StreamStatusStore {
    * Classify streams from local metadata, then poll full status for the active
    * ones only. `slugs` limits the refresh (e.g. a newly-loaded page).
    */
-  *AllStreamsStatus(reload=false, slugs: string[] | null = null): Generator<any, void> {
+  *LoadAllStreamsStatus(reload=false, slugs: string[] | null = null): Generator<any, void> {
     if(this.loadingStatus && !reload) { return; }
 
     // Snapshot the list generation - bail if `streams` is replaced mid-run.
@@ -304,7 +304,7 @@ class StreamStatusStore {
         throw new Error(response.error);
       }
 
-      this.UpdateStream({key: slug, value: { status: response.state }});
+      this.SetStream({key: slug, value: { status: response.state }});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error(`Unable to ${OP_MAP[operation]} LRO.`, error);
@@ -322,7 +322,7 @@ class StreamStatusStore {
 
       // New edge write token - keep polling the fresh session.
       this._SetStreamActive({slug, active: true});
-      this.UpdateStream({key: slug, value: {status: response.state}});
+      this.SetStream({key: slug, value: {status: response.state}});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to restart stream recording", error);
@@ -338,7 +338,7 @@ class StreamStatusStore {
 
       // Edge write token is gone - stop polling this stream.
       this._SetStreamActive({slug, active: false});
-      this.UpdateStream({key: slug, value: { status: response.state }});
+      this.SetStream({key: slug, value: { status: response.state }});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to deactivate stream", error);
@@ -392,7 +392,7 @@ class StreamStatusStore {
     );
   }
 
-  *FetchStreamFrameURL(slug: string): Generator<any, string> {
+  *_LoadStreamFrameUrl(slug: string): Generator<any, string> {
     try {
       const stream = this.streams[slug];
 
@@ -467,7 +467,7 @@ class StreamStatusStore {
     }
   }
 
-  *StreamFrameURL(slug: string): Generator<any, string | undefined> {
+  *LoadStreamFrameUrl(slug: string): Generator<any, string | undefined> {
     const existingUrl = this.streamFrameUrls[slug];
 
     if(existingUrl && Date.now() - existingUrl.timestamp < 60000) {
@@ -478,7 +478,7 @@ class StreamStatusStore {
 
     this.streamFrameUrls[slug] = {
       timestamp: Date.now(),
-      promise: this.FetchStreamFrameURL(slug)
+      promise: this._LoadStreamFrameUrl(slug)
     };
 
     const url = yield this.streamFrameUrls[slug].promise;
@@ -491,7 +491,7 @@ class StreamStatusStore {
   }
 
   /** Live status for the given objectIds, keyed by objectId. Pure - writes to no store map. */
-  *StreamStatuses(objectIds: string[]): Generator<any, Record<string, Partial<StreamInfo>>> {
+  *FetchStreamStatuses(objectIds: string[]): Generator<any, Record<string, Partial<StreamInfo>>> {
     const result: Record<string, Partial<StreamInfo>> = {};
 
     yield this.client.utils.LimitedMap(

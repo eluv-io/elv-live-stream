@@ -346,11 +346,11 @@ const OutputPanels = observer(({output, id, url}) => {
     const isDedicated = values.nodeType === "dedicated";
     const isPush = type !== "srt_pull";
     // Only persist failover once a primary stream exists (the section is disabled
-    // otherwise). "" clears it; ModifyOutput leaves it alone when undefined.
+    // otherwise). "" clears it; SaveOutput leaves it alone when undefined.
     const hasPrimary = Boolean(output?.input?.stream);
     const streamChanged = values.stream !== (output?.input?.stream ?? "");
 
-    await outputStore.ModifyOutput({
+    await outputStore.SaveOutput({
       outputId: id,
       name,
       type,
@@ -358,7 +358,7 @@ const OutputPanels = observer(({output, id, url}) => {
       stripRtp,
       passphrase: encryption ? passphrase : undefined,
       nodeType: values.nodeType,
-      // "" rather than undefined for the inactive one of node/region - ModifyOutput
+      // "" rather than undefined for the inactive one of node/region - SaveOutput
       // treats undefined as "leave existing value alone", but switching between
       // dedicated node and public geo must clear whichever one is no longer active,
       // or the fabric rejects the update ("only one of elvgeos or node_ids can be set").

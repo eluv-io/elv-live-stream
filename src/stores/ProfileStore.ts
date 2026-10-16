@@ -60,7 +60,7 @@ class ProfileStore {
     return draftKey;
   }
 
-  UpdateDraft(key: string, jsonString: string) {
+  SetDraft(key: string, jsonString: string) {
     try {
       this.drafts[key] = JSON.parse(jsonString);
     } catch {

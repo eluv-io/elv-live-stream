@@ -130,7 +130,7 @@ export const VideoContainer = observer(({
     const delay = Math.min(200 + 500 * index, 10000);
     const frameTimeout = setTimeout(async () => {
       setLoading(true);
-      setFrameSegmentUrl(await streamStatusStore.StreamFrameURL(slug));
+      setFrameSegmentUrl(await streamStatusStore.LoadStreamFrameUrl(slug));
       setLoading(false);
     }, delay);
 

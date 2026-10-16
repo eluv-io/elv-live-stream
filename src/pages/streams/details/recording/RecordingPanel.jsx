@@ -168,7 +168,7 @@ const RecordingPanel = observer(({
     const fabricPackagingMpegTs = values.copyPackagingFormats.length > 0;
     const copyPackaging = values.copyPackagingFormats[0] || "raw_ts";
 
-    await streamEditStore.UpdateRecordingConfig({
+    await streamEditStore.SaveRecordingConfig({
       objectId: params.id,
       slug,
       audioFormData: values.audioFormData,

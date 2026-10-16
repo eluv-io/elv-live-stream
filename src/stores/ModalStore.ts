@@ -277,7 +277,7 @@ class ModalStore {
     }
   }
 
-  StreamOpMessaging = ({
+  StreamOpMessages = ({
     op,
     activeMessage=true,
     customMessage
@@ -313,7 +313,7 @@ class ModalStore {
 
     this.modalData = {
       ...this.modalData,
-      ...this.StreamOpMessaging({
+      ...this.StreamOpMessages({
         op,
         activeMessage,
         customMessage: data.customMessage
@@ -326,7 +326,7 @@ class ModalStore {
         nameKey: "Stream Name:"
       },
       ConfirmCallback: async() => {
-        const dependentIds = await this.ReadyDependentIds(op);
+        const dependentIds = await this.FetchReadyDependentIds(op);
         const parent = this.HandleStreamAction({
           records: [{objectId: data.objectId, slug}],
           op,
@@ -377,7 +377,7 @@ class ModalStore {
 
       if(ids.length === 0) { return; }
 
-      const statuses = yield this.rootStore.streamStatusStore.StreamStatuses(ids);
+      const statuses = yield this.rootStore.streamStatusStore.FetchStreamStatuses(ids);
 
       // Modal was closed or replaced while loading.
       if(this.modalData.objectId !== objectId) { return; }
@@ -400,11 +400,11 @@ class ModalStore {
   }
 
   // Re-checks dependent statuses at confirm time, since the open-time snapshot may be stale.
-  ReadyDependentIds = async(op: StreamOp): Promise<string[]> => {
+  FetchReadyDependentIds = async(op: StreamOp): Promise<string[]> => {
     if(!this.modalData.includeDependents || this.dependents.length === 0) { return []; }
 
     const {statuses: readyStatuses} = BATCH_READY_STATUSES[op as BatchOp];
-    const current = await this.rootStore.streamStatusStore.StreamStatuses(this.dependents.map(d => d.id));
+    const current = await this.rootStore.streamStatusStore.FetchStreamStatuses(this.dependents.map(d => d.id));
 
     return this.dependents
       .filter(d => readyStatuses.includes(current[d.id]?.status as StreamStatus))

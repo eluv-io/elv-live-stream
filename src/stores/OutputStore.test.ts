@@ -262,10 +262,10 @@ describe("CheckOutputState", () => {
 });
 
 // ---------------------------------------------------------------------------
-// AllOutputsState
+// LoadAllOutputsState
 // ---------------------------------------------------------------------------
 
-describe("AllOutputsState", () => {
+describe("LoadAllOutputsState", () => {
   it("should call CheckOutputState for each output with update=true", async () => {
     const {store, mockClient} = makeStore();
     store.outputs = {
@@ -274,7 +274,7 @@ describe("AllOutputsState", () => {
     };
     mockClient.OutputsState.mockResolvedValue({state: {connected_clients: 1}});
 
-    await store.AllOutputsState();
+    await store.LoadAllOutputsState();
 
     expect(mockClient.OutputsState).toHaveBeenCalledTimes(2);
     expect(store.outputs["out-1"].state).toBeDefined();
@@ -294,7 +294,7 @@ describe("AllOutputsState", () => {
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await store.AllOutputsState();
+    await store.LoadAllOutputsState();
 
     // The failing output should not have state, but the succeeding one should
     expect(store.outputs["out-fail"].state).toBeUndefined();
@@ -313,7 +313,7 @@ describe("AllOutputsState", () => {
       return Promise.resolve({state: {}}).then(r => { order.push(`end-${outputId}`); return r; });
     });
 
-    await store.AllOutputsState();
+    await store.LoadAllOutputsState();
 
     // Sequential means: start-1, end-1, start-2, end-2 (not start-1, start-2, end-1, end-2)
     const i1 = order.indexOf("start-out-1");
@@ -327,17 +327,17 @@ describe("AllOutputsState", () => {
     const {store, mockClient} = makeStore();
     store.outputs = {};
 
-    await store.AllOutputsState();
+    await store.LoadAllOutputsState();
 
     expect(mockClient.OutputsState).not.toHaveBeenCalled();
   });
 });
 
 // ---------------------------------------------------------------------------
-// ModifyOutput
+// SaveOutput
 // ---------------------------------------------------------------------------
 
-describe("ModifyOutput — transport branching", () => {
+describe("SaveOutput — transport branching", () => {
   const makeModifyStore = (existingOutput: Record<string, unknown>) => {
     const {store, mockClient} = makeStore({
       OutputsListItem: vi.fn()
@@ -356,7 +356,7 @@ describe("ModifyOutput — transport branching", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({
+    await store.SaveOutput({
       outputId: "out-1",
       name: "Renamed",
       passphrase: "newpass",
@@ -380,7 +380,7 @@ describe("ModifyOutput — transport branching", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({
+    await store.SaveOutput({
       outputId: "out-1",
       encryption: "aes-128",
       passphrase: "secret",
@@ -402,7 +402,7 @@ describe("ModifyOutput — transport branching", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", name: "RTP Renamed"});
+    await store.SaveOutput({outputId: "out-1", name: "RTP Renamed"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.srt_pull).toBeUndefined();
@@ -418,7 +418,7 @@ describe("ModifyOutput — transport branching", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", name: "UDP Renamed"});
+    await store.SaveOutput({outputId: "out-1", name: "UDP Renamed"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.srt_pull).toBeUndefined();
@@ -433,7 +433,7 @@ describe("ModifyOutput — transport branching", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1"});
+    await store.SaveOutput({outputId: "out-1"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     // name and status must be stripped from input
@@ -453,7 +453,7 @@ describe("ModifyOutput — transport branching", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1"});
+    await store.SaveOutput({outputId: "out-1"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.state).toBeUndefined();
@@ -472,7 +472,7 @@ describe("ModifyOutput — transport branching", () => {
     });
     store.outputs = {"out-1": existing};
 
-    await store.ModifyOutput({outputId: "out-1", name: "New Name"});
+    await store.SaveOutput({outputId: "out-1", name: "New Name"});
 
     expect(store.outputs["out-1"].name).toBe("New Name");
     expect(store.outputs["out-1"].enabled).toBe(true);
@@ -487,7 +487,7 @@ describe("ModifyOutput — transport branching", () => {
     store.outputs = {"out-1": existing};
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await expect(store.ModifyOutput({outputId: "out-1"})).rejects.toThrow("write failed");
+    await expect(store.SaveOutput({outputId: "out-1"})).rejects.toThrow("write failed");
     expect(consoleSpy).toHaveBeenCalled();
     consoleSpy.mockRestore();
   });
@@ -500,7 +500,7 @@ describe("ModifyOutput — transport branching", () => {
 //    resolution convenience (see ResolveEgressNodeId in OutputStore.ts); the
 //    fabric's modify endpoint rejects them outright, so a region must be
 //    resolved to a concrete node ID before ever being written.
-describe("ModifyOutput — node/region clearing and geo resolution", () => {
+describe("SaveOutput — node/region clearing and geo resolution", () => {
   const makeModifyStore = (existingOutput: Record<string, unknown>, clientOverrides: Record<string, unknown> = {}) => {
     const {store, mockClient} = makeStore({
       OutputsListItem: vi.fn()
@@ -533,7 +533,7 @@ describe("ModifyOutput — node/region clearing and geo resolution", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", type: "srt_pull", node: "inode123", region: ""});
+    await store.SaveOutput({outputId: "out-1", type: "srt_pull", node: "inode123", region: ""});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.srt_pull.node_ids).toEqual(["inode123"]);
@@ -553,7 +553,7 @@ describe("ModifyOutput — node/region clearing and geo resolution", () => {
       SpaceNodes: vi.fn().mockResolvedValue([{id: "inode-resolved"}])
     });
 
-    await store.ModifyOutput({outputId: "out-1", type: "srt_pull", node: "", region: "us-east"});
+    await store.SaveOutput({outputId: "out-1", type: "srt_pull", node: "", region: "us-east"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.srt_pull.node_ids).toEqual(["inode-resolved"]);
@@ -570,7 +570,7 @@ describe("ModifyOutput — node/region clearing and geo resolution", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", type: "rtp", node: "inode123", region: ""});
+    await store.SaveOutput({outputId: "out-1", type: "rtp", node: "inode123", region: ""});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.rtp.node_id).toBe("inode123");
@@ -590,7 +590,7 @@ describe("ModifyOutput — node/region clearing and geo resolution", () => {
       SpaceNodes: vi.fn().mockResolvedValue([{id: "inode-resolved"}])
     });
 
-    await store.ModifyOutput({outputId: "out-1", type: "rtp", node: "", region: "us-east"});
+    await store.SaveOutput({outputId: "out-1", type: "rtp", node: "", region: "us-east"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.rtp.node_id).toBe("inode-resolved");
@@ -605,7 +605,7 @@ describe("ModifyOutput — node/region clearing and geo resolution", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", name: "Renamed"});
+    await store.SaveOutput({outputId: "out-1", name: "Renamed"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.srt_pull.elvgeos).toEqual(["us-east"]);
@@ -630,7 +630,7 @@ describe("ModifyOutput — node/region clearing and geo resolution", () => {
     });
 
     // Same nodeType/geo as already stored (public + "us-east"), only the name changes.
-    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", node: "", region: "us-east"});
+    await store.SaveOutput({outputId: "out-1", name: "Renamed", type: "rtp", node: "", region: "us-east"});
 
     expect(configFetch).not.toHaveBeenCalled();
     expect(mockClient.ConfigUrl).not.toHaveBeenCalled();
@@ -658,7 +658,7 @@ describe("ModifyOutput — node/region clearing and geo resolution", () => {
 
     // Switching udp -> rtp; region "us-east" matches existing.description, but the
     // transport block is being rebuilt from scratch so it must still be resolved.
-    await store.ModifyOutput({outputId: "out-1", type: "rtp", node: "", region: "us-east"});
+    await store.SaveOutput({outputId: "out-1", type: "rtp", node: "", region: "us-east"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.rtp.node_id).toBe("inode-resolved");
@@ -1096,7 +1096,7 @@ describe("DeleteOutputBatch", () => {
   });
 });
 
-describe("ModifyOutput — input failover", () => {
+describe("SaveOutput — input failover", () => {
   const makeModifyStore = (existingOutput: Record<string, unknown>) => {
     const {store, mockClient} = makeStore({
       OutputsListItem: vi.fn()
@@ -1116,7 +1116,7 @@ describe("ModifyOutput — input failover", () => {
   it("should write a failover block when a failover stream is provided", async () => {
     const {store, mockClient} = makeModifyStore(baseExisting);
 
-    await store.ModifyOutput({
+    await store.SaveOutput({
       outputId: "out-1",
       failoverStream: "iq__failover",
       failoverAfter: "10s",
@@ -1135,7 +1135,7 @@ describe("ModifyOutput — input failover", () => {
   it("should set disconnect_outputs true when reset clients is on", async () => {
     const {store, mockClient} = makeModifyStore(baseExisting);
 
-    await store.ModifyOutput({
+    await store.SaveOutput({
       outputId: "out-1",
       failoverStream: "iq__failover",
       failoverAfter: "5s",
@@ -1152,7 +1152,7 @@ describe("ModifyOutput — input failover", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", failoverStream: "", failoverResetClients: false});
+    await store.SaveOutput({outputId: "out-1", failoverStream: "", failoverResetClients: false});
 
     expect(mockClient.OutputsModify.mock.calls[0][0].output.input.failover).toBeNull();
   });
@@ -1164,7 +1164,7 @@ describe("ModifyOutput — input failover", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", name: "Renamed"});
+    await store.SaveOutput({outputId: "out-1", name: "Renamed"});
 
     expect(mockClient.OutputsModify.mock.calls[0][0].output.input.failover).toEqual({
       after: "15s", disconnect_outputs: false, input: {stream: "iq__keep"}
@@ -1178,7 +1178,7 @@ describe("ModifyOutput — input failover", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", name: "Renamed"});
+    await store.SaveOutput({outputId: "out-1", name: "Renamed"});
 
     const {failover} = mockClient.OutputsModify.mock.calls[0][0].output.input;
     expect(failover.name).toBeUndefined();
@@ -1486,7 +1486,7 @@ describe("CreateOutput location", () => {
   });
 });
 
-describe("ModifyOutput location", () => {
+describe("SaveOutput location", () => {
   const makeModifyStore = (existingOutput: Record<string, unknown>, clientOverrides: Record<string, unknown> = {}) => {
     const {store, mockClient} = makeStore({
       OutputsListItem: vi.fn().mockResolvedValue(existingOutput),
@@ -1506,7 +1506,7 @@ describe("ModifyOutput location", () => {
     };
     const {store, mockClient} = makeModifyStore(existing, {SpaceNodes: vi.fn().mockResolvedValue([{id: "inode123"}])});
 
-    await store.ModifyOutput({outputId: "out-1", type: "rtp", nodeType: "public", nodeHost: "host-1.example.com", node: "", region: "us-east"});
+    await store.SaveOutput({outputId: "out-1", type: "rtp", nodeType: "public", nodeHost: "host-1.example.com", node: "", region: "us-east"});
 
     expect(mockClient.SpaceNodes).toHaveBeenCalledWith({matchEndpoint: "host-1.example.com"});
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
@@ -1528,7 +1528,7 @@ describe("ModifyOutput location", () => {
     };
     const {store, mockClient} = makeModifyStore(existing, {SpaceNodes: vi.fn()});
 
-    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", nodeType: "public", nodeHost: "host-1.example.com", node: "", region: "us-east"});
+    await store.SaveOutput({outputId: "out-1", name: "Renamed", type: "rtp", nodeType: "public", nodeHost: "host-1.example.com", node: "", region: "us-east"});
 
     expect(mockClient.SpaceNodes).not.toHaveBeenCalled();
 
@@ -1546,7 +1546,7 @@ describe("ModifyOutput location", () => {
     };
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", node: "", region: "us-east"});
+    await store.SaveOutput({outputId: "out-1", name: "Renamed", type: "rtp", node: "", region: "us-east"});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.rtp.node_id).toBe("inode-existing");
@@ -1571,7 +1571,7 @@ describe("ModifyOutput location", () => {
     });
     store.outputs = {"out-1": existing};
 
-    await store.ModifyOutput({outputId: "out-1", type: "rtp", nodeType: "public", node: "", region: ""});
+    await store.SaveOutput({outputId: "out-1", type: "rtp", nodeType: "public", node: "", region: ""});
 
     expect(configFetch.mock.calls[0][0]).not.toContain("elvgeo");
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
@@ -1586,7 +1586,7 @@ describe("ModifyOutput location", () => {
     const existing = {name: "Out", rtp: {url: "rtp://host:5004", node_id: "inode-existing"}, input: {stream: "iq__abc"}};
     const {store, mockClient} = makeModifyStore(existing);
 
-    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", nodeType: "public", node: "", region: ""});
+    await store.SaveOutput({outputId: "out-1", name: "Renamed", type: "rtp", nodeType: "public", node: "", region: ""});
 
     expect(configFetch).not.toHaveBeenCalled();
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
@@ -1601,7 +1601,7 @@ describe("ModifyOutput location", () => {
     const existing = {name: "Out", rtp: {url: "rtp://host:5004", node_id: "inode-legacy"}, description: "inode-legacy", input: {stream: "iq__abc"}};
     const {store, mockClient} = makeModifyStore(existing, {SpaceNodes: vi.fn()});
 
-    await store.ModifyOutput({outputId: "out-1", name: "Renamed", type: "rtp", nodeType: "public", nodeHost: "", node: "", region: ""});
+    await store.SaveOutput({outputId: "out-1", name: "Renamed", type: "rtp", nodeType: "public", nodeHost: "", node: "", region: ""});
 
     expect(configFetch).not.toHaveBeenCalled();
     expect(mockClient.SpaceNodes).not.toHaveBeenCalled();
@@ -1621,7 +1621,7 @@ describe("ModifyOutput location", () => {
     });
     store.rootStore.settingsStore.dedicatedNodesList = [{value: "inode-ded", label: "Dedicated 1"}];
 
-    await store.ModifyOutput({outputId: "out-1", type: "rtp", nodeType: "public", nodeHost: "", node: "", region: ""});
+    await store.SaveOutput({outputId: "out-1", type: "rtp", nodeType: "public", nodeHost: "", node: "", region: ""});
 
     const outputArg = mockClient.OutputsModify.mock.calls[0][0].output;
     expect(outputArg.rtp.node_id).toBe("inode-auto");

@@ -21,7 +21,7 @@ const {
 }));
 
 vi.mock("@/stores/index.ts", () => ({
-  streamEditStore: {UpdateRecordingConfig: mockUpdateRecordingConfig},
+  streamEditStore: {SaveRecordingConfig: mockUpdateRecordingConfig},
   streamStatusStore: {
     streams: {
       "test-slug": {originUrl: "udp://host.example.com:1234", protocol: "udp"}
@@ -135,7 +135,7 @@ describe("RecordingPanel", () => {
     expect(mockUnregister).toHaveBeenCalledWith("recording");
   });
 
-  it("should call UpdateRecordingConfig with the loaded config when Save is invoked", async () => {
+  it("should call SaveRecordingConfig with the loaded config when Save is invoked", async () => {
     renderRecordingPanel();
     await screen.findByText("Retention");
 

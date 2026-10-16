@@ -111,7 +111,7 @@ const PlayoutPanel = observer(({
     const objectId = params.id;
     const values = form.getValues();
 
-    await streamEditStore.UpdatePlayoutConfig({
+    await streamEditStore.SavePlayoutConfig({
       objectId,
       slug,
       status,

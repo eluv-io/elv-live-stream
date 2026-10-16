@@ -16,7 +16,7 @@ const makeStore = ({dependentIds = ["iq__dep1", "iq__dep2"], statuses = {} as Re
       ContentObjectMetadata: vi.fn().mockResolvedValue(dependentIds)
     },
     StartStream: vi.fn().mockResolvedValue(undefined),
-    StreamStatuses: vi.fn().mockImplementation((ids: string[]) =>
+    FetchStreamStatuses: vi.fn().mockImplementation((ids: string[]) =>
       Promise.resolve(Object.fromEntries(ids.map(id => [id, {status: statuses[id] ?? "inactive"}])))
     )
   };
@@ -51,7 +51,7 @@ describe("ModalStore dependent streams", () => {
     const {store, streamStatusStore} = makeStore();
     await openStartModal(store);
     // dep2 started elsewhere while the modal was open
-    streamStatusStore.StreamStatuses.mockImplementation((ids: string[]) =>
+    streamStatusStore.FetchStreamStatuses.mockImplementation((ids: string[]) =>
       Promise.resolve(Object.fromEntries(ids.map(id => [id, {status: id === "iq__dep2" ? "running" : "inactive"}])))
     );
 

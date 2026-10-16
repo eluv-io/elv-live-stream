@@ -49,7 +49,7 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
       .filter(record => CanSelectStream(record) && record.configured !== false)
       .map(record => record.objectId);
 
-    streamStatusStore.StreamStatuses(objectIds).then(result => {
+    streamStatusStore.FetchStreamStatuses(objectIds).then(result => {
       if(!canceled) { setStatuses(result); }
     });
 

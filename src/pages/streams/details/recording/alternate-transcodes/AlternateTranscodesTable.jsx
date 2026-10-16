@@ -51,7 +51,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
   const LoadStatuses = useCallback(() => {
     if(!idsKey) { return Promise.resolve(); }
 
-    return streamStatusStore.StreamStatuses(idsKey.split(","))
+    return streamStatusStore.FetchStreamStatuses(idsKey.split(","))
       .then(result => setStatuses(result));
   }, [idsKey]);
 
@@ -82,7 +82,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
         message: `Unable to start alternate transcode: ${error?.message || error}`
       });
     } finally {
-      const result = await streamStatusStore.StreamStatuses([id]);
+      const result = await streamStatusStore.FetchStreamStatuses([id]);
       setStatuses(prev => ({...prev, ...result}));
       setStartingIds(ids => ids.filter(startingId => startingId !== id));
     }
@@ -92,7 +92,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
     setSaving(true);
     try {
       const record = values.id ?
-        await streamEditStore.UpdateAlternateTranscode({objectId: values.id, ...values}) :
+        await streamEditStore.SaveAlternateTranscode({objectId: values.id, ...values}) :
         await streamEditStore.CreateAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, ...values});
 
       const exists = (records || []).some(r => r.id === record.id);

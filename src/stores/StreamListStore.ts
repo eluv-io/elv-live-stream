@@ -210,7 +210,7 @@ class StreamListStore {
 
   /** Replace streamStatusStore.streams with a new list, then drop list state that no longer applies. */
   SetStreams = ({streams}: {streams: StreamMap}) => {
-    this.rootStore.streamStatusStore.UpdateStreams({streams});
+    this.rootStore.streamStatusStore._ReplaceStreams({streams});
     // Scoped list changed - the modal's full set may be stale; refetch on next open.
     this.allStreamsLoaded = false;
     this._allStreamsPromise = null;
@@ -336,7 +336,7 @@ class StreamListStore {
       this.streamsLoaded = true;
       this.streamsScoped = scoped;
 
-      yield this.rootStore.streamStatusStore.AllStreamsStatus(reload);
+      yield this.rootStore.streamStatusStore.LoadAllStreamsStatus(reload);
     } catch(error) {
       if(loadId === this._streamLoadId) { this.streamsLoaded = true; }
       // eslint-disable-next-line no-console
@@ -380,7 +380,7 @@ class StreamListStore {
 
     if(newSlugs.length > 0) {
       try {
-        yield this.rootStore.streamStatusStore.AllStreamsStatus(true, newSlugs);
+        yield this.rootStore.streamStatusStore.LoadAllStreamsStatus(true, newSlugs);
       } catch(error) {
         // eslint-disable-next-line no-console
         console.error("Unable to load status for newly-loaded streams", error);

@@ -98,7 +98,7 @@ describe("StreamStatusStore._ClassifyStreams", () => {
   });
 });
 
-describe("StreamStatusStore.AllStreamsStatus", () => {
+describe("StreamStatusStore.LoadAllStreamsStatus", () => {
   it("polls full status only for active streams", async () => {
     const streams = {
       idle: {slug: "idle", objectId: "iq__i", libraryId: "l"},
@@ -110,7 +110,7 @@ describe("StreamStatusStore.AllStreamsStatus", () => {
     };
     const {store, mockClient} = makeStore({streams, meta, statusState: "running"});
 
-    await store.AllStreamsStatus();
+    await store.LoadAllStreamsStatus();
 
     expect(mockClient.StreamStatus).toHaveBeenCalledTimes(1);
     expect(mockClient.StreamStatus).toHaveBeenCalledWith(expect.objectContaining({name: "iq__l"}));
@@ -154,12 +154,12 @@ describe("StreamStatusStore active-set maintenance", () => {
     expect(store.streams.a.status).toBe("inactive");
   });
 
-  it("UpdateStreams prunes active slugs no longer in the list", () => {
+  it("_ReplaceStreams prunes active slugs no longer in the list", () => {
     const {store} = makeStore({streams: {a: {slug: "a", objectId: "iq__a"}}});
     store.activeStreamSlugs.add("a");
     store.activeStreamSlugs.add("gone");
 
-    store.UpdateStreams({streams: {a: {slug: "a", objectId: "iq__a"}}});
+    store._ReplaceStreams({streams: {a: {slug: "a", objectId: "iq__a"}}});
 
     expect(store.activeStreamSlugs.has("a")).toBe(true);
     expect(store.activeStreamSlugs.has("gone")).toBe(false);

@@ -67,7 +67,7 @@ const GroupSummary = observer(() => {
 
     await Promise.all([
       (async () => {
-        const statuses = await streamStatusStore.StreamStatuses(objectIds);
+        const statuses = await streamStatusStore.FetchStreamStatuses(objectIds);
         if(runId !== loadId.current) { return; }
         setStreams(current => {
           const next = {...current};
@@ -84,7 +84,7 @@ const GroupSummary = observer(() => {
             .filter(stream => stream.packaging?.length && !stream.packaging.includes("fmp4"))
             .map(stream => stream.objectId)
         );
-        await streamDetailStore.StreamOutputUrls(objectIds, {
+        await streamDetailStore.FetchStreamOutputUrls(objectIds, {
           tsOnlyIds,
           onStreamUrls: (objectId, urls) => {
             if(runId !== loadId.current) { return; }

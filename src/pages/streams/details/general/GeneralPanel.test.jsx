@@ -51,7 +51,7 @@ vi.mock("@/stores", () => ({
       }
     },
   },
-  streamEditStore: {UpdateGeneralConfig: mockUpdateGeneralConfig},
+  streamEditStore: {SaveGeneralConfig: mockUpdateGeneralConfig},
   // GeneralPanel registers its Save/Discard callbacks with streamSaveStore on
   // mount and reports dirty state on every form change — the panel no longer
   // renders its own Save button, so tests trigger a save by invoking the
@@ -148,7 +148,7 @@ describe("GeneralPanel", () => {
       );
     });
 
-    it("calls UpdateGeneralConfig with selected profile slug when a profile is chosen", async () => {
+    it("calls SaveGeneralConfig with selected profile slug when a profile is chosen", async () => {
       mockUpdateGeneralConfig.mockResolvedValue(undefined);
       const {user} = renderGeneralPanel();
 
@@ -174,7 +174,7 @@ describe("GeneralPanel", () => {
       });
     });
 
-    it("calls UpdateGeneralConfig with empty configProfile when no profile is selected", async () => {
+    it("calls SaveGeneralConfig with empty configProfile when no profile is selected", async () => {
       mockUpdateGeneralConfig.mockResolvedValue(undefined);
       renderGeneralPanel();
 

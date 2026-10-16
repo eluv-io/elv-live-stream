@@ -42,7 +42,7 @@ const EditTagsModal = observer(({opened, onClose, records=[]}) => {
         };
       });
 
-      await streamEditStore.UpdateStreamTagsBatch({streams});
+      await streamEditStore.SaveStreamTagsBatch({streams});
 
       notifications.show({
         title: "Tags updated",

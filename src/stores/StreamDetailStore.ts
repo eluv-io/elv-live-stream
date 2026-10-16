@@ -150,7 +150,7 @@ class StreamDetailStore {
         persistent: liveRecordingMeta?.persistent
       };
 
-      this.rootStore.streamStatusStore.UpdateStream({key: slug, value: summaryData});
+      this.rootStore.streamStatusStore.SetStream({key: slug, value: summaryData});
 
       return summaryData;
     } catch(error) {
@@ -200,7 +200,7 @@ class StreamDetailStore {
         accessGroup
       };
 
-      this.rootStore.streamStatusStore.UpdateStream({key: slug, value: generalConfigData});
+      this.rootStore.streamStatusStore.SetStream({key: slug, value: generalConfigData});
 
       return generalConfigData;
     } catch(error) {
@@ -377,7 +377,7 @@ class StreamDetailStore {
         advancedEncodingParams
       };
 
-      this.rootStore.streamStatusStore.UpdateStream({key: slug, value: recordingData});
+      this.rootStore.streamStatusStore.SetStream({key: slug, value: recordingData});
 
       return recordingData;
     } catch(error) {
@@ -442,7 +442,7 @@ class StreamDetailStore {
         watermarkType
       };
 
-      this.rootStore.streamStatusStore.UpdateStream({key: slug, value: playoutData});
+      this.rootStore.streamStatusStore.SetStream({key: slug, value: playoutData});
 
       return playoutData;
     } catch(error) {
@@ -456,7 +456,7 @@ class StreamDetailStore {
    * Output URLs for one stream: embed URL, options URL, one playout URL per available
    * protocol/DRM method. All playout URLs carry the same week-long signed token.
    */
-  *BuildStreamOutputUrls(objectId: string, {tsOnly = false}: {tsOnly?: boolean} = {}): Generator<any, StreamOutputUrls> {
+  *_FetchOneStreamOutputUrls(objectId: string, {tsOnly = false}: {tsOnly?: boolean} = {}): Generator<any, StreamOutputUrls> {
     const result: StreamOutputUrls = {playoutMethods: [], playoutMethodsByOffering: {}};
     if(!objectId) { return result; }
 
@@ -637,7 +637,7 @@ class StreamDetailStore {
    * Output URLs for several streams, keyed by objectId. `onStreamUrls`, if given, fires
    * per stream as each resolves so callers can render incrementally.
    */
-  *StreamOutputUrls(
+  *FetchStreamOutputUrls(
     objectIds: string[],
     {onStreamUrls, tsOnlyIds}: {onStreamUrls?: (objectId: string, urls: StreamOutputUrls) => void, tsOnlyIds?: Set<string>} = {}
   ): Generator<any, Record<string, StreamOutputUrls>> {
@@ -648,7 +648,7 @@ class StreamDetailStore {
       objectIds || [],
       async (objectId: string) => {
         if(!objectId) { return; }
-        const urls = await this.BuildStreamOutputUrls(objectId, {tsOnly: tsOnlyIds?.has(objectId)}) as unknown as StreamOutputUrls;
+        const urls = await this._FetchOneStreamOutputUrls(objectId, {tsOnly: tsOnlyIds?.has(objectId)}) as unknown as StreamOutputUrls;
         result[objectId] = urls;
         onStreamUrls?.(objectId, urls);
       }
@@ -821,7 +821,7 @@ class StreamDetailStore {
         ]
       });
 
-      this.rootStore.streamStatusStore.UpdateStream({
+      this.rootStore.streamStatusStore.SetStream({
         key: slug,
         value: {
           title: streamMeta?.name,

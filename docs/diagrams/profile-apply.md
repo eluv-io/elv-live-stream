@@ -1,12 +1,12 @@
 # Profile apply flow
 
-Applying a profile to a stream is driven by `StreamEditStore.ApplyStreamProfile`, almost always via `UpdateGeneralConfig` (the General panel's Save path). The key branch is `probeCleared`, returned by the fabric-js `StreamApplyProfile` call, which decides whether the client needs to resync audio settings.
+Applying a profile to a stream is driven by `StreamEditStore.ApplyStreamProfile`, almost always via `SaveGeneralConfig` (the General panel's Save path). The key branch is `probeCleared`, returned by the fabric-js `StreamApplyProfile` call, which decides whether the client needs to resync audio settings.
 
 ## `ApplyStreamProfile`
 
 ```mermaid
 sequenceDiagram
-    participant Caller as UpdateGeneralConfig
+    participant Caller as SaveGeneralConfig
     participant StreamEditStore
     participant ProfileStore
     participant FrameClient
@@ -18,7 +18,7 @@ sequenceDiagram
     FrameClient-->>StreamEditStore: {streamWriteToken?, siteWriteToken?, probeCleared?}
 
     alt probeCleared is falsy
-        StreamEditStore->>StreamEditStore: UpdateStreamAudioSettings(finalize:false)
+        StreamEditStore->>StreamEditStore: SaveStreamAudioSettings(finalize:false)
         Note right of StreamEditStore: resyncs recording_stream_config/audio<br/>and ladder specs to what was probed
     else probeCleared is true
         Note right of StreamEditStore: skip resync — profile apply already<br/>reset probe state, resync would be premature
@@ -33,13 +33,13 @@ sequenceDiagram
     StreamEditStore-->>Caller: response
 ```
 
-## Caller: `UpdateGeneralConfig` (General panel Save)
+## Caller: `SaveGeneralConfig` (General panel Save)
 
 `ApplyStreamProfile` is called with `finalize: false` here, so the outer method controls the single combined commit.
 
 ```mermaid
 flowchart TD
-    A[UpdateGeneralConfig] --> B[UpdateDetailMetadata<br/>name/url/description/tags, finalize:false]
+    A[SaveGeneralConfig] --> B[SaveDetailMetadata<br/>name/url/description/tags, finalize:false]
     B --> C{configProfile set?}
     C -->|no| G
     C -->|yes| D[ApplyStreamProfile<br/>finalize:false]
@@ -47,14 +47,14 @@ flowchart TD
     E -->|yes| F[FinalizeContentObject site<br/>'Update profile streams']
     E -->|no| G
     F --> G{updatePermission /<br/>updateAccessGroup?}
-    G -->|yes| H[SetPermission /<br/>UpdateAccessGroupPermission]
+    G -->|yes| H[SetPermission /<br/>SaveAccessGroupPermission]
     G -->|no| I
     H --> I[FinalizeContentObject stream<br/>'Apply general config']
-    I --> J[StreamStatusStore.UpdateStream<br/>tags, configProfile]
+    I --> J[StreamStatusStore.SetStream<br/>tags, configProfile]
     J --> K[return probeCleared]
 ```
 
-Note: `probeCleared` returned from `UpdateGeneralConfig` is captured by `GeneralPanel.Save()` but not currently read further — the UI does not branch on it. Worth knowing if you're tracing "why didn't anything visibly change" on a profile apply.
+Note: `probeCleared` returned from `SaveGeneralConfig` is captured by `GeneralPanel.Save()` but not currently read further — the UI does not branch on it. Worth knowing if you're tracing "why didn't anything visibly change" on a profile apply.
 
 ## `ProfileStore` — where profiles come from
 
@@ -67,8 +67,8 @@ Note: `probeCleared` returned from `UpdateGeneralConfig` is captured by `General
 ## Key files
 
 - `src/stores/StreamEditStore.ts:1069-1122` — `ApplyStreamProfile`
-- `src/stores/StreamEditStore.ts:921-1009` — `UpdateGeneralConfig` (primary caller)
-- `src/stores/StreamEditStore.ts:1602-1639` — `UpdateStreamAudioSettings` fallback branch (reconstructs audio index from ladder specs when no probe data exists yet)
+- `src/stores/StreamEditStore.ts:921-1009` — `SaveGeneralConfig` (primary caller)
+- `src/stores/StreamEditStore.ts:1602-1639` — `SaveStreamAudioSettings` fallback branch (reconstructs audio index from ladder specs when no probe data exists yet)
 - `src/pages/streams/details/general/GeneralPanel.jsx:115-128` — `Save()`, where `probeCleared` is returned but unused
 - `src/stores/ProfileStore.ts:33-46` — `LoadProfiles`
 - `src/stores/ProfileStore.ts:110-190` — `SaveProfiles` (includes rename migration of `profile_streams`)

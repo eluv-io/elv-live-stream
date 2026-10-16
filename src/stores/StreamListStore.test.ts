@@ -25,7 +25,7 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, tenantContent} = {}
 
   const streamStatusStore = {
     streams,
-    UpdateStreams: vi.fn(({streams: next}) => { streamStatusStore.streams = next; })
+    _ReplaceStreams: vi.fn(({streams: next}) => { streamStatusStore.streams = next; })
   };
 
   const rootStore = {
@@ -226,7 +226,7 @@ describe("StreamListStore.SetStreams", () => {
 
     store.SetStreams({streams: {a: {slug: "a"}}});
 
-    expect(store.rootStore.streamStatusStore.UpdateStreams).toHaveBeenCalledWith({streams: {a: {slug: "a"}}});
+    expect(store.rootStore.streamStatusStore._ReplaceStreams).toHaveBeenCalledWith({streams: {a: {slug: "a"}}});
     expect(store.selectedRecords.map((r: any) => r.slug)).toEqual(["a"]);
   });
 

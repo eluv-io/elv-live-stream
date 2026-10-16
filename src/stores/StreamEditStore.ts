@@ -141,7 +141,7 @@ interface UpdateConfigMetadataParams {
   copyPackagingFormats?: string[];
   alternateTranscodeEnabled?: boolean;
   // Ids of the alternate transcodes' own content objects - see
-  // CreateAlternateTranscode/UpdateAlternateTranscode below.
+  // CreateAlternateTranscode/SaveAlternateTranscode below.
   alternateTranscodes?: string[];
   // Only used when objectId targets an alternate transcode's own object.
   resolution?: string;
@@ -365,7 +365,7 @@ class StreamEditStore {
         streamValue[detail] = streamDetails[detail];
       });
 
-      this.rootStore.streamStatusStore.UpdateStream({
+      this.rootStore.streamStatusStore.SetStream({
         key: slugify(name),
         value: streamValue
       });
@@ -465,7 +465,7 @@ class StreamEditStore {
         objectId,
         url: `${protocol}://${objectId}`,
         // Base config from the built-in profile; per-transcode fields
-        // (bitrate, resolution) are overwritten below in UpdateConfigMetadata.
+        // (bitrate, resolution) are overwritten below in SaveConfigMetadata.
         // With a resolved node and a probed parent, input_stream_info above
         // makes StreamCreate run its internal StreamConfig pass.
         liveRecordingConfig: ParseLiveConfigData({configProfile}),
@@ -478,7 +478,7 @@ class StreamEditStore {
         }
       });
 
-      // Also write ingress_node_id/geo directly (like UpdateAlternateTranscode),
+      // Also write ingress_node_id/geo directly (like SaveAlternateTranscode),
       // since StreamCreate's own write goes through several merge layers.
       ({writeToken: nodeWriteToken} = yield this.client.EditContentObject({libraryId: parentLibraryId, objectId}));
       yield this.client.MergeMetadata({
@@ -501,7 +501,7 @@ class StreamEditStore {
       });
       nodeWriteToken = undefined;
 
-      yield this.UpdateConfigMetadata({
+      yield this.SaveConfigMetadata({
         objectId,
         libraryId: parentLibraryId,
         resolution,
@@ -511,7 +511,7 @@ class StreamEditStore {
         programPidSelection
       });
 
-      yield this.UpdateConfigMetadata({
+      yield this.SaveConfigMetadata({
         objectId: parentObjectId,
         libraryId: parentLibraryId,
         slug: parentSlug,
@@ -570,7 +570,7 @@ class StreamEditStore {
 
   // Rewrites an alternate transcode's own object (name, node/url,
   // recording_config); doesn't touch the parent's alternate_transcodes array.
-  *UpdateAlternateTranscode({
+  *SaveAlternateTranscode({
     objectId,
     libraryId,
     name,
@@ -636,7 +636,7 @@ class StreamEditStore {
         });
       }
 
-      yield this.UpdateConfigMetadata({
+      yield this.SaveConfigMetadata({
         objectId,
         libraryId,
         writeToken,
@@ -700,7 +700,7 @@ class StreamEditStore {
     });
     const existingIds: string[] = existingConfig?.alternate_transcodes ?? [];
 
-    yield this.UpdateConfigMetadata({
+    yield this.SaveConfigMetadata({
       objectId: parentObjectId,
       libraryId: parentLibraryId,
       slug: parentSlug,
@@ -782,7 +782,7 @@ class StreamEditStore {
         streamValue[detail] = streamDetails[detail];
       });
 
-      this.rootStore.streamStatusStore.UpdateStream({
+      this.rootStore.streamStatusStore.SetStream({
         key: slugify(targetTitle),
         value: streamValue
       });
@@ -915,7 +915,7 @@ class StreamEditStore {
     }
   };
 
-  *UpdateAccessGroupPermission({objectId, addGroup, removeGroup}: {objectId: string, addGroup: string, removeGroup: string}): Generator<any, void> {
+  *SaveAccessGroupPermission({objectId, addGroup, removeGroup}: {objectId: string, addGroup: string, removeGroup: string}): Generator<any, void> {
     if(removeGroup) {
       yield this.RemoveAccessGroupPermission({
         objectId,
@@ -933,7 +933,7 @@ class StreamEditStore {
 
   // Metadata Writes
 
-  *UpdateDetailMetadata({
+  *SaveDetailMetadata({
     libraryId,
     objectId,
     writeToken,
@@ -1026,7 +1026,7 @@ class StreamEditStore {
         });
       }
 
-      this.rootStore.streamStatusStore.UpdateStream({
+      this.rootStore.streamStatusStore.SetStream({
         key: slug,
         value: updateValue
       });
@@ -1038,7 +1038,7 @@ class StreamEditStore {
     }
   }
 
-  *UpdateConfigMetadata({
+  *SaveConfigMetadata({
     libraryId,
     objectId,
     writeToken,
@@ -1298,7 +1298,7 @@ class StreamEditStore {
       }
     ));
 
-    this.rootStore.streamStatusStore.UpdateStream({
+    this.rootStore.streamStatusStore.SetStream({
       key: slug,
       value: {
         connectionTimeout: connectionTimeout !== undefined ? parseInt(connectionTimeout) : undefined,
@@ -1315,7 +1315,7 @@ class StreamEditStore {
     };
   }
 
-  *UpdateRecordingConfig({
+  *SaveRecordingConfig({
     libraryId,
     objectId,
     slug,
@@ -1337,7 +1337,7 @@ class StreamEditStore {
         const {programPidSelection, advancedEncodingParams} = fmp4FormData ?? {};
 
         if(fabricPackagingFMP4 === true || !copyMpegTs) {
-          await this.UpdateStreamAudioSettings({
+          await this.SaveStreamAudioSettings({
             objectId,
             writeToken,
             audioData: audioFormData,
@@ -1346,7 +1346,7 @@ class StreamEditStore {
           });
         }
 
-        await this.UpdateConfigMetadata({
+        await this.SaveConfigMetadata({
           objectId,
           slug,
           retention,
@@ -1372,7 +1372,7 @@ class StreamEditStore {
     );
   }
 
-  *UpdateGeneralConfig({
+  *SaveGeneralConfig({
     objectId,
     libraryId,
     formData,
@@ -1403,7 +1403,7 @@ class StreamEditStore {
       metadataSubtree: "live_recording_config/url"
     }) : undefined;
 
-    yield this.UpdateDetailMetadata({
+    yield this.SaveDetailMetadata({
       objectId,
       name,
       url,
@@ -1471,7 +1471,7 @@ class StreamEditStore {
     }
 
     if(updateAccessGroup) {
-      yield this.UpdateAccessGroupPermission({
+      yield this.SaveAccessGroupPermission({
         objectId,
         addGroup: accessGroup,
         removeGroup: removeAccessGroup
@@ -1485,7 +1485,7 @@ class StreamEditStore {
       commitMessage: "Apply general config"
     });
 
-    this.rootStore.streamStatusStore.UpdateStream({
+    this.rootStore.streamStatusStore.SetStream({
       key: slug,
       value: {
         tags: tags ?? [],
@@ -1496,7 +1496,7 @@ class StreamEditStore {
     return {probeCleared};
   }
 
-  *UpdatePlayoutConfig({
+  *SavePlayoutConfig({
     objectId,
     slug,
     status,
@@ -1518,18 +1518,18 @@ class StreamEditStore {
       finalize: false
     };
 
-    yield this.WatermarkConfiguration({
+    yield this.SaveWatermarkConfiguration({
       ...basicCallParams,
       ...watermarkParams
     });
 
-    yield this.DrmConfiguration({
+    yield this.SaveDrmConfiguration({
       ...basicCallParams,
       ...drmParams,
       status
     });
 
-    yield this.UpdateConfigMetadata({
+    yield this.SaveConfigMetadata({
       ...basicCallParams,
       ...configMetaParams,
       skipDvrSection: !([STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED] as StreamStatus[]).includes(status)
@@ -1546,7 +1546,7 @@ class StreamEditStore {
       objectId
     });
 
-    this.rootStore.streamStatusStore.UpdateStream({
+    this.rootStore.streamStatusStore.SetStream({
       key: slug,
       value: {
         status: statusResponse.state
@@ -1579,7 +1579,7 @@ class StreamEditStore {
     });
 
     if(!response?.probeCleared) {
-      yield this.UpdateStreamAudioSettings({
+      yield this.SaveStreamAudioSettings({
         objectId,
         writeToken,
         finalize: false
@@ -1670,7 +1670,7 @@ class StreamEditStore {
         objectId
       });
 
-      this.rootStore.streamStatusStore.UpdateStream({
+      this.rootStore.streamStatusStore.SetStream({
         key: slug,
         value: {
           status: response.state,
@@ -1715,7 +1715,7 @@ class StreamEditStore {
       }
     });
 
-    this.rootStore.streamStatusStore.UpdateStream({
+    this.rootStore.streamStatusStore.SetStream({
       key: slug,
       value: updateValue
     });
@@ -1762,7 +1762,7 @@ class StreamEditStore {
     }
 
     if(response) {
-      this.rootStore.streamStatusStore.UpdateStream({
+      this.rootStore.streamStatusStore.SetStream({
         key: slug,
         value: {
           imageWatermark: response.imageWatermark,
@@ -1773,7 +1773,7 @@ class StreamEditStore {
     }
   }
 
-  *WatermarkConfiguration({
+  *SaveWatermarkConfiguration({
     textWatermark,
     imageWatermark,
     forensicWatermark,
@@ -1878,13 +1878,13 @@ class StreamEditStore {
       updateValue["watermarkType"] = watermarkType;
     }
 
-    this.rootStore.streamStatusStore.UpdateStream({
+    this.rootStore.streamStatusStore.SetStream({
       key: slug,
       value: updateValue
     });
   }
 
-  *DrmConfiguration({
+  *SaveDrmConfiguration({
     libraryId,
     objectId,
     slug,
@@ -1951,7 +1951,7 @@ class StreamEditStore {
       drmNeedsInit = true;
     }
 
-    this.rootStore.streamStatusStore.UpdateStream({
+    this.rootStore.streamStatusStore.SetStream({
       key: slug,
       value: updateValue
     });
@@ -1986,7 +1986,7 @@ class StreamEditStore {
     return audioStreams;
   };
 
-  *UpdateAudioLadderSpecs({
+  *SaveAudioLadderSpecs({
     objectId,
     libraryId,
     writeToken,
@@ -2062,7 +2062,7 @@ class StreamEditStore {
     };
   }
 
-  *UpdateStreamAudioSettings({
+  *SaveStreamAudioSettings({
     objectId,
     writeToken,
     finalize=true,
@@ -2150,7 +2150,7 @@ class StreamEditStore {
           }
         });
 
-        const {nAudio, globalAudioBitrate, audioLadderSpecs, audioIndexMeta} = await (this.UpdateAudioLadderSpecs({
+        const {nAudio, globalAudioBitrate, audioLadderSpecs, audioIndexMeta} = await (this.SaveAudioLadderSpecs({
           libraryId,
           objectId,
           writeToken,
@@ -2252,7 +2252,7 @@ class StreamEditStore {
         audioToDelete.forEach(index => delete audioConfig[index]);
       });
 
-      yield this.UpdateStreamAudioSettings({
+      yield this.SaveStreamAudioSettings({
         objectId,
         audioData: audioConfig,
         writeToken,
@@ -2544,7 +2544,7 @@ class StreamEditStore {
       return response;
     }
   }
-  *UpdateStreamTags({objectId, slug, tags}: {objectId: string, slug: string, tags: string[]}): Generator<any, void> {
+  *SaveStreamTags({objectId, slug, tags}: {objectId: string, slug: string, tags: string[]}): Generator<any, void> {
     try {
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
       const {writeToken} = yield this.client.EditContentObject({libraryId, objectId});
@@ -2573,10 +2573,10 @@ class StreamEditStore {
     }
   }
 
-  *UpdateStreamTagsBatch({streams}: {streams: {objectId: string, slug: string, tags: string[]}[]}): Generator<any, void> {
+  *SaveStreamTagsBatch({streams}: {streams: {objectId: string, slug: string, tags: string[]}[]}): Generator<any, void> {
     try {
       yield Promise.all(
-        streams.map(stream => this.UpdateStreamTags(stream))
+        streams.map(stream => this.SaveStreamTags(stream))
       );
     } catch(error) {
       // eslint-disable-next-line no-console

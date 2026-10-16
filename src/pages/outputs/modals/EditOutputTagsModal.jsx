@@ -33,7 +33,7 @@ const EditOutputTagsModal = observer(({opened, onClose, records=[]}) => {
           ...(record.tags || []).filter(t => !removedTags.includes(t)),
           ...newTags
         ]));
-        await outputStore.UpdateOutputTags({
+        await outputStore.SaveOutputTags({
           outputId: record.slug,
           tags: recordTags
         });
