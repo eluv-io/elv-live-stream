@@ -74,7 +74,7 @@ class RootStore {
     this.userSettingsStore = new UserSettingsStore(this);
     this.versionStore = new VersionStore(this);
 
-    makeAutoObservable(this);
+    makeAutoObservable(this, {}, {autoBind: true});
   }
 
   *Initialize(): Generator<any, void> {

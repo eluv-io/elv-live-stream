@@ -1,5 +1,5 @@
-// Output helpers: type derivation and default rtmp input.
-import type {Output, OutputType} from "@/stores/outputs/OutputStore";
+// Output helpers: type derivation, default rtmp input, and the shared read-modify-write for stored outputs.
+import type {Output, OutputType} from "@/stores/outputs/types";
 
 /** Display type for an output: its transport, plus RTP/TS packaging for SRT outputs. */
 export const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
@@ -36,4 +36,39 @@ export const DefaultFmp4 = async ({client, streamObjectId}: {client: any, stream
     ...(audio && {audio_name: audio.stream_name}),
     latency: "750ms"
   };
+};
+
+/**
+ * Read each output's stored config, apply `Update`, and write them back - one
+ * OutputsModify call, or a single OutputsModifyBatch when `batch`. Returns the
+ * written outputs keyed by id. All reads finish before any write, so an `Update`
+ * that throws leaves every output untouched.
+ */
+export const ModifyOutputs = async ({client, objectId, outputIds, batch, Update}: {
+  client: any,
+  objectId: string,
+  outputIds: string[],
+  batch: boolean,
+  Update: (existing: any, outputId: string) => any
+}): Promise<Record<string, any>> => {
+  const libraryId = await client.ContentObjectLibraryId({objectId});
+
+  const entries = await Promise.all(outputIds.map(async outputId => {
+    const existing = await client.ContentObjectMetadata({
+      libraryId,
+      objectId,
+      metadataSubtree: `live_outputs/${outputId}`
+    }) || {};
+
+    return [outputId, JSON.parse(JSON.stringify(await Update(existing, outputId)))];
+  }));
+  const outputs: Record<string, any> = Object.fromEntries(entries);
+
+  if(batch) {
+    await client.OutputsModifyBatch({libraryId, objectId, outputs});
+  } else {
+    await client.OutputsModify({libraryId, objectId, outputId: outputIds[0], output: outputs[outputIds[0]]});
+  }
+
+  return outputs;
 };

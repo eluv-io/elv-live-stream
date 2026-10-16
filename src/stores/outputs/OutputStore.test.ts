@@ -1006,8 +1006,8 @@ describe("EnableOutputBatch", () => {
   it("should call OutputsModifyBatch with enabled=true for all outputs", async () => {
     const {store, mockClient} = makeStore({
       ContentObjectMetadata: vi.fn()
-        .mockResolvedValueOnce({name: "A", enabled: false})
-        .mockResolvedValueOnce({name: "B", enabled: false})
+        .mockResolvedValueOnce({name: "A", enabled: false, input: {stream: "iq__s"}})
+        .mockResolvedValueOnce({name: "B", enabled: false, input: {stream: "iq__s"}})
     });
     store.outputs = {"out-a": {}, "out-b": {}};
 
@@ -1020,13 +1020,41 @@ describe("EnableOutputBatch", () => {
 
   it("should update local outputs to enabled=true", async () => {
     const {store} = makeStore({
-      ContentObjectMetadata: vi.fn().mockResolvedValue({name: "Out", enabled: false})
+      ContentObjectMetadata: vi.fn().mockResolvedValue({name: "Out", enabled: false, input: {stream: "iq__s"}})
     });
     store.outputs = {"out-1": {enabled: false}};
 
     await store.EnableOutputBatch({outputs: ["out-1"]});
 
     expect(store.outputs["out-1"].enabled).toBe(true);
+  });
+
+  it("should reject and write nothing when any output has no mapped stream", async () => {
+    const {store, mockClient} = makeStore({
+      ContentObjectMetadata: vi.fn()
+        .mockResolvedValueOnce({name: "A", enabled: false, input: {stream: "iq__s"}})
+        .mockResolvedValueOnce({name: "B", enabled: false})
+    });
+    store.outputs = {"out-a": {enabled: false}, "out-b": {enabled: false}};
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(store.EnableOutputBatch({outputs: ["out-a", "out-b"]}))
+      .rejects.toThrow("A stream must be mapped to the output before enabling");
+
+    expect(mockClient.OutputsModifyBatch).not.toHaveBeenCalled();
+    expect(store.outputs["out-a"].enabled).toBe(false);
+  });
+
+  it("should keep sending input.failover when enabling", async () => {
+    const failover = {after: "5s", disconnect_outputs: false, input: {stream: "iq__backup"}};
+    const {store, mockClient} = makeStore({
+      ContentObjectMetadata: vi.fn().mockResolvedValue({name: "Out", enabled: false, input: {stream: "iq__s", failover}})
+    });
+    store.outputs = {"out-1": {enabled: false}};
+
+    await store.EnableOutputBatch({outputs: ["out-1"]});
+
+    expect(mockClient.OutputsModifyBatch.mock.calls[0][0].outputs["out-1"].input.failover).toEqual(failover);
   });
 });
 

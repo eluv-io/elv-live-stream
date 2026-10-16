@@ -98,7 +98,6 @@ vi.mock("@/stores/index.ts", () => ({
     outputList: [],
     tableFilter: "",
     tableTagFilter: [],
-    allMappedStreamTags: [],
     sortStatus: {columnAccessor: "name", direction: "asc"},
     LoadOutputs: vi.fn(),
     SetTableFilter: vi.fn(),
@@ -180,7 +179,6 @@ beforeEach(() => {
   outputStore.outputList = [];
   outputStore.tableFilter = "";
   outputStore.tableTagFilter = [];
-  outputStore.allMappedStreamTags = [];
   outputStore.sortStatus = {columnAccessor: "name", direction: "asc"};
   outputStore.LoadOutputs.mockResolvedValue(undefined);
 

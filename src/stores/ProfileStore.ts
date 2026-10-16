@@ -13,7 +13,7 @@ class ProfileStore {
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
-    makeAutoObservable(this);
+    makeAutoObservable(this, {}, {autoBind: true});
   }
 
   get client() {
