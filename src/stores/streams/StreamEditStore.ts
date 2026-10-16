@@ -1910,6 +1910,16 @@ class StreamEditStore {
       yield Promise.all(
         streams.map(stream => this.SaveStreamTags(stream))
       );
+
+      const listStore = this.rootStore.streamListStore;
+      const staleFilter = listStore.tableTagFilter.filter(tag =>
+        !listStore.IsNameTag(tag) && !Object.values(this.rootStore.streamStatusStore.streams).some(s => s.tags?.includes(tag))
+      );
+
+      if(staleFilter.length > 0) {
+        listStore.SetTableTagFilter(listStore.tableTagFilter.filter(t => !staleFilter.includes(t)));
+        yield listStore.LoadStreamList({reload: true});
+      }
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to update stream tags (batch).", error);
