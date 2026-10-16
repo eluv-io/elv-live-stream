@@ -59,7 +59,7 @@ class StreamStatusStore {
     } as StreamInfo;
   };
 
-  // Use streamListStore.SetStreams, which also prunes list state (selection, tag filter, allStreams).
+  // Called only by StreamListStore.SetStreams (underscore = not for components), which also prunes list state.
   _ReplaceStreams = ({streams}: {streams: StreamMap}) => {
     this.streams = streams;
     // Stop any in-flight status/classify pass over the previous list.

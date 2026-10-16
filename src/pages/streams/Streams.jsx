@@ -6,7 +6,7 @@ import {ActionIcon, Button, Divider, Group, Popover, Select, Text, Tooltip} from
 import {DatePicker} from "@mantine/dates";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
-import {dataStore, settingsStore, streamModalStore, streamStatusStore, streamGroupStore, streamListStore} from "@/stores/index.ts";
+import {settingsStore, streamModalStore, streamStatusStore, streamGroupStore, streamListStore} from "@/stores/index.ts";
 import {DATE_RANGE_PRESET_OPTIONS, FormatDateFilter, FormatDateRangeLabel, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -70,14 +70,14 @@ const Streams = observer(() => {
 
   // Date scoping is only enforceable through the tenant content-group query - the
   // legacy site-object stream list can't filter by date, so hide the controls there.
-  const showDateControls = dataStore.useDateFilter && dataStore.useContentGroup;
+  const showDateControls = settingsStore.useDateFilter && settingsStore.useContentGroup;
 
   useEffect(() => {
     // A restored declared-tag selection needs the declared list before it can scope the query
     if(!settingsStore.loadedDeclaredTags) {
       const before = DeclaredTagQueryKey();
       Promise.resolve(settingsStore.LoadDeclaredTags()).then(() => {
-        if(dataStore.useContentGroup && before !== DeclaredTagQueryKey()) {
+        if(settingsStore.useContentGroup && before !== DeclaredTagQueryKey()) {
           streamListStore.LoadStreamList({reload: true});
         }
       });
@@ -106,7 +106,7 @@ const Streams = observer(() => {
   const SetTagFilter = (tags) => {
     const before = DeclaredTagQueryKey();
     streamListStore.SetTableTagFilter(tags);
-    if(dataStore.useContentGroup && before !== DeclaredTagQueryKey()) {
+    if(settingsStore.useContentGroup && before !== DeclaredTagQueryKey()) {
       streamGroupStore.CollapseAllGroups();
       streamListStore.MarkStreamsLoading();
       DebouncedSearchReload();
@@ -115,7 +115,7 @@ const Streams = observer(() => {
 
   const OnSearchChange = (event) => {
     streamListStore.SetTableFilter(event.target.value);
-    if(dataStore.useContentGroup) {
+    if(settingsStore.useContentGroup) {
       streamGroupStore.CollapseAllGroups();
       streamListStore.MarkStreamsLoading();
       DebouncedSearchReload();

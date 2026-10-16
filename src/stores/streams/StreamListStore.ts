@@ -171,7 +171,7 @@ class StreamListStore {
 
   // Tags matched client-side load the full set unscoped by date, so the selected date range is applied here
   get dateScopedClientSide(): boolean {
-    const {useDateFilter, useContentGroup} = this.rootStore.dataStore;
+    const {useDateFilter, useContentGroup} = this.rootStore.settingsStore;
     return useDateFilter && useContentGroup && this.declaredTagsNeedFullLoad && !this.tableFilterIsObjectId;
   }
 
@@ -179,7 +179,7 @@ class StreamListStore {
   get filteredStreams(): StreamInfo[] {
     const filter = this.tableFilter.toLowerCase().trim();
     // A server-side declared tag is already applied by the tenant query
-    const tagFilter = this.rootStore.dataStore.useContentGroup ?
+    const tagFilter = this.rootStore.settingsStore.useContentGroup ?
       this.activeTagFilter.filter(t => !this.declaredTagsOnServer.includes(t)) :
       this.activeTagFilter;
     const [start, end] = this.dateScopedClientSide ? this.dateRangeFilter : [null, null];
@@ -261,7 +261,8 @@ class StreamListStore {
 
   /** Tenant query params for the streams page's current search, tag and date filters. */
   _TenantQuery({scoped=true}: {scoped?: boolean} = {}) {
-    const {siteId, useDateFilter} = this.rootStore.dataStore;
+    const {siteId} = this.rootStore.dataStore;
+    const {useDateFilter} = this.rootStore.settingsStore;
     // An object-id search ("iq__…") can't be expressed as a TenantContent filter, and
     // client-side tag matches need every stream, so both load the full set.
     const fullScan = this.tableFilterIsObjectId || this.declaredTagsNeedFullLoad;
@@ -279,7 +280,7 @@ class StreamListStore {
    * picks up the same in-flight promise through the filter-key cache.
    */
   PrefetchStreamList() {
-    if(!this.rootStore.dataStore.useContentGroup) { return; }
+    if(!this.rootStore.settingsStore.useContentGroup) { return; }
     this.LoadTenantLiveStreamContent(this._TenantQuery());
   }
 
@@ -307,7 +308,7 @@ class StreamListStore {
 
       // useContentGroup picks the source of truth outright - no fall-through between the two.
       let streamMetadata;
-      if(this.rootStore.dataStore.useContentGroup) {
+      if(this.rootStore.settingsStore.useContentGroup) {
         // Tenant-wide content-group query. Scoped (streams page) loads one page at a
         // time; LoadMoreStreamList pulls the rest.
         streamMetadata = yield this.LoadTenantLiveStreamContent({...this._TenantQuery({scoped}), force: reload});
@@ -323,7 +324,7 @@ class StreamListStore {
 
       yield Promise.all([
         // Content-group query: skip per-object metadata fetches - list data is loaded separately.
-        this.LoadStreams({streamMetadata, fetchObjectData: !this.rootStore.dataStore.useContentGroup}),
+        this.LoadStreams({streamMetadata, fetchObjectData: !this.rootStore.settingsStore.useContentGroup}),
         this.rootStore.outputStore.LoadOutputSettingsId()
       ]);
 
@@ -360,7 +361,7 @@ class StreamListStore {
       // it will rebuild the list, so don't append these now-stale rows.
       if(newSlugs.length > 0 && this.streamsLoaded && !this._loadingStreams) {
         // Load-more only runs on the content-group path - skip per-object fetches.
-        yield this.LoadStreams({streamMetadata: added, append: true, fetchObjectData: !this.rootStore.dataStore.useContentGroup});
+        yield this.LoadStreams({streamMetadata: added, append: true, fetchObjectData: !this.rootStore.settingsStore.useContentGroup});
       } else {
         newSlugs = [];
       }
@@ -626,7 +627,7 @@ class StreamListStore {
       const siteId = this.rootStore.dataStore.siteId;
       let streamMetadata: StreamMap = {};
 
-      if(siteId && this.rootStore.dataStore.useContentGroup) {
+      if(siteId && this.rootStore.settingsStore.useContentGroup) {
         const filter = TenantContentFilter(siteId); // no date range - full set
         let start = 0;
         let versions: TenantContentVersion[] = [];
@@ -654,7 +655,7 @@ class StreamListStore {
       }
 
       // Legacy sites (no content-group query) use the site object's registered list.
-      if(!this.rootStore.dataStore.useContentGroup) {
+      if(!this.rootStore.settingsStore.useContentGroup) {
         streamMetadata = yield this._LoadSiteStreams();
       }
 

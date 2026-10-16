@@ -74,15 +74,15 @@ The `Back` button pre-checks dirty state rather than letting the blocker interce
 
 ## Key files
 
-- `src/stores/streams/StreamSaveStore.ts:9-23` — state shape (`panels`, `dirty`, `saving`, `failedPanelId`)
-- `src/stores/streams/StreamSaveStore.ts:42-60` — `Register` / `Unregister` / `Reset`
-- `src/stores/streams/StreamSaveStore.ts:71-93` — `SaveAll` (generator/flow, sequential by `PANEL_ORDER`)
-- `src/stores/streams/StreamSaveStore.ts:95-100` — `DiscardAll`
-- `src/pages/streams/details/StreamDetailsPage.jsx:44-50` — `useBlocker` for route-change guard
-- `src/pages/streams/details/StreamDetailsPage.jsx:93-132` — `HandleSaveAll` / `HandleDiscardAll` / `HandleBack`
-- `src/pages/streams/details/StreamDetailsPage.jsx:138-147` — `mutatesStream` action disabling
-- `src/pages/streams/details/StreamDetailsPage.jsx:269-302` — Discard and "Unsaved Changes" `ConfirmModal`s
-- `src/pages/streams/details/general/GeneralPanel.jsx:59,86-92,109-142` — registration pattern (representative; same shape in Recording/Playout panels)
+- `src/stores/streams/StreamSaveStore.ts` — state shape (`panels`, `dirty`, `saving`, `failedPanelId`)
+- `src/stores/streams/StreamSaveStore.ts` — `Register` / `Unregister` / `Reset`
+- `src/stores/streams/StreamSaveStore.ts` — `SaveAll` (generator/flow, sequential by `PANEL_ORDER`)
+- `src/stores/streams/StreamSaveStore.ts` — `DiscardAll`
+- `src/pages/streams/details/StreamDetailsPage.jsx` — `useBlocker` for route-change guard
+- `src/pages/streams/details/StreamDetailsPage.jsx` — `HandleSaveAll` / `HandleDiscardAll` / `HandleBack`
+- `src/pages/streams/details/StreamDetailsPage.jsx` — `mutatesStream` action disabling
+- `src/pages/streams/details/StreamDetailsPage.jsx` — Discard and "Unsaved Changes" `ConfirmModal`s
+- `src/pages/streams/details/general/GeneralPanel.jsx` — registration pattern (representative; same shape in Recording/Playout panels)
 
 ## Output details page
 

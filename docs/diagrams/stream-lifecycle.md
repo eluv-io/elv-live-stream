@@ -124,9 +124,9 @@ Defined in `STATUS_MAP`: `unconfigured`, `uninitialized`, `initialized`, `inacti
 
 ## Key files
 
-- `src/stores/streams/StreamEditStore.ts:241-317` — `InitLiveStreamObject` (creation)
-- `src/stores/streams/StreamEditStore.ts:319-394` — `DuplicateStream`
-- `src/stores/streams/StreamEditStore.ts:1126-1202` — `ConfigureStream`
+- `src/stores/streams/StreamEditStore.ts` — `InitLiveStreamObject` (creation)
+- `src/stores/streams/StreamEditStore.ts` — `DuplicateStream`
+- `src/stores/streams/StreamEditStore.ts` — `ConfigureStream`
 - `src/stores/streams/StreamStatusStore.ts` — `StartStream`
 - `src/stores/streams/StreamStatusStore.ts` — `OperateLRO` (shared START/STOP/RESET)
 - `src/stores/streams/StreamStatusStore.ts` — `DeactivateStream`
@@ -135,6 +135,6 @@ Defined in `STATUS_MAP`: `unconfigured`, `uninitialized`, `initialized`, `inacti
 - `src/stores/streams/StreamStatusStore.ts` — `_ClassifyStreams` (cheap local-metadata classification)
 - `src/stores/streams/StreamStatusStore.ts` — `_SetStreamActive` (active-poll set membership)
 - `src/stores/streams/StreamStatusStore.ts` — `CheckStatus`
-- `src/components/data-wrapper/DataWrapper.jsx:20-58` — polling loop scheduler
-- `src/utils/constants.ts:8-19` — `STATUS_MAP`
-- `src/stores/streams/StreamModalStore.ts:91-96` — `BATCH_READY_STATUSES`
+- `src/components/data-wrapper/DataWrapper.jsx` — polling loop scheduler
+- `src/utils/constants.ts` — `STATUS_MAP`
+- `src/stores/streams/StreamModalStore.ts` — `BATCH_READY_STATUSES`

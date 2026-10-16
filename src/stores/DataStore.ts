@@ -1,4 +1,4 @@
-// Tenant data: site/library ids, content types, libraries, access groups, permissions, and the stream list load.
+// Tenant data: site/library ids, content types, libraries, access groups, and permissions.
 import {makeAutoObservable} from "mobx";
 import type RootStore from "@/stores/RootStore";
 import type {Region} from "@/stores/SettingsStore";
@@ -98,11 +98,6 @@ class DataStore {
   titleContentType: string;
   siteId: string;
   siteLibraryId: string;
-  //  - useContentGroup: use the tenant-wide content-group query (new) vs. the site
-  //    object's registered stream list (legacy).
-  //  - useDateFilter: scope the stream list by date and show the streams-page date controls.
-  useContentGroup = false;
-  useDateFilter = false;
   _accessGroupsPromise: Promise<void> | null = null;
 
   constructor(rootStore: RootStore) {
@@ -169,8 +164,10 @@ class DataStore {
         metadataSubtree: "/live_management_settings",
         select: ["use_content_group", "use_date_filter"]
       });
-      this.useContentGroup = !!liveManagementSettings?.use_content_group;
-      this.useDateFilter = !!liveManagementSettings?.use_date_filter;
+      this.rootStore.settingsStore.SetLiveManagementSettings({
+        useContentGroup: !!liveManagementSettings?.use_content_group,
+        useDateFilter: !!liveManagementSettings?.use_date_filter
+      });
 
       const customDomain = yield this.client.ContentObjectMetadata({
         libraryId: siteLibraryId,

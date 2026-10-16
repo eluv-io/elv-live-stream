@@ -54,7 +54,7 @@ flowchart TD
     J --> K[return probeCleared]
 ```
 
-Note: `probeCleared` returned from `SaveGeneralConfig` is captured by `GeneralPanel.Save()` but not currently read further — the UI does not branch on it. Worth knowing if you're tracing "why didn't anything visibly change" on a profile apply.
+Note: `probeCleared` returned from `SaveGeneralConfig` is not read by `GeneralPanel.Save()` — the UI does not branch on it. Worth knowing if you're tracing "why didn't anything visibly change" on a profile apply.
 
 ## `ProfileStore` — where profiles come from
 
@@ -66,10 +66,10 @@ Note: `probeCleared` returned from `SaveGeneralConfig` is captured by `GeneralPa
 
 ## Key files
 
-- `src/stores/streams/StreamEditStore.ts:1069-1122` — `ApplyStreamProfile`
-- `src/stores/streams/StreamEditStore.ts:921-1009` — `SaveGeneralConfig` (primary caller)
-- `src/stores/streams/StreamEditStore.ts:1602-1639` — `SaveStreamAudioSettings` fallback branch (reconstructs audio index from ladder specs when no probe data exists yet)
-- `src/pages/streams/details/general/GeneralPanel.jsx:115-128` — `Save()`, where `probeCleared` is returned but unused
-- `src/stores/ProfileStore.ts:33-46` — `LoadProfiles`
-- `src/stores/ProfileStore.ts:110-190` — `SaveProfiles` (includes rename migration of `profile_streams`)
-- `src/stores/ProfileStore.ts:69-102` — `DeleteProfile`
+- `src/stores/streams/StreamEditStore.ts` — `ApplyStreamProfile`
+- `src/stores/streams/StreamEditStore.ts` — `SaveGeneralConfig` (primary caller)
+- `src/stores/streams/StreamEditStore.ts` — `SaveStreamAudioSettings` fallback branch (reconstructs audio index from ladder specs when no probe data exists yet)
+- `src/pages/streams/details/general/GeneralPanel.jsx` — `Save()`, which calls `SaveGeneralConfig` and ignores its `probeCleared` result
+- `src/stores/ProfileStore.ts` — `LoadProfiles`
+- `src/stores/ProfileStore.ts` — `SaveProfiles` (includes rename migration of `profile_streams`)
+- `src/stores/ProfileStore.ts` — `DeleteProfile`

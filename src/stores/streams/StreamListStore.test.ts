@@ -111,7 +111,7 @@ describe("StreamListStore.filteredStreams", () => {
 
   it("applies the text filter client-side on the legacy path", () => {
     const {store} = makeStore({streams});
-    store.rootStore.dataStore.useContentGroup = false;
+    store.rootStore.settingsStore.useContentGroup = false;
     store.SetTableFilter("alph");
 
     expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["a"]);
@@ -119,7 +119,7 @@ describe("StreamListStore.filteredStreams", () => {
 
   it("applies the text filter client-side on the content-group path", () => {
     const {store} = makeStore({streams});
-    store.rootStore.dataStore.useContentGroup = true;
+    store.rootStore.settingsStore.useContentGroup = true;
     store.SetTableFilter("alph");
 
     expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["a"]);
@@ -127,7 +127,7 @@ describe("StreamListStore.filteredStreams", () => {
 
   it("matches metadata tags in the text filter", () => {
     const {store} = makeStore({streams});
-    store.rootStore.dataStore.useContentGroup = true;
+    store.rootStore.settingsStore.useContentGroup = true;
     store.SetTableFilter("Y");
 
     expect(store.filteredStreams.map((s: any) => s.slug)).toEqual(["b"]);
@@ -136,7 +136,7 @@ describe("StreamListStore.filteredStreams", () => {
 
   it("filters by object id client-side even on the content-group path", () => {
     const {store} = makeStore({streams});
-    store.rootStore.dataStore.useContentGroup = true;
+    store.rootStore.settingsStore.useContentGroup = true;
     store.SetTableFilter("iq__a");
 
     expect(store.tableFilterIsObjectId).toBe(true);
@@ -162,7 +162,7 @@ describe("StreamListStore declared tags (OR semantics)", () => {
 
   const makeTagStore = (tagFilter: string[]) => {
     const {store} = makeStore({streams});
-    store.rootStore.dataStore.useContentGroup = true;
+    store.rootStore.settingsStore.useContentGroup = true;
     store.rootStore.settingsStore.declaredTags = ["RADIO", "Finals"];
     store.rootStore.settingsStore.loadedDeclaredTags = true;
     store.RestoreTableTagFilter(tagFilter);
@@ -248,7 +248,8 @@ describe("StreamListStore._TenantQuery", () => {
 
   it("scopes by date and pages when the site uses the date filter", () => {
     const {store} = makeStore();
-    Object.assign(store.rootStore.dataStore, {siteId: "iq__site", useDateFilter: true});
+    Object.assign(store.rootStore.dataStore, {siteId: "iq__site"});
+    store.rootStore.settingsStore.useDateFilter = true;
     store.dateRangeFilter = range;
 
     expect(store._TenantQuery()).toEqual({siteId: "iq__site", dateRange: range, nameFilter: [], paged: true});
@@ -256,7 +257,8 @@ describe("StreamListStore._TenantQuery", () => {
 
   it("loads the full unpaged set for an object-id search", () => {
     const {store} = makeStore();
-    Object.assign(store.rootStore.dataStore, {siteId: "iq__site", useDateFilter: true});
+    Object.assign(store.rootStore.dataStore, {siteId: "iq__site"});
+    store.rootStore.settingsStore.useDateFilter = true;
     store.dateRangeFilter = range;
     store.SetTableFilter("iq__abc");
 
@@ -265,7 +267,8 @@ describe("StreamListStore._TenantQuery", () => {
 
   it("drops scoping, name terms and paging when unscoped", () => {
     const {store} = makeStore();
-    Object.assign(store.rootStore.dataStore, {siteId: "iq__site", useDateFilter: true});
+    Object.assign(store.rootStore.dataStore, {siteId: "iq__site"});
+    store.rootStore.settingsStore.useDateFilter = true;
     store.dateRangeFilter = range;
 
     expect(store._TenantQuery({scoped: false})).toEqual({siteId: "iq__site", dateRange: [null, null], nameFilter: [], paged: false});

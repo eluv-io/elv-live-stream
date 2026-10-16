@@ -390,7 +390,7 @@ class OutputStore {
 
     // Each fetch is isolated so one failure (e.g. EmbedUrl) can't discard the
     // others - the live quality/stats must land even if the URL derivation fails.
-    if(this.rootStore.dataStore.useContentGroup) {
+    if(this.rootStore.settingsStore.useContentGroup) {
       try {
         const record: any = yield this.rootStore.streamListStore.FetchStreamInfo(streamObjectId);
         streamInfo.url = record?.originUrl;

@@ -25,8 +25,10 @@ const NETWORK_HOSTS: Record<string, string> = {
   test: "test.net955203.contentfabric.io"
 };
 
-// Per-network SRT port table. DataStore.SrtPlayoutUrl uses the same ports.
 const SRT_PLAYOUT_PORTS: Record<string, number> = {main: 11080, demo: 11090, test: 11091};
+
+/** SRT playout port for a network name; unknown or missing networks use main's. */
+export const SrtPlayoutPort = (network?: string): number => SRT_PLAYOUT_PORTS[network || "main"] || SRT_PLAYOUT_PORTS.main;
 
 /**
  * SRT playout URL for TS packaging.
@@ -35,7 +37,7 @@ const SRT_PLAYOUT_PORTS: Record<string, number> = {main: 11080, demo: 11090, tes
 export const SrtPlayoutUrl = ({network, objectId, token}: {network?: string, objectId: string, token?: string}): string | undefined => {
   if(!objectId) { return undefined; }
   const networkName = network || "main";
-  const port = SRT_PLAYOUT_PORTS[networkName] || SRT_PLAYOUT_PORTS.main;
+  const port = SrtPlayoutPort(networkName);
   const streamId = `live-ts.${objectId}${token ? `.${token}` : ""}`;
   return `srt://${networkName}.glb.contentfabric.io:${port}?streamid=${streamId}`;
 };

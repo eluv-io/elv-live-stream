@@ -1,7 +1,20 @@
 import {describe, it, expect, vi} from "vitest";
-import {DropEmbedAuth, NamedNetworkUrl, PublicLicenseServerUrl, SdkPlayoutUrl, SrtPlayoutUrl} from "@/stores/lib/playoutUrls";
+import {DropEmbedAuth, NamedNetworkUrl, PublicLicenseServerUrl, SdkPlayoutUrl, SrtPlayoutPort, SrtPlayoutUrl} from "@/stores/lib/playoutUrls";
 
 vi.spyOn(console, "error").mockImplementation(() => {});
+
+describe("SrtPlayoutPort", () => {
+  it("returns the per-network port", () => {
+    expect(SrtPlayoutPort("main")).toBe(11080);
+    expect(SrtPlayoutPort("demo")).toBe(11090);
+    expect(SrtPlayoutPort("test")).toBe(11091);
+  });
+
+  it("falls back to main's port for unknown or missing networks", () => {
+    expect(SrtPlayoutPort()).toBe(11080);
+    expect(SrtPlayoutPort("other")).toBe(11080);
+  });
+});
 
 describe("SrtPlayoutUrl", () => {
   it("builds a per-network URL with the token in the streamid", () => {

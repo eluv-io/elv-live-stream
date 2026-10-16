@@ -1,7 +1,7 @@
 // Site-object settings: dedicated nodes, declared tags, custom domain, SRT links, stream URLs, and stream links.
 import {makeAutoObservable, toJS} from "mobx";
 import type RootStore from "@/stores/RootStore";
-import type {NetworkName} from "@/stores/RootStore";
+import {SrtPlayoutPort} from "@/stores/lib/playoutUrls";
 
 type PublicProtocol = "rtmp" | "srt" | "mpegts";
 export type DedicatedProtocol = "rtp" | "srt" | "mpegts";
@@ -78,6 +78,11 @@ class SettingsStore {
   declaredTags: string[] = [];
   loadedDeclaredTags = false;
   customDomain = "";
+  // From live_management_settings, loaded with the site ids in DataStore.LoadTenantSiteData.
+  //  - useContentGroup: tenant-wide content-group query (new) vs. the site object's registered stream list (legacy).
+  //  - useDateFilter: scope the stream list by date and show the streams-page date controls.
+  useContentGroup = false;
+  useDateFilter = false;
   loadedCustomDomain = false;
 
   constructor(rootStore: RootStore) {
@@ -230,16 +235,8 @@ class SettingsStore {
   // TODO: Move this to client-js
   *FetchSrtPlayoutUrl({objectId, originUrl, fabricNode, tokenData=null, quickLink=false}: SrtPlayoutUrlParams): Generator<any, string> {
     try {
-      let token = "", url: URL, port: number;
-      const networkName: NetworkName | "" = this.rootStore.networkInfo?.name || "";
-
-      if(networkName.includes("main")) {
-        port = 11080;
-      } else if(networkName.includes("demo")) {
-        port = 11090;
-      } else if(networkName.includes("test")) {
-        port = 11091;
-      }
+      let token = "", url: URL;
+      const port = SrtPlayoutPort(this.rootStore.networkInfo?.name);
 
       if(quickLink) {
         const permission = yield this.client.Permission({objectId, clearCache: true});
@@ -380,6 +377,11 @@ class SettingsStore {
       throw error;
     }
   }
+
+  SetLiveManagementSettings = ({useContentGroup, useDateFilter}: {useContentGroup: boolean, useDateFilter: boolean}) => {
+    this.useContentGroup = useContentGroup;
+    this.useDateFilter = useDateFilter;
+  };
 
   SetCustomDomain = ({customDomain}: {customDomain: string}) => {
     this.customDomain = customDomain;
