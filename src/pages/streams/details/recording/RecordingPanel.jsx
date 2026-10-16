@@ -21,6 +21,7 @@ import {
   Stack,
   Text
 } from "@mantine/core";
+import {FormatDuration} from "@/utils/formatters.ts";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
   RECONNECTION_TIMEOUT_OPTIONS,
@@ -215,6 +216,14 @@ const RecordingPanel = observer(({
 
   if(loading) { return <Loader />; }
 
+  // Keep values set outside the UI selectable so Save doesn't overwrite them
+  const retentionValue = form.getValues().retention;
+  const retentionSeconds = parseInt(retentionValue);
+  const retentionOptions = retentionValue && !RETENTION_OPTIONS.some(option => option.value === retentionValue) && retentionSeconds > 0 ?
+    [...RETENTION_OPTIONS, {label: `${FormatDuration(retentionSeconds)} (custom)`, value: retentionValue}]
+      .sort((a, b) => parseInt(a.value) - parseInt(b.value)) :
+    RETENTION_OPTIONS;
+
   return (
     <Box maw="80%" mb={24}>
       <DisabledTooltipWrapper
@@ -225,7 +234,7 @@ const RecordingPanel = observer(({
         <SimpleGrid cols={2} spacing={150} mb={29}>
           <Select
             description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
-            data={RETENTION_OPTIONS}
+            data={retentionOptions}
             placeholder="Select Time Duration"
             key={form.key("retention")}
             {...form.getInputProps("retention")}

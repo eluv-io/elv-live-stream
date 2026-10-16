@@ -201,7 +201,7 @@ export const AudioCodec = (value: string): string => {
   }
 };
 
-export const RETENTION_TEXT = {
+export const RETENTION_TEXT: Record<string, string> = {
   3600: "1 Hour",
   21600: "6 Hours",
   86400: "1 Day",

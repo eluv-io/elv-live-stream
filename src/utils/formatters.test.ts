@@ -7,7 +7,8 @@ import {
   Pluralize,
   DateFormat,
   BytesToMb,
-  RelativeTime
+  RelativeTime,
+  FormatDuration
 } from "@/utils/formatters";
 
 describe("VideoBitrateReadable", () => {
@@ -186,5 +187,20 @@ describe("RelativeTime", () => {
     const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000).toISOString();
     const result = RelativeTime(threeDaysAgo);
     expect(result).toMatch(/day/);
+  });
+});
+
+describe("FormatDuration", () => {
+  it.each([
+    [1209600, "2 Weeks"],
+    [604800, "1 Week"],
+    [259200, "3 Days"],
+    [7200, "2 Hours"],
+    [5400, "90 Minutes"],
+    [45, "45 Seconds"],
+    [1, "1 Second"],
+    [2635200, "732 Hours"]
+  ])("formats %i as %s", (input, expected) => {
+    expect(FormatDuration(input)).toBe(expected);
   });
 });

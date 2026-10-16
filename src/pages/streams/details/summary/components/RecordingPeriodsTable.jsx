@@ -5,7 +5,7 @@ import {streamEditStore, streamStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} from "@mantine/core";
-import {DateFormat, Pluralize, RelativeTime} from "@/utils/formatters.ts";
+import {DateFormat, FormatDuration, Pluralize, RelativeTime} from "@/utils/formatters.ts";
 import {RecordingPeriodIsExpired} from "@/utils/stream/recording.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import {StreamIsActive} from "@/utils/stream/stream.ts";
@@ -154,7 +154,7 @@ const RecordingPeriodsTable = observer(({
     {label: "Runtime", id: "period-runtime", value: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({startTime: status?.recordingPeriod?.startTimeEpochSec * 1000, currentTimeMs, active: true, format: "hh:mm:ss"}) : ""},
     {label: "Last Incident", id: "period-last-incident", value: RelativeTime(records?.[1]?.end_time)},
     {label: "Periods", id: "period-count", value: (records || []).length},
-    {label: "Retention", id: "period-retention", value: retention ? RETENTION_TEXT[retention] : ""},
+    {label: "Retention", id: "period-retention", value: retention ? (RETENTION_TEXT[retention] ?? FormatDuration(parseInt(retention))) : ""},
   ];
 
   return (

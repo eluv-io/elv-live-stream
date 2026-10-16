@@ -64,6 +64,21 @@ export const Pluralize = ({base, suffix="s", count}: {base: string, suffix?: str
   return `${count} ${base}${count > 1 ? suffix : ""}`;
 };
 
+const DURATION_UNITS = [
+  {name: "Week", seconds: 604800},
+  {name: "Day", seconds: 86400},
+  {name: "Hour", seconds: 3600},
+  {name: "Minute", seconds: 60},
+  {name: "Second", seconds: 1}
+];
+
+export const FormatDuration = (totalSeconds: number): string => {
+  const unit = DURATION_UNITS.find(({seconds}) => totalSeconds % seconds === 0) ?? DURATION_UNITS[DURATION_UNITS.length - 1];
+  const count = totalSeconds / unit.seconds;
+
+  return `${count} ${unit.name}${count === 1 ? "" : "s"}`;
+};
+
 const DEFAULT_DATE_OPTIONS: Intl.DateTimeFormatOptions = {month: "numeric", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true};
 
 export const DateFormat = ({time, format="sec", options=DEFAULT_DATE_OPTIONS}: {time: number | string, format?: "sec" | "iso" | "ms" | "iso-minute", options?: Intl.DateTimeFormatOptions}): string => {
