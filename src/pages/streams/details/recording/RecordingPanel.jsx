@@ -39,7 +39,7 @@ const RecordingPanel = observer(({
 }) => {
   const params = useParams();
   const [audioTracks, setAudioTracks] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const loadedRef = useRef(null);
 
   const form = useForm({
@@ -64,6 +64,8 @@ const RecordingPanel = observer(({
   const {
     audioFormData,
     copyMpegTs,
+    inputPackaging,
+    copyPackagingFormats,
     fabricPackagingFMP4,
     alternateTranscodes,
     advancedEncodingParams,
@@ -301,6 +303,13 @@ const RecordingPanel = observer(({
                 label="Enable Transport Stream"
                 key={form.key("copyMpegTs")}
                 {...form.getInputProps("copyMpegTs", {type: "checkbox"})}
+                onChange={event => {
+                  const {checked} = event.currentTarget;
+                  form.setFieldValue("copyMpegTs", checked);
+                  if(checked && copyPackagingFormats.length === 0) {
+                    form.setFieldValue("copyPackagingFormats", [inputPackaging]);
+                  }
+                }}
               />
             </SimpleGrid>
 
@@ -311,6 +320,10 @@ const RecordingPanel = observer(({
                   description="Choose the format of your incoming stream. Use TS for standard broadcast signals or RTP TS for IP networks requiring better timing and jitter management."
                   key={form.key("inputPackaging")}
                   {...form.getInputProps("inputPackaging")}
+                  onChange={value => {
+                    form.setFieldValue("inputPackaging", value);
+                    form.setFieldValue("copyPackagingFormats", [value]);
+                  }}
                 >
                   <Group mt={20} gap={18}>
                     <Radio
@@ -326,18 +339,24 @@ const RecordingPanel = observer(({
                     />
                   </Group>
                 </Radio.Group>
-                <Checkbox.Group
+                <Radio.Group
                   label="Fabric Packaging"
                   description="Choose the desired formats available in the Content Fabric."
                   key={form.key("copyPackagingFormats")}
                   {...form.getInputProps("copyPackagingFormats")}
+                  value={copyPackagingFormats[0] ?? ""}
+                  onChange={value => form.setFieldValue("copyPackagingFormats", [value])}
                 >
                   <Stack gap={18} mt={12}>
-                    <Checkbox value="rtp_ts" label="RTP wrapped MPEG-TS (ST 2022-2, ST 2022-7)" />
-                    <Checkbox value="ats_ts" label="MPEG-TS with arrival timestamps" />
-                    <Checkbox value="raw_ts" label="MPEG-TS (For MPEG-TS routing and RTP/TS/SRT outputs)" />
+                    <Radio
+                      value="rtp_ts"
+                      label="RTP wrapped MPEG-TS (ST 2022-2, ST 2022-7)"
+                      disabled={inputPackaging === "raw_ts"}
+                    />
+                    <Radio value="ats_ts" label="MPEG-TS with arrival timestamps" />
+                    <Radio value="raw_ts" label="MPEG-TS (For MPEG-TS routing and RTP/TS/SRT outputs)" />
                   </Stack>
-                </Checkbox.Group>
+                </Radio.Group>
               </SimpleGrid>
             </Collapse>
             <Divider mb={29} />
