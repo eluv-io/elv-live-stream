@@ -16,11 +16,11 @@ import {
 import {useEffect, useMemo, useRef, useState} from "react";
 import {toJS} from "mobx";
 import {useForm} from "@mantine/form";
-import {tenantStore, streamEditStore, streamStatusStore, streamDetailStore, profileStore, streamSaveStore, streamListStore} from "@/stores/index.ts";
+import {tenantStore, settingsStore, streamEditStore, streamStatusStore, streamDetailStore, profileStore, streamSaveStore, streamListStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {STATUS_MAP} from "@/utils/constants.ts";
+import {FABRIC_NODE_REGIONS, STATUS_MAP} from "@/utils/constants.ts";
 import {StreamIsActive} from "@/utils/stream/stream.ts";
 import {IconInfoCircle} from "@tabler/icons-react";
 
@@ -33,6 +33,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
   });
 
   const [loading, setLoading] = useState(true);
+  const [nodeType, setNodeType] = useState("public");
   const params = useParams();
   const loadedRef = useRef(null);
 
@@ -45,6 +46,9 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
       accessGroup: "",
       permission: "",
       url: "",
+      nodeType: "public",
+      ingressNodeId: "",
+      geo: "",
       tags: [],
       configProfile: currentConfigProfile || "",
       applyConfigProfile: false
@@ -52,13 +56,17 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
     validate: {
       name: (value) => (!value ? "Name is required" : null),
       url: (value) => (!value ? "URL is required" : null),
+      ingressNodeId: (value, values) => (values.nodeType === "dedicated" && !value ? "Node is required" : null),
       configProfile: (value, values) => (
         !!value && value !== currentConfigProfile && !values.applyConfigProfile
           ? "Check \"Apply profile settings…\" to apply this profile"
           : null
       )
     },
-    onValuesChange: () => streamSaveStore.SetDirty({id: "general", isDirty: form.isDirty()})
+    onValuesChange: (values) => {
+      setNodeType(values.nodeType);
+      streamSaveStore.SetDirty({id: "general", isDirty: form.isDirty()});
+    }
   });
 
   useEffect(() => {
@@ -68,6 +76,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
         const libraryId = streamStatusStore.streams[slug]?.libraryId;
         await Promise.all([
           streamDetailStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug}),
+          settingsStore.loadedDedicatedNodes ? Promise.resolve() : settingsStore.LoadDedicatedNodes(),
           tenantStore.LoadAccessGroups(),
           profileStore.state !== "loaded" ? profileStore.LoadProfiles() : Promise.resolve()
         ]);
@@ -80,6 +89,9 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
           permission: stream.permission || "",
           accessGroup: stream.accessGroup || "",
           url: stream.originUrl || "",
+          nodeType: !stream.geo && stream.ingressNodeId && settingsStore.dedicatedNodes?.[stream.ingressNodeId] ? "dedicated" : "public",
+          ingressNodeId: stream.ingressNodeId || "",
+          geo: stream.geo || "",
           tags: toJS(stream.tags) || [],
           configProfile: stream.configProfile || "",
           applyConfigProfile: false
@@ -125,6 +137,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
       formData: values,
       // Only re-apply the profile when it actually changed
       configProfile: values.configProfile !== currentConfigProfile ? values.configProfile : undefined,
+      nodeChanged: ["nodeType", "ingressNodeId", "geo"].some(field => form.isDirty(field)),
       updatePermission: currentSettings.permission !== values.permission,
       updateAccessGroup: currentSettings.accessGroup !== values.accessGroup,
       removeAccessGroup: currentSettings.accessGroup
@@ -188,8 +201,42 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
           <SimpleGrid cols={1} spacing={150} mb={18}>
             <DisabledTooltipWrapper
               disabled={StreamIsActive(status)}
-              tooltipLabel="URL is only editable while the stream is inactive"
+              tooltipLabel="URL and node are only editable while the stream is inactive"
             >
+              <Box>
+              <Select
+                label="Node Type"
+                data={[
+                  ...(settingsStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
+                  {label: "Public", value: "public"}
+                ]}
+                key={form.key("nodeType")}
+                {...form.getInputProps("nodeType")}
+                mb={18}
+                allowDeselect={false}
+              />
+              {
+                nodeType === "dedicated" ?
+                  <Select
+                    label="Node"
+                    placeholder="Select Node"
+                    data={settingsStore.dedicatedNodesList}
+                    key={form.key("ingressNodeId")}
+                    {...form.getInputProps("ingressNodeId")}
+                    mb={18}
+                    allowDeselect={false}
+                    withAsterisk
+                  /> :
+                  <Select
+                    label="Fabric Geo"
+                    description="Automatic lets the fabric choose a region"
+                    data={[{value: "", label: "Automatic"}, ...FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))]}
+                    key={form.key("geo")}
+                    {...form.getInputProps("geo")}
+                    mb={18}
+                    allowDeselect={false}
+                  />
+              }
               <TextInput
                 label="URL"
                 placeholder="Enter a URL"
@@ -197,6 +244,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
                 key={form.key("url")}
                 {...form.getInputProps("url")}
               />
+              </Box>
             </DisabledTooltipWrapper>
           </SimpleGrid>
           <SimpleGrid cols={2} spacing={150} mb={18}>
