@@ -167,6 +167,10 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             ]}
             key={form.key("type")}
             {...form.getInputProps("type")}
+            onChange={(value) => {
+              form.setFieldValue("type", value);
+              form.setFieldValue("url", "");
+            }}
           />
           <Input.Wrapper
             label="Stream"
@@ -187,7 +191,6 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             value={nodeType}
             onChange={(value) => {
               form.setFieldValue("nodeType", value);
-              form.setFieldValue("url", "");
               form.setFieldValue("geoNode", "");
             }}
           >
