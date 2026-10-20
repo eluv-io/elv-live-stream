@@ -1443,10 +1443,7 @@ describe("SwitchOutputInput", () => {
 // ---------------------------------------------------------------------------
 
 describe("CreateOutput location", () => {
-  const makeCreateStore = (clientOverrides: Record<string, unknown> = {}) => {
-    const created = {name: "New Output", srt_pull: {urls: ["srt://host:1234"]}, state: {connected_clients: 0}};
-    return makeStore({OutputsListItem: vi.fn().mockResolvedValue(created), ...clientOverrides});
-  };
+  const makeCreateStore = (clientOverrides: Record<string, unknown> = {}) => makeStore(clientOverrides);
 
   it("should save the region to custom.location and not write description", async () => {
     const {store, mockClient} = makeCreateStore();
@@ -1454,10 +1451,8 @@ describe("CreateOutput location", () => {
     await store.CreateOutput({type: "srt_pull", name: "Out", region: "us-east"});
 
     expect(mockClient.OutputsCreate.mock.calls[0][0].description).toBeUndefined();
-    const modifyArg = mockClient.OutputsModify.mock.calls[0][0];
-    expect(modifyArg.output.custom).toEqual({location: {type: "public", geo: "us-east"}});
-    expect(modifyArg.output.state).toBeUndefined();
-    expect(store.outputs["out-1"].custom).toEqual({location: {type: "public", geo: "us-east"}});
+    expect(mockClient.OutputsCreate.mock.calls[0][0].custom).toEqual({location: {type: "public", geo: "us-east"}});
+    expect(mockClient.OutputsModify).not.toHaveBeenCalled();
   });
 
   it("should resolve a pinned hostname to a node ID and save geo, node and host", async () => {
@@ -1469,7 +1464,7 @@ describe("CreateOutput location", () => {
     const deliveryArg = mockClient.OutputsCreate.mock.calls[0][0].delivery;
     expect(deliveryArg.settings.node_ids).toEqual(["inode123"]);
     expect(deliveryArg.settings.elvgeos).toBeUndefined();
-    expect(mockClient.OutputsModify.mock.calls[0][0].output.custom)
+    expect(mockClient.OutputsCreate.mock.calls[0][0].custom)
       .toEqual({location: {type: "public", geo: "us-east", node: "inode123", host: "host-1.example.com"}});
   });
 
@@ -1491,7 +1486,7 @@ describe("CreateOutput location", () => {
     const deliveryArg = mockClient.OutputsCreate.mock.calls[0][0].delivery;
     expect(deliveryArg.settings.elvgeos).toBeUndefined();
     expect(deliveryArg.settings.node_ids).toBeUndefined();
-    expect(mockClient.OutputsModify.mock.calls[0][0].output.custom).toEqual({location: {type: "public"}});
+    expect(mockClient.OutputsCreate.mock.calls[0][0].custom).toEqual({location: {type: "public"}});
   });
 
   it("should save a dedicated location with the node", async () => {
@@ -1499,18 +1494,7 @@ describe("CreateOutput location", () => {
 
     await store.CreateOutput({type: "srt_pull", name: "Out", nodeType: "dedicated", node: "inode123"});
 
-    expect(mockClient.OutputsModify.mock.calls[0][0].output.custom).toEqual({location: {type: "dedicated", node: "inode123"}});
-  });
-
-  it("should still register the output when saving the location fails", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const {store} = makeCreateStore({OutputsModify: vi.fn().mockRejectedValue(new Error("boom"))});
-
-    await store.CreateOutput({type: "srt_pull", name: "Out", region: "us-east"});
-
-    expect(store.outputs["out-1"]).toBeDefined();
-    expect(store.outputs["out-1"].custom).toBeUndefined();
-    consoleError.mockRestore();
+    expect(mockClient.OutputsCreate.mock.calls[0][0].custom).toEqual({location: {type: "dedicated", node: "inode123"}});
   });
 });
 

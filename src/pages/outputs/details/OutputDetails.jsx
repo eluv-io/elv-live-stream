@@ -420,7 +420,7 @@ const OUTPUT_TABS = [
 const OutputDetails = observer(() => {
   const {id} = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [pendingBack, setPendingBack] = useState(false);
   const [pendingRefresh, setPendingRefresh] = useState(false);
@@ -478,7 +478,6 @@ const OutputDetails = observer(() => {
   ].filter(Boolean);
   const DebouncedRefresh = useDebouncedCallback(async() => {
     try {
-      setLoading(true);
       await outputStore.LoadOutputItem({outputId: id});
       if(output?.input?.stream && output?.input?.status !== STATUS_MAP.UNAVAILABLE) {
         await outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output.input.stream});
@@ -495,7 +494,7 @@ const OutputDetails = observer(() => {
   useEffect(() => {
     if(id) {
       outputStore.LoadOutputItem({outputId: id})
-        .then(() => {});
+        .finally(() => setLoading(false));
     }
   }, [id]);
 

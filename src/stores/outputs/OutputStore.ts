@@ -502,6 +502,12 @@ class OutputStore {
         name,
         externalId,
         enabled: false,
+        custom: WithOutputLocation(undefined, {
+          type: nodeType ?? (node && !region ? "dedicated" : "public"),
+          geo: region,
+          node,
+          host: nodeHost
+        }),
         delivery: {
           type,
           settings,
@@ -511,32 +517,6 @@ class OutputStore {
 
       const outputId = Object.keys(outputs || {})[0];
       let outputData: Output = Object.values(outputs || {})[0] as Output;
-
-      // OutputsCreate can't set `custom`, so the location is written in a follow-up modify.
-      try {
-        const custom = WithOutputLocation(undefined, {
-          type: nodeType ?? (node && !region ? "dedicated" : "public"),
-          geo: region,
-          node,
-          host: nodeHost
-        });
-        const objectId = this.outputSettingsId;
-        const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-        const created = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
-        // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-        const {state: _state, ...createdOutput} = created;
-
-        yield this.client.OutputsModify({libraryId, objectId, outputId, output: {
-          ...createdOutput,
-          ...(fmp4 && {input: {...createdOutput.input, fmp4}}),
-          custom
-        }});
-        outputData = {...outputData, custom};
-      } catch(error) {
-        // The output exists and works; only its saved location is missing.
-        // eslint-disable-next-line no-console
-        console.error("Failed to save output location.", error);
-      }
 
       outputData = yield this.client.OutputsResolveSrtPullUrls({value: outputData});
 
