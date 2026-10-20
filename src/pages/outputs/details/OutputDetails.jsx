@@ -423,6 +423,7 @@ const OutputDetails = observer(() => {
   const [loading, setLoading] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [pendingBack, setPendingBack] = useState(false);
+  const [pendingRefresh, setPendingRefresh] = useState(false);
 
   // Blocks in-app navigation (sidebar links, browser back/forward, navigate())
   // away from this page while the config tab has unsaved changes. Only
@@ -560,6 +561,14 @@ const OutputDetails = observer(() => {
     outputSaveStore.DiscardAll();
   };
 
+  const HandleRefresh = () => {
+    if(outputSaveStore.anyDirty) {
+      setPendingRefresh(true);
+    } else {
+      DebouncedRefresh();
+    }
+  };
+
   // Checks dirty state before ever calling navigate(-1) - see StreamDetailsPage
   // for why this is pre-checked rather than left to the router blocker alone.
   const HandleBack = () => {
@@ -580,7 +589,7 @@ const OutputDetails = observer(() => {
     {
       label: "Refresh",
       buttonVariant: "outline",
-      onClick: DebouncedRefresh
+      onClick: HandleRefresh
     },
     {
       label: "Reset",
@@ -731,6 +740,20 @@ const OutputDetails = observer(() => {
             blocker.reset();
           }
         }}
+      />
+
+      <ConfirmModal
+        show={pendingRefresh}
+        title="Unsaved Changes"
+        message="Refreshing will discard your unsaved changes. Are you sure you want to continue?"
+        confirmText="Refresh Anyway"
+        cancelText="Cancel"
+        ConfirmCallback={async () => {
+          outputSaveStore.DiscardAll();
+          setPendingRefresh(false);
+          DebouncedRefresh();
+        }}
+        CloseCallback={() => setPendingRefresh(false)}
       />
     </PageContainer>
   );

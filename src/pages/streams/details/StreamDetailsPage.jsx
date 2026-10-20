@@ -36,6 +36,7 @@ const StreamDetailsPage = observer(() => {
   const [checkVersion, setCheckVersion] = useState(0);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [pendingBack, setPendingBack] = useState(false);
+  const [pendingRefresh, setPendingRefresh] = useState(false);
 
   // Blocks in-app navigation (sidebar links, browser back/forward, navigate())
   // away from this page while a config tab has unsaved changes. Only guards
@@ -130,6 +131,14 @@ const StreamDetailsPage = observer(() => {
     streamSaveStore.DiscardAll();
   };
 
+  const HandleRefresh = () => {
+    if(streamSaveStore.anyDirty) {
+      setPendingRefresh(true);
+    } else {
+      DebouncedRefresh();
+    }
+  };
+
   // Checks dirty state before ever calling navigate(-1). React Router can only
   // block a POP navigation (browser back/forward, navigate(-1)) after letting
   // it happen and reverting it - a round trip through history that's visibly
@@ -176,7 +185,7 @@ const StreamDetailsPage = observer(() => {
     {
       label: "Refresh",
       buttonVariant: "outline",
-      onClick: DebouncedRefresh
+      onClick: HandleRefresh
     },
     ...secondaryActions,
     ...primaryActions
@@ -311,6 +320,20 @@ const StreamDetailsPage = observer(() => {
             blocker.reset();
           }
         }}
+      />
+
+      <ConfirmModal
+        show={pendingRefresh}
+        title="Unsaved Changes"
+        message="Refreshing will discard your unsaved changes. Are you sure you want to continue?"
+        confirmText="Refresh Anyway"
+        cancelText="Cancel"
+        ConfirmCallback={async () => {
+          streamSaveStore.DiscardAll();
+          setPendingRefresh(false);
+          DebouncedRefresh();
+        }}
+        CloseCallback={() => setPendingRefresh(false)}
       />
     </PageContainer>
   );
