@@ -306,7 +306,7 @@ const RecordingPanel = observer(({
                 onChange={event => {
                   const {checked} = event.currentTarget;
                   form.setFieldValue("copyMpegTs", checked);
-                  if(checked && copyPackagingFormats.length === 0) {
+                  if(checked && (copyPackagingFormats.length === 0 || !form.getInitialValues().copyMpegTs)) {
                     form.setFieldValue("copyPackagingFormats", [inputPackaging]);
                   }
                 }}
