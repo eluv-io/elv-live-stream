@@ -56,7 +56,7 @@ const ClassifyOutputLocation = ({output, dedicatedNodesList}) => {
 
 // Quality + input-stat rows shared by the Input Primary and Input Failover
 // Summary cards. `data` is an enriched input object (output.input or
-// output.input.failover) carrying `quality` and `stats` (StreamStatus.input_stats).
+// output.input.failover) carrying `quality` and `stats` (StreamRunningState.input_stats).
 const InputStatRows = (data) => {
   const ts = data?.stats?.ts;
   const rtp = data?.stats?.rtp;

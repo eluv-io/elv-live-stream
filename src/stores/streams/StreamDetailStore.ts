@@ -625,7 +625,7 @@ class StreamDetailStore {
         });
       }
 
-      const status = yield this.client.StreamStatus({name: objectId});
+      const status = yield this.rootStore.streamStatusStore.CheckStatus({objectId});
 
       // General Config
       const configProfileName = liveRecordingConfigMeta?.name;

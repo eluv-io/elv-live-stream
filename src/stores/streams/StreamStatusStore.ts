@@ -15,6 +15,8 @@ interface StreamFrameUrl {
 
 type StreamMap = Record<string, StreamInfo>;
 
+type LocalState = Awaited<ReturnType<StreamStatusStore["_ReadLocalState"]>>;
+
 const STREAM_STATUS_TIMEOUT_MS = 10000;
 
 class StreamStatusStore {
@@ -27,12 +29,14 @@ class StreamStatusStore {
   loadingStatus = false;
   // Bumped whenever `streams` is replaced; an in-flight status/classify pass checks this and stops early.
   _streamListEpoch = 0;
+  // Local reads from the latest classify pass, so the follow-up poll skips a second metadata read.
+  _localStates = new Map<string, LocalState>();
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
 
-    makeAutoObservable(this, {_streamListEpoch: false}, {autoBind: true});
+    makeAutoObservable(this, {_streamListEpoch: false, _localStates: false}, {autoBind: true});
   }
 
   get client() {
@@ -85,10 +89,55 @@ class StreamStatusStore {
   };
 
   /**
-   * Cheap classification from local metadata, mirroring client-js StreamStatus's
-   * pre-bitcode branch: no url -> unconfigured; missing fabric/playout/recording config
-   * -> uninitialized; no edge write token -> inactive; else active. Returns the slugs to poll.
+   * Cheap local read mirroring client-js StreamStatus's pre-bitcode branch: no url -> unconfigured;
+   * missing fabric/playout/recording config -> uninitialized; no edge write token -> inactive.
+   * Returns `state` only when resolved locally; otherwise the token to poll StreamRunningState with.
    */
+  async _ReadLocalState({objectId, libraryId}: {objectId: string, libraryId?: string}): Promise<{
+    libraryId: string,
+    state?: StreamStatus,
+    edgeWriteToken?: string,
+    fabricEdgeWriteToken?: string
+  }> {
+    libraryId = libraryId || await this.client.ContentObjectLibraryId({objectId});
+
+    const meta = await this.client.ContentObjectMetadata({
+      libraryId,
+      objectId,
+      select: [
+        "live_recording_config/url",
+        "live_recording/fabric_config/ingress_node_api",
+        "live_recording/fabric_config/edge_write_token",
+        "live_recording/playout_config",
+        "live_recording/recording_config",
+        "live_recording/status/edge_write_token"
+      ]
+    });
+
+    const liveRecording = meta?.live_recording;
+    const fabricEdgeWriteToken = liveRecording?.fabric_config?.edge_write_token;
+    const edgeWriteToken = liveRecording?.status?.edge_write_token || fabricEdgeWriteToken;
+
+    if(edgeWriteToken) {
+      return {libraryId, edgeWriteToken, fabricEdgeWriteToken};
+    }
+
+    if(!meta?.live_recording_config?.url) {
+      return {libraryId, state: STATUS_MAP.UNCONFIGURED};
+    }
+
+    if(
+      !liveRecording?.fabric_config?.ingress_node_api ||
+      !liveRecording?.playout_config ||
+      !liveRecording?.recording_config
+    ) {
+      return {libraryId, state: STATUS_MAP.UNINITIALIZED};
+    }
+
+    return {libraryId, state: STATUS_MAP.INACTIVE};
+  }
+
+  /** Classify streams from local metadata. Returns the slugs to poll. */
   *_ClassifyStreams({slugs, listEpoch}: {slugs: string[], listEpoch?: number}): Generator<any, string[]> {
     yield this.client.utils.LimitedMap(
       15,
@@ -100,45 +149,18 @@ class StreamStatusStore {
         if(!stream?.objectId) { return; }
 
         try {
-          const libraryId = stream.libraryId ||
-            await this.client.ContentObjectLibraryId({objectId: stream.objectId});
-
-          const meta = await this.client.ContentObjectMetadata({
-            libraryId,
+          const localState = await this._ReadLocalState({
             objectId: stream.objectId,
-            select: [
-              "live_recording_config/url",
-              "live_recording/fabric_config/ingress_node_api",
-              "live_recording/fabric_config/edge_write_token",
-              "live_recording/playout_config",
-              "live_recording/recording_config",
-              "live_recording/status/edge_write_token"
-            ]
+            libraryId: stream.libraryId
           });
 
-          const liveRecording = meta?.live_recording;
-          const edgeWriteToken = liveRecording?.status?.edge_write_token ||
-            liveRecording?.fabric_config?.edge_write_token;
-
-          if(edgeWriteToken) {
-            this._SetStreamActive({slug, active: true});
-            return;
-          }
-
-          let state: StreamStatus;
-          if(!meta?.live_recording_config?.url) {
-            state = STATUS_MAP.UNCONFIGURED;
-          } else if(
-            !liveRecording?.fabric_config?.ingress_node_api ||
-            !liveRecording?.playout_config ||
-            !liveRecording?.recording_config
-          ) {
-            state = STATUS_MAP.UNINITIALIZED;
+          if(localState.edgeWriteToken) {
+            this._localStates.set(slug, localState);
           } else {
-            state = STATUS_MAP.INACTIVE;
+            this._localStates.delete(slug);
           }
 
-          this._SetStreamActive({slug, active: false, state});
+          this._SetStreamActive({slug, active: !!localState.edgeWriteToken, state: localState.state});
         } catch(error) {
           // eslint-disable-next-line no-console
           console.error(`Unable to classify stream ${slug}`, error);
@@ -152,15 +174,15 @@ class StreamStatusStore {
   *CheckStatus({
     objectId,
     slug,
-    showParams=false,
-    update=false
-  }: {objectId: string, slug?: string, showParams?: boolean, update?: boolean}): Generator<any, void | {}> {
-    let response;
+    update=false,
+    localState
+  }: {objectId: string, slug?: string, update?: boolean, localState?: LocalState}): Generator<any, void | {}> {
+    let response: any;
     try {
       response = yield WithTimeout(
-        this.client.StreamStatus({name: objectId, showParams}),
+        this._FetchRunningState({objectId, localState}),
         STREAM_STATUS_TIMEOUT_MS,
-        `StreamStatus(${objectId})`
+        `StreamRunningState(${objectId})`
       );
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -180,13 +202,20 @@ class StreamStatusStore {
         value: {
           status: response.state,
           warnings: response.warnings,
-          quality: response.quality,
-          embedUrl: response?.playoutUrls?.embedUrl
+          quality: response.quality
         }
       });
     }
 
     return response;
+  }
+
+  async _FetchRunningState({objectId, localState}: {objectId: string, localState?: LocalState}): Promise<any> {
+    const {libraryId, state, edgeWriteToken, fabricEdgeWriteToken} = localState ?? await this._ReadLocalState({objectId});
+    if(state) { return {state}; }
+
+    const running = await this.client.StreamRunningState({libraryId, objectId, edgeWriteToken});
+    return {...running, edgeWriteToken: fabricEdgeWriteToken};
   }
 
   /**
@@ -220,7 +249,8 @@ class StreamStatusStore {
             await this.CheckStatus({
               objectId: streamMeta.objectId,
               slug,
-              update: true
+              update: true,
+              localState: this._localStates.get(slug)
             });
           } catch(error) {
             // eslint-disable-next-line no-console
@@ -504,8 +534,7 @@ class StreamStatusStore {
           result[objectId] = {
             status: response?.state,
             warnings: response?.warnings,
-            quality: response?.quality,
-            embedUrl: response?.playoutUrls?.embedUrl
+            quality: response?.quality
           };
         } catch(error) {
           // eslint-disable-next-line no-console

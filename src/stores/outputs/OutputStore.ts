@@ -328,7 +328,7 @@ class OutputStore {
     }
 
     try {
-      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
+      const streamStatus = yield this.rootStore.streamStatusStore.CheckStatus({objectId: streamObjectId}) as any;
       streamInfo.quality = streamStatus?.quality;
       streamInfo.stats = streamStatus?.input_stats;
     } catch(error) {
@@ -361,7 +361,7 @@ class OutputStore {
   /**
    * Enrich input.failover for the Summary card: client-js leaves it a bare
    * object id, so resolve name (public/name) and status/quality/stats
-   * (StreamStatus). Name and stats are resolved independently so one failing
+   * (CheckStatus). Name and stats are resolved independently so one failing
    * doesn't suppress the other.
    */
   *LoadFailoverStreamInfo({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void> {
@@ -398,7 +398,7 @@ class OutputStore {
     }
 
     try {
-      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
+      const streamStatus = yield this.rootStore.streamStatusStore.CheckStatus({objectId: streamObjectId}) as any;
       MergeFailover({
         status: streamStatus?.state,
         quality: streamStatus?.quality,

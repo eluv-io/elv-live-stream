@@ -46,7 +46,7 @@ const makeClient = (overrides: Record<string, unknown> = {}): Record<string, any
   OutputsHop: vi.fn().mockResolvedValue(undefined),
   StreamSiteSettings: vi.fn().mockResolvedValue({siteLibraryId: "ilib-site", siteObjectId: "iq__site"}),
   EmbedUrl: vi.fn().mockResolvedValue("https://embed.example.com/watch"),
-  StreamStatus: vi.fn().mockResolvedValue({quality: 0.9, input_stats: {}}),
+  StreamRunningState: vi.fn().mockResolvedValue({quality: 0.9, input_stats: {}}),
   ...overrides
 });
 
@@ -63,6 +63,7 @@ const makeStore = (clientOverrides: Record<string, unknown> = {}, streamStatusSt
     streamStatusStore: {
       streams: {},
       streamsByObjectId: {},
+      CheckStatus: ({objectId}: {objectId: string}) => (mockClient as any).StreamRunningState({objectId}),
       ...streamStatusStoreOverrides
     }
   };
@@ -1221,7 +1222,7 @@ describe("LoadOutputStreamInfo", () => {
   it("should merge url, source, packaging, quality and stats onto the output input", async () => {
     const {store} = makeStore({
       ContentObjectMetadata: vi.fn().mockResolvedValue({url: "srt://host:9000", recording_config: {input_cfg: {}}}),
-      StreamStatus: vi.fn().mockResolvedValue({quality: 0.8, input_stats: {ts: {packets_received: 5}}})
+      StreamRunningState: vi.fn().mockResolvedValue({quality: 0.8, input_stats: {ts: {packets_received: 5}}})
     });
     store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary", name: "Primary"}}};
 
@@ -1237,7 +1238,7 @@ describe("LoadOutputStreamInfo", () => {
 
   it("should still merge quality and stats when EmbedUrl fails", async () => {
     const {store} = makeStore({
-      StreamStatus: vi.fn().mockResolvedValue({quality: 0.6, input_stats: {ts: {packets_received: 9}}}),
+      StreamRunningState: vi.fn().mockResolvedValue({quality: 0.6, input_stats: {ts: {packets_received: 9}}}),
       EmbedUrl: vi.fn().mockRejectedValue(new Error("boom"))
     });
     store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
@@ -1253,7 +1254,7 @@ describe("LoadOutputStreamInfo", () => {
   it("should still merge quality and stats when the config read fails", async () => {
     const {store} = makeStore({
       ContentObjectMetadata: vi.fn().mockRejectedValue(new Error("boom")),
-      StreamStatus: vi.fn().mockResolvedValue({quality: 0.55, input_stats: {ts: {}}})
+      StreamRunningState: vi.fn().mockResolvedValue({quality: 0.55, input_stats: {ts: {}}})
     });
     store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1267,7 +1268,7 @@ describe("LoadOutputStreamInfo", () => {
   it("should merge url and packaging even when the status read fails", async () => {
     const {store} = makeStore({
       ContentObjectMetadata: vi.fn().mockResolvedValue({url: "srt://host:9000"}),
-      StreamStatus: vi.fn().mockRejectedValue(new Error("boom"))
+      StreamRunningState: vi.fn().mockRejectedValue(new Error("boom"))
     });
     store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1289,7 +1290,7 @@ describe("LoadFailoverStreamInfo", () => {
   it("should write the resolved name, status, quality and stats onto input.failover", async () => {
     const {store, mockClient} = makeStore({
       ContentObjectMetadata: vi.fn().mockResolvedValue("Failover Stream Name"),
-      StreamStatus: vi.fn().mockResolvedValue({state: "running", quality: 0.75, input_stats: {ts: {packets_received: 10}}})
+      StreamRunningState: vi.fn().mockResolvedValue({state: "running", quality: 0.75, input_stats: {ts: {packets_received: 10}}})
     });
     store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
 
@@ -1298,8 +1299,8 @@ describe("LoadFailoverStreamInfo", () => {
     expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
       expect.objectContaining({objectId: "iq__failover", metadataSubtree: "public/name"})
     );
-    expect(mockClient.StreamStatus).toHaveBeenCalledWith(
-      expect.objectContaining({name: "iq__failover"})
+    expect(mockClient.StreamRunningState).toHaveBeenCalledWith(
+      expect.objectContaining({objectId: "iq__failover"})
     );
     expect(store.outputs["out-1"].input.failover.name).toBe("Failover Stream Name");
     expect(store.outputs["out-1"].input.failover.status).toBe("running");
@@ -1317,7 +1318,7 @@ describe("LoadFailoverStreamInfo", () => {
     await store.LoadFailoverStreamInfo({outputId: "out-1", streamObjectId: "iq__failover"});
 
     expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
-    expect(mockClient.StreamStatus).not.toHaveBeenCalled();
+    expect(mockClient.StreamRunningState).not.toHaveBeenCalled();
     expect(store.outputs["out-1"].input.failover).toBeUndefined();
   });
 
@@ -1333,7 +1334,7 @@ describe("LoadFailoverStreamInfo", () => {
   it("should still merge stats when the name read fails", async () => {
     const {store} = makeStore({
       ContentObjectMetadata: vi.fn().mockRejectedValue(new Error("boom")),
-      StreamStatus: vi.fn().mockResolvedValue({quality: 0.5, input_stats: {ts: {}}})
+      StreamRunningState: vi.fn().mockResolvedValue({quality: 0.5, input_stats: {ts: {}}})
     });
     store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1348,7 +1349,7 @@ describe("LoadFailoverStreamInfo", () => {
 
   it("should swallow errors from the stats read", async () => {
     const {store} = makeStore({
-      StreamStatus: vi.fn().mockRejectedValue(new Error("boom"))
+      StreamRunningState: vi.fn().mockRejectedValue(new Error("boom"))
     });
     store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});

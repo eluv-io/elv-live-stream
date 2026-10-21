@@ -24,7 +24,7 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-x"),
     ContentObjectMetadata: vi.fn().mockImplementation(({objectId}) => Promise.resolve(meta[objectId] ?? null)),
-    StreamStatus: vi.fn().mockImplementation(({name}) => Promise.resolve({state: statusState, name})),
+    StreamRunningState: vi.fn().mockImplementation(({objectId}) => Promise.resolve({state: statusState, objectId})),
     StreamStartRecording: vi.fn().mockResolvedValue(undefined),
     StreamStartOrStopOrReset: vi.fn().mockResolvedValue({state: "starting"}),
     StreamStopRecording: vi.fn().mockResolvedValue({state: "inactive"}),
@@ -59,7 +59,7 @@ const streamMeta = ({url = "srt://in", token = "", ingress = "https://node", ini
 beforeEach(() => vi.clearAllMocks());
 
 describe("StreamStatusStore._ClassifyStreams", () => {
-  it("classifies streams from local metadata without a StreamStatus call", async () => {
+  it("classifies streams from local metadata without a StreamRunningState call", async () => {
     const streams = {
       unconf: {slug: "unconf", objectId: "iq__1", libraryId: "ilib1"},
       uninit: {slug: "uninit", objectId: "iq__2", libraryId: "ilib2"},
@@ -82,7 +82,7 @@ describe("StreamStatusStore._ClassifyStreams", () => {
     expect(store.streams.uninit.status).toBe(STATUS_MAP.UNINITIALIZED);
     expect(store.streams.idle.status).toBe(STATUS_MAP.INACTIVE);
     expect(store.streams.live.status).toBeUndefined();
-    expect(mockClient.StreamStatus).not.toHaveBeenCalled();
+    expect(mockClient.StreamRunningState).not.toHaveBeenCalled();
   });
 
   it("reuses the cached libraryId instead of resolving it", async () => {
@@ -112,8 +112,10 @@ describe("StreamStatusStore.LoadAllStreamsStatus", () => {
 
     await store.LoadAllStreamsStatus();
 
-    expect(mockClient.StreamStatus).toHaveBeenCalledTimes(1);
-    expect(mockClient.StreamStatus).toHaveBeenCalledWith(expect.objectContaining({name: "iq__l"}));
+    // One metadata read per stream: the poll reuses the classify pass's read.
+    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledTimes(2);
+    expect(mockClient.StreamRunningState).toHaveBeenCalledTimes(1);
+    expect(mockClient.StreamRunningState).toHaveBeenCalledWith(expect.objectContaining({objectId: "iq__l", edgeWriteToken: "t"}));
     expect(store.streams.live.status).toBe("running");
     expect(store.streams.idle.status).toBe(STATUS_MAP.INACTIVE);
   });
@@ -135,8 +137,7 @@ describe("StreamStatusStore._SetStreamActive", () => {
 describe("StreamStatusStore active-set maintenance", () => {
   it("StartStream marks the stream active before the next poll", async () => {
     const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "l"}};
-    const {store, mockClient} = makeStore({streams});
-    mockClient.StreamStatus.mockResolvedValueOnce({state: "inactive"});
+    const {store} = makeStore({streams, meta: {iq__a: streamMeta()}});
 
     await store.StartStream({slug: "a"});
 
