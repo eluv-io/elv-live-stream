@@ -131,6 +131,7 @@ module.exports = [
   "qfab",
   "qhash",
   "qlhash",
+  "qlib",
   "qpwt",
   "qspace",
   "readonly",
