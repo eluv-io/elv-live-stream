@@ -16,11 +16,13 @@ const DuplicateStreamModal = observer(({opened, onClose, records=[]}) => {
   const [loadedDedicatedNodes, setLoadedDedicatedNodes] = useState(false);
 
   useEffect(() => {
+    if(!opened) { return; }
+
     Promise.all([
       settingsStore.LoadStreamUrls(),
       settingsStore.loadedDedicatedNodes ? Promise.resolve() : settingsStore.LoadDedicatedNodes()
     ]).then(() => {});
-  }, []);
+  }, [opened]);
 
   useEffect(() => {
     if(settingsStore.loadedDedicatedNodes) {

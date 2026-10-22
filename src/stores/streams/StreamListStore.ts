@@ -636,7 +636,8 @@ class StreamListStore {
           const {versions: page, paging} = yield this.client.TenantContent({
             filter,
             start,
-            limit: TENANT_CONTENT_PAGE_SIZE
+            limit: TENANT_CONTENT_PAGE_SIZE,
+            select: TENANT_CONTENT_SELECT
           });
 
           const received = (page ?? []).length;
@@ -659,8 +660,8 @@ class StreamListStore {
         streamMetadata = yield this._LoadSiteStreams();
       }
 
-      // Full per-object enrichment on purpose - the modal needs inputCfg/source/packaging.
-      this.allStreams = yield this._EnrichStreams({streamMetadata});
+      // The modal needs inputCfg/source/packaging: the content-group query's select carries them, legacy fetches per object.
+      this.allStreams = yield this._EnrichStreams({streamMetadata, fetchObjectData: !this.rootStore.settingsStore.useContentGroup});
       this.allStreamsLoaded = true;
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -707,7 +708,8 @@ class StreamListStore {
       const {versions: page, paging} = yield this.client.TenantContent({
         filter,
         start,
-        limit: TENANT_CONTENT_PAGE_SIZE
+        limit: TENANT_CONTENT_PAGE_SIZE,
+        select: TENANT_CONTENT_SELECT
       });
 
       const received = (page ?? []).length;
@@ -725,7 +727,7 @@ class StreamListStore {
         .filter(([, info]) => (info as StreamInfo).titleId === titleId)
     );
 
-    return yield this._EnrichStreams({streamMetadata});
+    return yield this._EnrichStreams({streamMetadata, fetchObjectData: false});
   }
 
   *FetchStreamListData({libraryId, objectId}: {libraryId: string, objectId: string}): Generator<any, StreamListData | undefined> {
