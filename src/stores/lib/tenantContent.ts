@@ -1,6 +1,6 @@
 // TenantContent query helpers: filter building, paging, and mapping query versions to StreamInfo.
 import {FormatDateFilter} from "@/utils/helpers";
-import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX} from "@/utils/constants";
+import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {DeriveSourceAndPackaging, StreamMetadata} from "@/utils/stream/stream";
 import type {StreamInfo} from "@/stores/TenantStore";
 
@@ -13,6 +13,7 @@ export interface TenantContentVersion {
   hash: string;
   type: string;
   object_version: number;
+  qlib_id?: string;
   error: string;
   query_fields?: Record<string, unknown>;
   meta?: Record<string, any>;
@@ -40,8 +41,52 @@ export const TENANT_CONTENT_SELECT = [
   "live_recording/recording_config/recording_params/xc_params/input_cfg",
   "live_recording/recording_config/recording_params/ladder_specs",
   "live_recording_config/url",
-  "live_recording_config/recording_config/input_cfg"
+  "live_recording_config/recording_config/input_cfg",
+  "live_recording/fabric_config/edge_write_token",
+  "live_recording/status/edge_write_token",
+  "live_recording/fabric_config/ingress_node_api",
+  "live_recording/playout_config",
+  "live_recording/recording_config"
 ];
+
+// Meta paths LocalStateFromMeta reads.
+export const LOCAL_STATE_SELECT = [
+  "live_recording_config/url",
+  "live_recording/fabric_config/ingress_node_api",
+  "live_recording/fabric_config/edge_write_token",
+  "live_recording/playout_config",
+  "live_recording/recording_config",
+  "live_recording/status/edge_write_token"
+];
+
+export interface LocalStateResult {
+  state?: StreamStatus;
+  edgeWriteToken?: string;
+  fabricEdgeWriteToken?: string;
+}
+
+/**
+ * Mirrors client-js StreamStatus: no url -> unconfigured; missing fabric/playout/recording
+ * config -> uninitialized; no edge write token -> inactive. Returns the token to poll with when one exists.
+ */
+export const LocalStateFromMeta = (meta: Record<string, any> | undefined): LocalStateResult => {
+  const liveRecording = meta?.live_recording;
+  const fabricEdgeWriteToken = liveRecording?.fabric_config?.edge_write_token;
+  const edgeWriteToken = liveRecording?.status?.edge_write_token || fabricEdgeWriteToken;
+
+  if(edgeWriteToken) { return {edgeWriteToken, fabricEdgeWriteToken}; }
+  if(!meta?.live_recording_config?.url) { return {state: STATUS_MAP.UNCONFIGURED}; }
+
+  if(
+    !liveRecording?.fabric_config?.ingress_node_api ||
+    !liveRecording?.playout_config ||
+    !liveRecording?.recording_config
+  ) {
+    return {state: STATUS_MAP.UNINITIALIZED};
+  }
+
+  return {state: STATUS_MAP.INACTIVE};
+};
 
 /** Single value of a query field (first entry for arrays); undefined if empty. */
 export const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: string): string | undefined => {
@@ -79,6 +124,7 @@ export const StreamInfoFromTenantVersion = (version: TenantContentVersion): Part
   const titleId = QueryFieldValue(version.query_fields, "title_id");
 
   const info: Partial<StreamInfo> = {versionHash: version.hash};
+  if(version.qlib_id) { info.libraryId = version.qlib_id; }
 
   if(version.meta) {
     const listData = StreamListDataFromMeta(version.meta);
@@ -94,6 +140,8 @@ export const StreamInfoFromTenantVersion = (version: TenantContentVersion): Part
     if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
     if(listData.ladderSpecs != null) { (info as any).ladderSpecs = listData.ladderSpecs; }
     (info as any).configured = listData.configured;
+
+    info.queryLocalState = LocalStateFromMeta(version.meta);
   }
 
   if(name != null) {

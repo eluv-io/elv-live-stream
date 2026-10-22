@@ -2,9 +2,10 @@
 import {makeAutoObservable} from "mobx";
 import UrlJoin from "url-join";
 import {WithTimeout} from "@/utils/helpers";
-import {STATUS_MAP, type StreamStatus} from "@/utils/constants";
+import {type StreamStatus} from "@/utils/constants";
 import type RootStore from "@/stores/RootStore";
 import {StreamInfo} from "@/stores/TenantStore";
+import {LOCAL_STATE_SELECT, LocalStateFromMeta} from "@/stores/lib/tenantContent";
 import {StreamOp} from "@/stores/streams/StreamModalStore";
 
 interface StreamFrameUrl {
@@ -89,9 +90,8 @@ class StreamStatusStore {
   };
 
   /**
-   * Cheap local read mirroring client-js StreamStatus's pre-bitcode branch: no url -> unconfigured;
-   * missing fabric/playout/recording config -> uninitialized; no edge write token -> inactive.
-   * Returns `state` only when resolved locally; otherwise the token to poll StreamRunningState with.
+   * Local state for an object. A content-group stream's first read uses the state cached from the tenant
+   * query; every other read (later polls, legacy list, objects outside the map) reads metadata.
    */
   async _ReadLocalState({objectId, libraryId}: {objectId: string, libraryId?: string}): Promise<{
     libraryId: string,
@@ -99,42 +99,23 @@ class StreamStatusStore {
     edgeWriteToken?: string,
     fabricEdgeWriteToken?: string
   }> {
-    libraryId = libraryId || await this.client.ContentObjectLibraryId({objectId});
+    const stream = this._StreamByObjectId(objectId);
+    libraryId = libraryId || stream?.libraryId || await this.client.ContentObjectLibraryId({objectId});
 
-    const meta = await this.client.ContentObjectMetadata({
-      libraryId,
-      objectId,
-      select: [
-        "live_recording_config/url",
-        "live_recording/fabric_config/ingress_node_api",
-        "live_recording/fabric_config/edge_write_token",
-        "live_recording/playout_config",
-        "live_recording/recording_config",
-        "live_recording/status/edge_write_token"
-      ]
-    });
-
-    const liveRecording = meta?.live_recording;
-    const fabricEdgeWriteToken = liveRecording?.fabric_config?.edge_write_token;
-    const edgeWriteToken = liveRecording?.status?.edge_write_token || fabricEdgeWriteToken;
-
-    if(edgeWriteToken) {
-      return {libraryId, edgeWriteToken, fabricEdgeWriteToken};
+    if(stream?.queryLocalState) {
+      const cached = stream.queryLocalState as Partial<LocalState>;
+      // First read only - the query data goes stale after start/stop, so later reads hit the fabric.
+      this.SetStream({key: stream.slug, value: {queryLocalState: undefined}});
+      return {libraryId, ...cached};
     }
 
-    if(!meta?.live_recording_config?.url) {
-      return {libraryId, state: STATUS_MAP.UNCONFIGURED};
-    }
+    const meta = await this.client.ContentObjectMetadata({libraryId, objectId, select: LOCAL_STATE_SELECT});
 
-    if(
-      !liveRecording?.fabric_config?.ingress_node_api ||
-      !liveRecording?.playout_config ||
-      !liveRecording?.recording_config
-    ) {
-      return {libraryId, state: STATUS_MAP.UNINITIALIZED};
-    }
+    return {libraryId, ...LocalStateFromMeta(meta)};
+  }
 
-    return {libraryId, state: STATUS_MAP.INACTIVE};
+  _StreamByObjectId(objectId: string): StreamInfo | undefined {
+    return Object.values(this.streams || {}).find(stream => stream.objectId === objectId);
   }
 
   /** Classify streams from local metadata. Returns the slugs to poll. */
