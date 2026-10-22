@@ -1,5 +1,5 @@
 // Loaded streams and their runtime state: the streams map, status polling, live control (start/stop/restart/deactivate), and monitor frame previews.
-import {makeAutoObservable} from "mobx";
+import {makeAutoObservable, toJS} from "mobx";
 import UrlJoin from "url-join";
 import {WithTimeout} from "@/utils/helpers";
 import {type StreamStatus} from "@/utils/constants";
@@ -218,7 +218,8 @@ class StreamStatusStore {
     const {libraryId, mainMeta} = localState ?? await this._ReadLocalState({objectId});
 
     // With mainMeta, StreamStatus resolves unconfigured/uninitialized/inactive without a fabric call.
-    return await this.client.StreamStatus({name: objectId, libraryId, mainMeta, includeRecordingInfo, includeParams});
+    // mainMeta may be an observable proxy, which FrameClient's postMessage can't clone.
+    return await this.client.StreamStatus({name: objectId, libraryId, mainMeta: toJS(mainMeta), includeRecordingInfo, includeParams});
   }
 
   /**
