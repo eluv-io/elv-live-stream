@@ -129,6 +129,14 @@ class StreamStatusStore {
         const stream = this.streams?.[slug];
         if(!stream?.objectId) { return; }
 
+        // Content-group streams are classified once from the tenant query; later passes keep that
+        // classification (active ones keep polling StreamRunningState) rather than re-reading metadata.
+        if(
+          this.rootStore.settingsStore.useContentGroup &&
+          !stream.queryLocalState &&
+          (stream.status || this.activeStreamSlugs.has(slug))
+        ) { return; }
+
         try {
           const localState = await this._ReadLocalState({
             objectId: stream.objectId,

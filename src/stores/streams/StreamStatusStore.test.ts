@@ -21,7 +21,7 @@ interface MetaByObject {
   [objectId: string]: unknown;
 }
 
-const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "running", tenantContent} = {} as any) => {
+const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "running", tenantContent, useContentGroup = true} = {} as any) => {
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-x"),
     ContentObjectMetadata: vi.fn().mockImplementation(({objectId}) => Promise.resolve(meta[objectId] ?? null)),
@@ -39,7 +39,7 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
     client: mockClient,
     streamGroupStore: {BuildGroups: vi.fn()},
     tenantStore: {},
-    settingsStore: {}
+    settingsStore: {useContentGroup}
   };
 
   const store = new StreamStatusStore(rootStore as any) as any;
@@ -103,16 +103,31 @@ describe("StreamStatusStore._ClassifyStreams", () => {
     expect(active).toEqual(["a"]);
   });
 
-  it("uses tenant-query state on the first pass only, then reads metadata", async () => {
+  it("_ReadLocalState uses tenant-query state on the first read only, then reads metadata", async () => {
     const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "l"}};
     const {store, mockClient} = makeStore({streams, meta: {iq__a: streamMeta({token: ""})}});
     mockClient.ContentObjectMetadata.mockResolvedValue(streamMeta({token: "t"}));
 
-    expect(await store._ClassifyStreams({slugs: ["a"]})).toEqual([]);
+    expect((await store._ReadLocalState({objectId: "iq__a"})).state).toBe(STATUS_MAP.INACTIVE);
     expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
 
-    expect(await store._ClassifyStreams({slugs: ["a"]})).toEqual(["a"]);
+    expect((await store._ReadLocalState({objectId: "iq__a"})).edgeWriteToken).toBe("t");
     expect(mockClient.ContentObjectMetadata).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-read already-classified content-group streams on later passes", async () => {
+    const streams = {
+      idle: {slug: "idle", objectId: "iq__i", libraryId: "l"},
+      live: {slug: "live", objectId: "iq__l", libraryId: "l"}
+    };
+    const meta = {iq__i: streamMeta({token: ""}), iq__l: streamMeta({token: "t"})};
+    const {store, mockClient} = makeStore({streams, meta});
+
+    await store._ClassifyStreams({slugs: ["idle", "live"]});
+    const active = await store._ClassifyStreams({slugs: ["idle", "live"]});
+
+    expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
+    expect(active).toEqual(["live"]);
   });
 
   it("reuses the cached libraryId and makes no metadata read", async () => {
