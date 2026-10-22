@@ -86,7 +86,7 @@ const StreamRow = ({record}) => (
 
 // General Config tab for an output. Shares the "generalConfig" form (and dirty
 // state) owned by OutputPanels with the Summary tab.
-const GeneralConfig = observer(({form, output}) => {
+const GeneralConfig = observer(({form, output, urlCache}) => {
   const [showFailoverModal, setShowFailoverModal] = useState(false);
   const [showStreamModal, setShowStreamModal] = useState(false);
   const {type, nodeType, geo, failoverStream, failoverStreamName, stream, streamName} = form.getValues();
@@ -182,8 +182,9 @@ const GeneralConfig = observer(({form, output}) => {
               key={form.key("type")}
               {...form.getInputProps("type")}
               onChange={(value) => {
+                urlCache.current[type] = form.getValues().url;
                 form.setFieldValue("type", value);
-                form.setFieldValue("url", "");
+                form.setFieldValue("url", urlCache.current[value] ?? "");
                 form.setFieldValue("streamKey", "");
               }}
               mb={20}
@@ -255,7 +256,6 @@ const GeneralConfig = observer(({form, output}) => {
                 {...form.getInputProps("nodeType")}
                 onChange={(value) => {
                   form.setFieldValue("nodeType", value);
-                  form.setFieldValue("url", "");
                   form.setFieldValue("geoNode", "");
                 }}
               />

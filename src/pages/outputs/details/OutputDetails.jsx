@@ -286,6 +286,8 @@ const OutputPanels = observer(({output, id, url}) => {
   });
   const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url ?? output?.rtmp?.url;
 
+  const urlCache = useRef({[initialType]: initialTargetUrl ?? ""});
+
   const form = useForm({
     mode: "controlled",
     initialValues: {
@@ -393,7 +395,10 @@ const OutputPanels = observer(({output, id, url}) => {
     outputSaveStore.Register({
       id: "generalConfig",
       Save: () => SaveRef.current(),
-      Discard: () => form.reset()
+      Discard: () => {
+        form.reset();
+        urlCache.current = {[initialType]: initialTargetUrl ?? ""};
+      }
     });
 
     return () => outputSaveStore.Unregister("generalConfig");
@@ -405,7 +410,7 @@ const OutputPanels = observer(({output, id, url}) => {
         <SummaryPanel output={output} url={url} id={id} />
       </Tabs.Panel>
       <Tabs.Panel value="generalConfig">
-        <GeneralConfig form={form} output={output} />
+        <GeneralConfig form={form} output={output} urlCache={urlCache} />
       </Tabs.Panel>
     </>
   );

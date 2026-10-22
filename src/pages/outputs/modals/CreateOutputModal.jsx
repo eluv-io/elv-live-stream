@@ -20,13 +20,15 @@ import {
   PasswordInput, Collapse, Tabs
 } from "@mantine/core";
 import styles from "./modals.module.css";
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import SelectFailoverStreamModal from "@/pages/outputs/modals/SelectFailoverStreamModal.jsx";
 
 const CreateOutputModal = observer(({show, onCloseModal}) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showStreamModal, setShowStreamModal] = useState(false);
   const [streamInfo, setStreamInfo] = useState(undefined);
+
+  const urlCache = useRef({});
 
   const form = useForm({
     mode: "controlled",
@@ -109,6 +111,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
 
       onCloseModal();
       form.reset();
+      urlCache.current = {};
       setStreamInfo(undefined);
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -130,6 +133,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       onClose={() => {
         onCloseModal();
         form.reset();
+        urlCache.current = {};
         setStreamInfo(undefined);
       }}
       title={
@@ -168,8 +172,9 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
             key={form.key("type")}
             {...form.getInputProps("type")}
             onChange={(value) => {
+              urlCache.current[form.getValues().type] = form.getValues().url;
               form.setFieldValue("type", value);
-              form.setFieldValue("url", "");
+              form.setFieldValue("url", urlCache.current[value] ?? "");
             }}
           />
           <Input.Wrapper
