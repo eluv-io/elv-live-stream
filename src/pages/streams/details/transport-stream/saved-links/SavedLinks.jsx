@@ -7,7 +7,7 @@ import {SortTable} from "@/utils/helpers.ts";
 import {useClipboard} from "@mantine/hooks";
 import SrtLinkForm from "@/pages/streams/details/transport-stream/common/SrtLinkForm.jsx";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {IconLink, IconPencil, IconTrash} from "@tabler/icons-react";
@@ -61,7 +61,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
     const issueTime = startDate ? new Date(startDate) : new Date();
     const futureDate = new Date(issueTime.getTime() + 14 * 24 * 60 * 60 * 1000); // Add 2 weeks
 
-    const url = await dataStore.SrtPlayoutUrl({
+    const url = await settingsStore.FetchSrtPlayoutUrl({
       objectId,
       originUrl,
       fabricNode,
@@ -74,7 +74,7 @@ const SavedLinks = observer(({links=[], objectId, originUrl, setDeleteModalData}
       }
     });
 
-    await dataStore.UpdateSiteSrtLinks({objectId, url, region, label, removeData});
+    await settingsStore.SaveSrtLinks({objectId, url, region, label, removeData});
 
     ResetForm();
   };

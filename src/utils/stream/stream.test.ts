@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor, LiveRecordingConfigProfile} from "@/utils/stream";
+import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor, LiveRecordingConfigProfile} from "@/utils/stream/stream";
 import {STATUS_MAP} from "@/utils/constants";
 
 describe("ParseLiveConfigData", () => {
@@ -175,10 +175,10 @@ describe("DeriveSourceAndPackaging", () => {
       expect(source).toEqual(["srt", "ts"]);
     });
 
-    it("appends rtp for srt:// URLs when input_packaging includes rtp", () => {
+    it("appends rtp for srt:// URLs when input_packaging is rtp_ts", () => {
       const {source} = DeriveSourceAndPackaging({
         url: "srt://host:1234",
-        inputCfg: {input_packaging: ["rtp"]}
+        inputCfg: {input_packaging: "rtp_ts"}
       });
       expect(source).toEqual(["srt", "rtp"]);
     });

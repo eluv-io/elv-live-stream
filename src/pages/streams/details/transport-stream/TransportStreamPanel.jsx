@@ -8,7 +8,7 @@ import {
 } from "@mantine/core";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import {dataStore, streamStore} from "@/stores/index.ts";
+import {tenantStore, settingsStore, streamStatusStore, streamDetailStore} from "@/stores/index.ts";
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router-dom";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
@@ -28,7 +28,7 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
     regionValue: "",
     label: ""
   };
-  const url = streamStore.streams?.[slug].originUrl;
+  const url = streamStatusStore.streams?.[slug].originUrl;
 
   const [loading, setLoading] = useState(false);
   const [copyMpegTs, setCopyMpegTs] = useState(false);
@@ -38,8 +38,8 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
     const LoadConfigData = async() => {
       let {
         copyMpegTs: copyMpegTsMeta
-      } = await streamStore.LoadRecordingConfigData({objectId: params.id, slug});
-      await dataStore.LoadSrtPlayoutUrls();
+      } = await streamDetailStore.LoadRecordingConfigData({objectId: params.id, slug});
+      await settingsStore.LoadSrtPlayoutUrls();
 
       setCopyMpegTs(copyMpegTsMeta);
     };
@@ -67,7 +67,7 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
     const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === item.region)?.label || "";
 
     const token = item.url?.match(/aessjc[a-zA-Z0-9]+/);
-    const decoded = token ? dataStore.client.utils.DecodeSignedToken(token[0]) : {};
+    const decoded = token ? tenantStore.client.utils.DecodeSignedToken(token[0]) : {};
 
     return ({
       value: item.url,
@@ -80,10 +80,10 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
     });
   };
 
-  const srtUrls = (dataStore.srtUrlsByStream?.[params.id]?.srt_urls || [])
+  const srtUrls = (settingsStore.srtUrlsByStream?.[params.id]?.srt_urls || [])
     .map(DetailLink);
 
-  const quickLinkRegions = dataStore.srtUrlsByStream?.[params.id]?.quick_link_regions || {};
+  const quickLinkRegions = settingsStore.srtUrlsByStream?.[params.id]?.quick_link_regions || {};
 
   if(loading) { return <Loader />; }
 
@@ -114,7 +114,7 @@ const TransportStreamPanel = observer(({active, slug, checkVersion}) => {
         show={modalData.show}
         confirmText="Delete"
         CloseCallback={() => setModalData(prevState => ({...prevState, show: false}))}
-        ConfirmCallback={() => dataStore.DeleteSrtUrl({
+        ConfirmCallback={() => settingsStore.DeleteSrtUrl({
           objectId: params.id,
           region: modalData.regionValue
         })}

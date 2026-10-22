@@ -21,18 +21,18 @@ const {
 }));
 
 vi.mock("@/stores/index.ts", () => ({
-  streamEditStore: {UpdateRecordingConfig: mockUpdateRecordingConfig},
-  streamStore: {
+  streamEditStore: {SaveRecordingConfig: mockUpdateRecordingConfig},
+  streamStatusStore: {
     streams: {
       "test-slug": {originUrl: "udp://host.example.com:1234", protocol: "udp"}
-    },
-    LoadRecordingConfigData: mockLoadRecordingConfigData
+    }
   },
+  streamDetailStore: {LoadRecordingConfigData: mockLoadRecordingConfigData},
   outputStore: {LoadOutputStreamInfo: mockLoadOutputStreamInfo},
   // AlternateTranscodesTable/AlternateTranscodeModal (rendered inside the
-  // Transport Stream Packaging section) read dataStore.dedicatedNodesList
+  // Transport Stream Packaging section) read settingsStore.dedicatedNodesList
   // for the Streaming Protocol Node select, even while collapsed/closed.
-  dataStore: {
+  settingsStore: {
     dedicatedNodesList: [],
     loadedDedicatedNodes: true,
     LoadDedicatedNodes: vi.fn()
@@ -135,7 +135,7 @@ describe("RecordingPanel", () => {
     expect(mockUnregister).toHaveBeenCalledWith("recording");
   });
 
-  it("should call UpdateRecordingConfig with the loaded config when Save is invoked", async () => {
+  it("should call SaveRecordingConfig with the loaded config when Save is invoked", async () => {
     renderRecordingPanel();
     await screen.findByText("Retention");
 

@@ -13,7 +13,7 @@ import {
   Title,
   UnstyledButton
 } from "@mantine/core";
-import {dataStore, outputModalStore, outputStore, rootStore} from "@/stores/index.ts";
+import {outputModalStore, outputStore, rootStore, streamListStore} from "@/stores/index.ts";
 import {DataTable} from "mantine-datatable";
 import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.jsx";
 import {
@@ -56,13 +56,13 @@ const Outputs = observer(() => {
         // These must run sequentially, not in parallel: OutputsList (inside
         // LoadOutputs) temporarily reroutes the shared client to a live-egress
         // node via RouteToLiveEgress. Any site-object read in flight during that
-        // window (LoadStreamList -> LoadTenantSiteData/LoadTenantSiteStreams) gets routed to the egress
+        // window (LoadStreamList -> LoadTenantSiteData/_LoadSiteStreams) gets routed to the egress
         // node and 403s ("token/auth not authorized"). Load streams first so the
         // site read completes against normal fabric nodes.
         // Reload when nothing is loaded or when the loaded set is the streams page's
         // date-filtered view - outputs must resolve against every mapped stream.
-        if(reload || !dataStore.streamsLoaded || dataStore.streamsScoped) {
-          await dataStore.LoadStreamList({reload, scoped: false});
+        if(reload || !streamListStore.streamsLoaded || streamListStore.streamsScoped) {
+          await streamListStore.LoadStreamList({reload, scoped: false});
         }
         await outputStore.LoadOutputs();
       } finally {
@@ -83,7 +83,7 @@ const Outputs = observer(() => {
   // are loaded those derivations fall back to output.input.*, which paints stale
   // values that then change once streams arrive. Hold the records until streams
   // are in so the derived columns render once, correctly.
-  const records = dataStore.streamsLoaded ? outputStore.outputList : [];
+  const records = streamListStore.streamsLoaded ? outputStore.outputList : [];
   const selectedRecords = records.filter(r => selectedSlugs.includes(r.slug));
 
   const noSelectedRecords = selectedRecords.length === 0;
@@ -153,7 +153,7 @@ const Outputs = observer(() => {
             minHeight={(!records || records.length === 0) ? 130 : 75}
             highlightOnHover
             sortStatus={outputStore.sortStatus}
-            fetching={loading || !dataStore.streamsLoaded}
+            fetching={loading || !streamListStore.streamsLoaded}
             onSortStatusChange={outputStore.SetSortStatus}
             records={records || []}
             selectedRecords={selectedRecords}

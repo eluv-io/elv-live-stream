@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {useParams} from "react-router-dom";
-import {streamStore, streamEditStore} from "@/stores/index.ts";
+import {streamStatusStore, streamDetailStore, recordingCopyStore} from "@/stores/index.ts";
 
 /**
  * Owns all async data loading for SummaryPanel.
@@ -10,7 +10,7 @@ const useSummaryData = ({slug, libraryId}) => {
   const params = useParams();
   const objectId = params.id;
 
-  const [status, setStatus] = useState({state: streamStore.streams?.[slug]?.status});
+  const [status, setStatus] = useState({state: streamStatusStore.streams?.[slug]?.status});
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [liveRecordingCopies, setLiveRecordingCopies] = useState({});
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ const useSummaryData = ({slug, libraryId}) => {
   const LoadLiveRecordingCopies = async() => {
     try {
       setLoading(true);
-      let copies = await streamEditStore.FetchLiveRecordingCopies({objectId});
+      let copies = await recordingCopyStore.FetchLiveRecordingCopies({objectId});
 
       Object.keys(copies || {}).forEach(id => (copies[id]["_id"] = id));
       setLiveRecordingCopies(copies || {});
@@ -30,13 +30,13 @@ const useSummaryData = ({slug, libraryId}) => {
 
   useEffect(() => {
     const LoadData = async() => {
-      await streamStore.LoadSummaryData({objectId, libraryId, slug});
+      await streamDetailStore.LoadSummaryData({objectId, libraryId, slug});
     };
 
     const LoadStatus = async() => {
       try {
         setLoadingStatus(true);
-        const statusResponse = await streamStore.CheckStatus({objectId, slug, update: true});
+        const statusResponse = await streamStatusStore.CheckStatus({objectId, slug, update: true});
         setStatus(statusResponse);
       } finally {
         setLoadingStatus(false);
@@ -44,7 +44,7 @@ const useSummaryData = ({slug, libraryId}) => {
     };
 
     const LoadEmbedUrl = async() => {
-      const url = await streamStore.EmbedUrl({objectId});
+      const url = await streamDetailStore.EmbedUrl({objectId});
       setEmbedUrl(url);
     };
 

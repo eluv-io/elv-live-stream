@@ -3,7 +3,7 @@ import {makeAutoObservable, runInAction, toJS} from "mobx";
 import {slugify} from "@/utils/helpers";
 import {defaultConfigProfile} from "@/utils/defaultProfile.js";
 import type RootStore from "@/stores/RootStore";
-import {LiveRecordingConfigProfile} from "@/utils/stream";
+import {LiveRecordingConfigProfile} from "@/utils/stream/stream";
 
 class ProfileStore {
   state: "pending" | "loaded" | "error" = "pending";
@@ -13,7 +13,7 @@ class ProfileStore {
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
-    makeAutoObservable(this);
+    makeAutoObservable(this, {}, {autoBind: true});
   }
 
   get client() {
@@ -60,7 +60,7 @@ class ProfileStore {
     return draftKey;
   }
 
-  UpdateDraft(key: string, jsonString: string) {
+  SetDraft(key: string, jsonString: string) {
     try {
       this.drafts[key] = JSON.parse(jsonString);
     } catch {
@@ -70,8 +70,8 @@ class ProfileStore {
 
   *DeleteProfile(slug: string): Generator<any, void> {
     try {
-      const libraryId = this.rootStore.dataStore.siteLibraryId;
-      const objectId = this.rootStore.dataStore.siteId;
+      const libraryId = this.rootStore.tenantStore.siteLibraryId;
+      const objectId = this.rootStore.tenantStore.siteId;
 
       // For a profile that hasn't been saved, only the draft needs removal
       if(slug in this.profiles) {
@@ -112,12 +112,12 @@ class ProfileStore {
   }
 
   *SaveProfiles(): Generator<any, void> {
-    if(!this.rootStore.dataStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
+    if(!this.rootStore.tenantStore.siteId) { throw new Error("Tenant is not configured with a site ID"); }
 
     try {
       const {writeToken} = yield this.client.EditContentObject({
-        libraryId: this.rootStore.dataStore.siteLibraryId,
-        objectId: this.rootStore.dataStore.siteId
+        libraryId: this.rootStore.tenantStore.siteLibraryId,
+        objectId: this.rootStore.tenantStore.siteId
       });
 
       let needsFinalize = false;
@@ -138,8 +138,8 @@ class ProfileStore {
             });
 
             if(profile && draft.name !== profile.name) {
-              const libraryId = this.rootStore.dataStore.siteLibraryId;
-              const objectId = this.rootStore.dataStore.siteId;
+              const libraryId = this.rootStore.tenantStore.siteLibraryId;
+              const objectId = this.rootStore.tenantStore.siteId;
 
               yield this.client.DeleteFiles({
                 libraryId,
@@ -196,8 +196,8 @@ class ProfileStore {
 
       if(needsFinalize) {
         yield this.client.FinalizeContentObject({
-          libraryId: this.rootStore.dataStore.siteLibraryId,
-          objectId: this.rootStore.dataStore.siteId,
+          libraryId: this.rootStore.tenantStore.siteLibraryId,
+          objectId: this.rootStore.tenantStore.siteId,
           writeToken,
           commitMessage: "Update config profiles"
         });

@@ -3,7 +3,7 @@ import {useForm} from "@mantine/form";
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {notifications} from "@mantine/notifications";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 import {ValidateUrl} from "@/utils/validators.ts";
 
 const CustomDomain = observer(() => {
@@ -16,8 +16,8 @@ const CustomDomain = observer(() => {
 
   useEffect(() => {
     const Load = async() => {
-      await dataStore.LoadCustomDomain();
-      const values = {customDomain: dataStore.customDomain ?? ""};
+      await settingsStore.LoadCustomDomain();
+      const values = {customDomain: settingsStore.customDomain ?? ""};
       form.setInitialValues(values);
       form.setValues(values);
       form.resetDirty(values);
@@ -35,7 +35,7 @@ const CustomDomain = observer(() => {
 
     try {
       setSaving(true);
-      await dataStore.SaveCustomDomain({customDomain: values.customDomain});
+      await settingsStore.SaveCustomDomain({customDomain: values.customDomain});
       form.setValues(values);
       form.resetDirty(values);
       notifications.show({title: "Custom domain saved", message: "Custom domain successfully updated"});
@@ -52,7 +52,7 @@ const CustomDomain = observer(() => {
         <Flex justify="flex-end" mb={22}>
           <Button
             type="submit"
-            disabled={!form.isDirty() || saving || !dataStore.loadedCustomDomain}
+            disabled={!form.isDirty() || saving || !settingsStore.loadedCustomDomain}
             loading={saving}
           >
             Save
@@ -62,8 +62,8 @@ const CustomDomain = observer(() => {
           <TextInput
             label="Custom Domain"
             placeholder="https://example.com"
-            disabled={!dataStore.loadedCustomDomain}
-            rightSection={dataStore.loadedCustomDomain ? null : <Loader size={16} />}
+            disabled={!settingsStore.loadedCustomDomain}
+            rightSection={settingsStore.loadedCustomDomain ? null : <Loader size={16} />}
             {...form.getInputProps("customDomain")}
           />
         </SimpleGrid>

@@ -1,6 +1,6 @@
 import {makeAutoObservable} from "mobx";
 import type RootStore from "@/stores/RootStore";
-import type OutputStore from "@/stores/OutputStore";
+import type OutputStore from "@/stores/outputs/OutputStore";
 
 interface ModalConfig {
   title: string;

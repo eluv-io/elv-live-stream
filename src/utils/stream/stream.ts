@@ -1,7 +1,6 @@
 import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {toJS} from "mobx";
 
-// TYPES
 export interface PublishingVideo {
   bit_rate: number;
   frame_rate: string;
@@ -67,10 +66,8 @@ interface RecordingConfig {
   persistent?: boolean;
 }
 
-// Probe-derived MPEG-TS program/PID structure. Fabric currently exposes only
-// program numbers and a flat, program-unscoped PID list at
-// input_cfg.mpegts_selection.{program_ids,pids} - no per-PID type/codec/
-// description and no per-program PID scoping yet, hence the optional fields.
+// Fabric only exposes program numbers and a flat PID list (input_cfg.mpegts_selection),
+// so per-PID type/codec/description are optional.
 export interface ProbePid {
   pid: number;
   type?: "video" | "audio" | "data";
@@ -117,7 +114,7 @@ const PidDescription = (stream: RawProbeStream): string => {
   return "";
 };
 
-// Stream `id` is the hex PID (e.g. "0x65"); streams without a valid PID are dropped
+// Stream `id` is a hex PID (e.g. "0x65"); streams without a valid one are dropped
 export const ProgramsFromProbe = (programs: RawProbeProgram[] = []): ProbeProgram[] =>
   programs.map(program => ({
     id: `${program.program_id}`,
@@ -134,30 +131,27 @@ export const ProgramsFromProbe = (programs: RawProbeProgram[] = []): ProbeProgra
       }))
   }));
 
-// Only the active program's selection is persisted - see ProgramPidSelector.jsx.
-// `programs` is the read-only detected-program list used to populate the
-// picker; it's derived from input_cfg.mpegts_selection, not itself saved.
+// Only the active program's selection is persisted (see ProgramPidSelector.jsx).
+// `programs` is derived from input_cfg.mpegts_selection and never saved.
 export interface ProgramPidSelection {
   activeProgramId: string | null;
   selections: Record<string, number[]>;
   programs?: ProbeProgram[];
 }
 
-// A resolved view of one alternate transcode - `id` is the objectId of its
-// own content object (the parent only stores an id array).
+// `id` is the transcode's own objectId; the parent stores only an id array.
 export interface AlternateTranscode {
   id: string;
   name: string;
   nodeType: "dedicated" | "public";
   node?: string;
   geo?: string;
-  // The node id actually placed in ingress_node_id - the dedicated pick for
-  // dedicated transcodes, or geo's resolved node for public ones.
+  // Value written to ingress_node_id: the dedicated pick, or geo's resolved node for public.
   resolvedNodeId?: string;
   protocol: string;
   resolution?: string;
-  videoBitrate?: string;
-  streamBitrate?: string;
+  videoBitrate?: string | number;
+  streamBitrate?: string | number;
   advancedEncodingParams?: Record<string, unknown> | null;
   programPidSelection?: ProgramPidSelection;
 }
@@ -304,7 +298,7 @@ export interface LiveRecordingConfigProfile {
   playout_config?: PlayoutConfig;
   recording_stream_config?: { audio?: Record<string, AudioStreamConfig> };
   input_stream_info?: Record<string, unknown>;
-  recording_params?: { xc_params?: XcParams };
+  recording_params?: { xc_params?: XcParams; input_stream?: { stream: string; token: string } };
   probe_info?: Record<string, unknown>;
 }
 
@@ -340,6 +334,30 @@ interface ParseLiveConfigDataProps {
   skipDvrSection?: boolean;
 }
 
+
+// Returns an error message if the failover ladder is lower than the primary's, else null.
+// The fabric rejects a failover with fewer or lower video rungs.
+export const FailoverLadderError = (primary: LadderSpec[], failover: LadderSpec[]): string | null => {
+  const Video = (specs: LadderSpec[]) => specs
+    .filter(spec => spec.media_type === 1)
+    .sort((a, b) => (b.height ?? 0) - (a.height ?? 0) || (b.bit_rate ?? 0) - (a.bit_rate ?? 0));
+
+  const primaryVideo = Video(primary);
+  const failoverVideo = Video(failover);
+
+  if(primaryVideo.length === 0) { return null; }
+
+  if(
+    failoverVideo.length < primaryVideo.length ||
+    (failoverVideo[0]?.height ?? 0) < (primaryVideo[0].height ?? 0) ||
+    (failoverVideo[0]?.bit_rate ?? 0) < (primaryVideo[0].bit_rate ?? 0)
+  ) {
+    return "Failover stream's ladder can't be lower than the primary stream's.";
+  }
+
+  return null;
+};
+
 export interface StreamRecord {
   objectId: string;
   slug: string;
@@ -349,6 +367,7 @@ export interface StreamMetadata {
   objectId: string;
   slug: string;
   inputCfg: RecordingInputCfg | undefined;
+  ladderSpecs?: LadderSpec[];
   // Stream Table Details
   audioStreamCount: number | undefined;
   codecName: string;
@@ -426,8 +445,6 @@ export interface ProbeStream {
   sample_rate?: number;
 }
 
-// FUNCTIONS
-
 export const ParseLiveConfigData = ({
   audioFormData,
   configProfile,
@@ -447,6 +464,7 @@ export const ParseLiveConfigData = ({
   simpleWatermark,
   skipDvrSection=false
 }: ParseLiveConfigDataProps): LiveRecordingConfigProfile => {
+  // A profile overrides all individual form fields (except audio)
   if(configProfile) {
     configProfile = toJS(configProfile);
     return {
@@ -459,6 +477,7 @@ export const ParseLiveConfigData = ({
     };
   }
 
+  // copyMpegTs: true builds the config, false clears it ({}), undefined leaves it untouched
   const inputCfg = copyMpegTs ? {
     bypass_libav_reader: true,
     copy_mode: copyMode,
@@ -492,6 +511,7 @@ export const ParseLiveConfigData = ({
   };
 };
 
+// STOPPED counts as active: the stream is still allocated and can be restarted
 export const StreamIsActive = (state: StreamStatus) : boolean => {
   let active = false;
 

@@ -3,31 +3,66 @@ import {Box, Button, Flex, Modal, Stack, Text, TextInput, Title} from "@mantine/
 import styles from "./modals.module.css";
 import {SortTable} from "@/utils/helpers.ts";
 import {useEffect, useState} from "react";
-import {streamStore} from "@/stores/index.ts";
+import {streamStatusStore, streamListStore} from "@/stores/index.ts";
 import {IconSearch} from "@tabler/icons-react";
 import StreamsTable from "@/pages/streams/table/StreamsTable.jsx";
 import {useDebouncedValue} from "@mantine/hooks";
+import {FailoverLadderError} from "@/utils/stream/stream.ts";
 
 // Picks an input failover stream for an output. Unlike MapToStreamModal (which
 // maps the primary and writes immediately), this returns the selection via
 // onSelect - the value is held in the output form and persisted on Save.
-const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, currentStreamId, primaryStreamId}) => {
+const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, currentStreamId, primaryStreamId, title="Select Failover Stream", description, requireConfigured=false}) => {
   const [sortStatus, setSortStatus] = useState({columnAccessor: "title", direction: "asc"});
   const [filter, setFilter] = useState("");
   const [debouncedFilter] = useDebouncedValue(filter, 200);
   const [selectedRecords, setSelectedRecords] = useState([]);
 
+  const [statuses, setStatuses] = useState({});
+
   useEffect(() => {
-    if(show) { streamStore.LoadAllStreams(); }
+    if(show) { streamListStore.LoadAllStreams(); }
   }, [show]);
 
-  // Same eligibility as primary mapping, minus the output's own primary stream.
+  // allStreams is keyed by slug, so look the primary up by objectId.
+  const primaryLadder = primaryStreamId ?
+    Object.values(streamListStore.allStreams || {}).find(record => record.objectId === primaryStreamId)?.ladderSpecs :
+    undefined;
+
+  // Same eligibility as primary mapping, minus the output's own primary stream. The fabric
+  // rejects a failover whose ladder is lower than the primary's.
   const CanSelectStream = record =>
     !!record.inputCfg &&
+    (!requireConfigured || !!record.configured) &&
     !!record.packaging?.includes("ts") &&
-    record.objectId !== primaryStreamId;
+    record.objectId !== primaryStreamId &&
+    !(primaryLadder && FailoverLadderError(primaryLadder, record.ladderSpecs || []));
 
-  const records = Object.values(streamStore.allStreams || {})
+  const allRecords = Object.values(streamListStore.allStreams || {});
+
+  // All streams carries no live status - fetch it for the selectable streams only.
+  useEffect(() => {
+    if(!show || !streamListStore.allStreamsLoaded) { return; }
+
+    let canceled = false;
+    const objectIds = Object.values(streamListStore.allStreams || {})
+      .filter(record => CanSelectStream(record) && record.configured !== false)
+      .map(record => record.objectId);
+
+    streamStatusStore.FetchStreamStatuses(objectIds).then(result => {
+      if(!canceled) { setStatuses(result); }
+    });
+
+    return () => { canceled = true; };
+
+  }, [show, streamListStore.allStreamsLoaded]);
+
+  const records = allRecords
+    .map(record => ({
+      ...record,
+      title: record.title || record.slug,
+      status: statuses[record.objectId]?.status ?? (record.configured === false ? "unconfigured" : record.status)
+    }))
     .filter(record => (
       record.title?.toLowerCase().includes(debouncedFilter.toLowerCase()) ||
       record.objectId?.toLowerCase().includes(debouncedFilter.toLowerCase())
@@ -38,7 +73,7 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
     const record = selectedRecords[0]?.record;
     if(!record) { return; }
 
-    onSelect({objectId: record.objectId, title: record.title});
+    onSelect({objectId: record.objectId, title: record.title, record});
     onCloseModal();
     setSelectedRecords([]);
   };
@@ -49,8 +84,10 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
       onClose={() => { onCloseModal(); setSelectedRecords([]); }}
       title={
         <Stack gap={0} mb={20}>
-          <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>Select Failover Stream</Title>
-          <Text fz="0.875rem" c="elv-gray.8">Select the stream to fail over to if the primary input disconnects (TS streams only; the primary stream can&apos;t be selected).</Text>
+          <Title order={2} fz="1.375rem" c="elv-gray.9" fw={600}>{title}</Title>
+          <Text fz="0.875rem" c="elv-gray.8">
+            {description ?? "Select the stream to fail over to if the primary input disconnects. Only TS streams with a ladder at least as high as the primary's are available."}
+          </Text>
         </Stack>
       }
       padding="24px"
@@ -76,7 +113,7 @@ const SelectFailoverStreamModal = observer(({show, onCloseModal, onSelect, curre
         <Box style={{flex: 1, minHeight: 0}}>
           <StreamsTable
             records={records}
-            fetching={streamStore.loadingAllStreams && records.length === 0}
+            fetching={streamListStore.loadingAllStreams && records.length === 0}
             isRecordSelectable={CanSelectStream}
             sortStatus={sortStatus}
             onSortStatusChange={setSortStatus}

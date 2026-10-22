@@ -86,9 +86,9 @@ vi.mock("mantine-datatable", () => ({
 // Replace the real MobX stores with plain in-memory mocks the tests can mutate.
 // The Outputs component reads outputStore / outputModalStore / rootStore from here.
 vi.mock("@/stores/index.ts", () => ({
-  // The Outputs page gates its records on dataStore.streamsLoaded and calls
-  // dataStore.LoadStreamList in LoadData, so the mock must provide both.
-  dataStore: {
+  // The Outputs page gates its records on streamListStore.streamsLoaded and calls
+  // streamListStore.LoadStreamList in LoadData, so the mock must provide both.
+  streamListStore: {
     streamsLoaded: true,
     LoadStreamList: vi.fn().mockResolvedValue(undefined)
   },
@@ -98,7 +98,6 @@ vi.mock("@/stores/index.ts", () => ({
     outputList: [],
     tableFilter: "",
     tableTagFilter: [],
-    allMappedStreamTags: [],
     sortStatus: {columnAccessor: "name", direction: "asc"},
     LoadOutputs: vi.fn(),
     SetTableFilter: vi.fn(),
@@ -180,7 +179,6 @@ beforeEach(() => {
   outputStore.outputList = [];
   outputStore.tableFilter = "";
   outputStore.tableTagFilter = [];
-  outputStore.allMappedStreamTags = [];
   outputStore.sortStatus = {columnAccessor: "name", direction: "asc"};
   outputStore.LoadOutputs.mockResolvedValue(undefined);
 

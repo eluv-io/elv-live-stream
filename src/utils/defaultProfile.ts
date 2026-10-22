@@ -1,4 +1,4 @@
-import {LiveRecordingConfigProfile} from "@/utils/stream";
+import {LiveRecordingConfigProfile} from "@/utils/stream/stream";
 
 export const defaultConfigProfile: LiveRecordingConfigProfile = {
   "name": "Built In",

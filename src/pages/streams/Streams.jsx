@@ -6,7 +6,7 @@ import {ActionIcon, Button, Divider, Group, Popover, Select, Text, Tooltip} from
 import {DatePicker} from "@mantine/dates";
 import DuplicateStreamModal from "@/pages/streams/modals/DuplicateStreamModal.jsx";
 import EditTagsModal from "@/pages/streams/modals/EditTagsModal.jsx";
-import {dataStore, modalStore, streamStore, streamGroupStore} from "@/stores/index.ts";
+import {settingsStore, streamModalStore, streamStatusStore, streamGroupStore, streamListStore} from "@/stores/index.ts";
 import {DATE_RANGE_PRESET_OPTIONS, FormatDateFilter, FormatDateRangeLabel, ShiftDateRangePreset, SortTable} from "@/utils/helpers.ts";
 import {useDebouncedCallback} from "@mantine/hooks";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
@@ -29,8 +29,8 @@ const Streams = observer(() => {
 
   // Date filter lives in the store (session-persisted) so it survives navigating
   // to a stream detail page and back.
-  const {datePreset, referenceDate, selectedRecords, sortStatus} = streamStore;
-  const setSelectedRecords = streamStore.SetSelectedRecords;
+  const {datePreset, referenceDate, selectedRecords, sortStatus} = streamListStore;
+  const setSelectedRecords = streamListStore.SetSelectedRecords;
 
   const ToggleGroup = (titleId) => streamGroupStore.ToggleExpandedGroup(titleId);
 
@@ -38,13 +38,13 @@ const Streams = observer(() => {
 
   // A new date query reloads the list; collapse every group so the fresh set starts collapsed.
   const SelectDatePreset = (preset) => {
-    streamStore.SetDateFilter({preset});
+    streamListStore.SetDateFilter({preset});
     streamGroupStore.CollapseAllGroups();
     DebouncedRefresh();
   };
 
   const SelectToday = () => {
-    streamStore.SetDateFilter({preset: "day", referenceDate: new Date()});
+    streamListStore.SetDateFilter({preset: "day", referenceDate: new Date()});
     streamGroupStore.CollapseAllGroups();
     DebouncedRefresh();
   };
@@ -53,14 +53,14 @@ const Streams = observer(() => {
     if(!value) { return; }
 
     const [year, month, day] = value.split("-").map(Number);
-    streamStore.SetDateFilter({preset: "day", referenceDate: new Date(year, month - 1, day)});
+    streamListStore.SetDateFilter({preset: "day", referenceDate: new Date(year, month - 1, day)});
     streamGroupStore.CollapseAllGroups();
     DebouncedRefresh();
     closeDatePicker();
   };
 
   const ShiftDate = (direction) => {
-    streamStore.SetDateFilter({
+    streamListStore.SetDateFilter({
       preset: datePreset,
       referenceDate: ShiftDateRangePreset(datePreset, referenceDate, direction)
     });
@@ -70,64 +70,64 @@ const Streams = observer(() => {
 
   // Date scoping is only enforceable through the tenant content-group query - the
   // legacy site-object stream list can't filter by date, so hide the controls there.
-  const showDateControls = dataStore.useDateFilter && dataStore.useContentGroup;
+  const showDateControls = settingsStore.useDateFilter && settingsStore.useContentGroup;
 
   useEffect(() => {
     // A restored declared-tag selection needs the declared list before it can scope the query
-    if(!dataStore.loadedDeclaredTags) {
+    if(!settingsStore.loadedDeclaredTags) {
       const before = DeclaredTagQueryKey();
-      Promise.resolve(dataStore.LoadDeclaredTags()).then(() => {
-        if(dataStore.useContentGroup && before !== DeclaredTagQueryKey()) {
-          dataStore.LoadStreamList({reload: true});
+      Promise.resolve(settingsStore.LoadDeclaredTags()).then(() => {
+        if(settingsStore.useContentGroup && before !== DeclaredTagQueryKey()) {
+          streamListStore.LoadStreamList({reload: true});
         }
       });
     }
 
     // Reload if nothing is loaded, or if what's loaded is the full (unscoped) set
     // from another page - the streams page needs its date-filtered view.
-    if(!dataStore.streamsLoaded || !dataStore.streamsScoped) {
-      dataStore.LoadStreamList();
+    if(!streamListStore.streamsLoaded || !streamListStore.streamsScoped) {
+      streamListStore.LoadStreamList();
     }
   }, []);
 
   const DebouncedRefresh = useDebouncedCallback(async() => {
-    await dataStore.LoadStreamList({reload: true});
+    await streamListStore.LoadStreamList({reload: true});
   }, 500);
 
   // Search is client-side, but an active search needs the full set without paging, so a change reloads (debounced).
   const DebouncedSearchReload = useDebouncedCallback(async() => {
-    await dataStore.LoadStreamList({reload: true});
+    await streamListStore.LoadStreamList({reload: true});
   }, 400);
 
   // Declared tags shape the tenant query (server-side term or full load), so changing them re-runs it.
   const DeclaredTagQueryKey = () =>
-    `${streamStore.declaredTagsOnServer.join("|")}#${streamStore.declaredTagsNeedFullLoad}`;
+    `${streamListStore.declaredTagsOnServer.join("|")}#${streamListStore.declaredTagsNeedFullLoad}`;
 
   const SetTagFilter = (tags) => {
     const before = DeclaredTagQueryKey();
-    streamStore.SetTableTagFilter(tags);
-    if(dataStore.useContentGroup && before !== DeclaredTagQueryKey()) {
+    streamListStore.SetTableTagFilter(tags);
+    if(settingsStore.useContentGroup && before !== DeclaredTagQueryKey()) {
       streamGroupStore.CollapseAllGroups();
-      dataStore.MarkStreamsLoading();
+      streamListStore.MarkStreamsLoading();
       DebouncedSearchReload();
     }
   };
 
   const OnSearchChange = (event) => {
-    streamStore.SetTableFilter(event.target.value);
-    if(dataStore.useContentGroup) {
+    streamListStore.SetTableFilter(event.target.value);
+    if(settingsStore.useContentGroup) {
       streamGroupStore.CollapseAllGroups();
-      dataStore.MarkStreamsLoading();
+      streamListStore.MarkStreamsLoading();
       DebouncedSearchReload();
     }
   };
 
-  const records = streamStore.filteredStreams.slice().sort(SortTable({sortStatus}));
+  const records = streamListStore.filteredStreams.slice().sort(SortTable({sortStatus}));
 
   // Stable position (objectId -> index) over the full, unfiltered sorted list, so a
   // group row stays put when a tag/text filter hides some of its members.
   const streamOrder = new Map(
-    Object.values(streamStore.streams || {})
+    Object.values(streamStatusStore.streams || {})
       .sort(SortTable({sortStatus}))
       .map((stream, index) => [stream.objectId, index])
   );
@@ -136,12 +136,12 @@ const Streams = observer(() => {
   const dateRangeLabel = FormatDateRangeLabel(datePreset, referenceDate);
 
   const refreshSelectedStatus = () =>
-    Promise.all(selectedRecords.map(r => streamStore.CheckStatus({objectId: r.objectId, slug: r.slug, update: true})));
+    Promise.all(selectedRecords.map(r => streamStatusStore.CheckStatus({objectId: r.objectId, slug: r.slug, update: true})));
 
   const openBatchModal = (op) => {
-    modalStore.SetBatchModal({
+    streamModalStore.SetBatchModal({
       op,
-      records: selectedRecords.map(r => streamStore.streams[r.slug] ?? r),
+      records: selectedRecords.map(r => streamStatusStore.streams[r.slug] ?? r),
       notifications,
       Callback: refreshSelectedStatus
     });
@@ -180,9 +180,9 @@ const Streams = observer(() => {
       label: "Delete",
       id: "delete-batch-action",
       icon: IconTrash,
-      onClick: () => modalStore.SetBatchModal({
+      onClick: () => streamModalStore.SetBatchModal({
         op: "DELETE",
-        records: selectedRecords.map(r => streamStore.streams[r.slug] ?? r),
+        records: selectedRecords.map(r => streamStatusStore.streams[r.slug] ?? r),
         notifications,
         Callback: () => setSelectedRecords([])
       }),
@@ -276,17 +276,17 @@ const Streams = observer(() => {
           {label: "Create", id: "create-action", variant: "filled", onClick: () => navigate("/streams/create")},
           {label: "Refresh", id: "refresh-action", variant: "outline", onClick: DebouncedRefresh}
         ]}
-        searchValue={streamStore.tableFilter}
+        searchValue={streamListStore.tableFilter}
         onSearchChange={OnSearchChange}
-        tagOptions={streamStore.allTags}
-        tagFilter={streamStore.activeTagFilter}
+        tagOptions={streamListStore.allTags}
+        tagFilter={streamListStore.activeTagFilter}
         onTagFilterChange={SetTagFilter}
       />
       <TagFilterRow
-        tags={streamStore.allTags}
-        selectedTags={streamStore.activeTagFilter}
+        tags={streamListStore.allTags}
+        selectedTags={streamListStore.activeTagFilter}
         onTagToggle={(tag) => {
-          const current = streamStore.tableTagFilter;
+          const current = streamListStore.tableTagFilter;
           SetTagFilter(
             current.includes(tag) ? current.filter(t => t !== tag) : [...current, tag]
           );
@@ -309,15 +309,15 @@ const Streams = observer(() => {
         onToggleGroup={ToggleGroup}
         onViewSummary={ViewGroupSummary}
         sortStatus={sortStatus}
-        onSortStatusChange={streamStore.SetSortStatus}
+        onSortStatusChange={streamListStore.SetSortStatus}
         streamOrder={streamOrder}
         selectedRecords={selectedRecords}
         onSelectedRecordsChange={setSelectedRecords}
-        fetching={!dataStore.streamsLoaded}
+        fetching={!streamListStore.streamsLoaded}
         onNameClick={objectId => navigate(`/streams/${objectId}`)}
-        onLoadMore={() => dataStore.LoadMoreStreamList()}
-        hasMore={dataStore.hasMoreStreams}
-        loadingMore={dataStore.loadingMoreStreams}
+        onLoadMore={() => streamListStore.LoadMoreStreamList()}
+        hasMore={streamListStore.hasMoreStreams}
+        loadingMore={streamListStore.loadingMoreStreams}
       />
       <DuplicateStreamModal
         opened={showDuplicateModal}
@@ -327,7 +327,7 @@ const Streams = observer(() => {
       <EditTagsModal
         opened={showEditTagsModal}
         onClose={closeEditTags}
-        records={selectedRecords.map(r => streamStore.streams[r.slug] ?? r)}
+        records={selectedRecords.map(r => streamStatusStore.streams[r.slug] ?? r)}
       />
     </PageContainer>
   );

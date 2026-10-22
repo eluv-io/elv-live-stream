@@ -5,7 +5,7 @@ import {MemoryRouter, Route, Routes} from "react-router-dom";
 import {MantineProvider} from "@mantine/core";
 // Import the mocked store so individual tests can mutate per-test stream data.
 // vi.mock is hoisted, so this import resolves to the mock factory's return value.
-import {streamStore} from "@/stores/index.ts";
+import {streamStatusStore} from "@/stores/index.ts";
 
 const {
   mockUpdateGeneralConfig,
@@ -31,16 +31,18 @@ vi.mock("@/stores", () => ({
       }
     }
   },
-  dataStore: {
-    LoadDetails: vi.fn().mockResolvedValue(undefined),
-    LoadPermission: vi.fn().mockResolvedValue("editable"),
-    LoadAccessGroupPermissions: vi.fn().mockResolvedValue(""),
-    LoadAccessGroups: vi.fn().mockResolvedValue(undefined),
+  settingsStore: {
     LoadDedicatedNodes: vi.fn().mockResolvedValue(undefined),
     loadedDedicatedNodes: true,
     loadedDeclaredTags: true,
     LoadDeclaredTags: vi.fn().mockResolvedValue(undefined),
-    dedicatedNodesList: [],
+    dedicatedNodesList: []
+  },
+  tenantStore: {
+    LoadDetails: vi.fn().mockResolvedValue(undefined),
+    LoadPermission: vi.fn().mockResolvedValue("editable"),
+    LoadAccessGroupPermissions: vi.fn().mockResolvedValue(""),
+    LoadAccessGroups: vi.fn().mockResolvedValue(undefined),
     accessGroups: {},
     client: {
       permissionLevels: {
@@ -49,7 +51,7 @@ vi.mock("@/stores", () => ({
       }
     },
   },
-  streamEditStore: {UpdateGeneralConfig: mockUpdateGeneralConfig},
+  streamEditStore: {SaveGeneralConfig: mockUpdateGeneralConfig},
   // GeneralPanel registers its Save/Discard callbacks with streamSaveStore on
   // mount and reports dirty state on every form change — the panel no longer
   // renders its own Save button, so tests trigger a save by invoking the
@@ -59,10 +61,12 @@ vi.mock("@/stores", () => ({
     Unregister: mockUnregister,
     SetDirty: mockSetDirty
   },
-  streamStore: {
+  streamListStore: {TagOptions: () => []},
+  streamDetailStore: {
     LoadDetails: vi.fn().mockResolvedValue({}),
-    LoadGeneralConfigData: vi.fn().mockResolvedValue(undefined),
-    TagOptions: () => [],
+    LoadGeneralConfigData: vi.fn().mockResolvedValue(undefined)
+  },
+  streamStatusStore: {
     streams: {
       "test-slug": {
         title: "Test Stream",
@@ -126,7 +130,7 @@ describe("GeneralPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset stream to base state so per-test mutations don't leak.
-    streamStore.streams["test-slug"] = {...baseStream};
+    streamStatusStore.streams["test-slug"] = {...baseStream};
   });
 
   describe("Config Profile", () => {
@@ -144,7 +148,7 @@ describe("GeneralPanel", () => {
       );
     });
 
-    it("calls UpdateGeneralConfig with selected profile slug when a profile is chosen", async () => {
+    it("calls SaveGeneralConfig with selected profile slug when a profile is chosen", async () => {
       mockUpdateGeneralConfig.mockResolvedValue(undefined);
       const {user} = renderGeneralPanel();
 
@@ -170,7 +174,7 @@ describe("GeneralPanel", () => {
       });
     });
 
-    it("calls UpdateGeneralConfig with empty configProfile when no profile is selected", async () => {
+    it("calls SaveGeneralConfig with empty configProfile when no profile is selected", async () => {
       mockUpdateGeneralConfig.mockResolvedValue(undefined);
       renderGeneralPanel();
 
@@ -196,7 +200,7 @@ describe("GeneralPanel", () => {
       // The useEffect reads stream.configProfile to set the select value.
       // Ensure the mock stream carries the profile slug so the loaded state
       // matches the prop, otherwise setConfigProfile("") would reset it.
-      streamStore.streams["test-slug"] = {...baseStream, configProfile: "my-profile"};
+      streamStatusStore.streams["test-slug"] = {...baseStream, configProfile: "my-profile"};
       renderGeneralPanel({currentConfigProfile: "my-profile"});
 
       const select = await screen.findByDisplayValue("My Profile");
@@ -204,7 +208,7 @@ describe("GeneralPanel", () => {
     });
 
     it("does not re-send an unchanged, already-assigned profile on save", async () => {
-      streamStore.streams["test-slug"] = {...baseStream, configProfile: "my-profile"};
+      streamStatusStore.streams["test-slug"] = {...baseStream, configProfile: "my-profile"};
       mockUpdateGeneralConfig.mockResolvedValue(undefined);
       renderGeneralPanel();
 

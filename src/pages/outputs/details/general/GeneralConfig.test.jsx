@@ -13,16 +13,16 @@ vi.mock("@/pages/streams/table/StreamsTable.jsx", () => ({
 }));
 
 vi.mock("@/stores/index.ts", () => ({
-  dataStore: {dedicatedNodesList: [], loadedDedicatedNodes: true, dedicatedNodes: {}},
+  settingsStore: {dedicatedNodesList: [], loadedDedicatedNodes: true, dedicatedNodes: {}},
   outputStore: {nodesByRegion: {}, loadingNodesRegion: null, LoadNodesByRegion: vi.fn()},
   outputSaveStore: {},
   outputModalStore: {OpenModal: vi.fn()},
-  streamStore: {allStreams: {}, loadingAllStreams: false, LoadAllStreams: vi.fn()}
+  streamListStore: {allStreams: {}, loadingAllStreams: false, LoadAllStreams: vi.fn()}
 }));
 
 // Imports must come AFTER vi.mock so the module picks up the mocks
 import GeneralConfig from "./GeneralConfig.jsx";
-import {streamStore} from "@/stores/index.ts";
+import {streamListStore} from "@/stores/index.ts";
 
 // --- Factories -----------------------------------------------------------
 
@@ -62,7 +62,7 @@ const renderConfig = (props) =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  streamStore.allStreams = {};
+  streamListStore.allStreams = {};
 });
 
 describe("GeneralConfig - Input Failover section", () => {
@@ -71,8 +71,7 @@ describe("GeneralConfig - Input Failover section", () => {
 
     expect(screen.getByText("Input Failover")).toBeInTheDocument();
     expect(screen.getByRole("button", {name: /add failover stream/i})).toBeDisabled();
-    expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).toBeDisabled();
-    expect(screen.getByLabelText("Reset Clients", {selector: "input"})).toBeDisabled();
+    expect(screen.queryByLabelText("Failover Timeout", {selector: "input"})).not.toBeInTheDocument();
   });
 
   it("should enable the Add Failover Stream button when a primary is mapped and no failover is set", () => {
@@ -81,15 +80,15 @@ describe("GeneralConfig - Input Failover section", () => {
     expect(screen.getByRole("button", {name: /add failover stream/i})).toBeEnabled();
   });
 
-  it("should disable Timeout and Reset Clients until a failover stream is chosen", () => {
+  it("should hide Timeout and Reset Clients until a failover stream is chosen", () => {
     renderConfig({output: makeOutput()});
 
-    expect(screen.getByLabelText("Failover Timeout", {selector: "input"})).toBeDisabled();
-    expect(screen.getByLabelText("Reset Clients", {selector: "input"})).toBeDisabled();
+    expect(screen.queryByLabelText("Failover Timeout", {selector: "input"})).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Reset Clients", {selector: "input"})).not.toBeInTheDocument();
   });
 
   it("should render the chosen stream as a row and load the stream set", () => {
-    streamStore.allStreams = {
+    streamListStore.allStreams = {
       s1: {objectId: "iq__failover", title: "Backup Stream", originUrl: "udp://host:1234", source: ["ts"], packaging: ["ts"]}
     };
     renderConfig({
@@ -100,10 +99,10 @@ describe("GeneralConfig - Input Failover section", () => {
     expect(screen.getByText("Backup Stream")).toBeInTheDocument();
     expect(screen.getByText("iq__failover")).toBeInTheDocument();
     expect(screen.getByText("udp://host:1234")).toBeInTheDocument();
-    expect(streamStore.LoadAllStreams).toHaveBeenCalled();
+    expect(streamListStore.LoadAllStreams).toHaveBeenCalled();
   });
 
-  it("should enable Timeout and Reset Clients and show Change once a stream is set", () => {
+  it("should show Timeout and Reset Clients and Change once a stream is set", () => {
     renderConfig({
       output: makeOutput(),
       initialValues: {failoverStream: "iq__failover", failoverStreamName: "Backup Stream"}

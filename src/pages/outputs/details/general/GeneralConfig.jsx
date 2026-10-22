@@ -24,10 +24,22 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import SelectFailoverStreamModal from "@/pages/outputs/modals/SelectFailoverStreamModal.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
-import {dataStore, outputStore, streamStore} from "@/stores/index.ts";
-import {FABRIC_NODE_REGIONS, FAILOVER_TIMEOUT_OPTIONS, SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
+import {settingsStore, outputStore, streamListStore} from "@/stores/index.ts";
+import {
+  FABRIC_NODE_REGIONS,
+  FAILOVER_TIMEOUT_OPTIONS,
+  RTMP_STREAM_KEY_DESCRIPTION,
+  RTMP_URL_DESCRIPTION,
+  SOURCE_PACKAGING_COLOR_MAP
+} from "@/utils/constants.ts";
 import {OutputUrlProtocol, SanitizeUrl} from "@/utils/helpers.ts";
 import sharedStyles from "@/assets/shared.module.css";
+
+const LockWhenEnabled = ({locked, allowView, children}) => (
+  <DisabledTooltipWrapper disabled={locked} allowView={allowView} tooltipLabel="Disable the output to edit this setting">
+    {children}
+  </DisabledTooltipWrapper>
+);
 
 const PackagingBadges = ({items}) => (
   <Group gap={4} wrap="nowrap">
@@ -50,7 +62,7 @@ const PackagingBadges = ({items}) => (
   </Group>
 );
 
-const FailoverStreamRow = ({record}) => (
+const StreamRow = ({record}) => (
   <Flex align="center" gap={16} px={12} py={12} mt={8} wrap="nowrap" bd="1px solid elv-gray.2">
     <Stack gap={3} style={{flex: "2 1 0", minWidth: 0}}>
       <Text fw={600} fz="0.875rem" c="elv-gray.9" lineClamp={1} style={{wordBreak: "break-all"}} lh={1}>
@@ -76,16 +88,23 @@ const FailoverStreamRow = ({record}) => (
 // state) owned by OutputPanels with the Summary tab.
 const GeneralConfig = observer(({form, output}) => {
   const [showFailoverModal, setShowFailoverModal] = useState(false);
-  const {type, nodeType, geo, failoverStream, failoverStreamName} = form.getValues();
+  const [showStreamModal, setShowStreamModal] = useState(false);
+  const {type, nodeType, geo, failoverStream, failoverStreamName, stream, streamName} = form.getValues();
   const isDedicated = nodeType === "dedicated";
+  const locked = Boolean(output?.enabled);
   // srt_pull targets a source URL to pull from, not a destination the fabric pushes to,
   // so it has no editable Target URL.
   const isPush = type !== "srt_pull";
   const isSrt = type?.includes("srt");
   // Protocol-specific example shown in the Target URL field
-  const urlPlaceholder = `${OutputUrlProtocol(type)}://example.com:1234`;
+  const urlPlaceholder = type === "rtmp" ? "rtmps://example.com/live2" : `${OutputUrlProtocol(type)}://example.com:1234`;
   // Failover needs something to fail away from - gated on a mapped primary.
   const hasPrimary = Boolean(output?.input?.stream);
+
+  const ClearStream = () => {
+    form.setFieldValue("stream", "");
+    form.setFieldValue("streamName", "");
+  };
 
   const ClearFailoverStream = () => {
     form.setFieldValue("failoverStream", "");
@@ -95,8 +114,8 @@ const GeneralConfig = observer(({form, output}) => {
   // The failover row needs the full stream record (url / source / packaging) -
   // allStreams is the unscoped set the picker also uses.
   useEffect(() => {
-    if(hasPrimary && failoverStream) { streamStore.LoadAllStreams(); }
-  }, [hasPrimary, failoverStream]);
+    if(stream || (hasPrimary && failoverStream)) { streamListStore.LoadAllStreams(); }
+  }, [stream, hasPrimary, failoverStream]);
 
   // Preload the region's node list on mount if the output already targets a
   // region
@@ -104,8 +123,20 @@ const GeneralConfig = observer(({form, output}) => {
     if(!isDedicated && geo) { outputStore.LoadNodesByRegion({region: geo}); }
   }, []);
 
+  const loadedStreamRecord = stream ?
+    Object.values(streamListStore.allStreams || {}).find(s => s.objectId === stream) :
+    undefined;
+  const streamRecord = loadedStreamRecord ? {...loadedStreamRecord, status: output?.input?.status} : {
+    objectId: stream,
+    title: streamName || output?.input?.name,
+    originUrl: output?.input?.url,
+    source: output?.input?.source,
+    packaging: output?.input?.packaging,
+    status: output?.input?.status
+  };
+
   const failoverRecord = failoverStream ?
-    Object.values(streamStore.allStreams || {}).find(s => s.objectId === failoverStream) :
+    Object.values(streamListStore.allStreams || {}).find(s => s.objectId === failoverStream) :
     undefined;
 
   return (
@@ -134,92 +165,177 @@ const GeneralConfig = observer(({form, output}) => {
 
         <Box>
           <SectionTitle mb={12}>Output</SectionTitle>
-          <Select
-            label="Output Type"
-            description="Defines the output type"
-            placeholder="Output Type"
-            allowDeselect={false}
-            data={[
-              {label: "SRT PULL", value: "srt_pull"},
-              {label: "SRT PUSH", value: "srt_push"},
-              {label: "RTP", value: "rtp"},
-              {label: "UDP", value: "udp"}
-            ]}
-            key={form.key("type")}
-            {...form.getInputProps("type")}
-            onChange={(value) => {
-              form.setFieldValue("type", value);
-              form.setFieldValue("url", "");
-            }}
-            mb={20}
-          />
-          <Stack gap={20}>
+          <LockWhenEnabled locked={locked}>
             <Select
-              label="Node Type"
-              data={[
-                ...(dataStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
-                {label: "Public", value: "public"}
-              ]}
+              label="Output Type"
+              description="Defines the output type"
+              placeholder="Output Type"
               allowDeselect={false}
-              key={form.key("nodeType")}
-              {...form.getInputProps("nodeType")}
+              disabled={locked}
+              data={[
+                {label: "SRT PULL", value: "srt_pull"},
+                {label: "SRT PUSH", value: "srt_push"},
+                {label: "RTP", value: "rtp"},
+                {label: "UDP", value: "udp"},
+                {label: "RTMP / RTMPS", value: "rtmp"}
+              ]}
+              key={form.key("type")}
+              {...form.getInputProps("type")}
               onChange={(value) => {
-                form.setFieldValue("nodeType", value);
+                form.setFieldValue("type", value);
                 form.setFieldValue("url", "");
-                form.setFieldValue("geoNode", "");
+                form.setFieldValue("streamKey", "");
               }}
+              mb={20}
             />
+          </LockWhenEnabled>
+          <Box mb={20}>
+            <Group wrap="nowrap">
+              <Group gap={4} wrap="nowrap">
+                <Text fz={16} fw={600} lh={1.5} c="elv-black.3">Stream</Text>
+                {type === "rtmp" && <Text c="red" fz={16}>*</Text>}
+              </Group>
+              {
+                stream &&
+                <Group ml="auto">
+                  <Tooltip label="Change Stream" position="bottom">
+                    <ActionIcon
+                      aria-label="Change stream"
+                      variant="transparent"
+                      c="elv-gray.6"
+                      size={24}
+                      onClick={() => setShowStreamModal(true)}
+                    >
+                      <IconArrowsShuffle size={24} />
+                    </ActionIcon>
+                  </Tooltip>
+                  {
+                    type !== "rtmp" &&
+                    <Tooltip label="Remove Stream" position="bottom">
+                      <ActionIcon
+                        aria-label="Remove stream"
+                        variant="transparent"
+                        c="elv-gray.6"
+                        size={24}
+                        onClick={ClearStream}
+                      >
+                        <IconTrash size={24} />
+                      </ActionIcon>
+                    </Tooltip>
+                  }
+                </Group>
+              }
+            </Group>
+            {
+              stream ?
+                <StreamRow record={streamRecord} /> :
+                <Box mt={4}>
+                  <Button
+                    variant="outline"
+                    leftSection={<IconPlus size={16} />}
+                    onClick={() => setShowStreamModal(true)}
+                  >
+                    Select Stream
+                  </Button>
+                </Box>
+            }
+            {form.errors.stream && <Text fz="0.75rem" c="red" mt={4}>{form.errors.stream}</Text>}
+          </Box>
+          <Stack gap={20}>
+            <LockWhenEnabled locked={locked}>
+              <Select
+                label="Node Type"
+                data={[
+                  ...(settingsStore.dedicatedNodesList.length > 0 ? [{label: "Dedicated", value: "dedicated"}] : []),
+                  {label: "Public", value: "public"}
+                ]}
+                allowDeselect={false}
+                disabled={locked}
+                key={form.key("nodeType")}
+                {...form.getInputProps("nodeType")}
+                onChange={(value) => {
+                  form.setFieldValue("nodeType", value);
+                  form.setFieldValue("url", "");
+                  form.setFieldValue("geoNode", "");
+                }}
+              />
+            </LockWhenEnabled>
             {
               isDedicated ?
-                <Select
-                  label="Node"
-                  placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
-                  data={dataStore.dedicatedNodesList}
-                  allowDeselect={false}
-                  withAsterisk
-                  key={form.key("node")}
-                  {...form.getInputProps("node")}
-                /> :
-                <>
-                  <Select
-                    label="Fabric Geo"
-                    description="Automatic lets the fabric choose a region"
-                    data={[{value: "", label: "Automatic"}, ...FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))]}
-                    allowDeselect={false}
-                    key={form.key("geo")}
-                    {...form.getInputProps("geo")}
-                    onChange={(value) => {
-                      form.setFieldValue("geo", value || "");
-                      form.setFieldValue("geoNode", "");
-                      if(value) { outputStore.LoadNodesByRegion({region: value}); }
-                    }}
-                  />
+                <LockWhenEnabled locked={locked}>
                   <Select
                     label="Node"
-                    description="Automatic lets the fabric choose a node"
-                    // "" is the Automatic option; specific nodes need a chosen geo
-                    data={[{value: "", label: "Automatic"}, ...(outputStore.nodesByRegion[form.getValues().geo] || [])]}
-                    disabled={!form.getValues().geo}
+                    placeholder={settingsStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
+                    data={settingsStore.dedicatedNodesList}
                     allowDeselect={false}
-                    rightSection={
-                      form.getValues().geo && outputStore.loadingNodesRegion === form.getValues().geo ?
-                        <Loader size={14} /> : undefined
-                    }
-                    key={form.key("geoNode")}
-                    {...form.getInputProps("geoNode")}
-                    onChange={(value) => form.setFieldValue("geoNode", value || "")}
+                    disabled={locked}
+                    withAsterisk
+                    key={form.key("node")}
+                    {...form.getInputProps("node")}
                   />
+                </LockWhenEnabled> :
+                <>
+                  <LockWhenEnabled locked={locked}>
+                    <Select
+                      label="Fabric Geo"
+                      description="Automatic lets the fabric choose a region"
+                      data={[{value: "", label: "Automatic"}, ...FABRIC_NODE_REGIONS.slice().sort((a, b) => a.label.localeCompare(b.label))]}
+                      allowDeselect={false}
+                      disabled={locked}
+                      key={form.key("geo")}
+                      {...form.getInputProps("geo")}
+                      onChange={(value) => {
+                        form.setFieldValue("geo", value || "");
+                        form.setFieldValue("geoNode", "");
+                        if(value) { outputStore.LoadNodesByRegion({region: value}); }
+                      }}
+                    />
+                  </LockWhenEnabled>
+                  <LockWhenEnabled locked={locked}>
+                    <Select
+                      label="Node"
+                      description="Automatic lets the fabric choose a node"
+                      // "" is the Automatic option; specific nodes need a chosen geo
+                      data={[{value: "", label: "Automatic"}, ...(outputStore.nodesByRegion[form.getValues().geo] || [])]}
+                      disabled={locked || !form.getValues().geo}
+                      allowDeselect={false}
+                      rightSection={
+                        form.getValues().geo && outputStore.loadingNodesRegion === form.getValues().geo ?
+                          <Loader size={14} /> : undefined
+                      }
+                      key={form.key("geoNode")}
+                      {...form.getInputProps("geoNode")}
+                      onChange={(value) => form.setFieldValue("geoNode", value || "")}
+                    />
+                  </LockWhenEnabled>
                 </>
             }
             {
               isPush &&
-              <TextInput
-                label="Target URL"
-                placeholder={urlPlaceholder}
-                key={form.key("url")}
-                withAsterisk
-                {...form.getInputProps("url")}
-              />
+              <LockWhenEnabled locked={locked}>
+                <TextInput
+                  label="Target URL"
+                  description={type === "rtmp" ? RTMP_URL_DESCRIPTION : undefined}
+                  placeholder={urlPlaceholder}
+                  key={form.key("url")}
+                  disabled={locked}
+                  withAsterisk
+                  {...form.getInputProps("url")}
+                />
+              </LockWhenEnabled>
+            }
+            {
+              type === "rtmp" &&
+              <LockWhenEnabled locked={locked} allowView>
+                <PasswordInput
+                  label="Stream Key"
+                  description={RTMP_STREAM_KEY_DESCRIPTION}
+                  key={form.key("streamKey")}
+                  readOnly={locked}
+                  withAsterisk
+                  {...form.getInputProps("streamKey")}
+                />
+              </LockWhenEnabled>
             }
           </Stack>
         </Box>
@@ -301,7 +417,7 @@ const GeneralConfig = observer(({form, output}) => {
                   </Group>
                   {
                     failoverRecord ?
-                      <FailoverStreamRow record={failoverRecord} /> :
+                      <StreamRow record={failoverRecord} /> :
                       <Text fz="0.875rem" c="dimmed" mt={8}>{failoverStreamName || failoverStream}</Text>
                   }
                 </Box> :
@@ -319,28 +435,47 @@ const GeneralConfig = observer(({form, output}) => {
                   </Box>
                 </Box>
             }
-            <SimpleGrid cols={2} spacing={150}>
-              <Select
-                label="Failover Timeout"
-                description="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
-                data={FAILOVER_TIMEOUT_OPTIONS}
-                allowDeselect={false}
-                disabled={!hasPrimary || !failoverStream}
-                key={form.key("failoverAfter")}
-                {...form.getInputProps("failoverAfter")}
-              />
-              <Select
-                label="Reset Clients"
-                description="All client sessions will be reset on failover."
-                data={[{label: "On", value: "on"}, {label: "Off", value: "off"}]}
-                allowDeselect={false}
-                disabled={!hasPrimary || !failoverStream}
-                key={form.key("failoverResetClients")}
-                {...form.getInputProps("failoverResetClients")}
-              />
-            </SimpleGrid>
+            {
+              failoverStream &&
+              <SimpleGrid cols={2} spacing={150}>
+                <Select
+                  label="Failover Timeout"
+                  description="If the input feed is disconnected, the stream will remain active and wait for a reconnection for this duration."
+                  data={FAILOVER_TIMEOUT_OPTIONS}
+                  allowDeselect={false}
+                  disabled={!hasPrimary}
+                  key={form.key("failoverAfter")}
+                  {...form.getInputProps("failoverAfter")}
+                />
+                <Select
+                  label="Reset Clients"
+                  description="All client sessions will be reset on failover."
+                  data={[{label: "On", value: "on"}, {label: "Off", value: "off"}]}
+                  allowDeselect={false}
+                  disabled={!hasPrimary}
+                  key={form.key("failoverResetClients")}
+                  {...form.getInputProps("failoverResetClients")}
+                />
+              </SimpleGrid>
+            }
           </Stack>
         </DisabledTooltipWrapper>
+
+        {
+          showStreamModal &&
+          <SelectFailoverStreamModal
+            show={showStreamModal}
+            onCloseModal={() => setShowStreamModal(false)}
+            currentStreamId={stream}
+            title="Select Stream"
+            description="Select the stream to map to this output (TS streams only. Unconfigured streams can't be selected)."
+            requireConfigured
+            onSelect={record => {
+              form.setFieldValue("stream", record.objectId);
+              form.setFieldValue("streamName", record.title || record.objectId);
+            }}
+          />
+        }
 
         <SelectFailoverStreamModal
           show={showFailoverModal}

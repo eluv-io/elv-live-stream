@@ -4,8 +4,8 @@ import {DataTable} from "mantine-datatable";
 import {ActionIcon, Badge, Box, Button, Flex, Group, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
 import {DateFormat} from "@/utils/formatters.ts";
 import {SortTable} from "@/utils/helpers.ts";
-import {streamStore, streamEditStore} from "@/stores/index.ts";
-import {RecordingCopyMissingError} from "@/stores/StreamEditStore.ts";
+import {streamStatusStore, recordingCopyStore} from "@/stores/index.ts";
+import {RecordingCopyMissingError} from "@/stores/streams/RecordingCopyStore.ts";
 import {IconExternalLink, IconPencil, IconTrash} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import {useForm} from "@mantine/form";
@@ -179,7 +179,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
                     variant="subtle"
                     color="elv-gray.6"
                     disabled={record.unavailable}
-                    onClick={() => streamStore.client.SendMessage({
+                    onClick={() => streamStatusStore.client.SendMessage({
                       options: {
                         operation: "OpenLink",
                         objectId: record._id
@@ -218,7 +218,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
         }}
         danger
         ConfirmCallback={async () => {
-          await streamEditStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: deleteId});
+          await recordingCopyStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: deleteId});
 
           setDeleteId("");
           notifications.show({
@@ -241,7 +241,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
         }}
         ConfirmCallback={async ({title}) => {
           try {
-            await streamEditStore.EditLiveRecordingCopy({
+            await recordingCopyStore.EditLiveRecordingCopy({
               streamId: params.id,
               recordingCopyId: editRecord._id,
               title
@@ -280,7 +280,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
         }}
         danger
         ConfirmCallback={async () => {
-          await streamEditStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: missingCopyId});
+          await recordingCopyStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: missingCopyId});
 
           notifications.show({
             title: "Live recording copy removed",

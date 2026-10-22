@@ -4,7 +4,7 @@ import {ActionIcon, Box, Button, Divider, Group, Stack, Text, Title, Tooltip} fr
 import {DataTable} from "mantine-datatable";
 import {IconPencil, IconPlayerPlay, IconPlayerStop, IconPlus, IconTrash} from "@tabler/icons-react";
 import {notifications} from "@mantine/notifications";
-import {dataStore, modalStore, streamEditStore, streamStore} from "@/stores/index.ts";
+import {settingsStore, streamModalStore, alternateTranscodeStore, streamStatusStore} from "@/stores/index.ts";
 import {FABRIC_NODE_REGIONS, STATUS_MAP} from "@/utils/constants.ts";
 import {VideoBitrateReadable} from "@/utils/formatters.ts";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
@@ -12,17 +12,17 @@ import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import AlternateTranscodeModal from "@/pages/streams/details/recording/alternate-transcodes/AlternateTranscodeModal.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 
-// Resolves a node id to its name via dataStore.dedicatedNodesList; falls
+// Resolves a node id to its name via settingsStore.dedicatedNodesList; falls
 // back to the raw id when unregistered.
 const GeoNodeLabel = (record) => {
   if(record.node) {
-    return dataStore.dedicatedNodesList.find(n => n.value === record.node)?.label || record.node;
+    return settingsStore.dedicatedNodesList.find(n => n.value === record.node)?.label || record.node;
   }
 
   if(record.geo) {
     const geoLabel = FABRIC_NODE_REGIONS.find(g => g.value === record.geo)?.label || record.geo;
     const nodeLabel = record.resolvedNodeId &&
-      (dataStore.dedicatedNodesList.find(n => n.value === record.resolvedNodeId)?.label || record.resolvedNodeId);
+      (settingsStore.dedicatedNodesList.find(n => n.value === record.resolvedNodeId)?.label || record.resolvedNodeId);
     return nodeLabel ? `${geoLabel} / ${nodeLabel}` : geoLabel;
   }
 
@@ -51,7 +51,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
   const LoadStatuses = useCallback(() => {
     if(!idsKey) { return Promise.resolve(); }
 
-    return streamStore.StreamStatuses(idsKey.split(","))
+    return streamStatusStore.FetchStreamStatuses(idsKey.split(","))
       .then(result => setStatuses(result));
   }, [idsKey]);
 
@@ -61,7 +61,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
 
   // Slug is omitted: alternate transcodes aren't in the streams map.
   const ConfirmStreamOp = (record, op) => {
-    modalStore.SetModal({
+    streamModalStore.SetModal({
       data: {objectId: record.id, name: record.name},
       op,
       slug: "",
@@ -74,7 +74,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
     setStartingIds(ids => [...ids, id]);
 
     try {
-      await streamStore.StartStream({objectId: id});
+      await streamStatusStore.StartStream({objectId: id});
     } catch(error) {
       notifications.show({
         title: "Error",
@@ -82,7 +82,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
         message: `Unable to start alternate transcode: ${error?.message || error}`
       });
     } finally {
-      const result = await streamStore.StreamStatuses([id]);
+      const result = await streamStatusStore.FetchStreamStatuses([id]);
       setStatuses(prev => ({...prev, ...result}));
       setStartingIds(ids => ids.filter(startingId => startingId !== id));
     }
@@ -92,8 +92,8 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
     setSaving(true);
     try {
       const record = values.id ?
-        await streamEditStore.UpdateAlternateTranscode({objectId: values.id, ...values}) :
-        await streamEditStore.CreateAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, ...values});
+        await alternateTranscodeStore.SaveAlternateTranscode({objectId: values.id, ...values}) :
+        await alternateTranscodeStore.CreateAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, ...values});
 
       const exists = (records || []).some(r => r.id === record.id);
       onChange(exists ? records.map(r => r.id === record.id ? record : r) : [...(records || []), record]);
@@ -113,7 +113,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
 
   const HandleDelete = async(id) => {
     try {
-      await streamEditStore.RemoveAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, id});
+      await alternateTranscodeStore.RemoveAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, id});
       onChange((records || []).filter(r => r.id !== id));
     } catch(error) {
       notifications.show({

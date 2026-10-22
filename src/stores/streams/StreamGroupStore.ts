@@ -113,6 +113,8 @@ class StreamGroupStore {
     }
   }
 
+  // Future methods: CreateStreamGroup, FetchGroups, FetchStreamGroups, FetchGroupTagsAndFields, and
+  // AddStreamToGroup are not wired up yet. Kept intentionally for upcoming content-group work.
   *CreateStreamGroup({libraryId, name}): Generator<any, void> {
     try {
       const { objectId: groupId, writeToken } = yield this.client.CreateContentGroup({
@@ -134,7 +136,7 @@ class StreamGroupStore {
     }
   }
 
-  *ListGroups(): Generator<any, any> {
+  *FetchGroups(): Generator<any, any> {
     try {
       return yield this.client.TenantContent({
         filter: ["tag:eq:live-stream"],
@@ -148,7 +150,7 @@ class StreamGroupStore {
     }
   }
 
-  *StreamGroups({libraryId, objectId}): Generator<any, any> {
+  *FetchStreamGroups({libraryId, objectId}): Generator<any, any> {
     try {
       if(!libraryId) {
         libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -164,7 +166,7 @@ class StreamGroupStore {
     }
   }
 
-  *GroupTagsAndFields({objectId}): Generator<any, {tags: any, fields: any} | undefined> {
+  *FetchGroupTagsAndFields({objectId}): Generator<any, {tags: any, fields: any} | undefined> {
     try {
       const [tags, fields] = yield Promise.all([
         this.client.ContentObjectTags({objectId}),

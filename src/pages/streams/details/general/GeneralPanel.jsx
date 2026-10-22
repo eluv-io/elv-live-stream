@@ -16,15 +16,16 @@ import {
 import {useEffect, useMemo, useRef, useState} from "react";
 import {toJS} from "mobx";
 import {useForm} from "@mantine/form";
-import {dataStore, streamEditStore, streamStore, profileStore, streamSaveStore} from "@/stores/index.ts";
+import {tenantStore, streamEditStore, streamStatusStore, streamDetailStore, profileStore, streamSaveStore, streamListStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import DisabledTooltipWrapper from "@/components/disabled-tooltip-wrapper/DisabledTooltipWrapper.jsx";
 import {STATUS_MAP} from "@/utils/constants.ts";
+import {StreamIsActive} from "@/utils/stream/stream.ts";
 import {IconInfoCircle} from "@tabler/icons-react";
 
 const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) => {
-  const currentConfigProfile = streamStore.streams?.[slug].configProfile;
+  const currentConfigProfile = streamStatusStore.streams?.[slug].configProfile;
   const [applyingProfileChanges, setApplyingProfileChanges] = useState(false);
   const [currentSettings, setCurrentSettings] = useState({
     accessGroup: "",
@@ -64,13 +65,13 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
     const LoadData = async() => {
       try {
         setLoading(true);
-        const libraryId = streamStore.streams[slug]?.libraryId;
+        const libraryId = streamStatusStore.streams[slug]?.libraryId;
         await Promise.all([
-          streamStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug}),
-          dataStore.LoadAccessGroups(),
+          streamDetailStore.LoadGeneralConfigData({objectId: params.id, libraryId, slug}),
+          tenantStore.LoadAccessGroups(),
           profileStore.state !== "loaded" ? profileStore.LoadProfiles() : Promise.resolve()
         ]);
-        const stream = streamStore.streams[slug];
+        const stream = streamStatusStore.streams[slug];
 
         const values = {
           name: stream.title || "",
@@ -118,7 +119,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
 
     const values = form.getValues();
 
-    const result = await streamEditStore.UpdateGeneralConfig({
+    await streamEditStore.SaveGeneralConfig({
       objectId: params.id,
       slug,
       formData: values,
@@ -131,8 +132,6 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
 
     setCurrentSettings({permission: values.permission, accessGroup: values.accessGroup});
     form.resetDirty(values);
-
-    return result;
   };
 
   const SaveRef = useRef();
@@ -154,23 +153,23 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
   ], [profileStore.sortedProfiles, profileStore.profiles]);
 
   const accessGroupOptions = useMemo(() =>
-    Object.keys(dataStore.accessGroups || {}).map(name => ({
+    Object.keys(tenantStore.accessGroups || {}).map(name => ({
       label: name,
-      value: dataStore.accessGroups[name]?.address
+      value: tenantStore.accessGroups[name]?.address
     })),
-    [dataStore.accessGroups]
+    [tenantStore.accessGroups]
   );
 
   const permissionOptions = useMemo(() =>
-    Object.keys(dataStore.client.permissionLevels || {}).map(name => ({
-      label: dataStore.client.permissionLevels[name].short,
+    Object.keys(tenantStore.client.permissionLevels || {}).map(name => ({
+      label: tenantStore.client.permissionLevels[name].short,
       value: name
     })),
     []
   );
 
   const permissionTooltipContent = useMemo(() =>
-    Object.values(dataStore.client.permissionLevels).map(({short, description}) =>
+    Object.values(tenantStore.client.permissionLevels).map(({short, description}) =>
       <Flex key={`permission-info-${short}`} gap="1rem" lh={1.25} pb={5}>
         <Flex flex="0 0 25%">{short}:</Flex>
         <Text fz="sm">{description}</Text>
@@ -187,13 +186,18 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
         <SectionTitle mb={12}>General</SectionTitle>
         <Box mb="24px" maw="80%">
           <SimpleGrid cols={1} spacing={150} mb={18}>
-            <TextInput
-              label="URL"
-              placeholder="Enter a URL"
-              required={true}
-              key={form.key("url")}
-              {...form.getInputProps("url")}
-            />
+            <DisabledTooltipWrapper
+              disabled={StreamIsActive(status)}
+              tooltipLabel="URL is only editable while the stream is inactive"
+            >
+              <TextInput
+                label="URL"
+                placeholder="Enter a URL"
+                required={true}
+                key={form.key("url")}
+                {...form.getInputProps("url")}
+              />
+            </DisabledTooltipWrapper>
           </SimpleGrid>
           <SimpleGrid cols={2} spacing={150} mb={18}>
             <TextInput
@@ -243,7 +247,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
                 {...form.getInputProps("applyConfigProfile", {type: "checkbox"})}
               />
               {
-                (profileStore.profiles[currentConfigProfile]?.last_updated > streamStore.streams[slug]?.profileLastUpdated) ?
+                (profileStore.profiles[currentConfigProfile]?.last_updated > streamStatusStore.streams[slug]?.profileLastUpdated) ?
                   <Box>
                     <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
                     <Button
@@ -272,7 +276,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
             label="Tags"
             description="Add tags to organize and quickly find streams."
             placeholder="Type and press Enter to add a tag"
-            data={streamStore.TagOptions()}
+            data={streamListStore.TagOptions()}
             key={form.key("tags")}
             {...form.getInputProps("tags")}
             mb={29}

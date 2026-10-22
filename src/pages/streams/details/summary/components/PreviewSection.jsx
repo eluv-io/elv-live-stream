@@ -4,7 +4,7 @@ import VideoContainer from "@/components/video-container/VideoContainer.jsx";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import DetailCard from "@/components/detail-card/DetailCard.jsx";
 import {BuildStateData, BuildRecordingData} from "@/pages/streams/details/summary/SummarySelectors.tsx";
-import {TsPackagingOnly} from "@/utils/streamActions.jsx";
+import {TsPackagingOnly} from "@/utils/stream/streamActions.jsx";
 import {useMemo} from "react";
 
 const PreviewSection = ({slug, status, recordingInfo, currentTimeMs, packaging}) => {

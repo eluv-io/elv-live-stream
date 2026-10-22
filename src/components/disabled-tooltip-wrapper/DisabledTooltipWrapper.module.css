@@ -8,5 +8,27 @@
     label {
       pointer-events: none;
     }
+
+    input:disabled,
+    [data-disabled] {
+      background-color: transparent;
+    }
+
+    /* Wrapper already dims; avoid stacking Mantine's own disabled fade */
+    input:disabled {
+      opacity: 1;
+      color: var(--mantine-color-text);
+    }
+  }
+
+  &[data-disabled="true"][data-allow-view] {
+    input,
+    button {
+      pointer-events: auto;
+    }
+
+    input {
+      color: var(--mantine-color-text);
+    }
   }
 }

@@ -12,7 +12,7 @@ vi.mock("@/utils/constants", () => ({
   DETAILS_TABS: []
 }));
 
-import StreamEditStore, {UpdatePlayoutConfigParams} from "@/stores/StreamEditStore";
+import StreamEditStore, {UpdatePlayoutConfigParams} from "@/stores/streams/StreamEditStore";
 
 // autoBind defines bound flows as non-writable, non-configurable OWN properties on
 // each instance, so they can't be reassigned or spied after construction. The only
@@ -50,27 +50,27 @@ const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => 
 
   const mockRootStore = {
     client: mockClient,
-    dataStore: {siteId: "site123", siteLibraryId: "ilib-site"},
+    tenantStore: {siteId: "site123", siteLibraryId: "ilib-site"},
     profileStore: {
       profiles: {[profileSlug]: profile}
     },
-    streamStore: {
-      UpdateStream: vi.fn(),
-      UpdateDetailMetadata: vi.fn().mockResolvedValue(undefined),
+    streamStatusStore: {
+      SetStream: vi.fn(),
+      SaveDetailMetadata: vi.fn().mockResolvedValue(undefined),
     }
   };
 
   // Stub internal methods that aren't under test (see stubFlow note above).
-  stubFlow("UpdateDetailMetadata");
+  stubFlow("SaveDetailMetadata");
   stubFlow("SetPermission");
-  stubFlow("UpdateAccessGroupPermission");
-  // UpdateStreamAudioSettings runs when probeCleared is falsy. With ContentObjectMetadata
-  // returning null everywhere, the fallback path in UpdateStreamAudioSettings handles
+  stubFlow("SaveAccessGroupPermission");
+  // SaveStreamAudioSettings runs when probeCleared is falsy. With ContentObjectMetadata
+  // returning null everywhere, the fallback path in SaveStreamAudioSettings handles
   // null ladder_specs gracefully — no additional stub needed.
 
   const store = new StreamEditStore(mockRootStore) as any;
 
-  return {store, mockClient, streamStore: mockRootStore.streamStore};
+  return {store, mockClient, streamStatusStore: mockRootStore.streamStatusStore};
 };
 
 // Existing live_recording before profile is applied (stream was configured with input_stream_info only)
@@ -129,7 +129,7 @@ const makeApplyProfileStore = () => {
 
   const mockRootStore = {
     client: mockClient,
-    dataStore: {siteId: "site123", siteLibraryId: "ilib-site"},
+    tenantStore: {siteId: "site123", siteLibraryId: "ilib-site"},
     profileStore: {
       profiles: {
         "new-profile": {
@@ -145,15 +145,15 @@ const makeApplyProfileStore = () => {
         }
       }
     },
-    streamStore: {
-      UpdateStream: vi.fn(),
+    streamStatusStore: {
+      SetStream: vi.fn(),
     }
   };
 
-  stubFlow("UpdateDetailMetadata");
+  stubFlow("SaveDetailMetadata");
   stubFlow("SetPermission");
-  stubFlow("UpdateAccessGroupPermission");
-  const updateAudioSpy = stubFlow("UpdateStreamAudioSettings");
+  stubFlow("SaveAccessGroupPermission");
+  const updateAudioSpy = stubFlow("SaveStreamAudioSettings");
 
   const store = new StreamEditStore(mockRootStore) as any;
 
@@ -165,8 +165,8 @@ const makeSyncStore = (metadataResponse = {}) => {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("mock-lib-id"),
     ContentObjectMetadata: vi.fn().mockResolvedValue(metadataResponse)
   };
-  const updateAudioSpy = stubFlow("UpdateStreamAudioSettings");
-  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}}) as any;
+  const updateAudioSpy = stubFlow("SaveStreamAudioSettings");
+  const store = new StreamEditStore({client: mockClient, tenantStore: {}, profileStore: {profiles: {}}, streamStatusStore: {}}) as any;
   return {store, mockClient, updateAudioSpy};
 };
 
@@ -190,21 +190,21 @@ const makeUpdateAudioStore = ({ladderSpecs = null, xcParams = null} = {}) => {
     ReplaceMetadata: vi.fn().mockResolvedValue(undefined),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined)
   };
-  const updateLadderSpy = stubFlow("UpdateAudioLadderSpecs", defaultLadderResult);
-  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}}) as any;
+  const updateLadderSpy = stubFlow("SaveAudioLadderSpecs", defaultLadderResult);
+  const store = new StreamEditStore({client: mockClient, tenantStore: {}, profileStore: {profiles: {}}, streamStatusStore: {}}) as any;
   return {store, mockClient, updateLadderSpy};
 };
 
-describe("UpdateStreamAudioSettings", () => {
+describe("SaveStreamAudioSettings", () => {
   it("opens a write token when none is provided", async () => {
     const {store, mockClient} = makeUpdateAudioStore();
-    await store.UpdateStreamAudioSettings({objectId: "iq__1", audioData: {0: {record: true, bitrate: 128000}}});
+    await store.SaveStreamAudioSettings({objectId: "iq__1", audioData: {0: {record: true, bitrate: 128000}}});
     expect(mockClient.EditContentObject).toHaveBeenCalledWith({libraryId: "lib-1", objectId: "iq__1"});
   });
 
   it("skips EditContentObject when writeToken is already provided", async () => {
     const {store, mockClient} = makeUpdateAudioStore();
-    await store.UpdateStreamAudioSettings({objectId: "iq__1", writeToken: "existing-wt", audioData: {0: {record: true, bitrate: 128000}}});
+    await store.SaveStreamAudioSettings({objectId: "iq__1", writeToken: "existing-wt", audioData: {0: {record: true, bitrate: 128000}}});
     expect(mockClient.EditContentObject).not.toHaveBeenCalled();
   });
 
@@ -216,7 +216,7 @@ describe("UpdateStreamAudioSettings", () => {
       }
       return Promise.resolve(null);
     });
-    await store.UpdateStreamAudioSettings({objectId: "iq__1", writeToken: "wt"});
+    await store.SaveStreamAudioSettings({objectId: "iq__1", writeToken: "wt"});
     expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording_config/recording_stream_config/audio"})
     );
@@ -228,7 +228,7 @@ describe("UpdateStreamAudioSettings", () => {
       {stream_name: "video_0", stream_index: 1, media_type: 1}
     ];
     const {store, mockClient} = makeUpdateAudioStore({ladderSpecs, xcParams: {n_audio: 0}});
-    await store.UpdateStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData: {}});
+    await store.SaveStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData: {}});
 
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/xc_params"})
@@ -241,7 +241,7 @@ describe("UpdateStreamAudioSettings", () => {
 
   it("sets default=true on the single entry when audioData has exactly one key", async () => {
     const {store, mockClient} = makeUpdateAudioStore();
-    await store.UpdateStreamAudioSettings({
+    await store.SaveStreamAudioSettings({
       objectId: "iq__1",
       writeToken: "wt",
       audioData: {0: {record: true, bitrate: 128000}}
@@ -261,7 +261,7 @@ describe("UpdateStreamAudioSettings", () => {
       0: {record: true, bitrate: 128000},
       1: {record: true, bitrate: 192000}
     };
-    await store.UpdateStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData});
+    await store.SaveStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData});
 
     const call = mockClient.ReplaceMetadata.mock.calls.find(
       ([{metadataSubtree}]) => metadataSubtree === "live_recording_config/recording_stream_config/audio"
@@ -276,7 +276,7 @@ describe("UpdateStreamAudioSettings", () => {
       0: {record: true, bitrate: 128000},
       1: {record: false, bitrate: 192000}
     };
-    await store.UpdateStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData});
+    await store.SaveStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData});
 
     expect(updateLadderSpy).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -289,7 +289,7 @@ describe("UpdateStreamAudioSettings", () => {
 
   it("writes updated ladder_specs and xc_params after computing audio ladder", async () => {
     const {store, mockClient} = makeUpdateAudioStore();
-    await store.UpdateStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData: {0: {record: true, bitrate: 128000}}});
+    await store.SaveStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData: {0: {record: true, bitrate: 128000}}});
 
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/ladder_specs"})
@@ -304,7 +304,7 @@ describe("UpdateStreamAudioSettings", () => {
 
   it("finalizes the content object when finalize=true (default)", async () => {
     const {store, mockClient} = makeUpdateAudioStore();
-    await store.UpdateStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData: {0: {record: true, bitrate: 128000}}});
+    await store.SaveStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData: {0: {record: true, bitrate: 128000}}});
     expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
       expect.objectContaining({objectId: "iq__1", commitMessage: "Update audio settings"})
     );
@@ -312,7 +312,7 @@ describe("UpdateStreamAudioSettings", () => {
 
   it("skips finalize when finalize=false", async () => {
     const {store, mockClient} = makeUpdateAudioStore();
-    await store.UpdateStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData: {0: {record: true, bitrate: 128000}}, finalize: false});
+    await store.SaveStreamAudioSettings({objectId: "iq__1", writeToken: "wt", audioData: {0: {record: true, bitrate: 128000}}, finalize: false});
     expect(mockClient.FinalizeContentObject).not.toHaveBeenCalled();
   });
 });
@@ -321,7 +321,7 @@ const makeLadderStore = ({metadataAudioData = null} = {}) => {
   const mockClient = {
     ContentObjectMetadata: vi.fn().mockResolvedValue(metadataAudioData),
   };
-  const store = new StreamEditStore({client: mockClient, dataStore: {}, profileStore: {profiles: {}}, streamStore: {}}) as any;
+  const store = new StreamEditStore({client: mockClient, tenantStore: {}, profileStore: {profiles: {}}, streamStatusStore: {}}) as any;
   return {store, mockClient};
 };
 
@@ -337,11 +337,11 @@ const audioEntry = ({
 
 const ladderAudio = (channels, bit_rate = 128000) => ({channels, bit_rate});
 
-describe("UpdateAudioLadderSpecs", () => {
+describe("SaveAudioLadderSpecs", () => {
   it("fetches audioData from metadata when not provided", async () => {
     const metaAudio = {0: audioEntry()};
     const {store, mockClient} = makeLadderStore({metadataAudioData: metaAudio});
-    await store.UpdateAudioLadderSpecs({
+    await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]}
     });
@@ -352,7 +352,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("skips metadata fetch when audioData is provided", async () => {
     const {store, mockClient} = makeLadderStore();
-    await store.UpdateAudioLadderSpecs({
+    await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {0: audioEntry()}
@@ -362,7 +362,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("returns nAudio=0 and empty audioLadderSpecs when no streams have record=true", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {0: audioEntry({record: false}), 1: audioEntry({record: false})}
@@ -373,7 +373,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("counts only streams with record=true in nAudio", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {0: audioEntry({record: true}), 1: audioEntry({record: false}), 2: audioEntry({record: true})}
@@ -383,7 +383,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("matches ladder spec by channel count", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2, 128000), ladderAudio(6, 384000)]},
       audioData: {0: audioEntry({recording_channels: 6})}
@@ -394,7 +394,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("falls back to first ladder spec when no channel match is found", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2, 128000)]},
       audioData: {0: audioEntry({recording_channels: 6})}
@@ -404,7 +404,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("sets representation string from bit_rate", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2, 192000)]},
       audioData: {0: audioEntry()}
@@ -414,7 +414,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("sets stream_index and stream_name from audioIndex", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {3: audioEntry()}
@@ -425,7 +425,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("sets stream_label from playout_label when playout=true", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {0: audioEntry({playout: true, playout_label: "English"})}
@@ -435,7 +435,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("sets stream_label to null when playout=false", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {0: audioEntry({playout: false})}
@@ -445,7 +445,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("forces default=true for the only stream when edit=false", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {0: audioEntry({defaultTrack: false})}
@@ -455,7 +455,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("uses audioData default value for the only stream when edit=true", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {0: audioEntry({defaultTrack: false})},
@@ -466,7 +466,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("uses audioData default for each stream when multiple streams exist", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {
@@ -480,7 +480,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("tracks globalAudioBitrate as the highest recording_bitrate across streams", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {
@@ -493,7 +493,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("fills audioIndexMeta with parsed stream indices for recorded streams", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {2: audioEntry(), 5: audioEntry()}
@@ -504,7 +504,7 @@ describe("UpdateAudioLadderSpecs", () => {
 
   it("sets media_type=2 on every ladder spec", async () => {
     const {store} = makeLadderStore();
-    const result = await store.UpdateAudioLadderSpecs({
+    const result = await store.SaveAudioLadderSpecs({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt",
       ladderSpecs: {audio: [ladderAudio(2)]},
       audioData: {0: audioEntry(), 1: audioEntry()}
@@ -584,7 +584,7 @@ describe("SyncAudioToProbe", () => {
     expect(audioData["1"]).toBeUndefined();
   });
 
-  it("should pass writeToken and finalize through to UpdateStreamAudioSettings", async () => {
+  it("should pass writeToken and finalize through to SaveStreamAudioSettings", async () => {
     const {store, updateAudioSpy} = makeSyncStore({});
     await store.SyncAudioToProbe({libraryId: "lib-1", objectId: "obj-1", writeToken: "wt-abc", finalize: false});
     expect(updateAudioSpy).toHaveBeenCalledWith(
@@ -649,7 +649,7 @@ describe("SyncAudioToProbe", () => {
     expect(audioData["1"].playout_label).toBe("Audio 2");
   });
 
-  it("should call UpdateStreamAudioSettings with empty audioData when probe has no audio streams", async () => {
+  it("should call SaveStreamAudioSettings with empty audioData when probe has no audio streams", async () => {
     const {store, updateAudioSpy} = makeSyncStore({
       probe_info: {streams: [{codec_type: "video", stream_index: 0}]}
     });
@@ -691,21 +691,21 @@ describe("ApplyStreamProfile", () => {
     );
   });
 
-  it("should call UpdateStreamAudioSettings when probeCleared is falsy", async () => {
+  it("should call SaveStreamAudioSettings when probeCleared is falsy", async () => {
     const {store, mockClient, updateAudioSpy} = makeApplyProfileStore();
-    // probeCleared not set → UpdateStreamAudioSettings must be invoked
+    // probeCleared not set → SaveStreamAudioSettings must be invoked
     mockClient.StreamApplyProfile.mockResolvedValue({});
 
     await store.ApplyStreamProfile({objectId: "iq__123", profileSlug: "new-profile", finalize: false});
 
-    // Use the captured spy reference — reading store.UpdateStreamAudioSettings goes
+    // Use the captured spy reference — reading store.SaveStreamAudioSettings goes
     // through MobX's proxy and returns the original unwrapped flow, not the spy.
     expect(updateAudioSpy).toHaveBeenCalledWith(
       expect.objectContaining({objectId: "iq__123", writeToken: "wtoken123", finalize: false})
     );
   });
 
-  it("should not call UpdateStreamAudioSettings when probeCleared is true", async () => {
+  it("should not call SaveStreamAudioSettings when probeCleared is true", async () => {
     const {store, mockClient, updateAudioSpy} = makeApplyProfileStore();
     mockClient.StreamApplyProfile.mockResolvedValue({probeCleared: true});
 
@@ -724,7 +724,7 @@ describe("ApplyStreamProfile", () => {
   });
 });
 
-describe("UpdateGeneralConfig", () => {
+describe("SaveGeneralConfig", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -732,7 +732,7 @@ describe("UpdateGeneralConfig", () => {
   it("calls StreamApplyProfile with the full profile object when configProfile is provided", async () => {
     const {store, mockClient} = makeStore();
 
-    await store.UpdateGeneralConfig({
+    await store.SaveGeneralConfig({
       objectId: "iq__123",
       slug: "test-stream",
       formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: ""},
@@ -754,7 +754,7 @@ describe("UpdateGeneralConfig", () => {
   it("finalizes the site object when StreamApplyProfile returns a siteWriteToken", async () => {
     const {store, mockClient} = makeStore();
 
-    await store.UpdateGeneralConfig({
+    await store.SaveGeneralConfig({
       objectId: "iq__123",
       slug: "test-stream",
       formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: ""},
@@ -772,7 +772,7 @@ describe("UpdateGeneralConfig", () => {
   it("does not call StreamApplyProfile when no configProfile is provided", async () => {
     const {store, mockClient} = makeStore();
 
-    await store.UpdateGeneralConfig({
+    await store.SaveGeneralConfig({
       objectId: "iq__123",
       slug: "test-stream",
       formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: ""}
@@ -782,256 +782,21 @@ describe("UpdateGeneralConfig", () => {
   });
 
   it("updates the stream store with the new configProfile slug", async () => {
-    const {store, streamStore} = makeStore();
+    const {store, streamStatusStore} = makeStore();
 
-    await store.UpdateGeneralConfig({
+    await store.SaveGeneralConfig({
       objectId: "iq__123",
       slug: "test-stream",
       formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: ""},
       configProfile: "my-profile"
     });
 
-    expect(streamStore.UpdateStream).toHaveBeenCalledWith(
+    expect(streamStatusStore.SetStream).toHaveBeenCalledWith(
       expect.objectContaining({
         key: "test-stream",
         value: expect.objectContaining({configProfile: "my-profile"})
       })
     );
-  });
-});
-
-const makeCopyToVodStore = ({
-  titleContentType = null,
-  streams = {"my-stream": {objectId: "iq__src", title: "My Stream"}} as Record<string, {objectId: string; title: string}>,
-  copyVodResponse = {jobId: "job-123"} as Record<string, unknown>,
-  copiesMetadata = null,
-} = {}) => {
-  const mockClient = {
-    ContentObjectLibraryId: vi.fn().mockResolvedValue("source-lib"),
-    CreateContentObject: vi.fn().mockResolvedValue({id: "iq__new", writeToken: "new-wt"}),
-    FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
-    SetPermission: vi.fn().mockResolvedValue(undefined),
-    StreamCopyToVod: vi.fn().mockResolvedValue(copyVodResponse),
-    EditContentObject: vi.fn().mockResolvedValue({writeToken: "edit-wt"}),
-    ContentObjectMetadata: vi.fn().mockResolvedValue(copiesMetadata),
-    ReplaceMetadata: vi.fn().mockResolvedValue(undefined),
-  };
-
-  const mockRootStore = {
-    client: mockClient,
-    dataStore: {titleContentType},
-    profileStore: {profiles: {}},
-    streamStore: {streams}
-  };
-
-  const addAccessGroupSpy = stubFlow("AddAccessGroupPermission");
-  const store = new StreamEditStore(mockRootStore) as any;
-
-  return {store, mockClient, addAccessGroupSpy};
-};
-
-describe("CopyToVod", () => {
-  const singlePeriod = [{id: "period-1", start_time_epoch_sec: 1700000000, end_time_epoch_sec: 1700003600}];
-  const multiPeriods = [
-    {id: "period-1", start_time_epoch_sec: 1700000000, end_time_epoch_sec: 1700003600},
-    {id: "period-2", start_time_epoch_sec: 1700003600, end_time_epoch_sec: 1700007200}
-  ];
-
-  it("passes recordingPeriod id for single period", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    expect(mockClient.StreamCopyToVod).toHaveBeenCalledWith(
-      expect.objectContaining({recordingPeriod: "period-1", startTime: undefined, endTime: undefined})
-    );
-  });
-
-  it("sets recordingPeriod=null and startTime/endTime for multiple periods", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: multiPeriods});
-    const call = mockClient.StreamCopyToVod.mock.calls[0][0];
-    expect(call.recordingPeriod).toBeNull();
-    expect(call.startTime).toBe(new Date(1700000000 * 1000).toISOString());
-    expect(call.endTime).toBe(new Date(1700007200 * 1000).toISOString());
-  });
-
-  it("falls back to current time when period has no end_time_epoch_sec", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    const periodNoEnd = [{id: "p1", start_time_epoch_sec: 1700000000}];
-    const before = Math.floor(Date.now() / 1000);
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: periodNoEnd});
-    const after = Math.floor(Date.now() / 1000);
-
-    // The copies metadata endTime should be in the current-time range
-    const replaceCall = mockClient.ReplaceMetadata.mock.calls.find(
-      ([{metadataSubtree}]) => metadataSubtree === "/live_recording_copies"
-    );
-    const savedEndTime = replaceCall[0].metadata["iq__new"].endTime;
-    expect(savedEndTime).toBeGreaterThanOrEqual(before);
-    expect(savedEndTime).toBeLessThanOrEqual(after);
-  });
-
-  it("fetches targetLibraryId when not provided", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", selectedPeriods: singlePeriod});
-    // First call is for the target library; second is for source after StreamCopyToVod
-    expect(mockClient.ContentObjectLibraryId.mock.calls[0]).toEqual([{objectId: "iq__src"}]);
-  });
-
-  it("skips ContentObjectLibraryId for target when targetLibraryId is provided", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    // Only one call: after StreamCopyToVod for the source object
-    expect(mockClient.ContentObjectLibraryId).toHaveBeenCalledTimes(1);
-    expect(mockClient.ContentObjectLibraryId).toHaveBeenCalledWith({objectId: "iq__src"});
-  });
-
-  it("uses provided title", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod, title: "My Custom Title"});
-    expect(mockClient.CreateContentObject).toHaveBeenCalledWith(
-      expect.objectContaining({options: {}})
-    );
-    // title passed to StreamCopyToVod indirectly via copies metadata
-    const replaceCall = mockClient.ReplaceMetadata.mock.calls.find(
-      ([{metadataSubtree}]) => metadataSubtree === "/live_recording_copies"
-    );
-    expect(replaceCall[0].metadata["iq__new"].title).toBe("My Custom Title");
-  });
-
-  it("falls back to stream title from streams store", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    const replaceCall = mockClient.ReplaceMetadata.mock.calls.find(
-      ([{metadataSubtree}]) => metadataSubtree === "/live_recording_copies"
-    );
-    expect(replaceCall[0].metadata["iq__new"].title).toBe("My Stream VoD");
-  });
-
-  it("falls back to objectId when no stream slug matches", async () => {
-    const {store, mockClient} = makeCopyToVodStore({streams: {}});
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    const replaceCall = mockClient.ReplaceMetadata.mock.calls.find(
-      ([{metadataSubtree}]) => metadataSubtree === "/live_recording_copies"
-    );
-    expect(replaceCall[0].metadata["iq__new"].title).toBe("iq__src VoD");
-  });
-
-  it("passes type and meta to CreateContentObject when titleContentType is set", async () => {
-    const {store, mockClient} = makeCopyToVodStore({titleContentType: "hq__typehash"});
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod, title: "T"});
-    expect(mockClient.CreateContentObject).toHaveBeenCalledWith(
-      expect.objectContaining({
-        options: {type: "hq__typehash", meta: {public: {name: "T"}}}
-      })
-    );
-  });
-
-  it("passes empty options to CreateContentObject when titleContentType is falsy", async () => {
-    const {store, mockClient} = makeCopyToVodStore({titleContentType: null});
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    expect(mockClient.CreateContentObject).toHaveBeenCalledWith(
-      expect.objectContaining({options: {}})
-    );
-  });
-
-  it("finalizes the new VoD object before StreamCopyToVod", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
-      expect.objectContaining({objectId: "iq__new", commitMessage: "Create VoD object"})
-    );
-  });
-
-  it("propagates error when FinalizeContentObject (target) throws", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    mockClient.FinalizeContentObject.mockRejectedValueOnce(new Error("Finalize failed"));
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    await expect(
-      store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod})
-    ).rejects.toThrow("Finalize failed");
-    consoleSpy.mockRestore();
-  });
-
-  it("sets editable permission on the new VoD object", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    expect(mockClient.SetPermission).toHaveBeenCalledWith({objectId: "iq__new", permission: "editable"});
-  });
-
-  it("propagates error when SetPermission throws", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    mockClient.SetPermission.mockRejectedValueOnce(new Error("Permission denied"));
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    await expect(
-      store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod})
-    ).rejects.toThrow("Permission denied");
-    consoleSpy.mockRestore();
-  });
-
-  it("calls AddAccessGroupPermission when accessGroup is provided", async () => {
-    const {store, addAccessGroupSpy} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod, accessGroup: "editors"});
-    expect(addAccessGroupSpy).toHaveBeenCalledWith({objectId: "iq__new", groupName: "editors"});
-  });
-
-  it("skips AddAccessGroupPermission when accessGroup is not provided", async () => {
-    const {store, addAccessGroupSpy} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    expect(addAccessGroupSpy).not.toHaveBeenCalled();
-  });
-
-  it("throws when StreamCopyToVod returns a falsy response", async () => {
-    const {store} = makeCopyToVodStore({copyVodResponse: null});
-    await expect(
-      store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod})
-    ).rejects.toThrow("Unable to copy to VoD. Is part available?");
-  });
-
-  it("writes copies metadata and finalizes source object on success", async () => {
-    const {store, mockClient} = makeCopyToVodStore();
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-
-    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({
-        objectId: "iq__src",
-        metadataSubtree: "/live_recording_copies",
-        metadata: expect.objectContaining({
-          "iq__new": expect.objectContaining({
-            startTime: 1700000000,
-            endTime: 1700003600,
-          })
-        })
-      })
-    );
-    expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
-      expect.objectContaining({objectId: "iq__src", commitMessage: "Update live recording copies"})
-    );
-  });
-
-  it("initializes copiesMetadata to empty object when null", async () => {
-    const {store, mockClient} = makeCopyToVodStore({copiesMetadata: null});
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    const call = mockClient.ReplaceMetadata.mock.calls.find(
-      ([{metadataSubtree}]) => metadataSubtree === "/live_recording_copies"
-    );
-    expect(Object.keys(call[0].metadata)).toEqual(["iq__new"]);
-  });
-
-  it("merges new entry into existing copiesMetadata", async () => {
-    const existing = {"iq__old": {startTime: 1699000000, endTime: 1699003600, title: "Old VoD"}};
-    const {store, mockClient} = makeCopyToVodStore({copiesMetadata: existing});
-    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    const call = mockClient.ReplaceMetadata.mock.calls.find(
-      ([{metadataSubtree}]) => metadataSubtree === "/live_recording_copies"
-    );
-    expect(call[0].metadata["iq__old"]).toBeDefined();
-    expect(call[0].metadata["iq__new"]).toBeDefined();
-  });
-
-  it("returns the StreamCopyToVod response", async () => {
-    const {store} = makeCopyToVodStore({copyVodResponse: {jobId: "abc", status: "ok"}});
-    const result = await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod});
-    expect(result).toEqual({jobId: "abc", status: "ok"});
   });
 });
 
@@ -1048,26 +813,30 @@ const makeConfigureStreamStore = ({
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
   };
 
-  const mockStreamStore = {
+  const mockStreamStatusStore = {
     CheckStatus: vi.fn().mockResolvedValue(checkStatusResponse),
-    LoadStreamMetadata: vi.fn().mockResolvedValue(streamDetails),
-    UpdateStream: vi.fn(),
+    SetStream: vi.fn(),
   };
 
-  const mockSiteStore = {
-    UpdateStreamLink: vi.fn().mockResolvedValue(undefined),
+  const mockStreamDetailStore = {
+    LoadStreamMetadata: vi.fn().mockResolvedValue(streamDetails),
+  };
+
+  const mockSettingsStore = {
+    SaveStreamLink: vi.fn().mockResolvedValue(undefined),
   };
 
   const syncAudioSpy = stubFlow("SyncAudioToProbe");
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
-    streamStore: mockStreamStore,
-    siteStore: mockSiteStore,
+    streamStatusStore: mockStreamStatusStore,
+    streamDetailStore: mockStreamDetailStore,
+    settingsStore: mockSettingsStore,
   }) as any;
 
-  return {store, mockClient, mockStreamStore, mockSiteStore, syncAudioSpy};
+  return {store, mockClient, mockStreamStatusStore, mockStreamDetailStore, mockSettingsStore, syncAudioSpy};
 };
 
 describe("ConfigureStream", () => {
@@ -1146,26 +915,26 @@ describe("ConfigureStream", () => {
     );
   });
 
-  it("calls siteStore.UpdateStreamLink with objectId and slug", async () => {
-    const {store, mockSiteStore} = makeConfigureStreamStore();
+  it("calls settingsStore.SaveStreamLink with objectId and slug", async () => {
+    const {store, mockSettingsStore} = makeConfigureStreamStore();
     await store.ConfigureStream({objectId: "iq__obj", slug: "my-stream"});
-    expect(mockSiteStore.UpdateStreamLink).toHaveBeenCalledWith({objectId: "iq__obj", slug: "my-stream"});
+    expect(mockSettingsStore.SaveStreamLink).toHaveBeenCalledWith({objectId: "iq__obj", slug: "my-stream"});
   });
 
   it("calls CheckStatus and LoadStreamMetadata after finalizing", async () => {
-    const {store, mockStreamStore} = makeConfigureStreamStore();
+    const {store, mockStreamStatusStore, mockStreamDetailStore} = makeConfigureStreamStore();
     await store.ConfigureStream({objectId: "iq__obj", slug: "s"});
-    expect(mockStreamStore.CheckStatus).toHaveBeenCalledWith({objectId: "iq__obj"});
-    expect(mockStreamStore.LoadStreamMetadata).toHaveBeenCalledWith({objectId: "iq__obj"});
+    expect(mockStreamStatusStore.CheckStatus).toHaveBeenCalledWith({objectId: "iq__obj"});
+    expect(mockStreamDetailStore.LoadStreamMetadata).toHaveBeenCalledWith({objectId: "iq__obj"});
   });
 
   it("updates stream with merged status, warnings, quality, and streamDetails", async () => {
-    const {store, mockStreamStore} = makeConfigureStreamStore({
+    const {store, mockStreamStatusStore} = makeConfigureStreamStore({
       checkStatusResponse: {state: "running", warnings: ["low bitrate"], quality: 0.9},
       streamDetails: {title: "Live Show", url: "srt://host"}
     });
     await store.ConfigureStream({objectId: "iq__obj", slug: "my-stream"});
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith({
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith({
       key: "my-stream",
       value: {
         status: "running",
@@ -1195,31 +964,31 @@ const makeWatermarkStore = ({checkStatusState = "running"} = {}) => {
     DeleteMetadata: vi.fn().mockResolvedValue(undefined),
   };
 
-  const mockStreamStore = {
+  const mockStreamStatusStore = {
     CheckStatus: vi.fn().mockResolvedValue({state: checkStatusState}),
-    UpdateStream: vi.fn(),
+    SetStream: vi.fn(),
   };
 
   const addWatermarkSpy = stubFlow("AddWatermark");
   const removeWatermarkSpy = stubFlow("RemoveWatermark");
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
-    streamStore: mockStreamStore,
+    streamStatusStore: mockStreamStatusStore,
   }) as any;
 
-  return {store, mockClient, mockStreamStore, addWatermarkSpy, removeWatermarkSpy};
+  return {store, mockClient, mockStreamStatusStore, addWatermarkSpy, removeWatermarkSpy};
 };
 
-describe("WatermarkConfiguration", () => {
+describe("SaveWatermarkConfiguration", () => {
   const textJson = JSON.stringify({text: "hello", size: 12});
   const imageJson = JSON.stringify({url: "img.png", width: 100});
   const forensicJson = JSON.stringify({level: 1});
 
   it("parses and sets textWatermark in payload when provided", async () => {
     const {store, addWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt", textWatermark: textJson
     });
     expect(addWatermarkSpy).toHaveBeenCalledWith(
@@ -1229,7 +998,7 @@ describe("WatermarkConfiguration", () => {
 
   it("parses and sets imageWatermark in payload when provided", async () => {
     const {store, addWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt", imageWatermark: imageJson
     });
     expect(addWatermarkSpy).toHaveBeenCalledWith(
@@ -1239,7 +1008,7 @@ describe("WatermarkConfiguration", () => {
 
   it("parses and sets forensicWatermark in payload when provided", async () => {
     const {store, addWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt", forensicWatermark: forensicJson
     });
     expect(addWatermarkSpy).toHaveBeenCalledWith(
@@ -1249,7 +1018,7 @@ describe("WatermarkConfiguration", () => {
 
   it("queues 'text' for removal when existing and new is absent", async () => {
     const {store, removeWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt",
       existingTextWatermark: {text: "old"}, textWatermark: undefined
     });
@@ -1260,7 +1029,7 @@ describe("WatermarkConfiguration", () => {
 
   it("queues 'image' for removal when existing and new is absent", async () => {
     const {store, removeWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt",
       existingImageWatermark: {url: "old.png"}, imageWatermark: undefined
     });
@@ -1271,7 +1040,7 @@ describe("WatermarkConfiguration", () => {
 
   it("queues 'forensic' for removal when existing and new is absent", async () => {
     const {store, removeWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt",
       existingForensicWatermark: {level: 1}, forensicWatermark: undefined
     });
@@ -1282,7 +1051,7 @@ describe("WatermarkConfiguration", () => {
 
   it("takes no watermark action when both existing and new are absent", async () => {
     const {store, addWatermarkSpy, removeWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt"
     });
     expect(addWatermarkSpy).not.toHaveBeenCalled();
@@ -1291,7 +1060,7 @@ describe("WatermarkConfiguration", () => {
 
   it("opens a write token when writeToken is not provided", async () => {
     const {store, mockClient} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", textWatermark: textJson
     });
     expect(mockClient.EditContentObject).toHaveBeenCalledWith({objectId: "iq__obj", libraryId: "lib-1"});
@@ -1299,7 +1068,7 @@ describe("WatermarkConfiguration", () => {
 
   it("skips EditContentObject when writeToken is provided", async () => {
     const {store, mockClient} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt", textWatermark: textJson
     });
     expect(mockClient.EditContentObject).not.toHaveBeenCalled();
@@ -1307,7 +1076,7 @@ describe("WatermarkConfiguration", () => {
 
   it("calls AddWatermark with finalize=false when any watermark is present", async () => {
     const {store, addWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt", textWatermark: textJson
     });
     expect(addWatermarkSpy).toHaveBeenCalledWith(
@@ -1317,7 +1086,7 @@ describe("WatermarkConfiguration", () => {
 
   it("skips AddWatermark when no watermarks are provided", async () => {
     const {store, addWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt",
       existingTextWatermark: {text: "old"}
     });
@@ -1326,7 +1095,7 @@ describe("WatermarkConfiguration", () => {
 
   it("calls RemoveWatermark with all queued types", async () => {
     const {store, removeWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt",
       existingTextWatermark: {text: "old"},
       existingImageWatermark: {url: "old.png"},
@@ -1338,7 +1107,7 @@ describe("WatermarkConfiguration", () => {
 
   it("skips RemoveWatermark when nothing needs to be removed", async () => {
     const {store, removeWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt", textWatermark: textJson
     });
     expect(removeWatermarkSpy).not.toHaveBeenCalled();
@@ -1346,7 +1115,7 @@ describe("WatermarkConfiguration", () => {
 
   it("calls both AddWatermark and RemoveWatermark when adding one and removing another", async () => {
     const {store, addWatermarkSpy, removeWatermarkSpy} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt",
       textWatermark: textJson,
       existingImageWatermark: {url: "old.png"},
@@ -1356,43 +1125,43 @@ describe("WatermarkConfiguration", () => {
   });
 
   it("finalizes and checks status when finalize=true (default)", async () => {
-    const {store, mockClient, mockStreamStore} = makeWatermarkStore({checkStatusState: "running"});
-    await store.WatermarkConfiguration({
+    const {store, mockClient, mockStreamStatusStore} = makeWatermarkStore({checkStatusState: "running"});
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt", textWatermark: textJson
     });
     expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
       expect.objectContaining({objectId: "iq__obj", commitMessage: "Configure watermark"})
     );
-    expect(mockStreamStore.CheckStatus).toHaveBeenCalledWith({objectId: "iq__obj"});
+    expect(mockStreamStatusStore.CheckStatus).toHaveBeenCalledWith({objectId: "iq__obj"});
   });
 
   it("updates stream with status from CheckStatus when finalize=true", async () => {
-    const {store, mockStreamStore} = makeWatermarkStore({checkStatusState: "stopped"});
-    await store.WatermarkConfiguration({
+    const {store, mockStreamStatusStore} = makeWatermarkStore({checkStatusState: "stopped"});
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "my-stream", libraryId: "lib-1", writeToken: "wt", textWatermark: textJson
     });
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith({
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith({
       key: "my-stream",
       value: {status: "stopped"}
     });
   });
 
   it("skips FinalizeContentObject and CheckStatus when finalize=false", async () => {
-    const {store, mockClient, mockStreamStore} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    const {store, mockClient, mockStreamStatusStore} = makeWatermarkStore();
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "s", libraryId: "lib-1", writeToken: "wt", textWatermark: textJson, finalize: false
     });
     expect(mockClient.FinalizeContentObject).not.toHaveBeenCalled();
-    expect(mockStreamStore.CheckStatus).not.toHaveBeenCalled();
+    expect(mockStreamStatusStore.CheckStatus).not.toHaveBeenCalled();
   });
 
   it("updates stream with watermarkType when finalize=false", async () => {
-    const {store, mockStreamStore} = makeWatermarkStore();
-    await store.WatermarkConfiguration({
+    const {store, mockStreamStatusStore} = makeWatermarkStore();
+    await store.SaveWatermarkConfiguration({
       objectId: "iq__obj", slug: "my-stream", libraryId: "lib-1", writeToken: "wt",
       textWatermark: textJson, watermarkType: "text", finalize: false
     });
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith({
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith({
       key: "my-stream",
       value: {watermarkType: "text"}
     });
@@ -1408,29 +1177,29 @@ const makeDrmStore = ({checkStatusState = "running"} = {}) => {
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
   };
 
-  const mockStreamStore = {
+  const mockStreamStatusStore = {
     CheckStatus: vi.fn().mockResolvedValue({state: checkStatusState}),
-    UpdateStream: vi.fn(),
+    SetStream: vi.fn(),
   };
 
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
-    streamStore: mockStreamStore,
+    streamStatusStore: mockStreamStatusStore,
   }) as any;
 
-  return {store, mockClient, mockStreamStore};
+  return {store, mockClient, mockStreamStatusStore};
 };
 
-describe("DrmConfiguration", () => {
+describe("SaveDrmConfiguration", () => {
   const clearFormats = ["hls-clear"];
   const drmFormats = ["hls-aes128", "hls-sample-aes"];
 
   it("returns early when existingPlayoutFormats is the same reference as playoutFormats", async () => {
     const {store, mockClient} = makeDrmStore();
     const formats = clearFormats;
-    const result = await store.DrmConfiguration({
+    const result = await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: formats, existingPlayoutFormats: formats
     });
     expect(result).toBeUndefined();
@@ -1439,7 +1208,7 @@ describe("DrmConfiguration", () => {
 
   it("always fetches libraryId even when writeToken is provided", async () => {
     const {store, mockClient} = makeDrmStore();
-    await store.DrmConfiguration({
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "existing-wt", status: "running"
     });
     expect(mockClient.ContentObjectLibraryId).toHaveBeenCalledWith({objectId: "iq__obj"});
@@ -1447,7 +1216,7 @@ describe("DrmConfiguration", () => {
 
   it("skips EditContentObject when writeToken is provided", async () => {
     const {store, mockClient} = makeDrmStore();
-    await store.DrmConfiguration({
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "existing-wt", status: "running"
     });
     expect(mockClient.EditContentObject).not.toHaveBeenCalled();
@@ -1455,7 +1224,7 @@ describe("DrmConfiguration", () => {
 
   it("opens a write token when writeToken is not provided", async () => {
     const {store, mockClient} = makeDrmStore();
-    await store.DrmConfiguration({
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, status: "running"
     });
     expect(mockClient.EditContentObject).toHaveBeenCalledWith({objectId: "iq__obj", libraryId: "lib-drm"});
@@ -1463,7 +1232,7 @@ describe("DrmConfiguration", () => {
 
   it("writes playout_formats to the correct metadata subtree", async () => {
     const {store, mockClient} = makeDrmStore();
-    await store.DrmConfiguration({
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: "running"
     });
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
@@ -1478,7 +1247,7 @@ describe("DrmConfiguration", () => {
   // Passing status=undefined matches those values and skips StreamInitialize.
   it("skips StreamInitialize when status is UNINITIALIZED or UNCONFIGURED", async () => {
     const {store, mockClient} = makeDrmStore();
-    await store.DrmConfiguration({
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: undefined
     });
     expect(mockClient.StreamInitialize).not.toHaveBeenCalled();
@@ -1486,7 +1255,7 @@ describe("DrmConfiguration", () => {
 
   it("calls StreamInitialize when status is an active state", async () => {
     const {store, mockClient} = makeDrmStore();
-    await store.DrmConfiguration({
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: "running"
     });
     expect(mockClient.StreamInitialize).toHaveBeenCalled();
@@ -1494,7 +1263,7 @@ describe("DrmConfiguration", () => {
 
   it("sets drm=true in StreamInitialize when any format is non-clear", async () => {
     const {store, mockClient} = makeDrmStore();
-    await store.DrmConfiguration({
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: "running"
     });
     expect(mockClient.StreamInitialize).toHaveBeenCalledWith(
@@ -1504,7 +1273,7 @@ describe("DrmConfiguration", () => {
 
   it("sets drm=false in StreamInitialize when all formats are clear", async () => {
     const {store, mockClient} = makeDrmStore();
-    await store.DrmConfiguration({
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: clearFormats, existingPlayoutFormats: drmFormats, writeToken: "wt", status: "running"
     });
     expect(mockClient.StreamInitialize).toHaveBeenCalledWith(
@@ -1513,42 +1282,42 @@ describe("DrmConfiguration", () => {
   });
 
   it("finalizes and checks status when finalize=true (default)", async () => {
-    const {store, mockClient, mockStreamStore} = makeDrmStore({checkStatusState: "running"});
-    await store.DrmConfiguration({
+    const {store, mockClient, mockStreamStatusStore} = makeDrmStore({checkStatusState: "running"});
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: "running"
     });
     expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
       expect.objectContaining({objectId: "iq__obj", commitMessage: "Update drm type metadata"})
     );
-    expect(mockStreamStore.CheckStatus).toHaveBeenCalledWith({objectId: "iq__obj"});
+    expect(mockStreamStatusStore.CheckStatus).toHaveBeenCalledWith({objectId: "iq__obj"});
   });
 
   it("updates stream with status from CheckStatus when finalize=true", async () => {
-    const {store, mockStreamStore} = makeDrmStore({checkStatusState: "stopped"});
-    await store.DrmConfiguration({
+    const {store, mockStreamStatusStore} = makeDrmStore({checkStatusState: "stopped"});
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "my-stream", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: "running"
     });
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith({
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith({
       key: "my-stream",
       value: {status: "stopped"}
     });
   });
 
   it("skips FinalizeContentObject and CheckStatus when finalize=false", async () => {
-    const {store, mockClient, mockStreamStore} = makeDrmStore();
-    await store.DrmConfiguration({
+    const {store, mockClient, mockStreamStatusStore} = makeDrmStore();
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: "running", finalize: false
     });
     expect(mockClient.FinalizeContentObject).not.toHaveBeenCalled();
-    expect(mockStreamStore.CheckStatus).not.toHaveBeenCalled();
+    expect(mockStreamStatusStore.CheckStatus).not.toHaveBeenCalled();
   });
 
   it("updates stream with drm=playoutFormats when finalize=false", async () => {
-    const {store, mockStreamStore} = makeDrmStore();
-    await store.DrmConfiguration({
+    const {store, mockStreamStatusStore} = makeDrmStore();
+    await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "my-stream", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: "running", finalize: false
     });
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith({
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith({
       key: "my-stream",
       value: {drm: drmFormats}
     });
@@ -1556,7 +1325,7 @@ describe("DrmConfiguration", () => {
 
   it("returns drmNeedsInit=false and correct drmInitPayload when finalize=true", async () => {
     const {store} = makeDrmStore();
-    const result = await store.DrmConfiguration({
+    const result = await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: "running"
     });
     expect(result.drmNeedsInit).toBe(false);
@@ -1569,175 +1338,10 @@ describe("DrmConfiguration", () => {
 
   it("returns drmNeedsInit=true when finalize=false", async () => {
     const {store} = makeDrmStore();
-    const result = await store.DrmConfiguration({
+    const result = await store.SaveDrmConfiguration({
       objectId: "iq__obj", slug: "s", playoutFormats: drmFormats, existingPlayoutFormats: clearFormats, writeToken: "wt", status: "running", finalize: false
     });
     expect(result.drmNeedsInit).toBe(true);
-  });
-});
-
-describe("FetchLiveRecordingCopies", () => {
-  const makeFetchStore = (copiesData = {"copy-1": {title: "Copy 1"}}) => {
-    const mockClient = {
-      ContentObjectLibraryId: vi.fn().mockResolvedValue("fetched-lib"),
-      ContentObjectMetadata: vi.fn().mockResolvedValue(copiesData),
-    };
-    const store = new StreamEditStore({
-      client: mockClient,
-      dataStore: {},
-      profileStore: {profiles: {}},
-      streamStore: {}
-    }) as any;
-    return {store, mockClient};
-  };
-
-  it("fetches libraryId when not provided", async () => {
-    const {store, mockClient} = makeFetchStore();
-    await store.FetchLiveRecordingCopies({objectId: "iq__obj"});
-    expect(mockClient.ContentObjectLibraryId).toHaveBeenCalledWith({objectId: "iq__obj"});
-  });
-
-  it("skips ContentObjectLibraryId when libraryId is already provided", async () => {
-    const {store, mockClient} = makeFetchStore();
-    await store.FetchLiveRecordingCopies({objectId: "iq__obj", libraryId: "ilib-given"});
-    expect(mockClient.ContentObjectLibraryId).not.toHaveBeenCalledWith({objectId: "iq__obj"});
-  });
-
-  it("uses the provided libraryId in the metadata call", async () => {
-    const {store, mockClient} = makeFetchStore();
-    await store.FetchLiveRecordingCopies({objectId: "iq__obj", libraryId: "ilib-given"});
-    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({libraryId: "ilib-given"})
-    );
-  });
-
-  it("uses the fetched libraryId in the metadata call when none is provided", async () => {
-    const {store, mockClient} = makeFetchStore();
-    await store.FetchLiveRecordingCopies({objectId: "iq__obj"});
-    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({libraryId: "fetched-lib"})
-    );
-  });
-
-  it("reads from the live_recording_copies subtree", async () => {
-    const {store, mockClient} = makeFetchStore();
-    await store.FetchLiveRecordingCopies({objectId: "iq__obj", libraryId: "ilib-given"});
-    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({metadataSubtree: "live_recording_copies"})
-    );
-  });
-
-  it("returns the ContentObjectMetadata result", async () => {
-    const copies = {"copy-1": {title: "A"}, "copy-2": {title: "B"}};
-    const {store} = makeFetchStore(copies);
-    const result = await store.FetchLiveRecordingCopies({objectId: "iq__obj", libraryId: "ilib-given"});
-    expect(result).toEqual(copies);
-  });
-
-  it("returns null when there are no copies", async () => {
-    const {store} = makeFetchStore(null);
-    const result = await store.FetchLiveRecordingCopies({objectId: "iq__obj", libraryId: "ilib-given"});
-    expect(result).toBeNull();
-  });
-});
-
-const makeDeleteCopyStore = (initialCopies: Record<string, {title: string}> = {"copy-1": {title: "Copy 1"}, "copy-2": {title: "Copy 2"}}) => {
-  const mockClient = {
-    ContentObjectLibraryId: vi.fn().mockResolvedValue("lib-1"),
-    EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-del"}),
-    ReplaceMetadata: vi.fn().mockResolvedValue(undefined),
-    FinalizeContentObject: vi.fn().mockResolvedValue({hash: "hq__finalized"}),
-  };
-
-  // Stub FetchLiveRecordingCopies to avoid its internal client calls
-  const fetchCopiesSpy = stubFlow("FetchLiveRecordingCopies", {...initialCopies});
-  const store = new StreamEditStore({
-    client: mockClient,
-    dataStore: {},
-    profileStore: {profiles: {}},
-    streamStore: {}
-  }) as any;
-
-  return {store, mockClient, fetchCopiesSpy};
-};
-
-describe("DeleteLiveRecordingCopy", () => {
-  it("calls FetchLiveRecordingCopies with the streamId", async () => {
-    const {store, fetchCopiesSpy} = makeDeleteCopyStore();
-    await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
-    expect(fetchCopiesSpy).toHaveBeenCalledWith({objectId: "iq__stream"});
-  });
-
-  it("removes the specified recordingCopyId", async () => {
-    const {store, mockClient} = makeDeleteCopyStore();
-    await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
-    const replaceCall = mockClient.ReplaceMetadata.mock.calls[0][0];
-    expect(replaceCall.metadata["copy-1"]).toBeUndefined();
-  });
-
-  it("preserves other entries when deleting one", async () => {
-    const {store, mockClient} = makeDeleteCopyStore();
-    await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
-    const replaceCall = mockClient.ReplaceMetadata.mock.calls[0][0];
-    expect(replaceCall.metadata["copy-2"]).toEqual({title: "Copy 2"});
-  });
-
-  it("results in empty metadata when deleting the only entry", async () => {
-    const {store, mockClient} = makeDeleteCopyStore({"copy-1": {title: "Only Copy"}});
-    await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
-    const replaceCall = mockClient.ReplaceMetadata.mock.calls[0][0];
-    expect(replaceCall.metadata).toEqual({});
-  });
-
-  it("is a no-op delete when recordingCopyId does not exist", async () => {
-    const {store, mockClient} = makeDeleteCopyStore();
-    await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-999"});
-    const replaceCall = mockClient.ReplaceMetadata.mock.calls[0][0];
-    expect(Object.keys(replaceCall.metadata)).toEqual(["copy-1", "copy-2"]);
-  });
-
-  it("fetches libraryId via ContentObjectLibraryId", async () => {
-    const {store, mockClient} = makeDeleteCopyStore();
-    await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
-    expect(mockClient.ContentObjectLibraryId).toHaveBeenCalledWith({objectId: "iq__stream"});
-  });
-
-  it("opens a write token via EditContentObject", async () => {
-    const {store, mockClient} = makeDeleteCopyStore();
-    await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
-    expect(mockClient.EditContentObject).toHaveBeenCalledWith({objectId: "iq__stream", libraryId: "lib-1"});
-  });
-
-  it("writes updated copies to live_recording_copies subtree", async () => {
-    const {store, mockClient} = makeDeleteCopyStore();
-    await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
-    expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({
-        objectId: "iq__stream",
-        libraryId: "lib-1",
-        writeToken: "wt-del",
-        metadataSubtree: "live_recording_copies",
-      })
-    );
-  });
-
-  it("finalizes with the correct commit message", async () => {
-    const {store, mockClient} = makeDeleteCopyStore();
-    await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
-    expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
-      expect.objectContaining({
-        objectId: "iq__stream",
-        libraryId: "lib-1",
-        writeToken: "wt-del",
-        commitMessage: "Remove live recording copy",
-      })
-    );
-  });
-
-  it("returns the FinalizeContentObject response", async () => {
-    const {store} = makeDeleteCopyStore();
-    const result = await store.DeleteLiveRecordingCopy({streamId: "iq__stream", recordingCopyId: "copy-1"});
-    expect(result).toEqual({hash: "hq__finalized"});
   });
 });
 
@@ -1749,25 +1353,26 @@ const makeDeleteStreamStore = (streams = {}) => {
     EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-del"}),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
   };
-  const mockStreamStore = {
+  const mockStreamStatusStore = {
     streams,
-    UpdateStream: vi.fn(),
-    UpdateStreams: vi.fn(),
+    SetStream: vi.fn(),
   };
+  const mockStreamListStore = {SetStreams: vi.fn()};
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {siteId: "iq__site", siteLibraryId: "ilib-site"},
+    tenantStore: {siteId: "iq__site", siteLibraryId: "ilib-site"},
     profileStore: {profiles: {}},
-    streamStore: mockStreamStore,
+    streamStatusStore: mockStreamStatusStore,
+    streamListStore: mockStreamListStore,
   }) as any;
-  return {store, mockClient, mockStreamStore};
+  return {store, mockClient, mockStreamListStore};
 };
 
 describe("DeleteStream", () => {
   it("resolves slug from objectId when slug is not provided", async () => {
-    const {store, mockStreamStore} = makeDeleteStreamStore({"my-stream": {objectId: "iq__obj"}});
+    const {store, mockStreamListStore} = makeDeleteStreamStore({"my-stream": {objectId: "iq__obj"}});
     await store.DeleteStream({objectId: "iq__obj"});
-    const updatedStreams = mockStreamStore.UpdateStreams.mock.calls[0][0].streams;
+    const updatedStreams = mockStreamListStore.SetStreams.mock.calls[0][0].streams;
     expect(updatedStreams["my-stream"]).toBeUndefined();
   });
 
@@ -1787,21 +1392,21 @@ describe("DeleteStream", () => {
   });
 
   it("continues silently when DeleteContentObject throws", async () => {
-    const {store, mockClient, mockStreamStore} = makeDeleteStreamStore({"my-stream": {objectId: "iq__obj"}});
+    const {store, mockClient, mockStreamListStore} = makeDeleteStreamStore({"my-stream": {objectId: "iq__obj"}});
     mockClient.DeleteContentObject.mockRejectedValue(new Error("already gone"));
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     await store.DeleteStream({objectId: "iq__obj", slug: "my-stream"});
     consoleSpy.mockRestore();
-    expect(mockStreamStore.UpdateStreams).toHaveBeenCalled();
+    expect(mockStreamListStore.SetStreams).toHaveBeenCalled();
   });
 
-  it("removes the slug from streams and calls UpdateStreams", async () => {
-    const {store, mockStreamStore} = makeDeleteStreamStore({
+  it("removes the slug from streams and calls SetStreams", async () => {
+    const {store, mockStreamListStore} = makeDeleteStreamStore({
       "my-stream": {objectId: "iq__obj"},
       "other-stream": {objectId: "iq__other"}
     });
     await store.DeleteStream({objectId: "iq__obj", slug: "my-stream"});
-    const updatedStreams = mockStreamStore.UpdateStreams.mock.calls[0][0].streams;
+    const updatedStreams = mockStreamListStore.SetStreams.mock.calls[0][0].streams;
     expect(updatedStreams["my-stream"]).toBeUndefined();
     expect(updatedStreams["other-stream"]).toBeDefined();
   });
@@ -1830,16 +1435,16 @@ describe("DeleteStreamBatch", () => {
   });
 
   it("continues silently when DeleteContentObject throws for a batch item", async () => {
-    const {store, mockClient, mockStreamStore} = makeDeleteStreamStore({"s1": {objectId: "iq__1"}});
+    const {store, mockClient, mockStreamListStore} = makeDeleteStreamStore({"s1": {objectId: "iq__1"}});
     mockClient.DeleteContentObject.mockRejectedValue(new Error("already gone"));
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     await store.DeleteStreamBatch({objects: [{objectId: "iq__1", slug: "s1"}]});
     consoleSpy.mockRestore();
-    expect(mockStreamStore.UpdateStreams).toHaveBeenCalled();
+    expect(mockStreamListStore.SetStreams).toHaveBeenCalled();
   });
 
   it("removes all batch slugs from streams", async () => {
-    const {store, mockStreamStore} = makeDeleteStreamStore({
+    const {store, mockStreamListStore} = makeDeleteStreamStore({
       "s1": {objectId: "iq__1"},
       "s2": {objectId: "iq__2"},
       "s3": {objectId: "iq__3"}
@@ -1848,7 +1453,7 @@ describe("DeleteStreamBatch", () => {
       {objectId: "iq__1", slug: "s1"},
       {objectId: "iq__2", slug: "s2"}
     ]});
-    const updatedStreams = mockStreamStore.UpdateStreams.mock.calls[0][0].streams;
+    const updatedStreams = mockStreamListStore.SetStreams.mock.calls[0][0].streams;
     expect(updatedStreams["s1"]).toBeUndefined();
     expect(updatedStreams["s2"]).toBeUndefined();
     expect(updatedStreams["s3"]).toBeDefined();
@@ -1872,20 +1477,20 @@ const makeConfigMetaStore = ({existingConfig = {}} = {}) => {
     DeleteMetadata: vi.fn().mockResolvedValue(undefined),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
   };
-  const mockStreamStore = {UpdateStream: vi.fn()};
+  const mockStreamStatusStore = {SetStream: vi.fn()};
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
-    streamStore: mockStreamStore,
+    streamStatusStore: mockStreamStatusStore,
   }) as any;
-  return {store, mockClient, mockStreamStore};
+  return {store, mockClient, mockStreamStatusStore};
 };
 
-describe("UpdateConfigMetadata", () => {
+describe("SaveConfigMetadata", () => {
   it("writes video and stream bitrates as integers", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: "5000000", streamBitrate: "8000000", finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: "5000000", streamBitrate: "8000000", finalize: false});
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_bitrate", metadata: 5000000})
     );
@@ -1896,7 +1501,7 @@ describe("UpdateConfigMetadata", () => {
 
   it("clears the bitrate when the value is empty", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: "", finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: "", finalize: false});
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_bitrate", metadata: null})
     );
@@ -1905,7 +1510,7 @@ describe("UpdateConfigMetadata", () => {
   it.each(["abc", "12abc", "-5", "1.5"])("rejects a non-integer bitrate (%s) without writing", async (value) => {
     const {store, mockClient} = makeConfigMetaStore();
     await expect(
-      store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: value, finalize: false})
+      store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", videoBitrate: value, finalize: false})
     ).rejects.toThrow("Invalid video bitrate");
     const writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
     expect(writtenPaths.some(p => p.endsWith("xc_params/video_bitrate"))).toBe(false);
@@ -1913,7 +1518,7 @@ describe("UpdateConfigMetadata", () => {
 
   it("writes dvr_enabled to both live_recording and live_recording_overrides", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, finalize: false});
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording/playout_config/dvr_enabled", metadata: true})
     );
@@ -1925,7 +1530,7 @@ describe("UpdateConfigMetadata", () => {
   it("writes dvr_start_time to both paths when dvrEnabled and dvrStartTime are set", async () => {
     const {store, mockClient} = makeConfigMetaStore();
     const startTime = new Date("2026-01-01T10:00:00Z");
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, dvrStartTime: startTime.getTime(), finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, dvrStartTime: startTime.getTime(), finalize: false});
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording/playout_config/dvr_start_time"})
     );
@@ -1936,7 +1541,7 @@ describe("UpdateConfigMetadata", () => {
 
   it("writes dvr_max_duration as integer to both paths", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, dvrMaxDuration: "3600", finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, dvrMaxDuration: "3600", finalize: false});
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording/playout_config/dvr_max_duration", metadata: 3600})
     );
@@ -1947,7 +1552,7 @@ describe("UpdateConfigMetadata", () => {
 
   it("deletes dvr_start_time and dvr_max_duration from both paths when dvrEnabled=false", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: false, finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: false, finalize: false});
     const deletedPaths = mockClient.DeleteMetadata.mock.calls.map(c => c[0].metadataSubtree);
     expect(deletedPaths).toContain("live_recording/playout_config/dvr_start_time");
     expect(deletedPaths).toContain("live_recording/playout_config/dvr_max_duration");
@@ -1957,21 +1562,21 @@ describe("UpdateConfigMetadata", () => {
 
   it("skips all DVR writes when skipDvrSection=true", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, skipDvrSection: true, finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", dvrEnabled: true, skipDvrSection: true, finalize: false});
     const writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
     expect(writtenPaths.some(p => p.includes("dvr"))).toBe(false);
   });
 
   it("skips DVR writes when dvrEnabled is undefined", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false});
     const writtenPaths = mockClient.ReplaceMetadata.mock.calls.map(c => c[0].metadataSubtree);
     expect(writtenPaths.some(p => p.includes("dvr"))).toBe(false);
   });
 
   it("writes retention as integer to live_recording", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", retention: "7200", finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", retention: "7200", finalize: false});
     expect(mockClient.ReplaceMetadata).toHaveBeenCalledWith(
       expect.objectContaining({metadataSubtree: "live_recording/recording_config/recording_params/part_ttl", metadata: 7200})
     );
@@ -1979,7 +1584,7 @@ describe("UpdateConfigMetadata", () => {
 
   it("calls FinalizeContentObject when finalize=true", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt"});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt"});
     expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
       expect.objectContaining({commitMessage: "Update recording config"})
     );
@@ -1988,7 +1593,7 @@ describe("UpdateConfigMetadata", () => {
   it("writes advancedEncodingParams to live_recording_config recording_params.xc_params", async () => {
     const {store, mockClient} = makeConfigMetaStore();
     mockClient.ContentObjectMetadata.mockResolvedValue({recording_params: {other: 1}});
-    await store.UpdateConfigMetadata({
+    await store.SaveConfigMetadata({
       objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false,
       advancedEncodingParams: {preset: "medium", force_keyint: 60}
     });
@@ -2008,7 +1613,7 @@ describe("UpdateConfigMetadata", () => {
     const {store, mockClient} = makeConfigMetaStore();
     for(const extra of [{advancedEncodingParams: {}}, {}]) {
       mockClient.ReplaceMetadata.mockClear();
-      await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false, ...extra});
+      await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false, ...extra});
       const call = mockClient.ReplaceMetadata.mock.calls.find(c => c[0].metadataSubtree === "live_recording_config");
       expect(call[0].metadata).not.toHaveProperty("recording_params");
     }
@@ -2016,14 +1621,14 @@ describe("UpdateConfigMetadata", () => {
 
   it("skips FinalizeContentObject when finalize=false", async () => {
     const {store, mockClient} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false});
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", finalize: false});
     expect(mockClient.FinalizeContentObject).not.toHaveBeenCalled();
   });
 
-  it("calls UpdateStream with parsed dvrEnabled and retention values", async () => {
-    const {store, mockStreamStore} = makeConfigMetaStore();
-    await store.UpdateConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", slug: "s1", dvrEnabled: true, retention: "3600", finalize: false});
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+  it("calls SetStream with parsed dvrEnabled and retention values", async () => {
+    const {store, mockStreamStatusStore} = makeConfigMetaStore();
+    await store.SaveConfigMetadata({objectId: "iq__obj", libraryId: "lib-1", writeToken: "wt", slug: "s1", dvrEnabled: true, retention: "3600", finalize: false});
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith(
       expect.objectContaining({key: "s1", value: expect.objectContaining({dvrEnabled: true, partTtl: 3600})})
     );
   });
@@ -2036,14 +1641,14 @@ const makeAddWatermarkStore = () => {
     StreamAddWatermark: vi.fn().mockResolvedValue(null),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
   };
-  const mockStreamStore = {UpdateStream: vi.fn()};
+  const mockStreamStatusStore = {SetStream: vi.fn()};
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
-    streamStore: mockStreamStore,
+    streamStatusStore: mockStreamStatusStore,
   }) as any;
-  return {store, mockClient, mockStreamStore};
+  return {store, mockClient, mockStreamStatusStore};
 };
 
 describe("AddWatermark", () => {
@@ -2083,19 +1688,19 @@ describe("AddWatermark", () => {
     expect(mockClient.FinalizeContentObject).not.toHaveBeenCalled();
   });
 
-  it("calls UpdateStream with response watermark fields when response is truthy", async () => {
-    const {store, mockClient, mockStreamStore} = makeAddWatermarkStore();
+  it("calls SetStream with response watermark fields when response is truthy", async () => {
+    const {store, mockClient, mockStreamStatusStore} = makeAddWatermarkStore();
     mockClient.StreamAddWatermark.mockResolvedValue({imageWatermark: null, textWatermark: {text: "hi"}, forensicWatermark: null});
     await store.AddWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", textWatermark: {text: "hi"}, finalize: false});
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith(
       expect.objectContaining({key: "my-stream", value: expect.objectContaining({simpleWatermark: {text: "hi"}})})
     );
   });
 
-  it("skips UpdateStream when response is null", async () => {
-    const {store, mockStreamStore} = makeAddWatermarkStore();
+  it("skips SetStream when response is null", async () => {
+    const {store, mockStreamStatusStore} = makeAddWatermarkStore();
     await store.AddWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", textWatermark: {text: "hi"}, finalize: false});
-    expect(mockStreamStore.UpdateStream).not.toHaveBeenCalled();
+    expect(mockStreamStatusStore.SetStream).not.toHaveBeenCalled();
   });
 });
 
@@ -2103,14 +1708,14 @@ const makeRemoveWatermarkStore = () => {
   const mockClient = {
     StreamRemoveWatermark: vi.fn().mockResolvedValue(undefined),
   };
-  const mockStreamStore = {UpdateStream: vi.fn()};
+  const mockStreamStatusStore = {SetStream: vi.fn()};
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
-    streamStore: mockStreamStore,
+    streamStatusStore: mockStreamStatusStore,
   }) as any;
-  return {store, mockClient, mockStreamStore};
+  return {store, mockClient, mockStreamStatusStore};
 };
 
 describe("RemoveWatermark", () => {
@@ -2123,33 +1728,33 @@ describe("RemoveWatermark", () => {
   });
 
   it("clears imageWatermark on stream when type is image", async () => {
-    const {store, mockStreamStore} = makeRemoveWatermarkStore();
+    const {store, mockStreamStatusStore} = makeRemoveWatermarkStore();
     await store.RemoveWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", types: ["image"], finalize: false});
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith(
       expect.objectContaining({key: "my-stream", value: expect.objectContaining({imageWatermark: undefined})})
     );
   });
 
   it("clears simpleWatermark on stream when type is text", async () => {
-    const {store, mockStreamStore} = makeRemoveWatermarkStore();
+    const {store, mockStreamStatusStore} = makeRemoveWatermarkStore();
     await store.RemoveWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", types: ["text"], finalize: false});
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith(
       expect.objectContaining({key: "my-stream", value: expect.objectContaining({simpleWatermark: undefined})})
     );
   });
 
   it("clears forensicWatermark on stream when type is forensic", async () => {
-    const {store, mockStreamStore} = makeRemoveWatermarkStore();
+    const {store, mockStreamStatusStore} = makeRemoveWatermarkStore();
     await store.RemoveWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", types: ["forensic"], finalize: false});
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith(
       expect.objectContaining({key: "my-stream", value: expect.objectContaining({forensicWatermark: undefined})})
     );
   });
 
   it("clears all named watermarks when multiple types are provided", async () => {
-    const {store, mockStreamStore} = makeRemoveWatermarkStore();
+    const {store, mockStreamStatusStore} = makeRemoveWatermarkStore();
     await store.RemoveWatermark({objectId: "iq__obj", slug: "my-stream", writeToken: "wt", types: ["image", "text"], finalize: false});
-    const value = mockStreamStore.UpdateStream.mock.calls[0][0].value;
+    const value = mockStreamStatusStore.SetStream.mock.calls[0][0].value;
     expect(value.imageWatermark).toBeUndefined();
     expect(value.simpleWatermark).toBeUndefined();
   });
@@ -2161,23 +1766,23 @@ const makePlayoutConfigStore = ({status = "inactive"} = {}) => {
     EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-playout"}),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
   };
-  const mockStreamStore = {
+  const mockStreamStatusStore = {
     CheckStatus: vi.fn().mockResolvedValue({state: status}),
-    UpdateStream: vi.fn(),
+    SetStream: vi.fn(),
   };
-  const watermarkSpy = stubFlow("WatermarkConfiguration");
-  const drmSpy = stubFlow("DrmConfiguration");
-  const configMetaSpy = stubFlow("UpdateConfigMetadata");
+  const watermarkSpy = stubFlow("SaveWatermarkConfiguration");
+  const drmSpy = stubFlow("SaveDrmConfiguration");
+  const configMetaSpy = stubFlow("SaveConfigMetadata");
   const store = new StreamEditStore({
     client: mockClient,
-    dataStore: {},
+    tenantStore: {},
     profileStore: {profiles: {}},
-    streamStore: mockStreamStore,
+    streamStatusStore: mockStreamStatusStore,
   }) as any;
-  return {store, mockClient, mockStreamStore, watermarkSpy, drmSpy, configMetaSpy};
+  return {store, mockClient, mockStreamStatusStore, watermarkSpy, drmSpy, configMetaSpy};
 };
 
-describe("UpdatePlayoutConfig", () => {
+describe("SavePlayoutConfig", () => {
   const baseParams: UpdatePlayoutConfigParams = {
     objectId: "iq__obj", slug: "my-stream", status: "inactive",
     watermarkParams: {watermarkType: "TEXT", textWatermark: "{}", imageWatermark: null, forensicWatermark: null, existingTextWatermark: null, existingImageWatermark: null, existingForensicWatermark: null},
@@ -2185,9 +1790,9 @@ describe("UpdatePlayoutConfig", () => {
     configMetaParams: {dvrEnabled: false, dvrMaxDuration: "0", dvrStartTime: null, skipDvrSection: false}
   };
 
-  it("calls WatermarkConfiguration, DrmConfiguration, UpdateConfigMetadata each with finalize=false", async () => {
+  it("calls SaveWatermarkConfiguration, SaveDrmConfiguration, SaveConfigMetadata each with finalize=false", async () => {
     const {store, watermarkSpy, drmSpy, configMetaSpy} = makePlayoutConfigStore();
-    await store.UpdatePlayoutConfig(baseParams);
+    await store.SavePlayoutConfig(baseParams);
     expect(watermarkSpy).toHaveBeenCalledWith(expect.objectContaining({finalize: false}));
     expect(drmSpy).toHaveBeenCalledWith(expect.objectContaining({finalize: false}));
     expect(configMetaSpy).toHaveBeenCalledWith(expect.objectContaining({finalize: false}));
@@ -2195,123 +1800,18 @@ describe("UpdatePlayoutConfig", () => {
 
   it("finalizes with the playout settings commit message", async () => {
     const {store, mockClient} = makePlayoutConfigStore();
-    await store.UpdatePlayoutConfig(baseParams);
+    await store.SavePlayoutConfig(baseParams);
     expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
       expect.objectContaining({commitMessage: "Apply playout settings"})
     );
   });
 
   it("checks status and updates stream after finalize", async () => {
-    const {store, mockStreamStore} = makePlayoutConfigStore({status: "stopped"});
-    await store.UpdatePlayoutConfig(baseParams);
-    expect(mockStreamStore.CheckStatus).toHaveBeenCalledWith({objectId: "iq__obj"});
-    expect(mockStreamStore.UpdateStream).toHaveBeenCalledWith(
+    const {store, mockStreamStatusStore} = makePlayoutConfigStore({status: "stopped"});
+    await store.SavePlayoutConfig(baseParams);
+    expect(mockStreamStatusStore.CheckStatus).toHaveBeenCalledWith({objectId: "iq__obj"});
+    expect(mockStreamStatusStore.SetStream).toHaveBeenCalledWith(
       expect.objectContaining({key: "my-stream", value: {status: "stopped"}})
     );
-  });
-});
-
-describe("UpdateAlternateTranscode", () => {
-  const params = {
-    objectId: "iq__alt", libraryId: "ilib1", name: "Alt", nodeType: "dedicated" as const,
-    node: "inod1", protocol: "mpegts"
-  };
-
-  const makeAltStore = () => {
-    const configMetaSpy = stubFlow("UpdateConfigMetadata");
-    const mockClient = {
-      EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-alt"}),
-      ContentObjectMetadata: vi.fn().mockResolvedValue(null),
-      MergeMetadata: vi.fn().mockResolvedValue(undefined),
-      DeleteWriteToken: vi.fn().mockResolvedValue(undefined)
-    };
-    const store = new StreamEditStore({client: mockClient, dataStore: {}, streamStore: {}} as any);
-    return {store, mockClient, configMetaSpy};
-  };
-
-  it("discards the write token when a step after EditContentObject fails", async () => {
-    const {store, mockClient} = makeAltStore();
-    mockClient.MergeMetadata.mockRejectedValue(new Error("merge failed"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
-
-    await expect(store.UpdateAlternateTranscode(params)).rejects.toThrow("merge failed");
-    expect(mockClient.DeleteWriteToken).toHaveBeenCalledWith({writeToken: "wt-alt"});
-  });
-
-  it("does not discard the write token on success", async () => {
-    const {store, mockClient} = makeAltStore();
-    await store.UpdateAlternateTranscode(params);
-    expect(mockClient.DeleteWriteToken).not.toHaveBeenCalled();
-  });
-});
-
-describe("CreateAlternateTranscode cleanup", () => {
-  const params = {
-    parentObjectId: "iq__parent", parentLibraryId: "ilib1", parentSlug: "parent",
-    name: "Alt", nodeType: "dedicated" as const, node: "inod1", protocol: "mpegts"
-  };
-
-  const makeCreateStore = ({parentIds = [] as string[]} = {}) => {
-    const configMetaSpy = stubFlow("UpdateConfigMetadata");
-    const mockClient = {
-      CreateContentObject: vi.fn().mockResolvedValue({id: "iq__alt", writeToken: "wt-create"}),
-      FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
-      ContentObjectMetadata: vi.fn().mockImplementation(() => Promise.resolve({alternate_transcodes: parentIds})),
-      StreamCreate: vi.fn().mockResolvedValue(undefined),
-      EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-node"}),
-      MergeMetadata: vi.fn().mockResolvedValue(undefined),
-      DeleteWriteToken: vi.fn().mockResolvedValue(undefined),
-      DeleteContentObject: vi.fn().mockResolvedValue(undefined)
-    };
-    const store = new StreamEditStore({
-      client: mockClient,
-      dataStore: {LoadTenantSiteData: vi.fn().mockResolvedValue({contentTypes: {}})},
-      streamStore: {}
-    } as any);
-    return {store, mockClient, configMetaSpy};
-  };
-
-  beforeEach(() => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  it("deletes the reserved object when StreamCreate fails", async () => {
-    const {store, mockClient} = makeCreateStore();
-    mockClient.StreamCreate.mockRejectedValue(new Error("create failed"));
-
-    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("create failed");
-    expect(mockClient.DeleteContentObject).toHaveBeenCalledWith({libraryId: "ilib1", objectId: "iq__alt"});
-  });
-
-  it("discards the node write token and deletes the object when the node merge fails", async () => {
-    const {store, mockClient} = makeCreateStore();
-    mockClient.MergeMetadata.mockRejectedValue(new Error("merge failed"));
-
-    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("merge failed");
-    expect(mockClient.DeleteWriteToken).toHaveBeenCalledWith({writeToken: "wt-node"});
-    expect(mockClient.DeleteContentObject).toHaveBeenCalled();
-  });
-
-  it("deletes the object when appending to the parent fails", async () => {
-    const {store, mockClient, configMetaSpy} = makeCreateStore();
-    configMetaSpy.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("append failed"));
-
-    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("append failed");
-    expect(mockClient.DeleteContentObject).toHaveBeenCalledWith({libraryId: "ilib1", objectId: "iq__alt"});
-  });
-
-  it("keeps the object if the parent already references it", async () => {
-    const {store, mockClient, configMetaSpy} = makeCreateStore({parentIds: ["iq__alt"]});
-    configMetaSpy.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("finalize timed out"));
-
-    await expect(store.CreateAlternateTranscode(params)).rejects.toThrow("finalize timed out");
-    expect(mockClient.DeleteContentObject).not.toHaveBeenCalled();
-  });
-
-  it("does not delete anything on success", async () => {
-    const {store, mockClient} = makeCreateStore();
-    await store.CreateAlternateTranscode(params);
-    expect(mockClient.DeleteContentObject).not.toHaveBeenCalled();
-    expect(mockClient.DeleteWriteToken).not.toHaveBeenCalled();
   });
 });

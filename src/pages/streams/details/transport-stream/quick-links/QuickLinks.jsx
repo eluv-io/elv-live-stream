@@ -7,7 +7,7 @@ import {DataTable} from "mantine-datatable";
 import {useEffect, useState} from "react";
 import {useForm} from "@mantine/form";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import EditLinkModal from "@/components/modals/EditLinkModal.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
@@ -49,7 +49,7 @@ const QuickLinks = observer(({objectId, regions={}, active}) => {
 
           const linkData = await Promise.all(
             Object.keys(regions).map(async(region) => {
-              const url = await dataStore.SrtPlayoutUrl({
+              const url = await settingsStore.FetchSrtPlayoutUrl({
                 objectId,
                 quickLink: true,
                 tokenData: {region}
@@ -79,7 +79,7 @@ const QuickLinks = observer(({objectId, regions={}, active}) => {
     const {region, fabricNode} = values;
     const regionLabel = FABRIC_NODE_REGIONS.find(data => data.value === region)?.label || "";
 
-    const url = await dataStore.SrtPlayoutUrl({
+    const url = await settingsStore.FetchSrtPlayoutUrl({
       objectId,
       quickLink: true,
       fabricNode,
@@ -97,7 +97,7 @@ const QuickLinks = observer(({objectId, regions={}, active}) => {
     setLinks(linkData);
 
     if(updateSite) {
-      await dataStore.UpdateSiteQuickLinks({
+      await settingsStore.SaveQuickLinks({
         objectId,
         url,
         region,

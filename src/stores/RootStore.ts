@@ -1,17 +1,21 @@
 import {configure, makeAutoObservable} from "mobx";
 import {FrameClient} from "@eluvio/elv-client-js/src/FrameClient";
-import DataStore from "@/stores/DataStore";
-import StreamStore from "@/stores/StreamStore";
-import StreamEditStore from "@/stores/StreamEditStore";
-import ModalStore from "@/stores/ModalStore";
-import SiteStore from "@/stores/SiteStore";
+import TenantStore from "@/stores/TenantStore";
+import StreamStatusStore from "@/stores/streams/StreamStatusStore";
+import StreamDetailStore from "@/stores/streams/StreamDetailStore";
+import StreamListStore from "@/stores/streams/StreamListStore";
+import StreamEditStore from "@/stores/streams/StreamEditStore";
+import AlternateTranscodeStore from "@/stores/streams/AlternateTranscodeStore";
+import RecordingCopyStore from "@/stores/streams/RecordingCopyStore";
+import StreamModalStore from "@/stores/streams/StreamModalStore";
+import SettingsStore from "@/stores/SettingsStore";
 import ProfileStore from "@/stores/ProfileStore";
-import StreamGroupStore from "@/stores/StreamGroupStore";
-import OutputStore from "@/stores/OutputStore";
-import OutputModalStore from "@/stores/OutputModalStore";
+import StreamGroupStore from "@/stores/streams/StreamGroupStore";
+import OutputStore from "@/stores/outputs/OutputStore";
+import OutputModalStore from "@/stores/outputs/OutputModalStore";
 import UserSettingsStore from "@/stores/UserSettingsStore";
-import StreamSaveStore from "@/stores/StreamSaveStore";
-import OutputSaveStore from "@/stores/OutputSaveStore";
+import StreamSaveStore from "@/stores/streams/StreamSaveStore";
+import OutputSaveStore from "@/stores/outputs/OutputSaveStore";
 import VersionStore from "@/stores/VersionStore";
 
 // Force strict mode so mutations are only allowed within actions.
@@ -33,12 +37,16 @@ class RootStore {
   contentSpaceId?: string;
   errorMessage?: string;
 
-  dataStore: DataStore;
-  streamStore: StreamStore;
+  tenantStore: TenantStore;
+  streamStatusStore: StreamStatusStore;
+  streamDetailStore: StreamDetailStore;
+  streamListStore: StreamListStore;
   streamEditStore: StreamEditStore;
+  alternateTranscodeStore: AlternateTranscodeStore;
+  recordingCopyStore: RecordingCopyStore;
   streamSaveStore: StreamSaveStore;
-  modalStore: ModalStore;
-  siteStore: SiteStore;
+  streamModalStore: StreamModalStore;
+  settingsStore: SettingsStore;
   profileStore: ProfileStore;
   streamGroupStore: StreamGroupStore;
   outputStore: OutputStore;
@@ -48,12 +56,16 @@ class RootStore {
   versionStore: VersionStore;
 
   constructor() {
-    this.dataStore = new DataStore(this);
-    this.streamStore = new StreamStore(this);
+    this.tenantStore = new TenantStore(this);
+    this.streamStatusStore = new StreamStatusStore(this);
+    this.streamDetailStore = new StreamDetailStore(this);
+    this.streamListStore = new StreamListStore(this);
     this.streamEditStore = new StreamEditStore(this);
+    this.alternateTranscodeStore = new AlternateTranscodeStore(this);
+    this.recordingCopyStore = new RecordingCopyStore(this);
     this.streamSaveStore = new StreamSaveStore(this);
-    this.modalStore = new ModalStore(this);
-    this.siteStore = new SiteStore(this);
+    this.streamModalStore = new StreamModalStore(this);
+    this.settingsStore = new SettingsStore(this);
     this.profileStore = new ProfileStore(this);
     this.streamGroupStore = new StreamGroupStore(this);
     this.outputStore = new OutputStore(this);
@@ -62,7 +74,7 @@ class RootStore {
     this.userSettingsStore = new UserSettingsStore(this);
     this.versionStore = new VersionStore(this);
 
-    makeAutoObservable(this);
+    makeAutoObservable(this, {}, {autoBind: true});
   }
 
   *Initialize(): Generator<any, void> {
@@ -76,27 +88,15 @@ class RootStore {
       this.contentSpaceId = yield this.client.ContentSpaceId();
 
       yield Promise.all([
-        this.dataStore.Initialize(),
+        this.tenantStore.Initialize(),
         this.userSettingsStore.Load()
       ]);
 
-      this.streamStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.streams);
+      this.streamListStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.streams);
       this.outputStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.outputs);
 
-      // The tenant-wide live-stream query is scoped by siteId (group:eq:<siteId>), so it can't
-      // fire until site settings (dataStore.Initialize -> LoadTenantSiteData) have resolved siteId.
-      // Only used when the site opts into the content-group query; kick it off here (not awaited)
-      // so it's in flight before the streams page mounts; LoadStreamList picks up the same
-      // in-flight promise via the filter-key cache.
-      if(this.dataStore.useContentGroup) {
-        const fullScan = this.streamStore.tableFilterIsObjectId || this.streamStore.declaredTagsNeedFullLoad;
-        this.streamStore.LoadTenantLiveStreamContent({
-          siteId: this.dataStore.siteId,
-          dateRange: this.dataStore.useDateFilter && !fullScan ? this.streamStore.dateRangeFilter : [null, null],
-          nameFilter: this.streamStore.tenantNameTerms,
-          paged: !this.streamStore.searchNeedsFullLoad && !this.streamStore.declaredTagsNeedFullLoad
-        });
-      }
+      // Needs siteId from tenantStore.Initialize; started here so it's in flight before the streams page mounts.
+      this.streamListStore.PrefetchStreamList();
     } catch(error) {
       /* eslint-disable no-console */
       console.error("Failed to initialize application");
@@ -120,7 +120,7 @@ class RootStore {
       libraryId = await this.client.ContentObjectLibraryId({objectId});
     }
 
-    await this.streamStore.client.SendMessage({
+    await this.client.SendMessage({
       options: {
         operation: "OpenLink",
         libraryId,

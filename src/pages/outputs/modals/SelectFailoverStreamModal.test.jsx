@@ -27,7 +27,8 @@ const {LoadAllStreams, state} = vi.hoisted(() => ({
 }));
 
 vi.mock("@/stores/index.ts", () => ({
-  streamStore: {
+  streamStatusStore: {},
+  streamListStore: {
     get allStreams() { return state.streams; },
     loadingAllStreams: false,
     LoadAllStreams
@@ -88,7 +89,7 @@ describe("SelectFailoverStreamModal", () => {
     await user.click(screen.getByRole("button", {name: "row-Alpha"}));
     await user.click(screen.getByRole("button", {name: /^select$/i}));
 
-    expect(onSelect).toHaveBeenCalledWith({objectId: "iq__a", title: "Alpha"});
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({objectId: "iq__a", title: "Alpha"}));
     expect(onCloseModal).toHaveBeenCalled();
   });
 

@@ -82,16 +82,18 @@ vi.mock("@/stores", () => {
         }
       }
     },
-    dataStore: {
+    tenantStore: {
       tenantId: "tenant123",
       libraries: { "ilib123": { name: "Test Library" } },
       accessGroups: {},
-      liveStreamUrls: {},
       LoadAccessGroups: vi.fn().mockResolvedValue(undefined),
-      LoadDedicatedNodes: vi.fn().mockResolvedValue(undefined),
       LoadLibraries: vi.fn().mockResolvedValue(undefined),
-      LoadStreamUrls: vi.fn().mockResolvedValue(undefined),
       LoadStreamProbeData: vi.fn().mockResolvedValue({ audioStreams: [], audioData: {} }),
+    },
+    settingsStore: {
+      liveStreamUrls: {},
+      LoadDedicatedNodes: vi.fn().mockResolvedValue(undefined),
+      LoadStreamUrls: vi.fn().mockResolvedValue(undefined),
       loadedDedicatedNodes: true,
       dedicatedNodesList: [],
     },

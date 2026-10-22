@@ -5,7 +5,7 @@ import {notifications} from "@mantine/notifications";
 import AudioTracksTable from "@/pages/streams/details/recording/audio-tracks-table/AudioTracksTable.jsx";
 import AlternateTranscodesTable from "@/pages/streams/details/recording/alternate-transcodes/AlternateTranscodesTable.jsx";
 import JsonEditorCard from "@/components/json-editor-card/JsonEditorCard.jsx";
-import {outputStore, streamEditStore, streamStore, streamSaveStore} from "@/stores/index.ts";
+import {outputStore, streamEditStore, streamStatusStore, streamDetailStore, streamSaveStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
 import {
   Box,
@@ -21,6 +21,7 @@ import {
   Stack,
   Text
 } from "@mantine/core";
+import {FormatDuration} from "@/utils/formatters.ts";
 import {
   CONNECTION_TIMEOUT_OPTIONS,
   RECONNECTION_TIMEOUT_OPTIONS,
@@ -87,7 +88,7 @@ const RecordingPanel = observer(({
         alternateTranscodes: alternateTranscodesMeta,
         programPidSelection: programPidSelectionMeta,
         advancedEncodingParams: advancedEncodingParamsMeta
-      } = await streamStore.LoadRecordingConfigData({objectId: params.id, slug});
+      } = await streamDetailStore.LoadRecordingConfigData({objectId: params.id, slug});
 
       retentionMeta = persistentMeta ? "indefinite" : retentionMeta ? retentionMeta.toString() : null;
       connectionTimeoutMeta = connectionTimeoutMeta ? connectionTimeoutMeta.toString() : null;
@@ -167,7 +168,7 @@ const RecordingPanel = observer(({
     const fabricPackagingMpegTs = values.copyPackagingFormats.length > 0;
     const copyPackaging = values.copyPackagingFormats[0] || "raw_ts";
 
-    await streamEditStore.UpdateRecordingConfig({
+    await streamEditStore.SaveRecordingConfig({
       objectId: params.id,
       slug,
       audioFormData: values.audioFormData,
@@ -215,6 +216,14 @@ const RecordingPanel = observer(({
 
   if(loading) { return <Loader />; }
 
+  // Keep values set outside the UI selectable so Save doesn't overwrite them
+  const retentionValue = form.getValues().retention;
+  const retentionSeconds = parseInt(retentionValue);
+  const retentionOptions = retentionValue && !RETENTION_OPTIONS.some(option => option.value === retentionValue) && retentionSeconds > 0 ?
+    [...RETENTION_OPTIONS, {label: `${FormatDuration(retentionSeconds)} (custom)`, value: retentionValue}]
+      .sort((a, b) => parseInt(a.value) - parseInt(b.value)) :
+    RETENTION_OPTIONS;
+
   return (
     <Box maw="80%" mb={24}>
       <DisabledTooltipWrapper
@@ -225,7 +234,7 @@ const RecordingPanel = observer(({
         <SimpleGrid cols={2} spacing={150} mb={29}>
           <Select
             description="Select a retention period for how long stream parts will exist until they are removed from the fabric."
-            data={RETENTION_OPTIONS}
+            data={retentionOptions}
             placeholder="Select Time Duration"
             key={form.key("retention")}
             {...form.getInputProps("retention")}
@@ -280,7 +289,7 @@ const RecordingPanel = observer(({
       </DisabledTooltipWrapper>
 
       {
-        !(streamStore.streams?.[slug].originUrl || "").includes("rtmp") &&
+        !(streamStatusStore.streams?.[slug].originUrl || "").includes("rtmp") &&
         <>
           <DisabledTooltipWrapper
             disabled={![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(status)}
@@ -313,7 +322,7 @@ const RecordingPanel = observer(({
                       value="rtp_ts"
                       label="RTP wrapped MPEG-TS (ST 2022-2, ST 2022-7)"
                       description=""
-                      disabled={!streamStore.streams[slug]?.source?.some(s => s === "rtp" || s === "srt")}
+                      disabled={!streamStatusStore.streams[slug]?.source?.some(s => s === "rtp" || s === "srt")}
                     />
                   </Group>
                 </Radio.Group>
@@ -355,7 +364,7 @@ const RecordingPanel = observer(({
                       streamSaveStore.SetDirty({id: "recording", isDirty: form.isDirty()});
                     }}
                     parentObjectId={params.id}
-                    parentLibraryId={streamStore.streams[slug]?.libraryId}
+                    parentLibraryId={streamStatusStore.streams[slug]?.libraryId}
                     parentSlug={slug}
                   />
                 </Box>

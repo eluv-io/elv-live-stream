@@ -13,14 +13,7 @@ export const DATE_RANGE_PRESET_OPTIONS: {value: DateRangePreset, label: string}[
   {value: "all", label: "All"}
 ];
 
-/**
- * Human-readable label for the currently-selected date filter.
- *
- * @param preset - Active range preset: day shows the date, week the range,
- *   month the month, year the year; "all" (or anything else) yields "".
- * @param referenceDate - Date the range is anchored to.
- * @returns The localized label, or "" when there's nothing to show.
- */
+// Localized label for the date filter; "" for "all".
 export const FormatDateRangeLabel = (preset: DateRangePreset, referenceDate: Date): string => {
   const locale = navigator.language;
 
@@ -216,14 +209,7 @@ export const FormatDateFilter = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-/**
- * Normalizes a stream's query-field date to YYYY-MM-DD for display.
- *
- * @param date - Raw date from the tenant query's query_fields. Already-date-only
- *   strings pass through untouched (avoids the UTC day-shift).
- * @returns The YYYY-MM-DD string, the input unchanged if it isn't a valid date,
- *   or "" when no date is given.
- */
+// Date-only strings pass through untouched (avoids the UTC day-shift); invalid dates are returned as-is.
 export const FormatStreamDate = (date?: string): string => {
   if(!date) { return ""; }
   if(/^\d{4}-\d{2}-\d{2}$/.test(date)) { return date; }
@@ -247,19 +233,12 @@ export const FormatStreamEventTime = (time?: string): string => {
   });
 };
 
-// Copy of elv-client-js's `slugify`. Importing it from
-// `@eluvio/elv-client-js/utilities/lib/helpers.js` pulls that whole module in,
-// about 24KB gzip in the entry chunk for a one-line regex.
-//
-// Keep this in sync if the upstream implementation ever changes. Profile slugs
-// are persisted in the site object under `stream_profiles`, so drift would
-// orphan existing stream/profile associations. See helpers.test.ts for the
-// cases verified against upstream.
+// Copy of elv-client-js's `slugify` (importing it adds ~24KB gzip to the entry chunk).
+// Keep in sync with upstream: profile slugs are persisted, so drift orphans stream/profile associations.
 export const slugify = (str?: string): string =>
   (str || "").toLowerCase().trim().replace(/ /g, "-").replace(/[^a-z0-9-]/g, "");
 
-// Fails fast on a single slow/hung call (e.g. a permission-restricted object) instead of
-// blocking a whole batch of concurrent requests indefinitely.
+// Fails fast on a hung call (e.g. permission-restricted object) so it can't block a concurrent batch.
 export const WithTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
   Promise.race([
     promise,
@@ -270,8 +249,7 @@ export const WithTimeout = <T>(promise: Promise<T>, ms: number, label: string): 
 
 export type OutputLocationType = "public" | "dedicated";
 
-// `node` is always a node ID. `host` is the hostname a public pick was made from,
-// kept so the form can match its node list without looking the ID up again.
+// `node` is always a node ID; `host` is the hostname a public pick came from, for matching the form's node list.
 export interface OutputLocation {
   type?: OutputLocationType;
   geo?: string;
@@ -279,10 +257,8 @@ export interface OutputLocation {
   host?: string;
 }
 
-// An output's saved location. Reads `custom.location`, falling back to the legacy
-// `description` (a region slug or a node id) until that's phased out. Legacy
-// outputs have no saved type, so it's inferred from `dedicatedNodeIds`. Public
-// with no geo is Automatic; an output with nothing saved reads as that.
+// Reads `custom.location`, falling back to legacy `description` (region slug or node id).
+// Legacy outputs have no type, so it's inferred from `dedicatedNodeIds`; nothing saved reads as public/Automatic.
 export const GetOutputLocation = (
   output?: {custom?: {location?: OutputLocation}, description?: string},
   dedicatedNodeIds: string[] = []

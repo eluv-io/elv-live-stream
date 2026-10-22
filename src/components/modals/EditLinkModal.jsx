@@ -2,7 +2,7 @@ import {Box, Button, Flex, Modal} from "@mantine/core";
 import SrtLinkForm from "@/pages/streams/details/transport-stream/common/SrtLinkForm.jsx";
 import {useEffect, useState} from "react";
 import AlertMessage from "@/components/alert-message/AlertMessage.jsx";
-import {dataStore} from "@/stores/index.ts";
+import {tenantStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 
 const EditLinkModal = observer(({
@@ -47,7 +47,7 @@ const EditLinkModal = observer(({
       setLoadingFabricNode(true);
       setNodes([]);
 
-      dataStore.LoadNodes({region: formData.region})
+      tenantStore.LoadNodes({region: formData.region})
         .then(nodes => {
           const fabricNodes = [...new Set(nodes.fabricURIs || [])];
 
@@ -71,7 +71,7 @@ const EditLinkModal = observer(({
   useEffect(() => {
     if(formData.region === originalFormData.region) { return; }
 
-    dataStore.LoadNodes({region: formData.region})
+    tenantStore.LoadNodes({region: formData.region})
       .then(nodes => {
         const fabricNodes = [...new Set(nodes.fabricURIs || [])];
 

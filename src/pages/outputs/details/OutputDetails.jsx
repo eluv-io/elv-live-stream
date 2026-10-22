@@ -1,7 +1,7 @@
 import {observer} from "mobx-react-lite";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import {useBlocker, useNavigate, useParams} from "react-router-dom";
-import {dataStore, outputStore, outputSaveStore} from "@/stores/index.ts";
+import {settingsStore, outputStore, outputSaveStore} from "@/stores/index.ts";
 import {
   ActionIcon,
   Badge,
@@ -16,6 +16,7 @@ import {
   Stack,
   Tabs,
   Text,
+  PasswordInput,
   TextInput,
   Title,
   Tooltip
@@ -39,7 +40,7 @@ import {useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
-import {TsPackagingOnly} from "@/utils/streamActions.jsx";
+import {TsPackagingOnly} from "@/utils/stream/streamActions.jsx";
 
 // Classifies an output's saved location (see GetOutputLocation) as dedicated or
 // public (Automatic, region-only, or region-with-node). `geoNode` is the public
@@ -232,6 +233,10 @@ export const SummaryPanel = observer(({output, url, id}) => {
           </Tooltip>
         </Group>
       <TextInput value={url ?? ""} readOnly />
+      {
+        output?.rtmp &&
+        <PasswordInput label="Stream Key" value={output.rtmp.stream_key ?? ""} mt={16} readOnly />
+      }
       <Divider mb={20} mt={30} />
 
       {
@@ -273,24 +278,27 @@ export const SummaryPanel = observer(({output, url, id}) => {
 // either tab share the "generalConfig" dirty state. Mounted only once output
 // data has loaded, so initialValues below are always real.
 const OutputPanels = observer(({output, id, url}) => {
-  const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : "rtp";
+  const initialType = output?.srt_pull ? "srt_pull" : output?.srt_push ? "srt_push" : output?.udp ? "udp" : output?.rtmp ? "rtmp" : "rtp";
   // dedicatedNodesList is guaranteed loaded here - see the loader gate below.
   const initialLocation = ClassifyOutputLocation({
     output,
-    dedicatedNodesList: dataStore.dedicatedNodesList
+    dedicatedNodesList: settingsStore.dedicatedNodesList
   });
-  const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url;
+  const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url ?? output?.rtmp?.url;
 
   const form = useForm({
     mode: "controlled",
     initialValues: {
       name: output?.name,
-      type: initialType, // rtp | srt_pull | srt_push | udp
+      type: initialType, // rtp | srt_pull | srt_push | udp | rtmp
       nodeType: initialLocation.nodeType, // dedicated | public
       node: initialLocation.node,
       geo: initialLocation.geo,
       geoNode: initialLocation.geoNode,
       url: initialTargetUrl ?? "",
+      streamKey: output?.rtmp?.stream_key ?? "",
+      stream: output?.input?.stream ?? "",
+      streamName: output?.input?.name ?? "",
       encryption: output?.[initialType]?.connection?.enforced_encryption,
       stripRtp: output?.[initialType]?.strip_rtp,
       passphrase: output?.[initialType]?.passphrase,
@@ -314,9 +322,15 @@ const OutputPanels = observer(({output, id, url}) => {
         if(values.type === "srt_pull") { return null; }
         if(!value) { return "URL is required"; }
 
+        if(values.type === "rtmp") {
+          return /^rtmps?:\/\//i.test(value) ? null : "URL must use the rtmp:// or rtmps:// protocol";
+        }
+
         const protocol = OutputUrlProtocol(values.type);
         return new RegExp(`^${protocol}://`, "i").test(value) ? null : `URL must use the ${protocol}:// protocol`;
-      }
+      },
+      streamKey: (value, values) => values.type === "rtmp" && !value ? "Stream key is required" : null,
+      stream: (value, values) => values.type === "rtmp" && !value ? "Stream is required" : null
     },
     onValuesChange: () => {
       outputSaveStore.SetDirty({id: "generalConfig", isDirty: form.isDirty()});
@@ -328,14 +342,15 @@ const OutputPanels = observer(({output, id, url}) => {
     if(hasErrors) { throw new Error("Please resolve validation errors before saving"); }
 
     const values = form.getValues();
-    const {name, type, node, geo, geoNode, encryption, stripRtp, passphrase, url} = values;
+    const {name, type, node, geo, geoNode, encryption, stripRtp, passphrase, url, streamKey} = values;
     const isDedicated = values.nodeType === "dedicated";
     const isPush = type !== "srt_pull";
     // Only persist failover once a primary stream exists (the section is disabled
-    // otherwise). "" clears it; ModifyOutput leaves it alone when undefined.
+    // otherwise). "" clears it; SaveOutput leaves it alone when undefined.
     const hasPrimary = Boolean(output?.input?.stream);
+    const streamChanged = values.stream !== (output?.input?.stream ?? "");
 
-    await outputStore.ModifyOutput({
+    await outputStore.SaveOutput({
       outputId: id,
       name,
       type,
@@ -343,7 +358,7 @@ const OutputPanels = observer(({output, id, url}) => {
       stripRtp,
       passphrase: encryption ? passphrase : undefined,
       nodeType: values.nodeType,
-      // "" rather than undefined for the inactive one of node/region - ModifyOutput
+      // "" rather than undefined for the inactive one of node/region - SaveOutput
       // treats undefined as "leave existing value alone", but switching between
       // dedicated node and public geo must clear whichever one is no longer active,
       // or the fabric rejects the update ("only one of elvgeos or node_ids can be set").
@@ -353,6 +368,8 @@ const OutputPanels = observer(({output, id, url}) => {
       nodeHost: isDedicated ? "" : (geoNode || ""),
       region: isDedicated ? "" : geo,
       url: isPush ? url : undefined,
+      streamKey: type === "rtmp" ? streamKey : undefined,
+      streamObjectId: values.stream,
       failoverStream: hasPrimary ? values.failoverStream : undefined,
       failoverAfter: values.failoverAfter,
       failoverResetClients: values.failoverResetClients === "on"
@@ -363,8 +380,10 @@ const OutputPanels = observer(({output, id, url}) => {
     // the baseline to include the (possibly server-assigned) passphrase
     // first, so setting the field to match it doesn't read as a new change.
     const newPassphrase = outputStore.outputs[id]?.[type]?.passphrase ?? "";
-    form.resetDirty({...values, passphrase: newPassphrase});
+    const failoverCleared = streamChanged ? {failoverStream: "", failoverStreamName: ""} : {};
+    form.resetDirty({...values, ...failoverCleared, passphrase: newPassphrase});
     form.setFieldValue("passphrase", newPassphrase);
+    Object.entries(failoverCleared).forEach(([key, value]) => form.setFieldValue(key, value));
   };
 
   const SaveRef = useRef();
@@ -430,14 +449,14 @@ const OutputDetails = observer(() => {
   const url = flatOutput?.url;
   const outputLocation = ClassifyOutputLocation({
     output,
-    dedicatedNodesList: dataStore.dedicatedNodesList
+    dedicatedNodesList: settingsStore.dedicatedNodesList
   });
   const hasDedicatedNode = outputLocation.nodeType === "dedicated";
   const geoLabel = outputLocation.geo ?
     FABRIC_NODE_REGIONS.find(geo => geo.value === outputLocation.geo)?.label :
     (!hasDedicatedNode && !outputLocation.nodeLabel ? "Automatic" : undefined);
   const nodeLabel = hasDedicatedNode ?
-    dataStore.dedicatedNodes?.[outputLocation.node]?.name :
+    settingsStore.dedicatedNodes?.[outputLocation.node]?.name :
     outputLocation.nodeLabel;
   const typeBadges = flatOutput?.type?.length ?
     <Group gap={4} wrap="nowrap">
@@ -481,7 +500,7 @@ const OutputDetails = observer(() => {
 
   // Loaded here so it's ready in parallel with the output load
   useEffect(() => {
-    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
+    if(!settingsStore.loadedDedicatedNodes) { settingsStore.LoadDedicatedNodes(); }
   }, []);
 
   useEffect(() => {
@@ -599,7 +618,7 @@ const OutputDetails = observer(() => {
 
   // Wait on dedicatedNodesList - OutputPanels needs it to classify the
   // output's node/region pick
-  if(!output || !dataStore.loadedDedicatedNodes) { return <Loader />; }
+  if(!output || !settingsStore.loadedDedicatedNodes) { return <Loader />; }
 
   return (
     <PageContainer

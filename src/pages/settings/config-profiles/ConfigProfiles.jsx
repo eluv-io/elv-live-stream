@@ -41,7 +41,7 @@ const ProfileEditorRow = ({record, onValidate}) => {
             const parsed = JSON.parse(value);
             const customError = onValidate?.(parsed, record.slug);
             setError(customError || null);
-            if(!customError) { profileStore.UpdateDraft(record.slug, value); }
+            if(!customError) { profileStore.SetDraft(record.slug, value); }
           } catch {
             setError("Invalid JSON");
             onValidate?.(null, record.slug);

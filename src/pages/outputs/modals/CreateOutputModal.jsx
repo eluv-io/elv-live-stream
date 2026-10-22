@@ -1,7 +1,8 @@
 import {useForm} from "@mantine/form";
-import {dataStore, outputStore} from "@/stores/index.ts";
+import {settingsStore, outputStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
-import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
+import {toJS} from "mobx";
+import {FABRIC_NODE_REGIONS, RTMP_STREAM_KEY_DESCRIPTION, RTMP_URL_DESCRIPTION} from "@/utils/constants.ts";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {
@@ -20,9 +21,12 @@ import {
 } from "@mantine/core";
 import styles from "./modals.module.css";
 import {useEffect, useState} from "react";
+import SelectFailoverStreamModal from "@/pages/outputs/modals/SelectFailoverStreamModal.jsx";
 
 const CreateOutputModal = observer(({show, onCloseModal}) => {
   const [isSaving, setIsSaving] = useState(false);
+  const [showStreamModal, setShowStreamModal] = useState(false);
+  const [streamInfo, setStreamInfo] = useState(undefined);
 
   const form = useForm({
     mode: "controlled",
@@ -35,7 +39,10 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       stripRtp: false,
       passphrase: "",
       url: "",
-      type: "srt_pull", // rtp | srt_pull | srt_push | udp
+      streamKey: "",
+      streamObjectId: "",
+      streamTitle: "",
+      type: "srt_pull", // rtp | srt_pull | srt_push | udp | rtmp
       nodeType: "public" // public | dedicated
     },
     validate: {
@@ -47,23 +54,29 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
         }
         return null;
       },
-      url: (value, values) => values.type === "srt_pull" ? null : (value ? null : "URL is required")
+      url: (value, values) => {
+        if(values.type === "srt_pull") { return null; }
+        if(!value) { return "URL is required"; }
+        return values.type === "rtmp" && !/^rtmps?:\/\//i.test(value) ? "URL must use the rtmp:// or rtmps:// protocol" : null;
+      },
+      streamKey: (value, values) => values.type === "rtmp" && !value ? "Stream key is required" : null,
+      streamObjectId: (value, values) => values.type === "rtmp" && !value ? "Stream is required" : null
     }
   });
 
   useEffect(() => {
     if(!show) { return; }
-    if(!dataStore.loadedDedicatedNodes) { dataStore.LoadDedicatedNodes(); }
+    if(!settingsStore.loadedDedicatedNodes) { settingsStore.LoadDedicatedNodes(); }
   }, [show]);
 
   const {type, nodeType} = form.getValues();
   // Protocol-specific example shown in the Target URL field
-  const urlPlaceholder = `${type === "srt_push" ? "srt" : type}://example.com:1234`;
+  const urlPlaceholder = type === "rtmp" ? "rtmps://example.com/live2" : `${type === "srt_push" ? "srt" : type}://example.com:1234`;
 
   const HandleSubmit = async() => {
     try {
       setIsSaving(true);
-      const {name, geo, geoNode, node, nodeType, encryption, stripRtp, passphrase, type, url} = form.getValues();
+      const {name, geo, geoNode, node, nodeType, encryption, stripRtp, passphrase, type, url, streamKey, streamObjectId} = form.getValues();
       const isDedicated = nodeType === "dedicated";
 
       await outputStore.CreateOutput({
@@ -75,6 +88,9 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
         stripRtp,
         // URL field is only shown for non-srt_pull types
         url: type === "srt_pull" ? undefined : url,
+        streamKey: type === "rtmp" ? streamKey : undefined,
+        streamObjectId: streamObjectId || undefined,
+        streamInfo,
         // public outputs target a fabric region, optionally pinned to a node within
         // it; dedicated outputs target a curated node
         region: isDedicated ? undefined : (geo || undefined),
@@ -83,7 +99,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       });
 
       const locationLabel = isDedicated ?
-        (dataStore.dedicatedNodesList.find(data => data.value === node)?.label || "") :
+        (settingsStore.dedicatedNodesList.find(data => data.value === node)?.label || "") :
         (geoNode || (FABRIC_NODE_REGIONS.find(data => data.value === geo)?.label || "Automatic"));
 
       notifications.show({
@@ -93,6 +109,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
 
       onCloseModal();
       form.reset();
+      setStreamInfo(undefined);
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to create output", error);
@@ -113,6 +130,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
       onClose={() => {
         onCloseModal();
         form.reset();
+        setStreamInfo(undefined);
       }}
       title={
         <Stack gap={0} mb={20}>
@@ -144,11 +162,27 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
               {label: "SRT PULL", value: "srt_pull"},
               {label: "SRT PUSH", value: "srt_push"},
               {label: "RTP", value: "rtp"},
-              {label: "UDP", value: "udp"}
+              {label: "UDP", value: "udp"},
+              {label: "RTMP / RTMPS", value: "rtmp"}
             ]}
             key={form.key("type")}
             {...form.getInputProps("type")}
           />
+          <Input.Wrapper
+            label="Stream"
+            description={type === "rtmp" ?
+              "The stream to publish. Its video and audio are selected automatically." :
+              "The stream this output delivers."}
+            error={form.errors.streamObjectId}
+            withAsterisk={type === "rtmp"}
+          >
+            <Flex align="center" gap={12} mt={4}>
+              <Text fz="0.875rem" flex={1} truncate>{form.getValues().streamTitle || "No stream selected"}</Text>
+              <Button variant="outline" onClick={() => setShowStreamModal(true)}>
+                {form.getValues().streamObjectId ? "Change" : "Select"}
+              </Button>
+            </Flex>
+          </Input.Wrapper>
           <Tabs
             value={nodeType}
             onChange={(value) => {
@@ -159,7 +193,7 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
           >
             <Tabs.List w="fit-content" mb={20}>
               {
-                dataStore.dedicatedNodesList.length > 0 &&
+                settingsStore.dedicatedNodesList.length > 0 &&
                 <Tabs.Tab value="dedicated">Dedicated</Tabs.Tab>
               }
               <Tabs.Tab value="public">Public</Tabs.Tab>
@@ -169,8 +203,8 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
               <Stack gap={20}>
                 <Select
                   label="Node"
-                  placeholder={dataStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
-                  data={dataStore.dedicatedNodesList}
+                  placeholder={settingsStore.loadedDedicatedNodes ? "Select Node" : "Loading Nodes..."}
+                  data={settingsStore.dedicatedNodesList}
                   allowDeselect={false}
                   withAsterisk
                   key={form.key("node")}
@@ -180,11 +214,21 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
                   form.getValues().type !== "srt_pull" &&
                   <TextInput
                     label="Target URL"
+                    description={type === "rtmp" ? RTMP_URL_DESCRIPTION : undefined}
                     placeholder={urlPlaceholder}
                     key={form.key("url")}
                     withAsterisk
                     {...form.getInputProps("url")
                   }
+                />
+              }
+              {form.getValues().type === "rtmp" &&
+                <PasswordInput
+                  label="Stream Key"
+                  description={RTMP_STREAM_KEY_DESCRIPTION}
+                  key={form.key("streamKey")}
+                  withAsterisk
+                  {...form.getInputProps("streamKey")}
                 />
               }
               </Stack>
@@ -223,10 +267,20 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
                 {form.getValues().type !== "srt_pull" &&
                   <TextInput
                     label="Target URL"
+                    description={type === "rtmp" ? RTMP_URL_DESCRIPTION : undefined}
                     placeholder={urlPlaceholder}
                     key={form.key("url")}
                     withAsterisk
                     {...form.getInputProps("url")}
+                  />
+                }
+                {form.getValues().type === "rtmp" &&
+                  <PasswordInput
+                    label="Stream Key"
+                    description={RTMP_STREAM_KEY_DESCRIPTION}
+                    key={form.key("streamKey")}
+                    withAsterisk
+                    {...form.getInputProps("streamKey")}
                   />
                 }
               </Stack>
@@ -268,6 +322,26 @@ const CreateOutputModal = observer(({show, onCloseModal}) => {
           <Button type="submit" loading={isSaving} disabled={isSaving}>Create</Button>
         </Flex>
       </form>
+      {showStreamModal &&
+        <SelectFailoverStreamModal
+          show={showStreamModal}
+          onCloseModal={() => setShowStreamModal(false)}
+          onSelect={({objectId, title, record}) => {
+            form.setFieldValue("streamObjectId", objectId);
+            form.setFieldValue("streamTitle", title || objectId);
+            setStreamInfo({
+              name: title,
+              status: record.status,
+              url: record.originUrl,
+              source: toJS(record.source),
+              packaging: toJS(record.packaging)
+            });
+          }}
+          title="Select Stream"
+          description="Select the stream to map to this output (TS streams only. Unconfigured streams can't be selected)."
+          requireConfigured
+        />
+      }
     </Modal>
   );
 });

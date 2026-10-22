@@ -1,5 +1,5 @@
 import {describe, it, expect, vi} from "vitest";
-import type {LiveRecordingConfigProfile} from "@/utils/stream";
+import type {LiveRecordingConfigProfile} from "@/utils/stream/stream";
 
 vi.mock("mobx", async () => ({
   ...(await vi.importActual("mobx")),
@@ -42,7 +42,7 @@ const makeStore = ({siteId = "iq__site", siteLibraryId = "ilib-site", client = {
   };
   const rootStore = {
     client: mockClient,
-    dataStore: {siteId, siteLibraryId}
+    tenantStore: {siteId, siteLibraryId}
   };
   const store = new ProfileStore(rootStore as any);
   return {store, mockClient};

@@ -7,7 +7,7 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
-import DataStore from "./DataStore";
+import SettingsStore from "./SettingsStore";
 
 const makeStore = () => {
   const client = {
@@ -17,9 +17,7 @@ const makeStore = () => {
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
     DeleteWriteToken: vi.fn().mockResolvedValue(undefined)
   };
-  const store = new DataStore({client} as any) as any;
-  store.siteId = "iq__site";
-  store.siteLibraryId = "ilib-site";
+  const store = new SettingsStore({client, tenantStore: {siteId: "iq__site", siteLibraryId: "ilib-site"}} as any) as any;
   return {store, client};
 };
 
@@ -28,7 +26,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
-describe("DataStore declared tags", () => {
+describe("SettingsStore declared tags", () => {
   it("loads tags from the site object, defaulting to an empty list", async () => {
     const {store, client} = makeStore();
 
@@ -78,7 +76,7 @@ describe("DataStore declared tags", () => {
   });
 });
 
-describe("DataStore custom domain", () => {
+describe("SettingsStore custom domain", () => {
   it("loads the domain, defaulting to empty", async () => {
     const {store, client} = makeStore();
 

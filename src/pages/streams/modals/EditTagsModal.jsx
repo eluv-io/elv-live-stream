@@ -2,7 +2,7 @@ import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {Button, Flex, Modal, Pill, Stack, TagsInput, Text, Title} from "@mantine/core";
 import {notifications} from "@mantine/notifications";
-import {streamEditStore, streamStore} from "@/stores/index.ts";
+import {streamEditStore, streamListStore} from "@/stores/index.ts";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import styles from "@/pages/outputs/modals/modals.module.css";
 import pillStyles from "./EditTagsModal.module.css";
@@ -42,7 +42,7 @@ const EditTagsModal = observer(({opened, onClose, records=[]}) => {
         };
       });
 
-      await streamEditStore.UpdateStreamTagsBatch({streams});
+      await streamEditStore.SaveStreamTagsBatch({streams});
 
       notifications.show({
         title: "Tags updated",
@@ -108,7 +108,7 @@ const EditTagsModal = observer(({opened, onClose, records=[]}) => {
         description="Add tags to organize and quickly find streams. New tags will be applied to all selected items."
         styles={{description: {fontSize: "0.875rem"}}}
         placeholder="Type and press Enter to add a tag"
-        data={streamStore.TagOptions(allCurrentTags)}
+        data={streamListStore.TagOptions(allCurrentTags)}
         value={newTags}
         onChange={setNewTags}
         mb={24}

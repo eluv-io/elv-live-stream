@@ -8,7 +8,7 @@ import TagModal from "@/pages/settings/declared-tags/TagModal.jsx";
 import {IconPencil, IconTrash} from "@tabler/icons-react";
 import {DataTable} from "mantine-datatable";
 import sharedStyles from "@/assets/shared.module.css";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 
 const DeclaredTags = observer(() => {
   const [pendingDeleteTag, setPendingDeleteTag] = useState(null);
@@ -19,13 +19,13 @@ const DeclaredTags = observer(() => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    dataStore.LoadDeclaredTags();
+    settingsStore.LoadDeclaredTags();
   }, []);
 
   const HandleRefresh = async() => {
     try {
       setRefreshing(true);
-      await dataStore.LoadDeclaredTags();
+      await settingsStore.LoadDeclaredTags();
     } finally {
       setRefreshing(false);
     }
@@ -34,14 +34,14 @@ const DeclaredTags = observer(() => {
   const Save = async({tags, commitMessage, title, message}) => {
     try {
       setSaving(true);
-      await dataStore.SaveDeclaredTags({tags, commitMessage});
+      await settingsStore.SaveDeclaredTags({tags, commitMessage});
       notifications.show({title, message});
     } finally {
       setSaving(false);
     }
   };
 
-  const currentTags = () => toJS(dataStore.declaredTags) ?? [];
+  const currentTags = () => toJS(settingsStore.declaredTags) ?? [];
   const records = currentTags().map(name => ({name}));
 
   return (
@@ -72,7 +72,7 @@ const DeclaredTags = observer(() => {
           highlightOnHover
           styles={{header: {color: "var(--mantine-color-elv-gray-9)"}}}
           records={records}
-          fetching={refreshing || !dataStore.loadedDeclaredTags}
+          fetching={refreshing || !settingsStore.loadedDeclaredTags}
           minHeight={records.length === 0 ? 130 : 75}
           rowStyle={() => ({height: "50px"})}
           columns={[

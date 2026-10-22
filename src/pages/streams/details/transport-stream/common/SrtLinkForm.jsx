@@ -2,7 +2,7 @@ import {Box, Button, Group, Loader, Select, Text, TextInput} from "@mantine/core
 import sharedStyles from "@/assets/shared.module.css";
 import {DataTable} from "mantine-datatable";
 import {FABRIC_NODE_REGIONS} from "@/utils/constants.ts";
-import {dataStore} from "@/stores/index.ts";
+import {settingsStore} from "@/stores/index.ts";
 import {DateTimePicker} from "@mantine/dates";
 import {IconCalendarEvent, IconSelector} from "@tabler/icons-react";
 import {useState} from "react";
@@ -68,7 +68,7 @@ const SrtLinkForm = ({
             FABRIC_NODE_REGIONS.filter(item => {
               if(!hideActiveRegions) { return item; }
 
-              const activeRegions = (dataStore.srtUrlsByStream?.[objectId]?.srt_urls || []).map(urlObj => urlObj.region);
+              const activeRegions = (settingsStore.srtUrlsByStream?.[objectId]?.srt_urls || []).map(urlObj => urlObj.region);
               const isDisabled = activeRegions.includes(item.value);
 
               if(!isDisabled) {

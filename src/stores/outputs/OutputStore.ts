@@ -1,168 +1,14 @@
-// Manages egress output configurations for live streams, including SRT and other output destinations.
+// Egress outputs: list/table state, loading and state polling, create/edit, stream mapping, and enable/disable/delete/reset.
 import {makeAutoObservable} from "mobx";
-import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/stream";
+import {DeriveSourceAndPackaging, StreamPackaging, StreamSource} from "@/utils/stream/stream";
 import {GetOutputLocation, SortTable, WithOutputLocation} from "@/utils/helpers";
-import type {OutputLocation} from "@/utils/helpers";
 import type RootStore from "@/stores/RootStore";
+import type {FlatOutput, Output, OutputInput, OutputInputFailover, Outputs} from "@/stores/outputs/types";
+import {DefaultFmp4, DeriveOutputType, ModifyOutputs} from "@/stores/lib/outputs";
+import {EgressNodesForRegion, NodeIdForHostname, ResolveEgressNodeId} from "@/stores/lib/fabricNodes";
 
-// Passed through verbatim from the fabric. `name`/`quality`/`stats` are
-// resolved client-side by LoadFailoverStreamInfo. Never nests.
-interface OutputInputFailover {
-  after?: string;
-  disconnect_outputs?: boolean;
-  name?: string;
-  status?: string;
-  quality?: string;
-  stats?: any;
-  input?: {stream?: string};
-}
-
-interface OutputInput {
-  stream?: string;
-  name?: string;
-  status?: string;
-  url?: string;
-  embedUrl?: string;
-  source?: StreamSource[];
-  packaging?: StreamPackaging[];
-  quality?: string;
-  stats?: any;
-  failover?: OutputInputFailover;
-}
-
-interface OutputSrtPull {
-  node_ids?: string[];
-  urls?: string[];
-  elvgeos?: string[];
-  connection?: {
-    enforced_encryption?: string;
-  };
-  passphrase?: string;
-  strip_rtp?: boolean;
-}
-
-interface OutputSrtPush {
-  node_id?: string;
-  url?: string;
-  elvgeo?: string;
-  location?: "global" | "elvgeo" | "datacenter" | "nid";
-  connection?: {
-    enforced_encryption?: string;
-  };
-  passphrase?: string;
-  strip_rtp?: boolean;
-}
-
-// Shared shape for the rtp and udp outputs.
-interface OutputRtpUdp {
-  node_id?: string;
-  url?: string;
-  elvgeo?: string;
-}
-
-// Raw output as stored in stream metadata: nested, keyed by transport (rtp/udp/srt_*).
-interface Output {
-  enabled?: boolean;
-  input?: OutputInput;
-  name?: string;
-  description?: string;
-  // Front-end data stored as-is by the fabric; `location` is the geo/node pick.
-  custom?: {location?: OutputLocation, [key: string]: any};
-  rtp?: OutputRtpUdp;
-  udp?: OutputRtpUdp;
-  srt_pull?: OutputSrtPull;
-  srt_push?: OutputSrtPush;
-  state?: any;
-  tags?: string[];
-}
-
-type Outputs = Record<string, Output>;
-
-export type OutputType = "SRT PULL" | "SRT PUSH" | "RTP" | "UDP" | "TS";
-
-// Spread first to clear stale transport blocks on a type change - UpdateOutput merges shallow.
-const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, srt_pull: undefined, srt_push: undefined};
-
-const DeriveOutputType = (output: Output, streamSource?: string[]): OutputType[] | undefined => {
-  const stripRtp = output.srt_pull?.strip_rtp ?? output.srt_push?.strip_rtp;
-  const packaging: OutputType = streamSource?.includes("rtp") && !stripRtp ? "RTP" : "TS";
-
-  if(output.rtp) return ["RTP"];
-  if(output.udp) return ["UDP"];
-  if(output.srt_push) return ["SRT PUSH", packaging];
-  if(output.srt_pull) return ["SRT PULL", packaging];
-  return undefined;
-};
-
-// Output flattened for the UI: url/type/source pulled up out of the transport nesting,
-// plus the owning stream's id/name/status added on, for table rows.
-interface FlatOutput {
-  slug: string;
-  name?: string;
-  description?: string;
-  tags?: string[];
-  enabled?: boolean;
-  streamId?: string;
-  streamName?: string;
-  streamStatus?: string;
-  url?: string;
-  type?: OutputType[];
-  packaging?: string[];
-  source?: string[];
-  connectedClients: number;
-  input?: OutputInput;
-}
-
-// Resolve a live_egress hostname to its node ID.
-const NodeIdForHostname = async ({client, hostname}: {client: any, hostname: string}): Promise<string> => {
-  const nodes = await client.SpaceNodes({matchEndpoint: hostname});
-  if(!nodes?.length) {
-    throw new Error(`No node found matching live_egress endpoint: ${hostname}`);
-  }
-
-  return nodes[0].id;
-};
-
-/**
- * Resolve a fabric region (elvgeo) to a concrete egress node ID.
- *
- * elvgeo is a create-time convenience: OutputsCreate resolves and strips it before
- * hitting the fabric, whose output schema has no elvgeo field. OutputsModify does no
- * such resolution, so edits must resolve region -> node ID client-side or the fabric
- * rejects the request. Mirrors elv-client-js's private LiveStream.RetrieveOutputNodeId.
- */
-const ResolveEgressNodeId = async ({client, geo}: {client: any, geo?: string}): Promise<string> => {
-  const configUrl = new URL(await client.ConfigUrl());
-  configUrl.pathname = "/config";
-  if(geo) { configUrl.searchParams.set("elvgeo", geo); }
-
-  const fabricInfo = await (await fetch(configUrl.toString())).json();
-  const liveEgressUrls = fabricInfo?.network?.services?.live_egress;
-  if(!liveEgressUrls?.length) {
-    throw new Error("No live_egress endpoints found in fabric config");
-  }
-
-  return NodeIdForHostname({client, hostname: new URL(liveEgressUrls[0]).hostname});
-};
-
-/**
- * List candidate egress nodes (by hostname) for a fabric region, for the optional
- * "pick a specific node" dropdown under Public. Unlike ResolveEgressNodeId (which
- * only resolves the first live_egress endpoint), this walks the whole array. Node
- * ids are resolved from the picked hostname at save time, not here.
- */
-const GetNodesForRegion = async ({client, region}: {client: any, region: string}): Promise<{value: string, label: string}[]> => {
-  const configUrl = new URL(await client.ConfigUrl());
-  configUrl.pathname = "/config";
-  configUrl.searchParams.set("elvgeo", region);
-
-  const fabricInfo = await (await fetch(configUrl.toString())).json();
-  const liveEgressUrls: string[] = fabricInfo?.network?.services?.live_egress || [];
-
-  const hosts = new Set(liveEgressUrls.map(url => new URL(url).hostname));
-
-  return Array.from(hosts).map(host => ({value: host, label: host}));
-};
+// Spread first to clear stale transport blocks on a type change - SetOutput merges shallow.
+const CLEARED_TRANSPORT_KEYS = {rtp: undefined, udp: undefined, rtmp: undefined, srt_pull: undefined, srt_push: undefined};
 
 interface CreateOutputParams {
   name?: string;
@@ -176,11 +22,17 @@ interface CreateOutputParams {
   // resolved to an ID here.
   node?: string;
   nodeHost?: string;
+  // Required for rtmp: the stream whose ladder supplies input.fmp4.
+  streamObjectId?: string;
+  // Display fields for the picked stream (name/status/source...), so the new row
+  // renders before the next outputs load.
+  streamInfo?: Partial<OutputInput>;
   passphrase?: string;
   encryption?: string;
   stripRtp?: boolean;
   url?: string;
-  type: "srt_pull" | "srt_push" | "rtp" | "udp"
+  streamKey?: string;
+  type: "srt_pull" | "srt_push" | "rtp" | "udp" | "rtmp"
 }
 
 class OutputStore {
@@ -201,7 +53,7 @@ class OutputStore {
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
 
-    makeAutoObservable(this, {_nodesByRegionRequestId: false});
+    makeAutoObservable(this, {_nodesByRegionRequestId: false}, {autoBind: true});
   }
 
   get client() {
@@ -218,10 +70,10 @@ class OutputStore {
 
   /** Flatten a raw output into the derived shape used by tables and detail views. */
   FlattenOutput = (slug: string, output: Output): FlatOutput => {
-    const {streamsByObjectId, streams} = this.rootStore.streamStore;
+    const {streamsByObjectId, streams} = this.rootStore.streamStatusStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
     // srt_pull stores urls as an array; other types store a single url string.
-    const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url;
+    const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url ?? output.rtmp?.url;
 
     return {
       slug,
@@ -294,7 +146,7 @@ class OutputStore {
     this.sortStatus = sortStatus;
   };
 
-  UpdateOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
+  SetOutput = ({slug, updates}: {slug: string, updates: Partial<Output>}): void => {
     // Ignore slugs that aren't real outputs, or we'd add a phantom row to outputList.
     if(!this.outputs[slug]) { return; }
 
@@ -303,8 +155,8 @@ class OutputStore {
 
   *LoadOutputSettingsId(): Generator<any, void> {
     try {
-      let siteLibraryId = this.rootStore.dataStore.siteLibraryId;
-      let siteObjectId = this.rootStore.dataStore.siteId;
+      let siteLibraryId = this.rootStore.tenantStore.siteLibraryId;
+      let siteObjectId = this.rootStore.tenantStore.siteId;
 
       if(!siteLibraryId) {
         ({siteLibraryId, siteObjectId} = yield this.client.StreamSiteSettings({resolveLinks: false}));
@@ -342,7 +194,7 @@ class OutputStore {
   }
 
   /**
-   * Fetch a single output's live egress state (mirrors StreamStore.CheckStatus).
+   * Fetch a single output's live egress state (mirrors StreamStatusStore.CheckStatus).
    * With update=true, merges only `state` onto the stored output so derived table
    * columns react without a full OutputsList reload and without clobbering the
    * enriched input fields from LoadOutputStreamInfo or the persisted config.
@@ -360,7 +212,7 @@ class OutputStore {
       return {};
     }
     if(update) {
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
           state: response?.state
@@ -380,7 +232,7 @@ class OutputStore {
    * output's egress node and restores afterward; concurrent calls corrupt each
    * other's routing.
    */
-  *AllOutputsState(): Generator<any, void> {
+  *LoadAllOutputsState(): Generator<any, void> {
     for(const outputId of Object.keys(this.outputs || {})) {
       try {
         yield this.CheckOutputState({outputId, update: true});
@@ -409,7 +261,7 @@ class OutputStore {
       // so the live fields from LoadOutputStreamInfo / LoadFailoverStreamInfo
       // survive a reload. A null/undefined input (unmapped) passes through.
       const existingInput = this.outputs[outputId]?.input;
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
           ...CLEARED_TRANSPORT_KEYS,
@@ -436,9 +288,9 @@ class OutputStore {
 
     // Each fetch is isolated so one failure (e.g. EmbedUrl) can't discard the
     // others - the live quality/stats must land even if the URL derivation fails.
-    if(this.rootStore.dataStore.useContentGroup) {
+    if(this.rootStore.settingsStore.useContentGroup) {
       try {
-        const record: any = yield this.rootStore.streamStore.LoadTenantStreamInfo(streamObjectId);
+        const record: any = yield this.rootStore.streamListStore.FetchStreamInfo(streamObjectId);
         streamInfo.url = record?.originUrl;
         streamInfo.source = record?.source;
         streamInfo.packaging = record?.packaging;
@@ -492,7 +344,7 @@ class OutputStore {
     }
 
     if(slug) {
-      this.UpdateOutput({
+      this.SetOutput({
         slug,
         updates: {
           input: {
@@ -519,7 +371,7 @@ class OutputStore {
     const MergeFailover = (updates: Partial<OutputInputFailover>) => {
       const current = this.outputs[outputId]?.input;
       if(!current?.failover) { return; }
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {input: {...current, failover: {...current.failover, ...updates}}}
       });
@@ -562,7 +414,7 @@ class OutputStore {
    * Load candidate egress nodes for a region, for the optional "pick a specific
    * node" dropdown under Public. Only ever driven by one mounted form at a time,
    * so this uses a request-id guard (rather than full promise-dedupe like
-   * DataStore.LoadAccessGroups) to drop stale responses if the user flips
+   * TenantStore.LoadAccessGroups) to drop stale responses if the user flips
    * regions before the previous fetch resolves.
    */
   *LoadNodesByRegion({region, force = false}: {region: string, force?: boolean}): Generator<any, void> {
@@ -573,7 +425,7 @@ class OutputStore {
     this.loadingNodesRegion = region;
 
     try {
-      const nodes = yield GetNodesForRegion({client: this.client, region});
+      const nodes = yield EgressNodesForRegion({client: this.client, region});
       if(requestId !== this._nodesByRegionRequestId) { return; }
       this.nodesByRegion[region] = nodes;
     } catch(error) {
@@ -597,6 +449,9 @@ class OutputStore {
     encryption,
     stripRtp,
     url,
+    streamKey,
+    streamObjectId,
+    streamInfo,
     type
   }: CreateOutputParams): Generator<any, void> {
     try {
@@ -615,7 +470,6 @@ class OutputStore {
       const isPull = type === "srt_pull";
 
       const settings: Record<string, any> = {};
-
       if(node) {
         settings[isPull ? "node_ids" : "node_id"] = isPull ? [node] : node;
       }
@@ -627,6 +481,7 @@ class OutputStore {
       }
 
       if(url) { settings.url = url; }
+      if(type === "rtmp") { settings.stream_key = streamKey; }
 
       if(isSrt) {
         settings.passphrase = passphrase || undefined;
@@ -634,15 +489,23 @@ class OutputStore {
         settings.connection = encryption ? {enforced_encryption: encryption} : undefined;
       }
 
+      let fmp4;
+      if(type === "rtmp") {
+        if(!streamObjectId) { throw "A stream is required for RTMP outputs."; }
+        fmp4 = yield DefaultFmp4({client: this.client, streamObjectId});
+      }
+
       const outputs = yield this.client.OutputsCreate({
         objectId: this.outputSettingsId,
+        streamObjectId,
         offering,
         name,
         externalId,
         enabled: false,
         delivery: {
           type,
-          settings
+          settings,
+          fmp4
         }
       });
 
@@ -663,7 +526,11 @@ class OutputStore {
         // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
         const {state: _state, ...createdOutput} = created;
 
-        yield this.client.OutputsModify({libraryId, objectId, outputId, output: {...createdOutput, custom}});
+        yield this.client.OutputsModify({libraryId, objectId, outputId, output: {
+          ...createdOutput,
+          ...(fmp4 && {input: {...createdOutput.input, fmp4}}),
+          custom
+        }});
         outputData = {...outputData, custom};
       } catch(error) {
         // The output exists and works; only its saved location is missing.
@@ -673,6 +540,10 @@ class OutputStore {
 
       outputData = yield this.client.OutputsResolveSrtPullUrls({value: outputData});
 
+      if(streamObjectId) {
+        outputData = {...outputData, input: {...outputData.input, ...streamInfo, stream: streamObjectId}};
+      }
+
       this.outputs[outputId] = outputData;
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -681,48 +552,43 @@ class OutputStore {
     }
   }
 
-  *MapStream({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void> {
-    try {
-      const objectId = this.outputSettingsId;
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+  // (Re)map outputs to a stream. A failover config is tied to the primary it
+  // fails away from, so it's dropped whenever the primary is (re)mapped.
+  *_MapOutputs({outputIds, streamObjectId, batch}: {outputIds: string[], streamObjectId: string, batch: boolean}): Generator<any, void> {
+    const written = yield ModifyOutputs({
+      client: this.client,
+      objectId: this.outputSettingsId,
+      outputIds,
+      batch,
+      Update: async existing => {
+        // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+        const {failover: _failover, ...existingInput} = existing.input || {};
+        const fmp4 = existing.rtmp ?
+          await DefaultFmp4({client: this.client, streamObjectId}) : undefined;
 
-      const existing = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: `live_outputs/${outputId}`
-      }) || {};
+        return {
+          ...existing,
+          enabled: !existing.input?.stream ? true : existing.enabled,
+          input: {
+            ...existingInput,
+            stream: streamObjectId,
+            ...(fmp4 && {fmp4})
+          }
+        };
+      }
+    });
 
-      // A failover config is tied to the primary it fails away from - drop it
-      // whenever the primary is (re)mapped.
-      // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-      const {failover: _failover, ...existingInput} = existing.input || {};
+    const stream = (Object.values(this.rootStore.streamStatusStore.streams || {}) as any[])
+      .find(s => s.objectId === streamObjectId);
 
-      const updatedOutput = {
-        ...existing,
-        enabled: !existing.input?.stream ? true : existing.enabled,
-        input: {
-          ...existingInput,
-          stream: streamObjectId
-        }
-      };
-
-      yield this.client.OutputsModify({
-        libraryId,
-        objectId,
-        outputId,
-        output: JSON.parse(JSON.stringify(updatedOutput))
-      });
-
-      const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
-        .find(s => s.objectId === streamObjectId);
-
+    Object.entries(written).forEach(([outputId, output]: [string, any]) => {
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {failover: _localFailover, ...localInput} = this.outputs[outputId]?.input || {};
 
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
-          enabled: !existing.input?.stream ? true : existing.enabled,
+          enabled: output.enabled,
           input: {
             ...localInput,
             stream: streamObjectId,
@@ -731,6 +597,12 @@ class OutputStore {
           }
         }
       });
+    });
+  }
+
+  *MapStream({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void> {
+    try {
+      yield this._MapOutputs({outputIds: [outputId], streamObjectId, batch: false});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to map stream to output.", error);
@@ -740,66 +612,7 @@ class OutputStore {
 
   *MapStreamBatch({outputs, streamObjectId}: {outputs: string[], streamObjectId: string}): Generator<any, void> {
     try {
-      const objectId = this.outputSettingsId;
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-
-      const updatedOutputs = yield Promise.all(
-        outputs.map(async outputId => {
-          const existing = await this.client.ContentObjectMetadata({
-            libraryId,
-            objectId,
-            metadataSubtree: `live_outputs/${outputId}`
-          }) || {};
-
-          // A failover config is tied to the primary it fails away from - drop
-          // it whenever the primary is (re)mapped.
-          // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-          const {failover: _failover, ...existingInput} = existing.input || {};
-
-          return {
-            outputId,
-            output: {
-              ...existing,
-              enabled: !existing.input?.stream ? true : existing.enabled,
-              input: {
-                ...existingInput,
-                stream: streamObjectId
-              }
-            }
-          };
-        })
-      );
-
-      const outputsMap: Record<string, any> = Object.fromEntries(
-        updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
-      );
-
-      yield this.client.OutputsModifyBatch({
-        libraryId,
-        objectId,
-        outputs: outputsMap
-      });
-
-      const stream = (Object.values(this.rootStore.streamStore.streams || {}) as any[])
-        .find(s => s.objectId === streamObjectId);
-
-      Object.entries(outputsMap).forEach(([outputId, output]) => {
-        // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-        const {failover: _localFailover, ...localInput} = this.outputs[outputId]?.input || {};
-
-        this.UpdateOutput({
-          slug: outputId,
-          updates: {
-            enabled: output.enabled,
-            input: {
-              ...localInput,
-              stream: streamObjectId,
-              name: stream?.title,
-              status: stream?.status
-            }
-          }
-        });
-      });
+      yield this._MapOutputs({outputIds: outputs, streamObjectId, batch: true});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to map stream to output.", error);
@@ -809,46 +622,16 @@ class OutputStore {
 
   *UnmapStreamBatch({outputs}: {outputs: string[]}): Generator<any, void> {
     try {
-      const objectId = this.outputSettingsId;
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-
-      const updatedOutputs = yield Promise.all(
-        outputs.map(async outputId => {
-          const existing = await this.client.ContentObjectMetadata({
-            libraryId,
-            objectId,
-            metadataSubtree: `live_outputs/${outputId}`
-          }) || {};
-
-          return {
-            outputId,
-            output: {
-              ...existing,
-              enabled: false,
-              input: null
-            }
-          };
-        })
-      );
-
-      const outputsMap = Object.fromEntries(
-        updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
-      );
-
-      yield this.client.OutputsModifyBatch({
-        libraryId,
-        objectId,
-        outputs: outputsMap
+      yield ModifyOutputs({
+        client: this.client,
+        objectId: this.outputSettingsId,
+        outputIds: outputs,
+        batch: true,
+        Update: existing => ({...existing, enabled: false, input: null})
       });
 
-      updatedOutputs.forEach(({outputId}) => {
-        this.UpdateOutput({
-          slug: outputId,
-          updates: {
-            enabled: false,
-            input: {}
-          }
-        });
+      outputs.forEach(outputId => {
+        this.SetOutput({slug: outputId, updates: {enabled: false, input: {}}});
       });
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -862,7 +645,7 @@ class OutputStore {
    * the applicable transport block fresh (so a type change drops the old one), and
    * only re-resolves node/region when the pick actually changed.
    */
-  *ModifyOutput({
+  *SaveOutput({
     outputId,
     name,
     type,
@@ -874,11 +657,13 @@ class OutputStore {
     nodeHost,
     region,
     url,
+    streamKey,
+    streamObjectId,
     failoverStream,
     failoverAfter,
     failoverResetClients,
     // tags
-  }: {outputId: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp", passphrase?: string, encryption?: string, stripRtp?: boolean, nodeType?: "public" | "dedicated", node?: string, nodeHost?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
+  }: {outputId: string, streamObjectId?: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp" | "rtmp", streamKey?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, nodeType?: "public" | "dedicated", node?: string, nodeHost?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -900,12 +685,26 @@ class OutputStore {
         const {name: _resolvedName, status: _resolvedStatus, quality: _resolvedQuality, stats: _resolvedStats, ...cleanFailover} = cleanInput.failover;
         cleanInput.failover = cleanFailover;
       }
+
+      let input: any = cleanInput;
+      let enabled = existing.enabled;
+      if(streamObjectId !== undefined && streamObjectId !== (cleanInput.stream ?? "")) {
+        if(streamObjectId) {
+          // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+          const {failover: _failover, fmp4: _fmp4, ...remapped} = cleanInput;
+          input = {...remapped, stream: streamObjectId};
+          enabled = !existing.input?.stream ? true : existing.enabled;
+        } else {
+          input = null;
+          enabled = false;
+        }
+      }
       // Strip transient runtime `state` and every transport block - the applicable
       // one is rebuilt fresh below so a type change can't carry the old shape over.
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-      const {state: _st, rtp: _rtp, udp: _udp, srt_pull: _srtPull, srt_push: _srtPush, ...cleanExisting} = existing;
+      const {state: _st, rtp: _rtp, udp: _udp, rtmp: _rtmp, srt_pull: _srtPull, srt_push: _srtPush, ...cleanExisting} = existing;
 
-      const existingTransportKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : existing.rtp ? "rtp" : existing.udp ? "udp" : undefined;
+      const existingTransportKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : existing.rtp ? "rtp" : existing.udp ? "udp" : existing.rtmp ? "rtmp" : undefined;
       const transportKey = type ?? existingTransportKey;
       const typeChanged = !!type && type !== existingTransportKey;
       // encryption/passphrase/strip_rtp live on the SRT block (srt_pull or srt_push);
@@ -924,7 +723,7 @@ class OutputStore {
       // type changed, so a plain rename doesn't re-resolve to a different node.
       const touchesNodeOrRegion = node !== undefined || nodeHost !== undefined || region !== undefined;
       const locationType = nodeType ?? (node && !region ? "dedicated" : "public");
-      const dedicatedNodeIds = (this.rootStore.dataStore?.dedicatedNodesList || []).map((n: {value: string}) => n.value);
+      const dedicatedNodeIds = (this.rootStore.settingsStore?.dedicatedNodesList || []).map((n: {value: string}) => n.value);
       const savedLocation = GetOutputLocation(existing, dedicatedNodeIds);
       const pickChanged = locationType === "dedicated" ?
         (node || "") !== savedLocation.node :
@@ -942,11 +741,23 @@ class OutputStore {
           yield ResolveEgressNodeId({client: this.client, geo: region || undefined}));
       }
 
+      // rtmp needs input.fmp4; other types must not carry it.
+      if(input?.stream) {
+        if(transportKey === "rtmp") {
+          if(!input.fmp4) { input = {...input, fmp4: yield DefaultFmp4({client: this.client, streamObjectId: input.stream})}; }
+        } else if(input.fmp4) {
+          // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+          const {fmp4: _staleFmp4, ...withoutFmp4} = input;
+          input = withoutFmp4;
+        }
+      }
+
       const output = {
         ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
         // ...(tags !== undefined && {tags}),
-        input: cleanInput,
+        enabled,
+        input,
         ...(nodeOrRegionChanged && {custom: WithOutputLocation(existing.custom, {
           type: locationType,
           geo: region,
@@ -971,7 +782,8 @@ class OutputStore {
               [isPull ? "node_ids" : "node_id"]: resolvedNodeId ? (isPull ? [resolvedNodeId] : resolvedNodeId) : undefined,
               [isPull ? "elvgeos" : "elvgeo"]: undefined
             }),
-            ...(!isPull && url !== undefined && {url: url || undefined})
+            ...(!isPull && url !== undefined && {url: url || undefined}),
+            ...(transportKey === "rtmp" && streamKey !== undefined && {stream_key: streamKey || undefined})
           }
         })
       };
@@ -985,7 +797,7 @@ class OutputStore {
 
       const updatedOutput = yield this.client.OutputsListItem({objectId, outputId});
 
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
           ...CLEARED_TRANSPORT_KEYS,
@@ -999,38 +811,30 @@ class OutputStore {
     }
   }
 
+  // Enabling requires a mapped stream; the check runs during the read phase, so nothing is written if any output fails it.
+  *_SetOutputsEnabled({outputIds, enabled, batch}: {outputIds: string[], enabled: boolean, batch: boolean}): Generator<any, void> {
+    yield ModifyOutputs({
+      client: this.client,
+      objectId: this.outputSettingsId,
+      outputIds,
+      batch,
+      Update: existing => {
+        if(enabled && !existing.input?.stream) {
+          throw new Error("A stream must be mapped to the output before enabling");
+        }
+
+        return {...existing, enabled};
+      }
+    });
+
+    outputIds.forEach(outputId => {
+      this.SetOutput({slug: outputId, updates: {enabled}});
+    });
+  }
+
   *EnableOutput({outputId}: {outputId: string}): Generator<any, void> {
     try {
-      const objectId = this.outputSettingsId;
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      const enabled = true;
-
-      const existing = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: `live_outputs/${outputId}`
-      }) || {};
-
-      if(!existing.input?.stream) {
-        throw new Error("A stream must be mapped to the output before enabling");
-      }
-
-      const updatedOutput = {
-        ...existing,
-        enabled
-      };
-
-      yield this.client.OutputsModify({
-        libraryId,
-        objectId,
-        outputId,
-        output: JSON.parse(JSON.stringify(updatedOutput))
-      });
-
-      this.UpdateOutput({
-        slug: outputId,
-        updates: { enabled }
-      });
+      yield this._SetOutputsEnabled({outputIds: [outputId], enabled: true, batch: false});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to enable output.", error);
@@ -1038,48 +842,10 @@ class OutputStore {
     }
   }
 
-  *EnableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void>{
+  *EnableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void> {
     try {
-      const objectId = this.outputSettingsId;
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-
-      const updatedOutputs = yield Promise.all(
-        outputs.map(async outputId => {
-          const existing = await this.client.ContentObjectMetadata({
-            libraryId,
-            objectId,
-            metadataSubtree: `live_outputs/${outputId}`
-          }) || {};
-
-          return {
-            outputId,
-            output: {
-              ...existing,
-              enabled: true
-            }
-          };
-        })
-      );
-
-      const outputsMap = Object.fromEntries(
-        updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
-      );
-
-      yield this.client.OutputsModifyBatch({
-        libraryId,
-        objectId,
-        outputs: outputsMap
-      });
-
-      updatedOutputs.forEach(({outputId}) => {
-        this.UpdateOutput({
-          slug: outputId,
-          updates: {
-            enabled: true
-          }
-        });
-      });
-    }  catch(error) {
+      yield this._SetOutputsEnabled({outputIds: outputs, enabled: true, batch: true});
+    } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to enable outputs", error);
       throw error;
@@ -1088,32 +854,7 @@ class OutputStore {
 
   *DisableOutput({outputId}: {outputId: string}): Generator<any, void> {
     try {
-      const objectId = this.outputSettingsId;
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      const enabled = false;
-
-      const existing = yield this.client.ContentObjectMetadata({
-        libraryId,
-        objectId,
-        metadataSubtree: `live_outputs/${outputId}`
-      }) || {};
-
-      const updatedOutput = {
-        ...existing,
-        enabled
-      };
-
-      yield this.client.OutputsModify({
-        libraryId,
-        objectId,
-        outputId,
-        output: JSON.parse(JSON.stringify(updatedOutput))
-      });
-
-      this.UpdateOutput({
-        slug: outputId,
-        updates: { enabled }
-      });
+      yield this._SetOutputsEnabled({outputIds: [outputId], enabled: false, batch: false});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to disable output.", error);
@@ -1121,48 +862,10 @@ class OutputStore {
     }
   }
 
-  *DisableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void>{
+  *DisableOutputBatch({outputs}: {outputs: string[]}): Generator<any, void> {
     try {
-      const objectId = this.outputSettingsId;
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-
-      const updatedOutputs = yield Promise.all(
-        outputs.map(async outputId => {
-          const existing = await this.client.ContentObjectMetadata({
-            libraryId,
-            objectId,
-            metadataSubtree: `live_outputs/${outputId}`
-          }) || {};
-
-          return {
-            outputId,
-            output: {
-              ...existing,
-              enabled: false
-            }
-          };
-        })
-      );
-
-      const outputsMap = Object.fromEntries(
-        updatedOutputs.map(({outputId, output}) => [outputId, JSON.parse(JSON.stringify(output))])
-      );
-
-      yield this.client.OutputsModifyBatch({
-        libraryId,
-        objectId,
-        outputs: outputsMap
-      });
-
-      updatedOutputs.forEach(({outputId}) => {
-        this.UpdateOutput({
-          slug: outputId,
-          updates: {
-            enabled: false
-          }
-        });
-      });
-    }  catch(error) {
+      yield this._SetOutputsEnabled({outputIds: outputs, enabled: false, batch: true});
+    } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to disable outputs", error);
       throw error;
@@ -1209,7 +912,7 @@ class OutputStore {
     }
   }
 
-  *UpdateOutputTags({outputId, tags}: {outputId: string, tags: string[]}): Generator<any, void> {
+  *SaveOutputTags({outputId, tags}: {outputId: string, tags: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
       const libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -1234,7 +937,7 @@ class OutputStore {
         output: JSON.parse(JSON.stringify(output))
       });
 
-      this.UpdateOutput({slug: outputId, updates: {tags}});
+      this.SetOutput({slug: outputId, updates: {tags}});
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to update output tags.", error);
@@ -1259,7 +962,7 @@ class OutputStore {
         outputId
       });
 
-      this.UpdateOutput({
+      this.SetOutput({
         slug: outputId,
         updates: {
           state: newState

@@ -3,7 +3,7 @@ import {render, screen} from "@testing-library/react";
 import {MantineProvider} from "@mantine/core";
 
 vi.mock("@/stores/index.ts", () => ({
-  dataStore: {
+  settingsStore: {
     loadedDedicatedNodes: true,
     dedicatedNodesList: [],
     LoadDedicatedNodes: vi.fn()

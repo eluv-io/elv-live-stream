@@ -1,9 +1,5 @@
-// TYPES
-
 export type StreamStatus = typeof STATUS_MAP[keyof typeof STATUS_MAP];
 export type PlayoutFormat = typeof PLAYOUT_FORMAT_OPTIONS[number]["value"];
-
-// CONSTANTS
 
 export const STATUS_MAP = {
   UNCONFIGURED: "unconfigured",
@@ -74,18 +70,15 @@ export const RECORDING_BITRATE_OPTIONS = [
 ];
 
 export const RETENTION_OPTIONS = [
-  {label: "1 Hour", value: "3600"}, // 60 * 60 = 3600 seconds
-  {label: "6 Hours", value: "21600"}, // 60 * 60 * 6 = 21600
-  {label: "1 Day", value: "86400"}, // 60 * 60 * 24 = 86400 seconds
-  {label: "1 Week", value: "604800"}, // 60 * 60 * 24 * 7 = 604800 seconds
-  {label: "1 Month", value: "2635200"}, // 60 * 60 * 24 * 30.5 = 2635200 seconds
+  {label: "1 Hour", value: "3600"},
+  {label: "6 Hours", value: "21600"},
+  {label: "1 Day", value: "86400"},
+  {label: "1 Week", value: "604800"},
+  {label: "1 Month", value: "2635200"},
   // {label: "Indefinitely", value: "indefinite"}
 ];
 
-// Alternate transcode "Protocol" select - only MPEG-TS is wired today since
-// alternate transcodes live under Transport Stream Packaging, but this stays
-// a real option list (not a hardcoded value) so FMP4/CMAF protocol support
-// can be added later without restructuring the field.
+// Only MPEG-TS today; kept as a list so FMP4/CMAF can be added later.
 export const ALTERNATE_TRANSCODE_PROTOCOLS = [
   {label: "MPEG-TS", value: "mpegts"}
 ];
@@ -98,8 +91,7 @@ export const RESOLUTION_OPTIONS = [
   {label: "2160p", value: "2160p"}
 ];
 
-// Height/width pairs per RESOLUTION_OPTIONS value, matching the fabric's
-// DefaultABRLadder convention; written to xc_params.enc_height/enc_width.
+// Height/width per RESOLUTION_OPTIONS value (fabric DefaultABRLadder); written to xc_params.enc_height/enc_width.
 export const RESOLUTION_DIMENSIONS: Record<string, {height: number, width: number}> = {
   "360p": {height: 360, width: 640},
   "480p": {height: 480, width: 854},
@@ -131,14 +123,14 @@ export const RECONNECTION_TIMEOUT_OPTIONS = [
   {label: "4 Hours", value: "14400"}
 ];
 
-// Output input-failover "wait for reconnection" timeout. Stored on
-// input.failover.after as a Go-style duration string.
+// Failover reconnection timeout, stored as a Go-style duration on input.failover.after.
+export const RTMP_URL_DESCRIPTION = "RTMP server and application, e.g. rtmps://a.rtmps.youtube.com/live2. The port defaults to 1935 for rtmp and 443 for rtmps. Don't include the stream key.";
+export const RTMP_STREAM_KEY_DESCRIPTION = "The stream name published under the URL, typically the secret key issued by the platform.";
+
 export const FAILOVER_TIMEOUT_OPTIONS = [5, 10, 15, 20].map(n => ({
   label: `${n} seconds`,
   value: `${n}s`
 }));
-
-// Human-readable text
 
 export const STATUS_TEXT = {
   unconfigured: "Not Configured",
@@ -182,7 +174,9 @@ export const OUTPUT_TYPE_COLOR_MAP: Record<string, string> = {
   "TS": "elv-green.0",
   "SRT PUSH": "elv-pink.1",
   "SRT PULL": "elv-blue-gray.1",
-  "UDP": "elv-green.1"
+  "UDP": "elv-green.1",
+  "RTMP": "elv-yellow.1",
+  "RTMPS": "elv-yellow.1"
 };
 
 export const SOURCE_PACKAGING_COLOR_MAP = {
@@ -207,7 +201,7 @@ export const AudioCodec = (value: string): string => {
   }
 };
 
-export const RETENTION_TEXT = {
+export const RETENTION_TEXT: Record<string, string> = {
   3600: "1 Hour",
   21600: "6 Hours",
   86400: "1 Day",

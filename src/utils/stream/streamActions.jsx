@@ -1,8 +1,8 @@
-import {StreamIsActive} from "@/utils/stream.ts";
+import {StreamIsActive} from "@/utils/stream/stream.ts";
 import {SanitizeUrl} from "@/utils/helpers.ts";
 import {STATUS_MAP} from "@/utils/constants.ts";
 import {Stack, Text} from "@mantine/core";
-import {rootStore, modalStore, streamStore} from "@/stores/index.ts";
+import {rootStore, streamModalStore, streamStatusStore} from "@/stores/index.ts";
 import {notifications} from "@mantine/notifications";
 import {
   IconDeviceAnalytics,
@@ -34,13 +34,13 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       mutatesStream: true,
       hidden: ![STATUS_MAP.UNINITIALIZED, STATUS_MAP.INACTIVE].includes(record.status),
       onClick: async() => {
-        const url = await streamStore.client.ContentObjectMetadata({
-          libraryId: await streamStore.client.ContentObjectLibraryId({objectId: record.objectId}),
+        const url = await streamStatusStore.client.ContentObjectMetadata({
+          libraryId: await streamStatusStore.client.ContentObjectLibraryId({objectId: record.objectId}),
           objectId: record.objectId,
           metadataSubtree: "live_recording_config/url"
         });
 
-        modalStore.SetModal({
+        streamModalStore.SetModal({
           data: {
             objectId: record.objectId,
             name: record.title,
@@ -74,7 +74,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       mutatesStream: true,
       hidden: !record.status || ![STATUS_MAP.INACTIVE, STATUS_MAP.STOPPED].includes(record.status),
       onClick: () => {
-        modalStore.SetModal({
+        streamModalStore.SetModal({
           data: {
             objectId: record.objectId,
             name: record.title
@@ -95,7 +95,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       mutatesStream: true,
       hidden: !record.status || record.status !== STATUS_MAP.STOPPED,
       onClick: () => {
-        modalStore.SetModal({
+        streamModalStore.SetModal({
           data: {
             objectId: record.objectId,
             name: record.title,
@@ -136,7 +136,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       mutatesStream: true,
       hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED].includes(record.status),
       onClick: () => {
-        modalStore.SetModal({
+        streamModalStore.SetModal({
           data: {
             objectId: record.objectId,
             name: record.title
@@ -157,7 +157,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       mutatesStream: true,
       hidden: !record.status || ![STATUS_MAP.STARTING, STATUS_MAP.RUNNING, STATUS_MAP.STALLED, STATUS_MAP.STOPPED].includes(record.status),
       onClick: () => {
-        modalStore.SetModal({
+        streamModalStore.SetModal({
           data: {
             objectId: record.objectId,
             name: record.title
@@ -191,7 +191,7 @@ export const GetStreamActions = ({record, onCheckComplete, onDeleteComplete, vie
       mutatesStream: true,
       disabled: StreamIsActive(record.status),
       onClick: () => {
-        modalStore.SetModal({
+        streamModalStore.SetModal({
           data: {
             objectId: record.objectId,
             name: record.title

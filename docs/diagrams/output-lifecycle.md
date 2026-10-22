@@ -6,7 +6,7 @@ An **output** is not itself a live stream — it's a separate fabric object (`li
 
 ```mermaid
 flowchart TD
-    A[Outputs.jsx mounts] --> B["dataStore.LoadStreamList (must finish first)"]
+    A[Outputs.jsx mounts] --> B["streamListStore.LoadStreamList (must finish first)"]
     B --> C[LoadOutputSettingsId]
     C --> D["resolves outputSettingsId from site's<br/>live_outputs metadata"]
     D --> E["LoadOutputs: client.OutputsList<br/>(replaces outputs map wholesale)"]
@@ -66,7 +66,7 @@ flowchart LR
     Confirm -->|unmap| UnmapStream["UnmapStreamBatch<br/>enabled:false, input:null"]
     Confirm -->|reset| ResetOutput["ResetOutput<br/>OutputsStop then re-fetch OutputsState"]
     Confirm -->|delete| DeleteOutput[DeleteOutput/Batch]
-    Confirm -->|tags| UpdateTags[UpdateOutputTags]
+    Confirm -->|tags| UpdateTags[SaveOutputTags]
     EnableOutput --> OnSuccess[onSuccess refresh callback] --> Close[CloseModal]
     DisableOutput --> OnSuccess
     UnmapStream --> OnSuccess
@@ -79,7 +79,7 @@ On error, `OutputConfirmModal` shows a red notification but deliberately leaves 
 
 ## Status polling
 
-Mirrors the stream-status loop, run from the same `DataWrapper` cycle, sequentially **after** `streamStore.AllStreamsStatus()`:
+Mirrors the stream-status loop, run from the same `DataWrapper` cycle, sequentially **after** `streamStatusStore.LoadAllStreamsStatus()`:
 
 ```mermaid
 sequenceDiagram
@@ -87,7 +87,7 @@ sequenceDiagram
     participant OutputStore
     participant FrameClient
 
-    DataWrapper->>OutputStore: AllOutputsState()
+    DataWrapper->>OutputStore: LoadAllOutputsState()
     loop each output, sequentially (not Promise.all)
         OutputStore->>FrameClient: CheckOutputState(outputId, update:true)
         Note over FrameClient: reroutes shared client to that<br/>output's egress node, restores after
@@ -100,14 +100,14 @@ Per-output errors are caught individually so one failing output doesn't block re
 
 ## Key files
 
-- `src/stores/OutputStore.ts:218-256` — `LoadOutputSettingsId` / `LoadOutputs`
-- `src/stores/OutputStore.ts:390-457` — `CreateOutput`
-- `src/stores/OutputStore.ts:459-567` — `MapStream` / `MapStreamBatch`
-- `src/stores/OutputStore.ts:569-617` — `UnmapStreamBatch`
-- `src/stores/OutputStore.ts:683-851` — `EnableOutput`/`DisableOutput` (single + batch)
-- `src/stores/OutputStore.ts:619-681` — `ModifyOutput`
-- `src/stores/OutputStore.ts:926-954` — `ResetOutput`
-- `src/stores/OutputStore.ts:853-891` — `DeleteOutput`/`DeleteOutputBatch`
-- `src/stores/OutputStore.ts:263-310` — `CheckOutputState` / `AllOutputsState` (poll batch)
-- `src/stores/OutputModalStore.ts:113-165` — `OpenModal` / `Confirm` orchestration, `MODAL_CONFIG`
+- `src/stores/outputs/OutputStore.ts` — `LoadOutputSettingsId` / `LoadOutputs`
+- `src/stores/outputs/OutputStore.ts` — `CreateOutput`
+- `src/stores/outputs/OutputStore.ts` — `MapStream` / `MapStreamBatch`
+- `src/stores/outputs/OutputStore.ts` — `UnmapStreamBatch`
+- `src/stores/outputs/OutputStore.ts` — `EnableOutput`/`DisableOutput` (single + batch)
+- `src/stores/outputs/OutputStore.ts` — `SaveOutput`
+- `src/stores/outputs/OutputStore.ts` — `ResetOutput`
+- `src/stores/outputs/OutputStore.ts` — `DeleteOutput`/`DeleteOutputBatch`
+- `src/stores/outputs/OutputStore.ts` — `CheckOutputState` / `LoadAllOutputsState` (poll batch)
+- `src/stores/outputs/OutputModalStore.ts` — `OpenModal` / `Confirm` orchestration, `MODAL_CONFIG`
 - `src/components/data-wrapper/DataWrapper.jsx` — shared polling loop (see stream-lifecycle.md)

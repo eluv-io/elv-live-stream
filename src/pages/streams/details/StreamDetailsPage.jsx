@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {useBlocker, useNavigate, useParams} from "react-router-dom";
-import {rootStore, streamStore, streamSaveStore, dataStore} from "@/stores/index.ts";
+import {rootStore, streamStatusStore, streamDetailStore, streamSaveStore, tenantStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 import {ActionIcon, Button, Flex, Indicator, Loader, Tabs, Title} from "@mantine/core";
 import {useDebouncedCallback} from "@mantine/hooks";
@@ -10,7 +10,7 @@ import styles from "@/pages/streams/details/StreamDetails.module.css";
 import PageContainer from "@/components/page-container/PageContainer.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
-import {GetStreamActions} from "@/utils/streamActions.jsx";
+import {GetStreamActions} from "@/utils/stream/streamActions.jsx";
 import {QUALITY_MAP} from "@/utils/constants.ts";
 import {IconExternalLink} from "@tabler/icons-react";
 import SummaryPanel from "@/pages/streams/details/summary/SummaryPanel.jsx";
@@ -49,18 +49,18 @@ const StreamDetailsPage = observer(() => {
     )
   );
 
-  const streamSlug = streamStore.streamsByObjectId[params.id];
-  const stream = streamSlug ? streamStore.streams[streamSlug] : undefined;
+  const streamSlug = streamStatusStore.streamsByObjectId[params.id];
+  const stream = streamSlug ? streamStatusStore.streams[streamSlug] : undefined;
 
   const GetStatus = useCallback(async () => {
-    await streamStore.CheckStatus({
+    await streamStatusStore.CheckStatus({
       objectId: params.id,
       update: true
     });
   }, [params.id]);
 
   const LoadEdgeWriteTokenMeta = useCallback(async() => {
-    const metadata = await streamStore.LoadEdgeWriteTokenMeta({
+    const metadata = await streamDetailStore.LoadEdgeWriteTokenMeta({
       objectId: params.id
     });
 
@@ -97,7 +97,7 @@ const StreamDetailsPage = observer(() => {
     setCheckVersion(prev => prev + 1);
     GetStatus();
     LoadEdgeWriteTokenMeta();
-    dataStore.LoadAccessGroups({force: true});
+    tenantStore.LoadAccessGroups({force: true});
   }, [GetStatus, LoadEdgeWriteTokenMeta]);
 
   const DebouncedRefresh = useDebouncedCallback(Refresh, 500);
@@ -148,7 +148,7 @@ const StreamDetailsPage = observer(() => {
   }
 
   const streamActions = GetStreamActions({
-    record: streamStore.streams?.[streamSlug],
+    record: streamStatusStore.streams?.[streamSlug],
     onCheckComplete: () => setCheckVersion(prev => prev + 1),
     onDeleteComplete: () => navigate("/streams"),
     view: "stream-details"
@@ -185,11 +185,11 @@ const StreamDetailsPage = observer(() => {
 
   return (
     <PageContainer
-      title={streamStore.streams?.[streamSlug]?.title || stream.objectId}
+      title={streamStatusStore.streams?.[streamSlug]?.title || stream.objectId}
       titleBadge={
         <StatusIndicator
           status={stream.status}
-          showWarning={streamStore.streams?.[streamSlug]?.quality && streamStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
+          showWarning={streamStatusStore.streams?.[streamSlug]?.quality && streamStatusStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
           size="md"
           withBorder
         />
