@@ -25,7 +25,11 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-x"),
     ContentObjectMetadata: vi.fn().mockImplementation(({objectId}) => Promise.resolve(meta[objectId] ?? null)),
-    StreamRunningState: vi.fn().mockImplementation(({objectId}) => Promise.resolve({state: statusState, objectId})),
+    StreamStatus: vi.fn().mockImplementation(({name, mainMeta}) => Promise.resolve({
+      state: LocalStateFromMeta(mainMeta).state ?? statusState,
+      name,
+      edgeWriteToken: mainMeta?.live_recording?.fabric_config?.edge_write_token
+    })),
     StreamStartRecording: vi.fn().mockResolvedValue(undefined),
     StreamStartOrStopOrReset: vi.fn().mockResolvedValue({state: "starting"}),
     StreamStopRecording: vi.fn().mockResolvedValue({state: "inactive"}),
@@ -45,7 +49,7 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
   const store = new StreamStatusStore(rootStore as any) as any;
   // Seed the tenant-query cache the store reads local state from.
   Object.values(streams as Record<string, any>).forEach(stream => {
-    if(meta[stream.objectId]) { stream.queryLocalState = LocalStateFromMeta(meta[stream.objectId] as any); }
+    if(meta[stream.objectId]) { stream.queryMainMeta = meta[stream.objectId]; }
   });
   store.streams = streams;
   return {store, mockClient};
@@ -54,17 +58,16 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
 const streamMeta = ({url = "srt://in", token = "", ingress = "https://node", initialized = true} = {}) => ({
   live_recording_config: url ? {url} : undefined,
   live_recording: {
-    fabric_config: {ingress_node_api: ingress, edge_write_token: ""},
+    fabric_config: {ingress_node_api: ingress, edge_write_token: token},
     playout_config: initialized ? {} : undefined,
-    recording_config: initialized ? {} : undefined,
-    status: {edge_write_token: token}
+    recording_config: initialized ? {} : undefined
   }
 });
 
 beforeEach(() => vi.clearAllMocks());
 
 describe("StreamStatusStore._ClassifyStreams", () => {
-  it("classifies streams from local metadata without a StreamRunningState call", async () => {
+  it("classifies streams from local metadata without a StreamStatus call", async () => {
     const streams = {
       unconf: {slug: "unconf", objectId: "iq__1", libraryId: "ilib1"},
       uninit: {slug: "uninit", objectId: "iq__2", libraryId: "ilib2"},
@@ -87,7 +90,7 @@ describe("StreamStatusStore._ClassifyStreams", () => {
     expect(store.streams.uninit.status).toBe(STATUS_MAP.UNINITIALIZED);
     expect(store.streams.idle.status).toBe(STATUS_MAP.INACTIVE);
     expect(store.streams.live.status).toBeUndefined();
-    expect(mockClient.StreamRunningState).not.toHaveBeenCalled();
+    expect(mockClient.StreamStatus).not.toHaveBeenCalled();
   });
 
   it("reads metadata for streams without tenant-query state (legacy flow)", async () => {
@@ -156,8 +159,8 @@ describe("StreamStatusStore.LoadAllStreamsStatus", () => {
     await store.LoadAllStreamsStatus();
 
     expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
-    expect(mockClient.StreamRunningState).toHaveBeenCalledTimes(1);
-    expect(mockClient.StreamRunningState).toHaveBeenCalledWith(expect.objectContaining({objectId: "iq__l", edgeWriteToken: "t"}));
+    expect(mockClient.StreamStatus).toHaveBeenCalledTimes(1);
+    expect(mockClient.StreamStatus).toHaveBeenCalledWith(expect.objectContaining({name: "iq__l", libraryId: "l", includeRecordingInfo: false, includeParams: false}));
     expect(store.streams.live.status).toBe("running");
     expect(store.streams.idle.status).toBe(STATUS_MAP.INACTIVE);
   });

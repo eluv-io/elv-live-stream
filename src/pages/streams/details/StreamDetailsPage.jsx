@@ -56,7 +56,9 @@ const StreamDetailsPage = observer(() => {
   const GetStatus = useCallback(async () => {
     await streamStatusStore.CheckStatus({
       objectId: params.id,
-      update: true
+      update: true,
+      includeRecordingInfo: true,
+      includeParams: true
     });
   }, [params.id]);
 

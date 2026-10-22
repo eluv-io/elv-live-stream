@@ -95,23 +95,23 @@ class StreamStatusStore {
    */
   async _ReadLocalState({objectId, libraryId}: {objectId: string, libraryId?: string}): Promise<{
     libraryId: string,
+    mainMeta?: Record<string, any>,
     state?: StreamStatus,
-    edgeWriteToken?: string,
-    fabricEdgeWriteToken?: string
+    edgeWriteToken?: string
   }> {
     const stream = this._StreamByObjectId(objectId);
     libraryId = libraryId || stream?.libraryId || await this.client.ContentObjectLibraryId({objectId});
 
-    if(stream?.queryLocalState) {
-      const cached = stream.queryLocalState as Partial<LocalState>;
+    if(stream?.queryMainMeta) {
+      const mainMeta = stream.queryMainMeta;
       // First read only - the query data goes stale after start/stop, so later reads hit the fabric.
-      this.SetStream({key: stream.slug, value: {queryLocalState: undefined}});
-      return {libraryId, ...cached};
+      this.SetStream({key: stream.slug, value: {queryMainMeta: undefined}});
+      return {libraryId, mainMeta, ...LocalStateFromMeta(mainMeta)};
     }
 
     const meta = await this.client.ContentObjectMetadata({libraryId, objectId, select: LOCAL_STATE_SELECT});
 
-    return {libraryId, ...LocalStateFromMeta(meta)};
+    return {libraryId, mainMeta: meta, ...LocalStateFromMeta(meta)};
   }
 
   _StreamByObjectId(objectId: string): StreamInfo | undefined {
@@ -130,10 +130,10 @@ class StreamStatusStore {
         if(!stream?.objectId) { return; }
 
         // Content-group streams are classified once from the tenant query; later passes keep that
-        // classification (active ones keep polling StreamRunningState) rather than re-reading metadata.
+        // classification (active ones keep polling StreamStatus) rather than re-reading metadata.
         if(
           this.rootStore.settingsStore.useContentGroup &&
-          !stream.queryLocalState &&
+          !stream.queryMainMeta &&
           (stream.status || this.activeStreamSlugs.has(slug))
         ) { return; }
 
@@ -160,18 +160,28 @@ class StreamStatusStore {
     return slugs.filter(slug => this.activeStreamSlugs.has(slug));
   }
 
+  // includeRecordingInfo / includeParams are for the details page only - they add an edge-metadata read.
   *CheckStatus({
     objectId,
     slug,
     update=false,
-    localState
-  }: {objectId: string, slug?: string, update?: boolean, localState?: LocalState}): Generator<any, void | {}> {
+    localState,
+    includeRecordingInfo=false,
+    includeParams=false
+  }: {
+    objectId: string,
+    slug?: string,
+    update?: boolean,
+    localState?: LocalState,
+    includeRecordingInfo?: boolean,
+    includeParams?: boolean
+  }): Generator<any, void | {}> {
     let response: any;
     try {
       response = yield WithTimeout(
-        this._FetchRunningState({objectId, localState}),
+        this._FetchStatus({objectId, localState, includeRecordingInfo, includeParams}),
         STREAM_STATUS_TIMEOUT_MS,
-        `StreamRunningState(${objectId})`
+        `StreamStatus(${objectId})`
       );
     } catch(error) {
       // eslint-disable-next-line no-console
@@ -199,12 +209,16 @@ class StreamStatusStore {
     return response;
   }
 
-  async _FetchRunningState({objectId, localState}: {objectId: string, localState?: LocalState}): Promise<any> {
-    const {libraryId, state, edgeWriteToken, fabricEdgeWriteToken} = localState ?? await this._ReadLocalState({objectId});
-    if(state) { return {state}; }
+  async _FetchStatus({objectId, localState, includeRecordingInfo, includeParams}: {
+    objectId: string,
+    localState?: LocalState,
+    includeRecordingInfo: boolean,
+    includeParams: boolean
+  }): Promise<any> {
+    const {libraryId, mainMeta} = localState ?? await this._ReadLocalState({objectId});
 
-    const running = await this.client.StreamRunningState({libraryId, objectId, edgeWriteToken});
-    return {...running, edgeWriteToken: fabricEdgeWriteToken};
+    // With mainMeta, StreamStatus resolves unconfigured/uninitialized/inactive without a fabric call.
+    return await this.client.StreamStatus({name: objectId, libraryId, mainMeta, includeRecordingInfo, includeParams});
   }
 
   /**

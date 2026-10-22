@@ -43,7 +43,6 @@ export const TENANT_CONTENT_SELECT = [
   "live_recording_config/url",
   "live_recording_config/recording_config/input_cfg",
   "live_recording/fabric_config/edge_write_token",
-  "live_recording/status/edge_write_token",
   "live_recording/fabric_config/ingress_node_api",
   "live_recording/playout_config",
   "live_recording/recording_config"
@@ -55,26 +54,21 @@ export const LOCAL_STATE_SELECT = [
   "live_recording/fabric_config/ingress_node_api",
   "live_recording/fabric_config/edge_write_token",
   "live_recording/playout_config",
-  "live_recording/recording_config",
-  "live_recording/status/edge_write_token"
+  "live_recording/recording_config"
 ];
 
 export interface LocalStateResult {
   state?: StreamStatus;
   edgeWriteToken?: string;
-  fabricEdgeWriteToken?: string;
 }
 
 /**
  * Mirrors client-js StreamStatus: no url -> unconfigured; missing fabric/playout/recording
- * config -> uninitialized; no edge write token -> inactive. Returns the token to poll with when one exists.
+ * config -> uninitialized; no fabric edge write token -> inactive; otherwise active (token returned).
  */
 export const LocalStateFromMeta = (meta: Record<string, any> | undefined): LocalStateResult => {
   const liveRecording = meta?.live_recording;
-  const fabricEdgeWriteToken = liveRecording?.fabric_config?.edge_write_token;
-  const edgeWriteToken = liveRecording?.status?.edge_write_token || fabricEdgeWriteToken;
 
-  if(edgeWriteToken) { return {edgeWriteToken, fabricEdgeWriteToken}; }
   if(!meta?.live_recording_config?.url) { return {state: STATUS_MAP.UNCONFIGURED}; }
 
   if(
@@ -85,7 +79,9 @@ export const LocalStateFromMeta = (meta: Record<string, any> | undefined): Local
     return {state: STATUS_MAP.UNINITIALIZED};
   }
 
-  return {state: STATUS_MAP.INACTIVE};
+  const edgeWriteToken = liveRecording.fabric_config.edge_write_token;
+
+  return edgeWriteToken ? {edgeWriteToken} : {state: STATUS_MAP.INACTIVE};
 };
 
 /** Single value of a query field (first entry for arrays); undefined if empty. */
@@ -141,7 +137,8 @@ export const StreamInfoFromTenantVersion = (version: TenantContentVersion): Part
     if(listData.ladderSpecs != null) { (info as any).ladderSpecs = listData.ladderSpecs; }
     (info as any).configured = listData.configured;
 
-    info.queryLocalState = LocalStateFromMeta(version.meta);
+    const {live_recording_config, live_recording} = version.meta;
+    info.queryMainMeta = {live_recording_config, live_recording};
   }
 
   if(name != null) {

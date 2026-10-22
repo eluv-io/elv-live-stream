@@ -61,8 +61,8 @@ export interface StreamInfo {
   date?: string;
   eventTime?: string;
   titleId?: string;
-  // Local status state from the tenant query; consumed once by the first status classify pass.
-  queryLocalState?: {state?: string; edgeWriteToken?: string; fabricEdgeWriteToken?: string};
+  // live_recording_config / live_recording from the tenant query, passed to StreamStatus as mainMeta; consumed once by the first status read.
+  queryMainMeta?: {live_recording_config?: any; live_recording?: any};
   // Fields added by LoadSummaryData
   videoStreamProbe?: any;
   audioStreams?: any;
