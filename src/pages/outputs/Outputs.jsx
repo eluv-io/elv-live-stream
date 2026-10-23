@@ -46,28 +46,25 @@ const Outputs = observer(() => {
   const navigate = useNavigate();
 
   const LoadData = async(reload=false) => {
-    if(outputStore.state !== "loaded" || reload) {
-      try {
-        setLoading(true);
-        // Outputs derive source/packaging from their mapped stream, so the
-        // stream map must be loaded too. LoadStreamList guards against
-        // concurrent loads; skip it when streams are already loaded.
-        //
-        // These must run sequentially, not in parallel: OutputsList (inside
-        // LoadOutputs) temporarily reroutes the shared client to a live-egress
-        // node via RouteToLiveEgress. Any site-object read in flight during that
-        // window (LoadStreamList -> LoadTenantSiteData/_LoadSiteStreams) gets routed to the egress
-        // node and 403s ("token/auth not authorized"). Load streams first so the
-        // site read completes against normal fabric nodes.
-        // Reload when nothing is loaded or when the loaded set is the streams page's
-        // date-filtered view - outputs must resolve against every mapped stream.
-        if(reload || !streamListStore.streamsLoaded || streamListStore.streamsScoped) {
-          await streamListStore.LoadStreamList({reload, scoped: false});
-        }
-        await outputStore.LoadOutputs();
-      } finally {
-        setLoading(false);
-      }
+    const loadOutputs = reload || outputStore.state !== "loaded";
+    // The streams page leaves its date-filtered list loaded, which may miss mapped streams.
+    const {streamsLoaded, streamsScope} = streamListStore;
+    const loadStreams = reload || !streamsLoaded || (streamsScope !== "all" && streamsScope !== "mapped");
+    if(!loadOutputs && !loadStreams) { return; }
+
+    try {
+      setLoading(true);
+      // Outputs derive status/source/packaging from their mapped stream, so
+      // those streams are read by object id once the outputs are known.
+      //
+      // These must run sequentially, not in parallel: OutputsList (inside
+      // LoadOutputs) temporarily reroutes the shared client to a live-egress
+      // node via RouteToLiveEgress. Any read in flight during that window
+      // gets routed to the egress node and 403s ("token/auth not authorized").
+      if(loadOutputs) { await outputStore.LoadOutputs(); }
+      if(loadStreams) { await streamListStore.LoadMappedStreams({objectIds: outputStore.mappedStreamIds}); }
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -16,6 +16,7 @@ import {
 } from "@/utils/stream/stream";
 import {PlayoutFormat, RESOLUTION_DIMENSIONS, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@/utils/helpers";
+import {ResolveIngestNodeId} from "@/stores/lib/fabricNodes";
 import {WithWriteToken} from "@/utils/fabric/withWriteToken";
 import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/streams/StreamDetailStore";
@@ -132,7 +133,11 @@ interface UpdateGeneralConfigParams {
     displayTitle: string;
     permission: PermissionLevel;
     tags?: string[];
+    ingressNodeId?: string;
+    nodeType?: "dedicated" | "public";
+    geo?: string;
   };
+  nodeChanged?: boolean;
 }
 
 export interface UpdatePlayoutConfigParams {
@@ -994,11 +999,12 @@ class StreamEditStore {
     writeToken,
     slug,
     configProfile,
+    nodeChanged=false,
     updatePermission=false,
     updateAccessGroup=false,
     removeAccessGroup
   }: UpdateGeneralConfigParams): Generator<any, void> {
-    const {accessGroup, name, url, description, displayTitle, permission, tags} = formData;
+    const {accessGroup, name, url, description, displayTitle, permission, tags, ingressNodeId, nodeType, geo} = formData;
 
     if(!libraryId) {
       libraryId = yield this.client.ContentObjectLibraryId({objectId});
@@ -1010,6 +1016,18 @@ class StreamEditStore {
         objectId
       }));
     }
+
+    const existingConfig = yield this.client.ContentObjectMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording_config",
+      select: ["probe_info"]
+    });
+
+    const publicNode = nodeType === "public";
+    const resolvedNodeId = !nodeChanged ? undefined :
+      publicNode ? yield ResolveIngestNodeId({client: this.client, geo: geo || undefined}) : (ingressNodeId || undefined);
 
     const existingUrl = url ? yield this.client.ContentObjectMetadata({
       libraryId,
@@ -1032,7 +1050,29 @@ class StreamEditStore {
 
     const hostOf = (value?: string) => value?.replace(/^[a-z]+:\/\//, "").match(/^[^/:]+/)?.[0];
     const host = hostOf(url);
-    if(!configProfile && host && host !== hostOf(existingUrl)) {
+    if(nodeChanged) {
+      yield this.client.MergeMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording_config",
+        metadata: {
+          ingress_node_id: resolvedNodeId ?? null,
+          geo: publicNode ? (geo || null) : null
+        }
+      });
+
+      // Re-derive fabric_config for the new node so start/stop target it;
+      // needs existing probe data since StreamConfig would otherwise re-probe.
+      if(!configProfile && resolvedNodeId && existingConfig?.probe_info) {
+        yield this.client.StreamConfig({
+          name: objectId,
+          writeToken,
+          finalize: false,
+          inputStreamInfo: existingConfig.probe_info
+        });
+      }
+    } else if(!configProfile && host && host !== hostOf(existingUrl)) {
       const hasFabricConfig = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
@@ -1101,7 +1141,8 @@ class StreamEditStore {
       key: slug,
       value: {
         tags: tags ?? [],
-        ...(configProfile ? {configProfile} : {})
+        ...(configProfile ? {configProfile} : {}),
+        ...(nodeChanged ? {ingressNodeId: resolvedNodeId ?? "", geo: publicNode ? (geo || "") : ""} : {})
       }
     });
   }
@@ -1910,6 +1951,16 @@ class StreamEditStore {
       yield Promise.all(
         streams.map(stream => this.SaveStreamTags(stream))
       );
+
+      const listStore = this.rootStore.streamListStore;
+      const staleFilter = listStore.tableTagFilter.filter(tag =>
+        !listStore.IsNameTag(tag) && !Object.values(this.rootStore.streamStatusStore.streams).some(s => s.tags?.includes(tag))
+      );
+
+      if(staleFilter.length > 0) {
+        listStore.SetTableTagFilter(listStore.tableTagFilter.filter(t => !staleFilter.includes(t)));
+        yield listStore.LoadStreamList({reload: true});
+      }
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Failed to update stream tags (batch).", error);

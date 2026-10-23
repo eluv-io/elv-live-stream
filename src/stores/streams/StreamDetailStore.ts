@@ -66,6 +66,8 @@ export interface ProbeData {
 type GeneralConfigData = Pick<StreamMetadata,
   "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
 > & {
+  ingressNodeId: string;
+  geo: string;
   permission: PermissionLevel;
   accessGroup: any;
 };
@@ -177,7 +179,7 @@ class StreamDetailStore {
           libraryId,
           objectId,
           metadataSubtree: "live_recording_config",
-          select: ["url", "name", "reference_url"]
+          select: ["url", "name", "reference_url", "ingress_node_id", "geo"]
         }),
         this.client.ContentObjectMetadata({
           libraryId,
@@ -195,6 +197,8 @@ class StreamDetailStore {
         tags: generalMeta?.asset_metadata?.tags ?? [],
         originUrl: liveRecordingConfigMeta?.url ?? liveRecordingOriginUrl,
         referenceUrl: liveRecordingConfigMeta?.reference_url,
+        ingressNodeId: liveRecordingConfigMeta?.ingress_node_id ?? "",
+        geo: liveRecordingConfigMeta?.geo ?? "",
         configProfile: slugify(liveRecordingConfigMeta?.name),
         permission,
         accessGroup
@@ -621,7 +625,7 @@ class StreamDetailStore {
         });
       }
 
-      const status = yield this.client.StreamStatus({name: objectId});
+      const status = yield this.rootStore.streamStatusStore.CheckStatus({objectId});
 
       // General Config
       const configProfileName = liveRecordingConfigMeta?.name;

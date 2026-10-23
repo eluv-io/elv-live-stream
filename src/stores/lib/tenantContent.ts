@@ -1,6 +1,6 @@
 // TenantContent query helpers: filter building, paging, and mapping query versions to StreamInfo.
 import {FormatDateFilter} from "@/utils/helpers";
-import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX} from "@/utils/constants";
+import {LIVE_STREAM_DATE_TAG_KEY, LIVE_STREAM_DATE_TAG_PREFIX, STATUS_MAP, type StreamStatus} from "@/utils/constants";
 import {DeriveSourceAndPackaging, StreamMetadata} from "@/utils/stream/stream";
 import type {StreamInfo} from "@/stores/TenantStore";
 
@@ -13,6 +13,7 @@ export interface TenantContentVersion {
   hash: string;
   type: string;
   object_version: number;
+  qlib_id?: string;
   error: string;
   query_fields?: Record<string, unknown>;
   meta?: Record<string, any>;
@@ -40,8 +41,48 @@ export const TENANT_CONTENT_SELECT = [
   "live_recording/recording_config/recording_params/xc_params/input_cfg",
   "live_recording/recording_config/recording_params/ladder_specs",
   "live_recording_config/url",
-  "live_recording_config/recording_config/input_cfg"
+  "live_recording_config/recording_config/input_cfg",
+  "live_recording/fabric_config/edge_write_token",
+  "live_recording/fabric_config/ingress_node_api",
+  "live_recording/playout_config",
+  "live_recording/recording_config"
 ];
+
+// Meta paths LocalStateFromMeta reads.
+export const LOCAL_STATE_SELECT = [
+  "live_recording_config/url",
+  "live_recording/fabric_config/ingress_node_api",
+  "live_recording/fabric_config/edge_write_token",
+  "live_recording/playout_config",
+  "live_recording/recording_config"
+];
+
+export interface LocalStateResult {
+  state?: StreamStatus;
+  edgeWriteToken?: string;
+}
+
+/**
+ * Mirrors client-js StreamStatus: no url -> unconfigured; missing fabric/playout/recording
+ * config -> uninitialized; no fabric edge write token -> inactive; otherwise active (token returned).
+ */
+export const LocalStateFromMeta = (meta: Record<string, any> | undefined): LocalStateResult => {
+  const liveRecording = meta?.live_recording;
+
+  if(!meta?.live_recording_config?.url) { return {state: STATUS_MAP.UNCONFIGURED}; }
+
+  if(
+    !liveRecording?.fabric_config?.ingress_node_api ||
+    !liveRecording?.playout_config ||
+    !liveRecording?.recording_config
+  ) {
+    return {state: STATUS_MAP.UNINITIALIZED};
+  }
+
+  const edgeWriteToken = liveRecording.fabric_config.edge_write_token;
+
+  return edgeWriteToken ? {edgeWriteToken} : {state: STATUS_MAP.INACTIVE};
+};
 
 /** Single value of a query field (first entry for arrays); undefined if empty. */
 export const QueryFieldValue = (fields: Record<string, unknown> | undefined, key: string): string | undefined => {
@@ -72,29 +113,40 @@ export const StreamListDataFromMeta = (meta: Record<string, any> | undefined): S
   };
 };
 
+/** StreamInfo fields from a TENANT_CONTENT_SELECT metadata subtree, with `queryMainMeta` cached for the first status read. */
+export const StreamInfoFromMeta = (meta: Record<string, any>): Partial<StreamInfo> => {
+  const info: Partial<StreamInfo> = {};
+  const listData = StreamListDataFromMeta(meta);
+  if(listData.title != null) { info.title = listData.title; }
+  if(listData.display_title != null) { info.display_title = listData.display_title; }
+  if(listData.tags?.length) { info.tags = listData.tags; }
+  if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
+  if(listData.source?.length) { info.source = listData.source; }
+  if(listData.packaging?.length) { info.packaging = listData.packaging; }
+  if(listData.date != null) { info.date = listData.date; }
+  if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
+  // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
+  if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
+  if(listData.ladderSpecs != null) { (info as any).ladderSpecs = listData.ladderSpecs; }
+  (info as any).configured = listData.configured;
+
+  const {live_recording_config, live_recording} = meta;
+  info.queryMainMeta = {live_recording_config, live_recording};
+
+  return info;
+};
+
 /** StreamInfo from a tenant query version: `meta` fields first, query_fields as fallback. */
 export const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<StreamInfo> => {
   const name = QueryFieldValue(version.query_fields, "name");
   const date = QueryFieldValue(version.query_fields, "date");
   const titleId = QueryFieldValue(version.query_fields, "title_id");
 
-  const info: Partial<StreamInfo> = {versionHash: version.hash};
-
-  if(version.meta) {
-    const listData = StreamListDataFromMeta(version.meta);
-    if(listData.title != null) { info.title = listData.title; }
-    if(listData.display_title != null) { info.display_title = listData.display_title; }
-    if(listData.tags?.length) { info.tags = listData.tags; }
-    if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
-    if(listData.source?.length) { info.source = listData.source; }
-    if(listData.packaging?.length) { info.packaging = listData.packaging; }
-    if(listData.date != null) { info.date = listData.date; }
-    if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
-    // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
-    if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
-    if(listData.ladderSpecs != null) { (info as any).ladderSpecs = listData.ladderSpecs; }
-    (info as any).configured = listData.configured;
-  }
+  const info: Partial<StreamInfo> = {
+    versionHash: version.hash,
+    ...(version.meta ? StreamInfoFromMeta(version.meta) : {})
+  };
+  if(version.qlib_id) { info.libraryId = version.qlib_id; }
 
   if(name != null) {
     info.name = name;

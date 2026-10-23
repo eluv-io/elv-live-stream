@@ -95,6 +95,15 @@ class OutputStore {
     };
   };
 
+  /** Distinct primary stream object ids the outputs are mapped to. */
+  get mappedStreamIds(): string[] {
+    return Array.from(new Set(
+      Object.values(this.outputs || {})
+        .map(output => output.input?.stream)
+        .filter((id): id is string => !!id)
+    ));
+  }
+
   /** outputList's single-item equivalent, keyed by slug. */
   OutputItem = (slug: string): FlatOutput | undefined => {
     const output = this.outputs[slug];
@@ -328,7 +337,7 @@ class OutputStore {
     }
 
     try {
-      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
+      const streamStatus = yield this.rootStore.streamStatusStore.CheckStatus({objectId: streamObjectId}) as any;
       streamInfo.quality = streamStatus?.quality;
       streamInfo.stats = streamStatus?.input_stats;
     } catch(error) {
@@ -361,7 +370,7 @@ class OutputStore {
   /**
    * Enrich input.failover for the Summary card: client-js leaves it a bare
    * object id, so resolve name (public/name) and status/quality/stats
-   * (StreamStatus). Name and stats are resolved independently so one failing
+   * (CheckStatus). Name and stats are resolved independently so one failing
    * doesn't suppress the other.
    */
   *LoadFailoverStreamInfo({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void> {
@@ -398,7 +407,7 @@ class OutputStore {
     }
 
     try {
-      const streamStatus = yield this.client.StreamStatus({name: streamObjectId});
+      const streamStatus = yield this.rootStore.streamStatusStore.CheckStatus({objectId: streamObjectId}) as any;
       MergeFailover({
         status: streamStatus?.state,
         quality: streamStatus?.quality,
@@ -502,6 +511,12 @@ class OutputStore {
         name,
         externalId,
         enabled: false,
+        custom: WithOutputLocation(undefined, {
+          type: nodeType ?? (node && !region ? "dedicated" : "public"),
+          geo: region,
+          node,
+          host: nodeHost
+        }),
         delivery: {
           type,
           settings,
@@ -511,32 +526,6 @@ class OutputStore {
 
       const outputId = Object.keys(outputs || {})[0];
       let outputData: Output = Object.values(outputs || {})[0] as Output;
-
-      // OutputsCreate can't set `custom`, so the location is written in a follow-up modify.
-      try {
-        const custom = WithOutputLocation(undefined, {
-          type: nodeType ?? (node && !region ? "dedicated" : "public"),
-          geo: region,
-          node,
-          host: nodeHost
-        });
-        const objectId = this.outputSettingsId;
-        const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-        const created = yield this.client.OutputsListItem({objectId, outputId, includeState: false});
-        // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-        const {state: _state, ...createdOutput} = created;
-
-        yield this.client.OutputsModify({libraryId, objectId, outputId, output: {
-          ...createdOutput,
-          ...(fmp4 && {input: {...createdOutput.input, fmp4}}),
-          custom
-        }});
-        outputData = {...outputData, custom};
-      } catch(error) {
-        // The output exists and works; only its saved location is missing.
-        // eslint-disable-next-line no-console
-        console.error("Failed to save output location.", error);
-      }
 
       outputData = yield this.client.OutputsResolveSrtPullUrls({value: outputData});
 
@@ -578,8 +567,20 @@ class OutputStore {
       }
     });
 
-    const stream = (Object.values(this.rootStore.streamStatusStore.streams || {}) as any[])
+    const {streamStatusStore, streamListStore} = this.rootStore;
+    let stream = (Object.values(streamStatusStore.streams || {}) as any[])
       .find(s => s.objectId === streamObjectId);
+
+    // A mapped-only list won't have a newly mapped stream yet - add it from the picker's full set.
+    if(!stream && streamListStore.streamsScope === "mapped") {
+      const picked = (Object.values(streamListStore.allStreams || {}) as any[])
+        .find(s => s.objectId === streamObjectId);
+      if(picked) {
+        streamStatusStore.SetStream({key: picked.slug, value: picked});
+        stream = picked;
+        void streamStatusStore.LoadAllStreamsStatus(true, [picked.slug]);
+      }
+    }
 
     Object.entries(written).forEach(([outputId, output]: [string, any]) => {
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars

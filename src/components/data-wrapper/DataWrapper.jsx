@@ -1,8 +1,18 @@
-import {useEffect} from "react";
+import {useEffect, useRef} from "react";
+import {useLocation} from "react-router-dom";
 import {outputStore, streamStatusStore} from "@/stores/index.ts";
 import {observer} from "mobx-react-lite";
 
+// Pages that skip the stream status poll. Outputs shows input.status from its last OutputsList load instead.
+const NO_STREAM_STATUS_PATHS = /^\/(outputs(\/[^/]+)?|settings)\/?$/;
+// Pages that skip the output state poll.
+const NO_OUTPUT_STATE_PATHS = /^\/settings\/?$/;
+
 const DataWrapper = observer(({children}) => {
+  const {pathname} = useLocation();
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+
   useEffect(() => {
 
     let canceled = false;
@@ -22,18 +32,22 @@ const DataWrapper = observer(({children}) => {
     // the timer-driven refresh stopped updating while the initial load was fine.
     // The full list/config reload still happens on page mount and manual refresh.
     const Poll = async () => {
-      try {
-        await streamStatusStore.LoadAllStreamsStatus();
-      } catch(error) {
-        // eslint-disable-next-line no-console
-        console.error("Unable to get stream status.", error);
+      if(!NO_STREAM_STATUS_PATHS.test(pathnameRef.current)) {
+        try {
+          await streamStatusStore.LoadAllStreamsStatus();
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error("Unable to get stream status.", error);
+        }
       }
 
-      try {
-        await outputStore.LoadAllOutputsState();
-      } catch(error) {
-        // eslint-disable-next-line no-console
-        console.error("Unable to get output state.", error);
+      if(!NO_OUTPUT_STATE_PATHS.test(pathnameRef.current)) {
+        try {
+          await outputStore.LoadAllOutputsState();
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error("Unable to get output state.", error);
+        }
       }
     };
 

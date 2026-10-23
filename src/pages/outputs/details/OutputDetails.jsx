@@ -56,7 +56,7 @@ const ClassifyOutputLocation = ({output, dedicatedNodesList}) => {
 
 // Quality + input-stat rows shared by the Input Primary and Input Failover
 // Summary cards. `data` is an enriched input object (output.input or
-// output.input.failover) carrying `quality` and `stats` (StreamStatus.input_stats).
+// output.input.failover) carrying `quality` and `stats` (StreamRunningState.input_stats).
 const InputStatRows = (data) => {
   const ts = data?.stats?.ts;
   const rtp = data?.stats?.rtp;
@@ -286,6 +286,8 @@ const OutputPanels = observer(({output, id, url}) => {
   });
   const initialTargetUrl = output?.srt_pull?.urls?.[0] ?? output?.srt_push?.url ?? output?.rtp?.url ?? output?.udp?.url ?? output?.rtmp?.url;
 
+  const urlCache = useRef({[initialType]: initialTargetUrl ?? ""});
+
   const form = useForm({
     mode: "controlled",
     initialValues: {
@@ -393,7 +395,10 @@ const OutputPanels = observer(({output, id, url}) => {
     outputSaveStore.Register({
       id: "generalConfig",
       Save: () => SaveRef.current(),
-      Discard: () => form.reset()
+      Discard: () => {
+        form.reset();
+        urlCache.current = {[initialType]: initialTargetUrl ?? ""};
+      }
     });
 
     return () => outputSaveStore.Unregister("generalConfig");
@@ -405,7 +410,7 @@ const OutputPanels = observer(({output, id, url}) => {
         <SummaryPanel output={output} url={url} id={id} />
       </Tabs.Panel>
       <Tabs.Panel value="generalConfig">
-        <GeneralConfig form={form} output={output} />
+        <GeneralConfig form={form} output={output} urlCache={urlCache} />
       </Tabs.Panel>
     </>
   );
@@ -420,9 +425,10 @@ const OUTPUT_TABS = [
 const OutputDetails = observer(() => {
   const {id} = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [pendingBack, setPendingBack] = useState(false);
+  const [pendingRefresh, setPendingRefresh] = useState(false);
 
   // Blocks in-app navigation (sidebar links, browser back/forward, navigate())
   // away from this page while the config tab has unsaved changes. Only
@@ -477,7 +483,6 @@ const OutputDetails = observer(() => {
   ].filter(Boolean);
   const DebouncedRefresh = useDebouncedCallback(async() => {
     try {
-      setLoading(true);
       await outputStore.LoadOutputItem({outputId: id});
       if(output?.input?.stream && output?.input?.status !== STATUS_MAP.UNAVAILABLE) {
         await outputStore.LoadOutputStreamInfo({slug: id, streamObjectId: output.input.stream});
@@ -494,7 +499,7 @@ const OutputDetails = observer(() => {
   useEffect(() => {
     if(id) {
       outputStore.LoadOutputItem({outputId: id})
-        .then(() => {});
+        .finally(() => setLoading(false));
     }
   }, [id]);
 
@@ -560,6 +565,14 @@ const OutputDetails = observer(() => {
     outputSaveStore.DiscardAll();
   };
 
+  const HandleRefresh = () => {
+    if(outputSaveStore.anyDirty) {
+      setPendingRefresh(true);
+    } else {
+      DebouncedRefresh();
+    }
+  };
+
   // Checks dirty state before ever calling navigate(-1) - see StreamDetailsPage
   // for why this is pre-checked rather than left to the router blocker alone.
   const HandleBack = () => {
@@ -580,7 +593,7 @@ const OutputDetails = observer(() => {
     {
       label: "Refresh",
       buttonVariant: "outline",
-      onClick: DebouncedRefresh
+      onClick: HandleRefresh
     },
     {
       label: "Reset",
@@ -731,6 +744,20 @@ const OutputDetails = observer(() => {
             blocker.reset();
           }
         }}
+      />
+
+      <ConfirmModal
+        show={pendingRefresh}
+        title="Unsaved Changes"
+        message="Refreshing will discard your unsaved changes. Are you sure you want to continue?"
+        confirmText="Refresh Anyway"
+        cancelText="Cancel"
+        ConfirmCallback={async () => {
+          outputSaveStore.DiscardAll();
+          setPendingRefresh(false);
+          DebouncedRefresh();
+        }}
+        CloseCallback={() => setPendingRefresh(false)}
       />
     </PageContainer>
   );

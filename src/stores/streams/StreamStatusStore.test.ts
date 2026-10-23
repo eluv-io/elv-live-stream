@@ -10,6 +10,7 @@ vi.mock("@/stores", () => ({}));
 
 import StreamStatusStore from "@/stores/streams/StreamStatusStore";
 import {STATUS_MAP} from "@/utils/constants";
+import {LocalStateFromMeta} from "@/stores/lib/tenantContent";
 
 // Sequential stand-in for client.utils.LimitedMap.
 const LimitedMap = async (_n: number, items: unknown[], fn: (item: unknown) => Promise<unknown>) => {
@@ -20,11 +21,15 @@ interface MetaByObject {
   [objectId: string]: unknown;
 }
 
-const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "running", tenantContent} = {} as any) => {
+const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "running", tenantContent, useContentGroup = true} = {} as any) => {
   const mockClient = {
     ContentObjectLibraryId: vi.fn().mockResolvedValue("ilib-x"),
     ContentObjectMetadata: vi.fn().mockImplementation(({objectId}) => Promise.resolve(meta[objectId] ?? null)),
-    StreamStatus: vi.fn().mockImplementation(({name}) => Promise.resolve({state: statusState, name})),
+    StreamStatus: vi.fn().mockImplementation(({name, mainMeta}) => Promise.resolve({
+      state: LocalStateFromMeta(mainMeta).state ?? statusState,
+      name,
+      edgeWriteToken: mainMeta?.live_recording?.fabric_config?.edge_write_token
+    })),
     StreamStartRecording: vi.fn().mockResolvedValue(undefined),
     StreamStartOrStopOrReset: vi.fn().mockResolvedValue({state: "starting"}),
     StreamStopRecording: vi.fn().mockResolvedValue({state: "inactive"}),
@@ -38,10 +43,14 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
     client: mockClient,
     streamGroupStore: {BuildGroups: vi.fn()},
     tenantStore: {},
-    settingsStore: {}
+    settingsStore: {useContentGroup}
   };
 
   const store = new StreamStatusStore(rootStore as any) as any;
+  // Seed the tenant-query cache the store reads local state from.
+  Object.values(streams as Record<string, any>).forEach(stream => {
+    if(meta[stream.objectId]) { stream.queryMainMeta = meta[stream.objectId]; }
+  });
   store.streams = streams;
   return {store, mockClient};
 };
@@ -49,10 +58,9 @@ const makeStore = ({streams = {}, meta = {} as MetaByObject, statusState = "runn
 const streamMeta = ({url = "srt://in", token = "", ingress = "https://node", initialized = true} = {}) => ({
   live_recording_config: url ? {url} : undefined,
   live_recording: {
-    fabric_config: {ingress_node_api: ingress, edge_write_token: ""},
+    fabric_config: {ingress_node_api: ingress, edge_write_token: token},
     playout_config: initialized ? {} : undefined,
-    recording_config: initialized ? {} : undefined,
-    status: {edge_write_token: token}
+    recording_config: initialized ? {} : undefined
   }
 });
 
@@ -85,16 +93,54 @@ describe("StreamStatusStore._ClassifyStreams", () => {
     expect(mockClient.StreamStatus).not.toHaveBeenCalled();
   });
 
-  it("reuses the cached libraryId instead of resolving it", async () => {
+  it("reads metadata for streams without tenant-query state (legacy flow)", async () => {
+    const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "ilib-cached"}};
+    const {store, mockClient} = makeStore({streams});
+    mockClient.ContentObjectMetadata.mockResolvedValue(streamMeta({token: "t"}));
+
+    const active = await store._ClassifyStreams({slugs: ["a"]});
+
+    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({libraryId: "ilib-cached", objectId: "iq__a"})
+    );
+    expect(active).toEqual(["a"]);
+  });
+
+  it("_ReadLocalState uses tenant-query state on the first read only, then reads metadata", async () => {
+    const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "l"}};
+    const {store, mockClient} = makeStore({streams, meta: {iq__a: streamMeta({token: ""})}});
+    mockClient.ContentObjectMetadata.mockResolvedValue(streamMeta({token: "t"}));
+
+    expect((await store._ReadLocalState({objectId: "iq__a"})).state).toBe(STATUS_MAP.INACTIVE);
+    expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
+
+    expect((await store._ReadLocalState({objectId: "iq__a"})).edgeWriteToken).toBe("t");
+    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-read already-classified content-group streams on later passes", async () => {
+    const streams = {
+      idle: {slug: "idle", objectId: "iq__i", libraryId: "l"},
+      live: {slug: "live", objectId: "iq__l", libraryId: "l"}
+    };
+    const meta = {iq__i: streamMeta({token: ""}), iq__l: streamMeta({token: "t"})};
+    const {store, mockClient} = makeStore({streams, meta});
+
+    await store._ClassifyStreams({slugs: ["idle", "live"]});
+    const active = await store._ClassifyStreams({slugs: ["idle", "live"]});
+
+    expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
+    expect(active).toEqual(["live"]);
+  });
+
+  it("reuses the cached libraryId and makes no metadata read", async () => {
     const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "ilib-cached"}};
     const {store, mockClient} = makeStore({streams, meta: {iq__a: streamMeta({token: "t"})}});
 
     await store._ClassifyStreams({slugs: ["a"]});
 
     expect(mockClient.ContentObjectLibraryId).not.toHaveBeenCalled();
-    expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({libraryId: "ilib-cached", objectId: "iq__a"})
-    );
+    expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
   });
 });
 
@@ -112,10 +158,36 @@ describe("StreamStatusStore.LoadAllStreamsStatus", () => {
 
     await store.LoadAllStreamsStatus();
 
+    expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
     expect(mockClient.StreamStatus).toHaveBeenCalledTimes(1);
-    expect(mockClient.StreamStatus).toHaveBeenCalledWith(expect.objectContaining({name: "iq__l"}));
+    expect(mockClient.StreamStatus).toHaveBeenCalledWith(expect.objectContaining({name: "iq__l", libraryId: "l", includeRecordingInfo: false, includeParams: false}));
     expect(store.streams.live.status).toBe("running");
     expect(store.streams.idle.status).toBe(STATUS_MAP.INACTIVE);
+  });
+});
+
+describe("StreamStatusStore.CheckStatus", () => {
+  it("doesn't recreate a stream dropped by a list replace while its status was in flight", async () => {
+    const streams = {
+      kept: {slug: "kept", objectId: "iq__k", libraryId: "l"},
+      gone: {slug: "gone", objectId: "iq__g", libraryId: "l"}
+    };
+    const {store, mockClient} = makeStore({streams});
+    let resolveStatus: (value: unknown) => void = () => {};
+    mockClient.StreamStatus.mockImplementation(() => new Promise(res => { resolveStatus = res; }));
+
+    const goneCheck = store.CheckStatus({objectId: "iq__g", slug: "gone", update: true, localState: {libraryId: "l"}});
+    store._ReplaceStreams({streams: {kept: streams.kept}});
+    resolveStatus({state: "running"});
+    await goneCheck;
+
+    expect(store.streams.gone).toBeUndefined();
+
+    const keptCheck = store.CheckStatus({objectId: "iq__k", slug: "kept", update: true, localState: {libraryId: "l"}});
+    resolveStatus({state: "running"});
+    await keptCheck;
+
+    expect(store.streams.kept.status).toBe("running");
   });
 });
 
@@ -135,8 +207,7 @@ describe("StreamStatusStore._SetStreamActive", () => {
 describe("StreamStatusStore active-set maintenance", () => {
   it("StartStream marks the stream active before the next poll", async () => {
     const streams = {a: {slug: "a", objectId: "iq__a", libraryId: "l"}};
-    const {store, mockClient} = makeStore({streams});
-    mockClient.StreamStatus.mockResolvedValueOnce({state: "inactive"});
+    const {store} = makeStore({streams, meta: {iq__a: streamMeta()}});
 
     await store.StartStream({slug: "a"});
 

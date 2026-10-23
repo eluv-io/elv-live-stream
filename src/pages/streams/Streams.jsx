@@ -83,9 +83,9 @@ const Streams = observer(() => {
       });
     }
 
-    // Reload if nothing is loaded, or if what's loaded is the full (unscoped) set
-    // from another page - the streams page needs its date-filtered view.
-    if(!streamListStore.streamsLoaded || !streamListStore.streamsScoped) {
+    // Reload if nothing is loaded, or if what's loaded is another page's set (all / mapped) -
+    // the streams page needs its date-filtered view.
+    if(!streamListStore.streamsLoaded || streamListStore.streamsScope !== "dated") {
       streamListStore.LoadStreamList();
     }
   }, []);
