@@ -95,6 +95,15 @@ class OutputStore {
     };
   };
 
+  /** Distinct primary stream object ids the outputs are mapped to. */
+  get mappedStreamIds(): string[] {
+    return Array.from(new Set(
+      Object.values(this.outputs || {})
+        .map(output => output.input?.stream)
+        .filter((id): id is string => !!id)
+    ));
+  }
+
   /** outputList's single-item equivalent, keyed by slug. */
   OutputItem = (slug: string): FlatOutput | undefined => {
     const output = this.outputs[slug];
@@ -558,8 +567,20 @@ class OutputStore {
       }
     });
 
-    const stream = (Object.values(this.rootStore.streamStatusStore.streams || {}) as any[])
+    const {streamStatusStore, streamListStore} = this.rootStore;
+    let stream = (Object.values(streamStatusStore.streams || {}) as any[])
       .find(s => s.objectId === streamObjectId);
+
+    // A mapped-only list won't have a newly mapped stream yet - add it from the picker's full set.
+    if(!stream && streamListStore.streamsScope === "mapped") {
+      const picked = (Object.values(streamListStore.allStreams || {}) as any[])
+        .find(s => s.objectId === streamObjectId);
+      if(picked) {
+        streamStatusStore.SetStream({key: picked.slug, value: picked});
+        stream = picked;
+        void streamStatusStore.LoadAllStreamsStatus(true, [picked.slug]);
+      }
+    }
 
     Object.entries(written).forEach(([outputId, output]: [string, any]) => {
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars

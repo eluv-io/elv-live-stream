@@ -113,33 +113,40 @@ export const StreamListDataFromMeta = (meta: Record<string, any> | undefined): S
   };
 };
 
+/** StreamInfo fields from a TENANT_CONTENT_SELECT metadata subtree, with `queryMainMeta` cached for the first status read. */
+export const StreamInfoFromMeta = (meta: Record<string, any>): Partial<StreamInfo> => {
+  const info: Partial<StreamInfo> = {};
+  const listData = StreamListDataFromMeta(meta);
+  if(listData.title != null) { info.title = listData.title; }
+  if(listData.display_title != null) { info.display_title = listData.display_title; }
+  if(listData.tags?.length) { info.tags = listData.tags; }
+  if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
+  if(listData.source?.length) { info.source = listData.source; }
+  if(listData.packaging?.length) { info.packaging = listData.packaging; }
+  if(listData.date != null) { info.date = listData.date; }
+  if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
+  // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
+  if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
+  if(listData.ladderSpecs != null) { (info as any).ladderSpecs = listData.ladderSpecs; }
+  (info as any).configured = listData.configured;
+
+  const {live_recording_config, live_recording} = meta;
+  info.queryMainMeta = {live_recording_config, live_recording};
+
+  return info;
+};
+
 /** StreamInfo from a tenant query version: `meta` fields first, query_fields as fallback. */
 export const StreamInfoFromTenantVersion = (version: TenantContentVersion): Partial<StreamInfo> => {
   const name = QueryFieldValue(version.query_fields, "name");
   const date = QueryFieldValue(version.query_fields, "date");
   const titleId = QueryFieldValue(version.query_fields, "title_id");
 
-  const info: Partial<StreamInfo> = {versionHash: version.hash};
+  const info: Partial<StreamInfo> = {
+    versionHash: version.hash,
+    ...(version.meta ? StreamInfoFromMeta(version.meta) : {})
+  };
   if(version.qlib_id) { info.libraryId = version.qlib_id; }
-
-  if(version.meta) {
-    const listData = StreamListDataFromMeta(version.meta);
-    if(listData.title != null) { info.title = listData.title; }
-    if(listData.display_title != null) { info.display_title = listData.display_title; }
-    if(listData.tags?.length) { info.tags = listData.tags; }
-    if(listData.originUrl != null) { info.originUrl = listData.originUrl; }
-    if(listData.source?.length) { info.source = listData.source; }
-    if(listData.packaging?.length) { info.packaging = listData.packaging; }
-    if(listData.date != null) { info.date = listData.date; }
-    if(listData.eventTime != null) { info.eventTime = listData.eventTime; }
-    // inputCfg isn't on StreamInfo's type; _EnrichStreams attaches it the same way.
-    if(listData.inputCfg != null) { (info as any).inputCfg = listData.inputCfg; }
-    if(listData.ladderSpecs != null) { (info as any).ladderSpecs = listData.ladderSpecs; }
-    (info as any).configured = listData.configured;
-
-    const {live_recording_config, live_recording} = version.meta;
-    info.queryMainMeta = {live_recording_config, live_recording};
-  }
 
   if(name != null) {
     info.name = name;

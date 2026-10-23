@@ -274,3 +274,60 @@ describe("StreamListStore._TenantQuery", () => {
     expect(store._TenantQuery({scoped: false})).toEqual({siteId: "iq__site", dateRange: [null, null], nameFilter: [], paged: false});
   });
 });
+
+describe("StreamListStore.LoadMappedStreams", () => {
+  const streamMeta = {
+    public: {name: "Mapped"},
+    live_recording_config: {url: "srt://in"},
+    live_recording: {fabric_config: {ingress_node_api: "https://node"}, playout_config: {}, recording_config: {}}
+  };
+
+  const setup = ({useContentGroup, siteLinks = {}}: {useContentGroup: boolean, siteLinks?: Record<string, unknown>}) => {
+    const {store, mockClient} = makeStore({meta: {iq__a: streamMeta, iq__b: streamMeta}});
+    const client = mockClient as any;
+    client.utils = {
+      LimitedMap: async (_n: number, items: unknown[], fn: (item: unknown) => Promise<unknown>) => {
+        for(const item of items) { await fn(item); }
+      },
+      DecodeVersionHash: (hash: string) => ({objectId: hash.replace("hq__", "iq__")})
+    };
+    client.ContentObjectMetadata.mockImplementation(({objectId}: {objectId: string}) =>
+      Promise.resolve(objectId === "iq__site" ? siteLinks : streamMeta)
+    );
+    store.rootStore.settingsStore.useContentGroup = useContentGroup;
+    store.rootStore.tenantStore = {siteId: "iq__site", siteLibraryId: "ilib-site"};
+    return {store, client};
+  };
+
+  it("reads each distinct mapped object once and keys content-group streams by object id", async () => {
+    const {store, client} = setup({useContentGroup: true});
+
+    await store.LoadMappedStreams({objectIds: ["iq__a", "iq__a", "iq__b"]});
+
+    expect(client.TenantContent).not.toHaveBeenCalled();
+    expect(client.ContentObjectMetadata).toHaveBeenCalledTimes(2);
+    const {streams} = store.rootStore.streamStatusStore;
+    expect(Object.keys(streams).sort()).toEqual(["iq__a", "iq__b"]);
+    expect(streams.iq__a).toEqual(expect.objectContaining({objectId: "iq__a", libraryId: "ilib-x", title: "Mapped"}));
+    // Cached for the first status read, so the poller needs no extra metadata call.
+    expect(streams.iq__a.queryMainMeta).toBeDefined();
+    expect(store.streamsScope).toBe("mapped");
+    expect(store.streamsLoaded).toBe(true);
+  });
+
+  it("keys legacy streams by their site live_streams slug, read without resolving links", async () => {
+    const {store, client} = setup({
+      useContentGroup: false,
+      siteLinks: {"my-slug": {"/": "/qfab/hq__a/meta/public"}}
+    });
+
+    await store.LoadMappedStreams({objectIds: ["iq__a", "iq__b"]});
+
+    expect(client.ContentObjectMetadata).toHaveBeenCalledWith(expect.objectContaining({
+      objectId: "iq__site",
+      metadataSubtree: "public/asset_metadata/live_streams"
+    }));
+    expect(client.ContentObjectMetadata.mock.calls.find(([args]: any[]) => args.objectId === "iq__site")[0].resolveLinks).toBeUndefined();
+    expect(Object.keys(store.rootStore.streamStatusStore.streams).sort()).toEqual(["iq__b", "my-slug"]);
+  });
+});

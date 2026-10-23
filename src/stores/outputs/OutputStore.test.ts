@@ -60,6 +60,7 @@ const makeStore = (clientOverrides: Record<string, unknown> = {}, streamStatusSt
       siteId: "iq__site"
     },
     settingsStore: {},
+    streamListStore: {streamsScope: "all", allStreams: {}},
     streamStatusStore: {
       streams: {},
       streamsByObjectId: {},
@@ -957,6 +958,31 @@ describe("MapStreamBatch", () => {
 
     expect(s2.outputs["out-1"].input?.stream).toBe("iq__stream-1");
     expect(s2.outputs["out-1"].input?.name).toBe("My Stream");
+  });
+
+  it("adds a newly mapped stream from allStreams to a mapped-only list", async () => {
+    const streams: Record<string, any> = {};
+    const streamStatusStore = {
+      streams,
+      streamsByObjectId: {},
+      SetStream: vi.fn(({key, value}) => { streams[key] = {...value, slug: key}; }),
+      LoadAllStreamsStatus: vi.fn().mockResolvedValue(undefined)
+    };
+    const {store: s2} = makeStore(
+      {ContentObjectMetadata: vi.fn().mockResolvedValue({name: "Out", enabled: false, input: null})},
+      streamStatusStore
+    );
+    s2.rootStore.streamListStore = {
+      streamsScope: "mapped",
+      allStreams: {"picked-slug": {slug: "picked-slug", objectId: "iq__stream-1", title: "Picked"}}
+    };
+    s2.outputs = {"out-1": {name: "Out"}};
+
+    await s2.MapStream({outputId: "out-1", streamObjectId: "iq__stream-1"});
+
+    expect(streamStatusStore.SetStream).toHaveBeenCalledWith(expect.objectContaining({key: "picked-slug"}));
+    expect(streamStatusStore.LoadAllStreamsStatus).toHaveBeenCalledWith(true, ["picked-slug"]);
+    expect(s2.outputs["out-1"].input?.name).toBe("Picked");
   });
 
   it("should throw when OutputsModifyBatch rejects", async () => {
