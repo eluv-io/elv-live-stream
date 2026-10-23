@@ -166,6 +166,31 @@ describe("StreamStatusStore.LoadAllStreamsStatus", () => {
   });
 });
 
+describe("StreamStatusStore.CheckStatus", () => {
+  it("doesn't recreate a stream dropped by a list replace while its status was in flight", async () => {
+    const streams = {
+      kept: {slug: "kept", objectId: "iq__k", libraryId: "l"},
+      gone: {slug: "gone", objectId: "iq__g", libraryId: "l"}
+    };
+    const {store, mockClient} = makeStore({streams});
+    let resolveStatus: (value: unknown) => void = () => {};
+    mockClient.StreamStatus.mockImplementation(() => new Promise(res => { resolveStatus = res; }));
+
+    const goneCheck = store.CheckStatus({objectId: "iq__g", slug: "gone", update: true, localState: {libraryId: "l"}});
+    store._ReplaceStreams({streams: {kept: streams.kept}});
+    resolveStatus({state: "running"});
+    await goneCheck;
+
+    expect(store.streams.gone).toBeUndefined();
+
+    const keptCheck = store.CheckStatus({objectId: "iq__k", slug: "kept", update: true, localState: {libraryId: "l"}});
+    resolveStatus({state: "running"});
+    await keptCheck;
+
+    expect(store.streams.kept.status).toBe("running");
+  });
+});
+
 describe("StreamStatusStore._SetStreamActive", () => {
   it("adds and removes slugs, writing the resolved state on removal", () => {
     const {store} = makeStore({streams: {a: {slug: "a", objectId: "iq__a"}}});

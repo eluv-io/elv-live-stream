@@ -177,6 +177,7 @@ class StreamStatusStore {
     includeParams?: boolean
   }): Generator<any, void | {}> {
     let response: any;
+    const listEpoch = this._streamListEpoch;
     try {
       response = yield WithTimeout(
         this._FetchStatus({objectId, localState, includeRecordingInfo, includeParams}),
@@ -195,6 +196,9 @@ class StreamStatusStore {
           this.streams[slug].objectId === objectId
         ));
       }
+
+      // The list was replaced mid-request - don't recreate a stub for a stream it dropped.
+      if(listEpoch !== this._streamListEpoch && !this.streams?.[slug]) { return response; }
 
       this.SetStream({
         key: slug,
