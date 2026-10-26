@@ -56,11 +56,6 @@ const Outputs = observer(() => {
       setLoading(true);
       // Outputs derive status/source/packaging from their mapped stream, so
       // those streams are read by object id once the outputs are known.
-      //
-      // These must run sequentially, not in parallel: OutputsList (inside
-      // LoadOutputs) temporarily reroutes the shared client to a live-egress
-      // node via RouteToLiveEgress. Any read in flight during that window
-      // gets routed to the egress node and 403s ("token/auth not authorized").
       if(loadOutputs) { await outputStore.LoadOutputs(); }
       if(loadStreams) { await streamListStore.LoadMappedStreams({objectIds: outputStore.mappedStreamIds}); }
     } finally {

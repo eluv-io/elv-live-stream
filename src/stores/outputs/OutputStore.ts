@@ -236,20 +236,20 @@ class OutputStore {
    * Resilient per-output state refresh for polling: updates each output
    * independently so one failure can't block the rest (unlike the all-or-nothing
    * LoadOutputs).
-   *
-   * MUST run sequentially - OutputsState reroutes the shared client to each
-   * output's egress node and restores afterward; concurrent calls corrupt each
-   * other's routing.
    */
   *LoadAllOutputsState(): Generator<any, void> {
-    for(const outputId of Object.keys(this.outputs || {})) {
-      try {
-        yield this.CheckOutputState({outputId, update: true});
-      } catch(error) {
-        // eslint-disable-next-line no-console
-        console.error(`Skipping state for output ${outputId}.`, error);
+    yield this.client.utils.LimitedMap(
+      10,
+      Object.keys(this.outputs || {}),
+      async (outputId: string) => {
+        try {
+          await this.CheckOutputState({outputId, update: true});
+        } catch(error) {
+          // eslint-disable-next-line no-console
+          console.error(`Skipping state for output ${outputId}.`, error);
+        }
       }
-    }
+    );
   }
 
   *LoadOutputItem({outputId, includeState=true}: {outputId: string, includeState: boolean}): Generator<any, void> {

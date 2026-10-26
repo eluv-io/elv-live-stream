@@ -47,6 +47,9 @@ const makeClient = (overrides: Record<string, unknown> = {}): Record<string, any
   StreamSiteSettings: vi.fn().mockResolvedValue({siteLibraryId: "ilib-site", siteObjectId: "iq__site"}),
   EmbedUrl: vi.fn().mockResolvedValue("https://embed.example.com/watch"),
   StreamRunningState: vi.fn().mockResolvedValue({quality: 0.9, input_stats: {}}),
+  utils: {
+    LimitedMap: vi.fn((_limit: number, items: unknown[], fn: (item: unknown) => Promise<unknown>) => Promise.all(items.map(fn)))
+  },
   ...overrides
 });
 
@@ -305,24 +308,14 @@ describe("LoadAllOutputsState", () => {
     consoleSpy.mockRestore();
   });
 
-  it("should run outputs sequentially (each call waits before starting next)", async () => {
+  it("should fetch output states through a bounded LimitedMap", async () => {
     const {store, mockClient} = makeStore();
     store.outputs = {"out-1": {}, "out-2": {}};
 
-    const order: string[] = [];
-    mockClient.OutputsState.mockImplementation(({outputId}: {outputId: string}) => {
-      order.push(`start-${outputId}`);
-      return Promise.resolve({state: {}}).then(r => { order.push(`end-${outputId}`); return r; });
-    });
-
     await store.LoadAllOutputsState();
 
-    // Sequential means: start-1, end-1, start-2, end-2 (not start-1, start-2, end-1, end-2)
-    const i1 = order.indexOf("start-out-1");
-    const e1 = order.indexOf("end-out-1");
-    const i2 = order.indexOf("start-out-2");
-    expect(e1).toBeLessThan(i2);
-    expect(i1).toBeLessThan(e1);
+    expect(mockClient.utils.LimitedMap).toHaveBeenCalledWith(10, ["out-1", "out-2"], expect.any(Function));
+    expect(mockClient.OutputsState).toHaveBeenCalledTimes(2);
   });
 
   it("should handle empty outputs gracefully", async () => {
