@@ -957,6 +957,20 @@ describe("SaveGeneralConfig", () => {
     expect(mockClient.StreamApplyProfile).not.toHaveBeenCalled();
   });
 
+  it("does not resolve a node from the URL host when the URL changes", async () => {
+    const {store, mockClient} = makeStore();
+    mockClient.SpaceNodes = vi.fn().mockResolvedValue([]);
+    mockClient.ContentObjectMetadata.mockResolvedValue("node-id");
+
+    await store.SaveGeneralConfig({
+      objectId: "iq__123",
+      slug: "test-stream",
+      formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: "srt://encoder.example.com:1234"}
+    });
+
+    expect(mockClient.SpaceNodes).not.toHaveBeenCalled();
+  });
+
   it("updates the stream store with the new configProfile slug", async () => {
     const {store, streamStatusStore} = makeStore();
 
