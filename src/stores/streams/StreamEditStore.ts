@@ -1029,6 +1029,13 @@ class StreamEditStore {
     const resolvedNodeId = !nodeChanged ? undefined :
       publicNode ? yield ResolveIngestNodeId({client: this.client, geo: geo || undefined}) : (ingressNodeId || undefined);
 
+    const existingUrl = url ? yield this.client.ContentObjectMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording_config/url"
+    }) : undefined;
+
     yield this.SaveDetailMetadata({
       objectId,
       name,
@@ -1041,6 +1048,8 @@ class StreamEditStore {
       finalize: false
     });
 
+    const hostOf = (value?: string) => value?.replace(/^[a-z]+:\/\//, "").match(/^[^/:]+/)?.[0];
+    const host = hostOf(url);
     if(nodeChanged) {
       yield this.client.MergeMetadata({
         libraryId,
@@ -1062,6 +1071,31 @@ class StreamEditStore {
           finalize: false,
           inputStreamInfo: existingConfig.probe_info
         });
+      }
+    } else if(!configProfile && host && host !== hostOf(existingUrl)) {
+      const hasFabricConfig = yield this.client.ContentObjectMetadata({
+        libraryId,
+        objectId,
+        writeToken,
+        metadataSubtree: "live_recording/fabric_config/ingress_node_id"
+      });
+
+      if(hasFabricConfig) {
+        const nodes = yield this.client.SpaceNodes({matchEndpoint: host});
+
+        // Host isn't a fabric node (e.g. multicast or an external encoder)
+        if(nodes?.length) {
+          yield this.client.MergeMetadata({
+            libraryId,
+            objectId,
+            writeToken,
+            metadataSubtree: "live_recording/fabric_config",
+            metadata: {
+              ingress_node_api: nodes[0].services.fabric_api.urls[0],
+              ingress_node_id: nodes[0].id
+            }
+          });
+        }
       }
     }
 

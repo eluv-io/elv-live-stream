@@ -46,6 +46,7 @@ const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => 
     EditContentObject: vi.fn().mockResolvedValue({writeToken: "wtoken123"}),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
     MergeMetadata: vi.fn().mockResolvedValue(undefined),
+    SpaceNodes: vi.fn().mockResolvedValue([]),
     ReplaceMetadata: vi.fn().mockResolvedValue(undefined),
     StreamApplyProfile: vi.fn().mockResolvedValue({siteWriteToken: "site-wtoken"}),
   };
@@ -957,18 +958,41 @@ describe("SaveGeneralConfig", () => {
     expect(mockClient.StreamApplyProfile).not.toHaveBeenCalled();
   });
 
-  it("does not resolve a node from the URL host when the URL changes", async () => {
+  it("leaves fabric_config alone when the URL host is not a fabric node", async () => {
     const {store, mockClient} = makeStore();
-    mockClient.SpaceNodes = vi.fn().mockResolvedValue([]);
     mockClient.ContentObjectMetadata.mockResolvedValue("node-id");
 
     await store.SaveGeneralConfig({
       objectId: "iq__123",
       slug: "test-stream",
-      formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: "srt://encoder.example.com:1234"}
+      formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: "udp://232.252.51.71:1234"}
     });
 
-    expect(mockClient.SpaceNodes).not.toHaveBeenCalled();
+    expect(mockClient.SpaceNodes).toHaveBeenCalledWith({matchEndpoint: "232.252.51.71"});
+    expect(mockClient.MergeMetadata).not.toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/fabric_config"})
+    );
+  });
+
+  it("updates fabric_config when the URL host is a fabric node", async () => {
+    const {store, mockClient} = makeStore();
+    mockClient.SpaceNodes.mockResolvedValue([
+      {id: "inod_new", services: {fabric_api: {urls: ["https://host-76-74-29-9/"]}}}
+    ]);
+    mockClient.ContentObjectMetadata.mockResolvedValue("node-id");
+
+    await store.SaveGeneralConfig({
+      objectId: "iq__123",
+      slug: "test-stream",
+      formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: "srt://host-76-74-29-9:1234"}
+    });
+
+    expect(mockClient.MergeMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadataSubtree: "live_recording/fabric_config",
+        metadata: {ingress_node_api: "https://host-76-74-29-9/", ingress_node_id: "inod_new"}
+      })
+    );
   });
 
   it("updates the stream store with the new configProfile slug", async () => {
