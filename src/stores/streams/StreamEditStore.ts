@@ -284,6 +284,8 @@ class StreamEditStore {
       });
 
       const groupAddress = this.rootStore.tenantStore.accessGroups[accessGroup]?.address;
+      const {siteId} = this.rootStore.tenantStore;
+      const contentGroups = this.rootStore.settingsStore.useContentGroup && siteId ? [siteId] : undefined;
 
       const response = yield this.client.StreamCreate({
         libraryId,
@@ -294,6 +296,7 @@ class StreamEditStore {
           accessGroups: groupAddress ? [groupAddress] : undefined,
           displayTitle,
           description,
+          groups: contentGroups,
           ingressNodeId: nodeId,
           linkToSite: true,
           name,
@@ -326,6 +329,14 @@ class StreamEditStore {
         key: slugify(name),
         value: streamValue
       });
+
+      if(contentGroups) {
+        this.rootStore.streamListStore.CacheCreatedStream({
+          objectId: createdObjectId,
+          slug: slugify(name),
+          stream: this.rootStore.streamStatusStore.streams[slugify(name)]
+        });
+      }
 
       return {
         objectId: createdObjectId,

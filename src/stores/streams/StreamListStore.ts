@@ -219,6 +219,12 @@ class StreamListStore {
     if(this.allStreams[slug]) { this.allStreams[slug].tags = tags; }
   };
 
+  /** Adds a newly created content-group stream to the cached tenant query and full set so reloads from cache include it. */
+  CacheCreatedStream = ({objectId, slug, stream}: {objectId: string, slug: string, stream: StreamInfo}) => {
+    this._tenantContent = {...this._tenantContent, [objectId]: stream};
+    if(this.allStreamsLoaded) { this.allStreams[slug] = stream; }
+  };
+
   /** Replace streamStatusStore.streams with a new list, then drop list state that no longer applies. */
   SetStreams = ({streams}: {streams: StreamMap}) => {
     this.rootStore.streamStatusStore._ReplaceStreams({streams});
