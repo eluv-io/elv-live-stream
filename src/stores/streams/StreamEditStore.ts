@@ -1,38 +1,23 @@
 // Stream writes: create, duplicate, delete, permissions, config saves (general/recording/playout), profiles, watermarks, DRM, audio, and tags.
 import {makeAutoObservable, toJS} from "mobx";
 import {
-  DeriveCopyMode,
-  DeriveCopyPackaging,
   FinalizeContentObjectResponse,
   ForensicWatermark,
   ImageWatermark,
   LadderSpec,
   LiveRecordingConfigProfile,
   ParseLiveConfigData,
-  ProgramPidSelection,
-  RecordingInputCfg,
   SimpleWatermark,
   StreamRecord
 } from "@/utils/stream/stream";
-import {PlayoutFormat, RESOLUTION_DIMENSIONS, STATUS_MAP, StreamStatus} from "@/utils/constants";
+import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@/utils/helpers";
 import {ResolveIngestNodeId} from "@/stores/lib/fabricNodes";
+import {LiveRecordingConfigParams, WriteLiveRecordingConfig} from "@/stores/lib/liveRecordingConfig";
 import {WithWriteToken} from "@/utils/fabric/withWriteToken";
 import type RootStore from "@/stores/RootStore";
 import type {AudioDataMap, ProbeData} from "@/stores/streams/StreamDetailStore";
 import {PermissionLevel} from "@/stores/TenantStore";
-
-// Empty clears the value (null); anything else must be a positive integer
-const ParseBitrate = (value: string | number, label: string): number | null => {
-  if(typeof value === "string" && !value.trim()) { return null; }
-
-  const bitrate = Number(value);
-  if(!Number.isInteger(bitrate) || bitrate <= 0) {
-    throw new Error(`Invalid ${label}: ${value}`);
-  }
-
-  return bitrate;
-};
 
 interface InitLiveStreamObjectParams {
   objectId: string;
@@ -72,41 +57,7 @@ interface UpdateDetailMetadataParams {
   tags?: string[];
 }
 
-interface UpdateConfigMetadataParams {
-  libraryId?: string;
-  objectId?: string;
-  writeToken?: string;
-  finalize?: boolean;
-  slug?: string;
-  retention?: string;
-  persistent?: boolean;
-  connectionTimeout?: string;
-  reconnectionTimeout?: string;
-  skipDvrSection?: boolean;
-  dvrEnabled?: boolean;
-  dvrStartTime?: number;
-  dvrMaxDuration?: string;
-  copyMpegTs?: boolean;
-  fabricPackagingFMP4?: boolean;
-  fabricPackagingMpegTs?: boolean;
-  inputPackaging?: RecordingInputCfg;
-  copyPackaging?: "raw_ts" | "rtp_ts";
-  customReadLoop?: boolean;
-  audioData?: AudioDataMap;
-  multiPathEnabled?: boolean;
-  // Assumed shape, pending fabric-team confirmation; the recording pipeline may ignore these.
-  copyPackagingFormats?: string[];
-  alternateTranscodeEnabled?: boolean;
-  alternateTranscodes?: string[];
-  // Only used when objectId targets an alternate transcode's own object.
-  resolution?: string;
-  // Written to live_recording/recording_config/recording_params/xc_params.
-  videoBitrate?: string | number;
-  streamBitrate?: string | number;
-  programPidSelection?: ProgramPidSelection;
-  // Replaces live_recording_config/recording_params/xc_params; empty/null/undefined is a no-op.
-  advancedEncodingParams?: Record<string, unknown> | null;
-}
+type UpdateConfigMetadataParams = LiveRecordingConfigParams & {slug?: string};
 
 interface UpdateGeneralConfigParams {
   objectId: string;
@@ -662,259 +613,11 @@ class StreamEditStore {
   }
 
   *SaveConfigMetadata({
-    libraryId,
-    objectId,
-    writeToken,
-    finalize=true,
     slug,
-    retention,
-    persistent,
-    connectionTimeout,
-    reconnectionTimeout,
-    skipDvrSection=false,
-    dvrEnabled,
-    dvrStartTime,
-    dvrMaxDuration,
-    copyMpegTs,
-    fabricPackagingFMP4,
-    fabricPackagingMpegTs,
-    inputPackaging,
-    copyPackaging,
-    copyPackagingFormats,
-    alternateTranscodeEnabled,
-    alternateTranscodes,
-    resolution,
-    videoBitrate,
-    streamBitrate,
-    programPidSelection,
-    advancedEncodingParams,
-    audioData,
-    multiPathEnabled
+    ...params
   }: UpdateConfigMetadataParams) : Generator<any, {writeToken: string}> {
-    ({writeToken} = yield WithWriteToken(
-      {client: this.client, objectId, libraryId, writeToken, finalize, commitMessage: "Update recording config"},
-      async ({libraryId, objectId, writeToken}) => {
-        const existingConfig = await this.client.ContentObjectMetadata({
-          libraryId,
-          objectId,
-          writeToken,
-          metadataSubtree: "live_recording_config"
-        });
-
-        const recordingConfig = {...existingConfig?.recording_config};
-        if(retention !== undefined) recordingConfig.part_ttl = parseInt(retention);
-        if(persistent !== undefined) recordingConfig.persistent = persistent;
-        if(connectionTimeout !== undefined) recordingConfig.connection_timeout = parseInt(connectionTimeout);
-        if(reconnectionTimeout !== undefined) recordingConfig.reconnect_timeout = parseInt(reconnectionTimeout);
-        if(copyMpegTs !== undefined) {
-          recordingConfig.copy_mpegts = copyMpegTs;
-          recordingConfig.input_cfg = copyMpegTs ? {
-            bypass_libav_reader: true,
-            copy_mode: DeriveCopyMode({fabricPackagingFMP4, fabricPackagingMpegTs}),
-            copy_packaging: DeriveCopyPackaging({fabricPackagingMpegTs, copyPackaging}),
-            input_packaging: inputPackaging,
-            custom_read_loop_enabled: true
-          } : {};
-        }
-
-        if(copyPackagingFormats !== undefined) recordingConfig.copy_packaging_formats = copyPackagingFormats;
-        if(alternateTranscodeEnabled !== undefined) recordingConfig.alternate_transcode_enabled = alternateTranscodeEnabled;
-        if(programPidSelection !== undefined) recordingConfig.program_pid_selection = programPidSelection;
-
-        const recordingStreamConfig = {...existingConfig?.recording_stream_config};
-        if(audioData !== undefined) {
-          recordingStreamConfig.audio = audioData;
-        }
-
-        const playoutConfig = {...existingConfig?.playout_config};
-        if(!skipDvrSection && dvrEnabled !== undefined) {
-          playoutConfig.dvr = dvrEnabled;
-          if(dvrEnabled) {
-            if(dvrStartTime) {
-              playoutConfig.dvr_start_time = new Date(dvrStartTime).toISOString();
-            } else {
-              delete playoutConfig.dvr_start_time;
-            }
-            if(dvrMaxDuration != null) { playoutConfig.dvr_max_duration = parseInt(dvrMaxDuration); }
-          } else {
-            delete playoutConfig.dvr_start_time;
-            delete playoutConfig.dvr_max_duration;
-          }
-        }
-
-        const liveRecordingConfigUpdate: Record<string, any> = {
-          ...existingConfig,
-          recording_config: recordingConfig,
-          playout_config: playoutConfig,
-          recording_stream_config: recordingStreamConfig
-        };
-        if(advancedEncodingParams && Object.keys(advancedEncodingParams).length > 0) {
-          liveRecordingConfigUpdate.recording_params = {
-            ...existingConfig?.recording_params,
-            xc_params: advancedEncodingParams
-          };
-        }
-        // Sibling of recording_config on live_recording_config - see AlternateTranscodeStore.CreateAlternateTranscode.
-        if(alternateTranscodes !== undefined) liveRecordingConfigUpdate.alternate_transcodes = alternateTranscodes;
-
-        await this.client.ReplaceMetadata({
-          libraryId,
-          objectId,
-          writeToken,
-          metadataSubtree: "live_recording_config",
-          metadata: liveRecordingConfigUpdate
-        });
-
-        if(retention !== undefined) {
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/part_ttl",
-            metadata: parseInt(retention)
-          });
-        }
-
-        if(persistent !== undefined) {
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/persistent",
-            metadata: persistent
-          });
-        }
-
-        if(connectionTimeout !== undefined) {
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/xc_params/connection_timeout",
-            metadata: parseInt(connectionTimeout)
-          });
-        }
-
-        if(reconnectionTimeout !== undefined) {
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/reconnect_timeout",
-            metadata: parseInt(reconnectionTimeout)
-          });
-        }
-
-        if(copyMpegTs !== undefined) {
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/xc_params/copy_mpegts",
-            metadata: copyMpegTs
-          });
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg",
-            metadata: copyMpegTs ? {
-              bypass_libav_reader: true,
-              copy_mode: DeriveCopyMode({fabricPackagingFMP4, fabricPackagingMpegTs}),
-              copy_packaging: DeriveCopyPackaging({fabricPackagingMpegTs, copyPackaging}),
-              custom_read_loop_enabled: true,
-              input_packaging: inputPackaging
-            } : {}
-          });
-        }
-
-        // streamBitrate is a leaf under input_cfg, which the copyMpegTs block above
-        // replaces wholesale - don't pass both.
-        if(videoBitrate !== undefined) {
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/xc_params/video_bitrate",
-            metadata: ParseBitrate(videoBitrate, "video bitrate")
-          });
-        }
-
-        if(streamBitrate !== undefined) {
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/xc_params/input_cfg/stream_bitrate",
-            metadata: ParseBitrate(streamBitrate, "stream bitrate")
-          });
-        }
-
-        if(resolution !== undefined) {
-          const dimensions = RESOLUTION_DIMENSIONS[resolution] ?? null;
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/xc_params/enc_height",
-            metadata: dimensions?.height ?? null
-          });
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/recording_config/recording_params/xc_params/enc_width",
-            metadata: dimensions?.width ?? null
-          });
-        }
-
-        if(multiPathEnabled !== undefined) {
-          let multiPathMeta: {enabled: boolean; stream_names?: string[]} = {enabled: false};
-          if(multiPathEnabled) {
-            const streamNames = [
-              "video",
-              ...Object.keys(audioData || {})
-                .filter(key => audioData[key].record)
-                .map((el) => `audio_${el}`)
-            ];
-            if(copyMpegTs) { streamNames.push("mpegts"); }
-            multiPathMeta = {enabled: true, stream_names: streamNames};
-          }
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/fabric_config/multipath",
-            metadata: multiPathMeta
-          });
-        }
-
-        if(!skipDvrSection && dvrEnabled !== undefined) {
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording/playout_config/dvr_enabled",
-            metadata: dvrEnabled
-          });
-          await this.client.ReplaceMetadata({
-            libraryId, objectId, writeToken,
-            metadataSubtree: "live_recording_overrides/playout_config/dvr_enabled",
-            metadata: dvrEnabled
-          });
-          if(dvrEnabled) {
-            if(dvrStartTime) {
-              await this.client.ReplaceMetadata({
-                libraryId, objectId, writeToken,
-                metadataSubtree: "live_recording/playout_config/dvr_start_time",
-                metadata: new Date(dvrStartTime).toISOString()
-              });
-              await this.client.ReplaceMetadata({
-                libraryId, objectId, writeToken,
-                metadataSubtree: "live_recording_overrides/playout_config/dvr_start_time",
-                metadata: new Date(dvrStartTime).toISOString()
-              });
-            } else {
-              await this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording/playout_config/dvr_start_time"});
-              await this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording_overrides/playout_config/dvr_start_time"});
-            }
-            if(dvrMaxDuration != null) {
-              await this.client.ReplaceMetadata({
-                libraryId, objectId, writeToken,
-                metadataSubtree: "live_recording/playout_config/dvr_max_duration",
-                metadata: parseInt(dvrMaxDuration)
-              });
-              await this.client.ReplaceMetadata({
-                libraryId, objectId, writeToken,
-                metadataSubtree: "live_recording_overrides/playout_config/dvr_max_duration",
-                metadata: parseInt(dvrMaxDuration)
-              });
-            }
-          } else {
-            await this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording/playout_config/dvr_start_time"});
-            await this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording/playout_config/dvr_max_duration"});
-            await this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording_overrides/playout_config/dvr_start_time"});
-            await this.client.DeleteMetadata({libraryId, objectId, writeToken, metadataSubtree: "live_recording_overrides/playout_config/dvr_max_duration"});
-          }
-        }
-      }
-    ));
+    const {connectionTimeout, dvrEnabled, dvrStartTime, dvrMaxDuration, retention, reconnectionTimeout} = params;
+    const {writeToken} = yield WriteLiveRecordingConfig({client: this.client, ...params});
 
     this.rootStore.streamStatusStore.SetStream({
       key: slug,

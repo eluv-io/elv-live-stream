@@ -244,7 +244,7 @@ const StreamDetailsPage = observer(() => {
                     offset={-4}
                     position="top-end"
                   >
-                    <Title order={3} c="elv-gray.9">{tab.label}</Title>
+                    <Title fz={14} fw={600} c="elv-gray.9">{tab.label}</Title>
                   </Indicator>
                 </Tabs.Tab>
               ))

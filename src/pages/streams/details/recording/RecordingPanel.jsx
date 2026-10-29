@@ -384,7 +384,6 @@ const RecordingPanel = observer(({
                     }}
                     parentObjectId={params.id}
                     parentLibraryId={streamStatusStore.streams[slug]?.libraryId}
-                    parentSlug={slug}
                   />
                 </Box>
               </DisabledTooltipWrapper>

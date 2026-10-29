@@ -34,7 +34,7 @@ type RecordingConfigData = Pick<StreamMetadata, "connectionTimeout" | "persisten
   };
   retention: string;
   // Assumed shape, pending fabric-team confirmation - see the note on
-  // StreamEditStore's UpdateConfigMetadataParams.
+  // LiveRecordingConfigParams in lib/liveRecordingConfig.ts.
   copyPackagingFormats: string[];
   alternateTranscodeEnabled: boolean;
   // Resolved from the id array stored on the fabric - see AlternateTranscodeStore.ResolveAlternateTranscodes.

@@ -5,6 +5,7 @@ import {defaultConfigProfile} from "@/utils/defaultProfile";
 import {ALTERNATE_TRANSCODE_PROTOCOLS} from "@/utils/constants";
 import type RootStore from "@/stores/RootStore";
 import {ResolveIngestNodeId} from "@/stores/lib/fabricNodes";
+import {WriteLiveRecordingConfig} from "@/stores/lib/liveRecordingConfig";
 
 const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -24,7 +25,6 @@ interface AlternateTranscodeFormParams {
 interface CreateAlternateTranscodeParams extends AlternateTranscodeFormParams {
   parentObjectId: string;
   parentLibraryId?: string;
-  parentSlug: string;
 }
 
 interface UpdateAlternateTranscodeParams extends AlternateTranscodeFormParams {
@@ -52,7 +52,6 @@ class AlternateTranscodeStore {
   *CreateAlternateTranscode({
     parentObjectId,
     parentLibraryId,
-    parentSlug,
     name,
     nodeType,
     node,
@@ -164,7 +163,8 @@ class AlternateTranscodeStore {
       });
       nodeWriteToken = undefined;
 
-      yield this.rootStore.streamEditStore.SaveConfigMetadata({
+      yield WriteLiveRecordingConfig({
+        client: this.client,
         objectId,
         libraryId: parentLibraryId,
         resolution,
@@ -174,10 +174,10 @@ class AlternateTranscodeStore {
         programPidSelection
       });
 
-      yield this.rootStore.streamEditStore.SaveConfigMetadata({
+      yield WriteLiveRecordingConfig({
+        client: this.client,
         objectId: parentObjectId,
         libraryId: parentLibraryId,
-        slug: parentSlug,
         alternateTranscodes: [...existingIds, objectId]
       });
 
@@ -299,7 +299,8 @@ class AlternateTranscodeStore {
         });
       }
 
-      yield this.rootStore.streamEditStore.SaveConfigMetadata({
+      yield WriteLiveRecordingConfig({
+        client: this.client,
         objectId,
         libraryId,
         writeToken,
@@ -348,9 +349,8 @@ class AlternateTranscodeStore {
   *RemoveAlternateTranscode({
     parentObjectId,
     parentLibraryId,
-    parentSlug,
     id
-  }: {parentObjectId: string, parentLibraryId?: string, parentSlug: string, id: string}): Generator<any, void> {
+  }: {parentObjectId: string, parentLibraryId?: string, id: string}): Generator<any, void> {
     if(!parentLibraryId) {
       parentLibraryId = yield this.client.ContentObjectLibraryId({objectId: parentObjectId});
     }
@@ -363,10 +363,10 @@ class AlternateTranscodeStore {
     });
     const existingIds: string[] = existingConfig?.alternate_transcodes ?? [];
 
-    yield this.rootStore.streamEditStore.SaveConfigMetadata({
+    yield WriteLiveRecordingConfig({
+      client: this.client,
       objectId: parentObjectId,
       libraryId: parentLibraryId,
-      slug: parentSlug,
       alternateTranscodes: existingIds.filter(existingId => existingId !== id)
     });
 

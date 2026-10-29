@@ -23,7 +23,7 @@ const Settings = () => {
             {
               SETTINGS_TABS.map(tab => (
                 <Tabs.Tab value={tab.value} key={`settings-tab-${tab.value}`}>
-                  <Title order={3} c="elv-gray.9">{tab.label}</Title>
+                  <Title fz={14} fw={600} c="elv-gray.9">{tab.label}</Title>
                 </Tabs.Tab>
               ))
             }
@@ -31,7 +31,7 @@ const Settings = () => {
         </Flex>
         {
           SETTINGS_TABS.map(tab => (
-            <Tabs.Panel value={tab.value} key={`settings-panel-${tab.value}`}>
+            <Tabs.Panel value={tab.value} key={`settings-panel-${tab.value}`} keepMounted={false}>
               <tab.Component />
             </Tabs.Panel>
           ))
