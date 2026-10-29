@@ -61,6 +61,8 @@ export interface StreamInfo {
   date?: string;
   eventTime?: string;
   titleId?: string;
+  // live_recording_config / live_recording from the tenant query, passed to StreamStatus as mainMeta; consumed once by the first status read.
+  queryMainMeta?: {live_recording_config?: any; live_recording?: any};
   // Fields added by LoadSummaryData
   videoStreamProbe?: any;
   audioStreams?: any;

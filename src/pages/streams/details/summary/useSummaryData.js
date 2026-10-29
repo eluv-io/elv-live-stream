@@ -36,7 +36,7 @@ const useSummaryData = ({slug, libraryId}) => {
     const LoadStatus = async() => {
       try {
         setLoadingStatus(true);
-        const statusResponse = await streamStatusStore.CheckStatus({objectId, slug, update: true});
+        const statusResponse = await streamStatusStore.CheckStatus({objectId, slug, update: true, includeRecordingInfo: true, includeParams: true});
         setStatus(statusResponse);
       } finally {
         setLoadingStatus(false);

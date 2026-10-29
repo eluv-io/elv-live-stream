@@ -13,6 +13,8 @@ vi.mock("@/utils/constants", () => ({
 }));
 
 import StreamEditStore, {UpdatePlayoutConfigParams} from "@/stores/streams/StreamEditStore";
+import {LiveConf} from "@eluvio/elv-client-js/src/client/LiveConf";
+import * as LiveStreamMethods from "@eluvio/elv-client-js/src/client/LiveStream";
 
 // autoBind defines bound flows as non-writable, non-configurable OWN properties on
 // each instance, so they can't be reassigned or spied after construction. The only
@@ -44,6 +46,7 @@ const makeStore = ({profileSlug = "my-profile", profile = mockProfile} = {}) => 
     EditContentObject: vi.fn().mockResolvedValue({writeToken: "wtoken123"}),
     FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
     MergeMetadata: vi.fn().mockResolvedValue(undefined),
+    SpaceNodes: vi.fn().mockResolvedValue([]),
     ReplaceMetadata: vi.fn().mockResolvedValue(undefined),
     StreamApplyProfile: vi.fn().mockResolvedValue({siteWriteToken: "site-wtoken"}),
   };
@@ -724,6 +727,180 @@ describe("ApplyStreamProfile", () => {
   });
 });
 
+describe("ApplyStreamProfile — re-applying a profile with updated ladder specs", () => {
+  const LADDER_SPECS_PATH = "live_recording/recording_config/recording_params/ladder_specs";
+
+  const probe = {
+    format: {format_name: "mpegts"},
+    streams: [
+      {codec_type: "video", stream_index: 0, width: 1920, height: 1080, frame_rate: "30", r_frame_rate: "30/1"},
+      {codec_type: "audio", stream_index: 1, channels: 2, sample_rate: "48000", codec_name: "aac"}
+    ]
+  };
+
+  const originalLadder = {
+    video: [
+      {bit_rate: 9500000, codecs: "avc1.640028,mp4a.40.2", height: 1080, width: 1920},
+      {bit_rate: 4500000, codecs: "avc1.640028,mp4a.40.2", height: 720, width: 1280}
+    ],
+    audio: [{bit_rate: 192000, channels: 2, codecs: "mp4a.40.2"}]
+  };
+
+  const updatedLadder = {
+    video: [
+      {bit_rate: 6000000, codecs: "avc1.640028,mp4a.40.2", height: 720, width: 1280},
+      {bit_rate: 3000000, codecs: "avc1.640028,mp4a.40.2", height: 540, width: 960},
+      {bit_rate: 800000, codecs: "avc1.640028,mp4a.40.2", height: 360, width: 640}
+    ],
+    audio: [{bit_rate: 256000, channels: 2, codecs: "mp4a.40.2"}]
+  };
+
+  // Profiles saved from Settings carry no probe; the stream's probe lives at live_recording_config/probe_info
+  const makeProfile = (ladderSpecs) => ({
+    name: "Sports Profile",
+    playout_config: {playout_formats: ["hls-clear"], ladder_specs: ladderSpecs}
+  });
+
+  const getPath = (obj, path) =>
+    path.split("/").filter(Boolean).reduce((node, key) => node?.[key], obj);
+
+  const setPath = (obj, path, value) => {
+    const keys = path.split("/").filter(Boolean);
+    const last = keys.pop();
+    const parent = keys.reduce((node, key) => (node[key] ??= {}), obj);
+    parent[last] = value;
+  };
+
+  const clone = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
+
+  const generateLiveRecording = ({config, probeData}) => new LiveConf({
+    url: config.url,
+    probeData,
+    syncAudioToVideo: true,
+    liveRecordingMeta: {}
+  }).generateLiveConf({customSettings: {liveRecordingConfigProfile: clone(config)}}).live_recording;
+
+  const makeLadderStore = () => {
+    const originalProfile = makeProfile(originalLadder);
+    const originalConfig = {url: "srt://example.com:1234", ...clone(originalProfile)};
+
+    // Stream already has the original profile applied and has been probed
+    const meta = {
+      live_recording_config: {...originalConfig, probe_info: probe},
+      live_recording: generateLiveRecording({config: originalConfig, probeData: probe})
+    };
+
+    const mockClient: Record<string, Mock> = {
+      ContentObjectLibraryId: vi.fn().mockImplementation(async ({objectId}) => (objectId === "site123" ? "ilib-site" : "ilib123")),
+      EditContentObject: vi.fn().mockImplementation(async ({objectId}) => ({writeToken: objectId === "site123" ? "site-wtoken" : "wtoken123"})),
+      FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
+      ContentObjectMetadata: vi.fn().mockImplementation(async ({objectId, metadataSubtree}) =>
+        objectId === "site123" ? null : clone(getPath(meta, metadataSubtree ?? "")) ?? null
+      ),
+      ReplaceMetadata: vi.fn().mockImplementation(async ({objectId, metadataSubtree, metadata}) => {
+        if(objectId !== "site123") { setPath(meta, metadataSubtree, clone(metadata)); }
+      }),
+      StreamSiteSettings: vi.fn().mockResolvedValue({siteObjectId: "site123", siteLibraryId: "ilib-site"}),
+      StreamAssignProfile: vi.fn().mockResolvedValue(undefined),
+      StreamUnassignProfile: vi.fn().mockResolvedValue(undefined),
+      // Core of client-js StreamConfig (status/node checks omitted): regenerate live_recording from the probe
+      StreamConfig: vi.fn().mockImplementation(async ({liveRecordingConfig, inputStreamInfo}) => {
+        const probeData = inputStreamInfo || liveRecordingConfig?.input_stream_info;
+        const config = {...clone(meta.live_recording_config), ...clone(liveRecordingConfig)};
+        meta.live_recording = generateLiveRecording({config, probeData});
+        meta.live_recording_config.probe_info = clone(probeData);
+      })
+    };
+
+    // The real client-js implementations under test
+    mockClient.StreamApplyProfile = vi.fn(LiveStreamMethods.StreamApplyProfile.bind(mockClient));
+    mockClient.StreamUpdateConfig = vi.fn(LiveStreamMethods.StreamUpdateConfig.bind(mockClient));
+
+    const store = new StreamEditStore({
+      client: mockClient,
+      tenantStore: {siteId: "site123", siteLibraryId: "ilib-site"},
+      profileStore: {profiles: {"sports-profile": originalProfile}},
+      streamStatusStore: {SetStream: vi.fn()}
+    }) as any;
+
+    // makeAutoObservable copies the plain rootStore mock, so edit the profile through the store
+    const UpdateProfileLadder = (ladderSpecs) => {
+      store.rootStore.profileStore.profiles["sports-profile"] = makeProfile(ladderSpecs);
+    };
+
+    return {store, meta, mockClient, UpdateProfileLadder};
+  };
+
+  const videoSpecs = (meta) => getPath(meta, LADDER_SPECS_PATH).filter(spec => spec.media_type === 1);
+  const audioSpecs = (meta) => getPath(meta, LADDER_SPECS_PATH).filter(spec => spec.media_type === 2);
+
+  it("starts with the original profile's ladder in live_recording", () => {
+    const {meta} = makeLadderStore();
+
+    expect(videoSpecs(meta).map(spec => spec.representation)).toEqual([
+      "videovideo_1920x1080_h264@9500000",
+      "videovideo_1280x720_h264@4500000"
+    ]);
+  });
+
+  it("writes the updated profile ladder specs to the stream metadata", async () => {
+    const {store, meta, mockClient, UpdateProfileLadder} = makeLadderStore();
+
+    UpdateProfileLadder(updatedLadder);
+
+    await store.ApplyStreamProfile({objectId: "iq__stream1", profileSlug: "sports-profile"});
+
+    expect(mockClient.StreamApplyProfile).toHaveBeenCalledWith(
+      expect.objectContaining({profile: expect.objectContaining({playout_config: expect.objectContaining({ladder_specs: updatedLadder})})})
+    );
+
+    expect(meta.live_recording_config.playout_config.ladder_specs).toEqual(updatedLadder);
+
+    expect(videoSpecs(meta)).toEqual([
+      {bit_rate: 6000000, codecs: "avc1.640028,mp4a.40.2", height: 720, width: 1280, media_type: 1, stream_name: "video", stream_index: 0, representation: "videovideo_1280x720_h264@6000000"},
+      {bit_rate: 3000000, codecs: "avc1.640028,mp4a.40.2", height: 540, width: 960, media_type: 1, stream_name: "video", stream_index: 0, representation: "videovideo_960x540_h264@3000000"},
+      {bit_rate: 800000, codecs: "avc1.640028,mp4a.40.2", height: 360, width: 640, media_type: 1, stream_name: "video", stream_index: 0, representation: "videovideo_640x360_h264@800000"}
+    ]);
+
+    expect(audioSpecs(meta)).toEqual([
+      expect.objectContaining({bit_rate: 256000, channels: 2, representation: "audioaudio_aac@256000", stream_name: "audio_1", stream_index: 1})
+    ]);
+
+    const xcParams = getPath(meta, "live_recording/recording_config/recording_params/xc_params");
+    expect(xcParams.video_bitrate).toBe(6000000);
+    expect(xcParams.audio_bitrate).toBe(256000);
+    expect(xcParams.n_audio).toBe(1);
+  });
+
+  it("drops the previous profile's ladder rungs", async () => {
+    const {store, meta, UpdateProfileLadder} = makeLadderStore();
+
+    UpdateProfileLadder(updatedLadder);
+
+    await store.ApplyStreamProfile({objectId: "iq__stream1", profileSlug: "sports-profile"});
+
+    const representations = getPath(meta, LADDER_SPECS_PATH).map(spec => spec.representation);
+    expect(representations).not.toContain("videovideo_1920x1080_h264@9500000");
+    expect(representations).not.toContain("videovideo_1280x720_h264@4500000");
+    expect(representations).not.toContain("audioaudio_aac@192000");
+  });
+
+  it("finalizes the stream and site objects", async () => {
+    const {store, mockClient, UpdateProfileLadder} = makeLadderStore();
+
+    UpdateProfileLadder(updatedLadder);
+
+    await store.ApplyStreamProfile({objectId: "iq__stream1", profileSlug: "sports-profile"});
+
+    expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
+      expect.objectContaining({objectId: "iq__stream1", writeToken: "wtoken123", commitMessage: "Apply stream profile"})
+    );
+    expect(mockClient.FinalizeContentObject).toHaveBeenCalledWith(
+      expect.objectContaining({objectId: "site123", writeToken: "site-wtoken"})
+    );
+  });
+});
+
 describe("SaveGeneralConfig", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -779,6 +956,43 @@ describe("SaveGeneralConfig", () => {
     });
 
     expect(mockClient.StreamApplyProfile).not.toHaveBeenCalled();
+  });
+
+  it("leaves fabric_config alone when the URL host is not a fabric node", async () => {
+    const {store, mockClient} = makeStore();
+    mockClient.ContentObjectMetadata.mockResolvedValue("node-id");
+
+    await store.SaveGeneralConfig({
+      objectId: "iq__123",
+      slug: "test-stream",
+      formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: "udp://232.252.51.71:1234"}
+    });
+
+    expect(mockClient.SpaceNodes).toHaveBeenCalledWith({matchEndpoint: "232.252.51.71"});
+    expect(mockClient.MergeMetadata).not.toHaveBeenCalledWith(
+      expect.objectContaining({metadataSubtree: "live_recording/fabric_config"})
+    );
+  });
+
+  it("updates fabric_config when the URL host is a fabric node", async () => {
+    const {store, mockClient} = makeStore();
+    mockClient.SpaceNodes.mockResolvedValue([
+      {id: "inod_new", services: {fabric_api: {urls: ["https://host-76-74-29-9/"]}}}
+    ]);
+    mockClient.ContentObjectMetadata.mockResolvedValue("node-id");
+
+    await store.SaveGeneralConfig({
+      objectId: "iq__123",
+      slug: "test-stream",
+      formData: {name: "Test", description: "", displayTitle: "", permission: "", accessGroup: "", url: "srt://host-76-74-29-9:1234"}
+    });
+
+    expect(mockClient.MergeMetadata).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadataSubtree: "live_recording/fabric_config",
+        metadata: {ingress_node_api: "https://host-76-74-29-9/", ingress_node_id: "inod_new"}
+      })
+    );
   });
 
   it("updates the stream store with the new configProfile slug", async () => {

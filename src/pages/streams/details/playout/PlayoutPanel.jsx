@@ -31,7 +31,7 @@ const PlayoutPanel = observer(({
   active,
   checkVersion
 }) => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const params = useParams();
   const loadedRef = useRef(null);
 

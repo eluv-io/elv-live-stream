@@ -8,6 +8,9 @@ vi.mock("mobx", async () => ({
 
 vi.mock("@/stores", () => ({}));
 
+const configMetaSpy = vi.hoisted(() => vi.fn());
+vi.mock("@/stores/lib/liveRecordingConfig", () => ({WriteLiveRecordingConfig: configMetaSpy}));
+
 import AlternateTranscodeStore from "@/stores/streams/AlternateTranscodeStore";
 
 describe("SaveAlternateTranscode", () => {
@@ -17,14 +20,14 @@ describe("SaveAlternateTranscode", () => {
   };
 
   const makeAltStore = () => {
-    const configMetaSpy = vi.fn().mockResolvedValue(undefined);
+    configMetaSpy.mockReset().mockResolvedValue(undefined);
     const mockClient = {
       EditContentObject: vi.fn().mockResolvedValue({writeToken: "wt-alt"}),
       ContentObjectMetadata: vi.fn().mockResolvedValue(null),
       MergeMetadata: vi.fn().mockResolvedValue(undefined),
       DeleteWriteToken: vi.fn().mockResolvedValue(undefined)
     };
-    const store = new AlternateTranscodeStore({client: mockClient, tenantStore: {}, streamEditStore: {SaveConfigMetadata: configMetaSpy}} as any) as any;
+    const store = new AlternateTranscodeStore({client: mockClient, tenantStore: {}} as any) as any;
     return {store, mockClient, configMetaSpy};
   };
 
@@ -46,12 +49,12 @@ describe("SaveAlternateTranscode", () => {
 
 describe("CreateAlternateTranscode cleanup", () => {
   const params = {
-    parentObjectId: "iq__parent", parentLibraryId: "ilib1", parentSlug: "parent",
+    parentObjectId: "iq__parent", parentLibraryId: "ilib1",
     name: "Alt", nodeType: "dedicated" as const, node: "inod1", protocol: "mpegts"
   };
 
   const makeCreateStore = ({parentIds = [] as string[]} = {}) => {
-    const configMetaSpy = vi.fn().mockResolvedValue(undefined);
+    configMetaSpy.mockReset().mockResolvedValue(undefined);
     const mockClient = {
       CreateContentObject: vi.fn().mockResolvedValue({id: "iq__alt", writeToken: "wt-create"}),
       FinalizeContentObject: vi.fn().mockResolvedValue(undefined),
@@ -65,8 +68,7 @@ describe("CreateAlternateTranscode cleanup", () => {
     };
     const store = new AlternateTranscodeStore({
       client: mockClient,
-      tenantStore: {LoadTenantSiteData: vi.fn().mockResolvedValue({contentTypes: {}})},
-      streamEditStore: {SaveConfigMetadata: configMetaSpy}
+      tenantStore: {LoadTenantSiteData: vi.fn().mockResolvedValue({contentTypes: {}})}
     } as any) as any;
     return {store, mockClient, configMetaSpy};
   };

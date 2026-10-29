@@ -6,13 +6,16 @@ An **output** is not itself a live stream — it's a separate fabric object (`li
 
 ```mermaid
 flowchart TD
-    A[Outputs.jsx mounts] --> B["streamListStore.LoadStreamList (must finish first)"]
-    B --> C[LoadOutputSettingsId]
+    A[Outputs.jsx mounts] --> C[LoadOutputSettingsId]
     C --> D["resolves outputSettingsId from site's<br/>live_outputs metadata"]
-    D --> E["LoadOutputs: client.OutputsList<br/>(replaces outputs map wholesale)"]
+    D --> E["LoadOutputs: client.OutputsList<br/>(replaces outputs map wholesale;<br/>sets input.name / input.status per output)"]
+    E --> F["streamListStore.LoadMappedStreams(outputStore.mappedStreamIds)<br/>one metadata read per distinct mapped stream"]
+    F --> G["streams map = mapped streams only<br/>(streamsScope: mapped)"]
 ```
 
-`LoadOutputs` must run **after** `LoadStreamList` and never concurrently with output-state polling — `OutputsList`/`OutputsState` temporarily reroute the shared fabric client to a live-egress node; overlapping calls would mis-route each other's reads and 403.
+Outputs never lists the tenant: it reads only the streams outputs are mapped to (content-group and legacy alike; legacy also does one unresolved read of the site's `live_streams` to key each stream by its real slug). There's no status pass on load — `OutputsList` already filled `input.status`, which `FlattenOutput` falls back to; the 60s poll then refreshes status from the cached metadata. Monitor and the Streams page reload when `streamsScope` isn't theirs (`all` / `dated`).
+
+`LoadMappedStreams` runs **after** `LoadOutputs` because it needs `outputStore.mappedStreamIds`. client-js sends every `Outputs*` egress request with a per-call `nodeUrl`, so outputs calls never reroute the shared client and can overlap any other read.
 
 ## Creation
 
@@ -79,7 +82,7 @@ On error, `OutputConfirmModal` shows a red notification but deliberately leaves 
 
 ## Status polling
 
-Mirrors the stream-status loop, run from the same `DataWrapper` cycle, sequentially **after** `streamStatusStore.LoadAllStreamsStatus()`:
+Mirrors the stream-status loop, run from the same `DataWrapper` cycle, after `streamStatusStore.LoadAllStreamsStatus()`:
 
 ```mermaid
 sequenceDiagram
@@ -88,9 +91,8 @@ sequenceDiagram
     participant FrameClient
 
     DataWrapper->>OutputStore: LoadAllOutputsState()
-    loop each output, sequentially (not Promise.all)
+    par each output (LimitedMap, 10 at a time)
         OutputStore->>FrameClient: CheckOutputState(outputId, update:true)
-        Note over FrameClient: reroutes shared client to that<br/>output's egress node, restores after
         FrameClient-->>OutputStore: {state}
         OutputStore->>OutputStore: merge only .state onto stored output<br/>(doesn't touch enriched input fields)
     end

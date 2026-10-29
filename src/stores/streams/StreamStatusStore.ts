@@ -1,10 +1,11 @@
 // Loaded streams and their runtime state: the streams map, status polling, live control (start/stop/restart/deactivate), and monitor frame previews.
-import {makeAutoObservable} from "mobx";
+import {makeAutoObservable, toJS} from "mobx";
 import UrlJoin from "url-join";
 import {WithTimeout} from "@/utils/helpers";
-import {STATUS_MAP, type StreamStatus} from "@/utils/constants";
+import {type StreamStatus} from "@/utils/constants";
 import type RootStore from "@/stores/RootStore";
 import {StreamInfo} from "@/stores/TenantStore";
+import {LOCAL_STATE_SELECT, LocalStateFromMeta} from "@/stores/lib/tenantContent";
 import {StreamOp} from "@/stores/streams/StreamModalStore";
 
 interface StreamFrameUrl {
@@ -14,6 +15,8 @@ interface StreamFrameUrl {
 }
 
 type StreamMap = Record<string, StreamInfo>;
+
+type LocalState = Awaited<ReturnType<StreamStatusStore["_ReadLocalState"]>>;
 
 const STREAM_STATUS_TIMEOUT_MS = 10000;
 
@@ -27,12 +30,14 @@ class StreamStatusStore {
   loadingStatus = false;
   // Bumped whenever `streams` is replaced; an in-flight status/classify pass checks this and stops early.
   _streamListEpoch = 0;
+  // Local reads from the latest classify pass, so the follow-up poll skips a second metadata read.
+  _localStates = new Map<string, LocalState>();
   rootStore: RootStore;
 
   constructor(rootStore: RootStore) {
     this.rootStore = rootStore;
 
-    makeAutoObservable(this, {_streamListEpoch: false}, {autoBind: true});
+    makeAutoObservable(this, {_streamListEpoch: false, _localStates: false}, {autoBind: true});
   }
 
   get client() {
@@ -85,10 +90,35 @@ class StreamStatusStore {
   };
 
   /**
-   * Cheap classification from local metadata, mirroring client-js StreamStatus's
-   * pre-bitcode branch: no url -> unconfigured; missing fabric/playout/recording config
-   * -> uninitialized; no edge write token -> inactive; else active. Returns the slugs to poll.
+   * Local state for an object. A content-group stream's first read uses the state cached from the tenant
+   * query; every other read (later polls, legacy list, objects outside the map) reads metadata.
    */
+  async _ReadLocalState({objectId, libraryId}: {objectId: string, libraryId?: string}): Promise<{
+    libraryId: string,
+    mainMeta?: Record<string, any>,
+    state?: StreamStatus,
+    edgeWriteToken?: string
+  }> {
+    const stream = this._StreamByObjectId(objectId);
+    libraryId = libraryId || stream?.libraryId || await this.client.ContentObjectLibraryId({objectId});
+
+    if(stream?.queryMainMeta) {
+      const mainMeta = stream.queryMainMeta;
+      // First read only - the query data goes stale after start/stop, so later reads hit the fabric.
+      this.SetStream({key: stream.slug, value: {queryMainMeta: undefined}});
+      return {libraryId, mainMeta, ...LocalStateFromMeta(mainMeta)};
+    }
+
+    const meta = await this.client.ContentObjectMetadata({libraryId, objectId, select: LOCAL_STATE_SELECT});
+
+    return {libraryId, mainMeta: meta, ...LocalStateFromMeta(meta)};
+  }
+
+  _StreamByObjectId(objectId: string): StreamInfo | undefined {
+    return Object.values(this.streams || {}).find(stream => stream.objectId === objectId);
+  }
+
+  /** Classify streams from local metadata. Returns the slugs to poll. */
   *_ClassifyStreams({slugs, listEpoch}: {slugs: string[], listEpoch?: number}): Generator<any, string[]> {
     yield this.client.utils.LimitedMap(
       15,
@@ -99,46 +129,27 @@ class StreamStatusStore {
         const stream = this.streams?.[slug];
         if(!stream?.objectId) { return; }
 
-        try {
-          const libraryId = stream.libraryId ||
-            await this.client.ContentObjectLibraryId({objectId: stream.objectId});
+        // Content-group streams are classified once from the tenant query; later passes keep that
+        // classification (active ones keep polling StreamStatus) rather than re-reading metadata.
+        if(
+          this.rootStore.settingsStore.useContentGroup &&
+          !stream.queryMainMeta &&
+          (stream.status || this.activeStreamSlugs.has(slug))
+        ) { return; }
 
-          const meta = await this.client.ContentObjectMetadata({
-            libraryId,
+        try {
+          const localState = await this._ReadLocalState({
             objectId: stream.objectId,
-            select: [
-              "live_recording_config/url",
-              "live_recording/fabric_config/ingress_node_api",
-              "live_recording/fabric_config/edge_write_token",
-              "live_recording/playout_config",
-              "live_recording/recording_config",
-              "live_recording/status/edge_write_token"
-            ]
+            libraryId: stream.libraryId
           });
 
-          const liveRecording = meta?.live_recording;
-          const edgeWriteToken = liveRecording?.status?.edge_write_token ||
-            liveRecording?.fabric_config?.edge_write_token;
-
-          if(edgeWriteToken) {
-            this._SetStreamActive({slug, active: true});
-            return;
-          }
-
-          let state: StreamStatus;
-          if(!meta?.live_recording_config?.url) {
-            state = STATUS_MAP.UNCONFIGURED;
-          } else if(
-            !liveRecording?.fabric_config?.ingress_node_api ||
-            !liveRecording?.playout_config ||
-            !liveRecording?.recording_config
-          ) {
-            state = STATUS_MAP.UNINITIALIZED;
+          if(localState.edgeWriteToken) {
+            this._localStates.set(slug, localState);
           } else {
-            state = STATUS_MAP.INACTIVE;
+            this._localStates.delete(slug);
           }
 
-          this._SetStreamActive({slug, active: false, state});
+          this._SetStreamActive({slug, active: !!localState.edgeWriteToken, state: localState.state});
         } catch(error) {
           // eslint-disable-next-line no-console
           console.error(`Unable to classify stream ${slug}`, error);
@@ -149,16 +160,27 @@ class StreamStatusStore {
     return slugs.filter(slug => this.activeStreamSlugs.has(slug));
   }
 
+  // includeRecordingInfo / includeParams are for the details page only - they add an edge-metadata read.
   *CheckStatus({
     objectId,
     slug,
-    showParams=false,
-    update=false
-  }: {objectId: string, slug?: string, showParams?: boolean, update?: boolean}): Generator<any, void | {}> {
-    let response;
+    update=false,
+    localState,
+    includeRecordingInfo=false,
+    includeParams=false
+  }: {
+    objectId: string,
+    slug?: string,
+    update?: boolean,
+    localState?: LocalState,
+    includeRecordingInfo?: boolean,
+    includeParams?: boolean
+  }): Generator<any, void | {}> {
+    let response: any;
+    const listEpoch = this._streamListEpoch;
     try {
       response = yield WithTimeout(
-        this.client.StreamStatus({name: objectId, showParams}),
+        this._FetchStatus({objectId, localState, includeRecordingInfo, includeParams}),
         STREAM_STATUS_TIMEOUT_MS,
         `StreamStatus(${objectId})`
       );
@@ -175,18 +197,33 @@ class StreamStatusStore {
         ));
       }
 
+      // The list was replaced mid-request - don't recreate a stub for a stream it dropped.
+      if(listEpoch !== this._streamListEpoch && !this.streams?.[slug]) { return response; }
+
       this.SetStream({
         key: slug,
         value: {
           status: response.state,
           warnings: response.warnings,
-          quality: response.quality,
-          embedUrl: response?.playoutUrls?.embedUrl
+          quality: response.quality
         }
       });
     }
 
     return response;
+  }
+
+  async _FetchStatus({objectId, localState, includeRecordingInfo, includeParams}: {
+    objectId: string,
+    localState?: LocalState,
+    includeRecordingInfo: boolean,
+    includeParams: boolean
+  }): Promise<any> {
+    const {libraryId, mainMeta} = localState ?? await this._ReadLocalState({objectId});
+
+    // With mainMeta, StreamStatus resolves unconfigured/uninitialized/inactive without a fabric call.
+    // mainMeta may be an observable proxy, which FrameClient's postMessage can't clone.
+    return await this.client.StreamStatus({name: objectId, libraryId, mainMeta: toJS(mainMeta), includeRecordingInfo, includeParams});
   }
 
   /**
@@ -220,7 +257,8 @@ class StreamStatusStore {
             await this.CheckStatus({
               objectId: streamMeta.objectId,
               slug,
-              update: true
+              update: true,
+              localState: this._localStates.get(slug)
             });
           } catch(error) {
             // eslint-disable-next-line no-console
@@ -504,8 +542,7 @@ class StreamStatusStore {
           result[objectId] = {
             status: response?.state,
             warnings: response?.warnings,
-            quality: response?.quality,
-            embedUrl: response?.playoutUrls?.embedUrl
+            quality: response?.quality
           };
         } catch(error) {
           // eslint-disable-next-line no-console

@@ -46,7 +46,10 @@ const makeClient = (overrides: Record<string, unknown> = {}): Record<string, any
   OutputsHop: vi.fn().mockResolvedValue(undefined),
   StreamSiteSettings: vi.fn().mockResolvedValue({siteLibraryId: "ilib-site", siteObjectId: "iq__site"}),
   EmbedUrl: vi.fn().mockResolvedValue("https://embed.example.com/watch"),
-  StreamStatus: vi.fn().mockResolvedValue({quality: 0.9, input_stats: {}}),
+  StreamRunningState: vi.fn().mockResolvedValue({quality: 0.9, input_stats: {}}),
+  utils: {
+    LimitedMap: vi.fn((_limit: number, items: unknown[], fn: (item: unknown) => Promise<unknown>) => Promise.all(items.map(fn)))
+  },
   ...overrides
 });
 
@@ -60,9 +63,11 @@ const makeStore = (clientOverrides: Record<string, unknown> = {}, streamStatusSt
       siteId: "iq__site"
     },
     settingsStore: {},
+    streamListStore: {streamsScope: "all", allStreams: {}},
     streamStatusStore: {
       streams: {},
       streamsByObjectId: {},
+      CheckStatus: ({objectId}: {objectId: string}) => (mockClient as any).StreamRunningState({objectId}),
       ...streamStatusStoreOverrides
     }
   };
@@ -303,24 +308,14 @@ describe("LoadAllOutputsState", () => {
     consoleSpy.mockRestore();
   });
 
-  it("should run outputs sequentially (each call waits before starting next)", async () => {
+  it("should fetch output states through a bounded LimitedMap", async () => {
     const {store, mockClient} = makeStore();
     store.outputs = {"out-1": {}, "out-2": {}};
 
-    const order: string[] = [];
-    mockClient.OutputsState.mockImplementation(({outputId}: {outputId: string}) => {
-      order.push(`start-${outputId}`);
-      return Promise.resolve({state: {}}).then(r => { order.push(`end-${outputId}`); return r; });
-    });
-
     await store.LoadAllOutputsState();
 
-    // Sequential means: start-1, end-1, start-2, end-2 (not start-1, start-2, end-1, end-2)
-    const i1 = order.indexOf("start-out-1");
-    const e1 = order.indexOf("end-out-1");
-    const i2 = order.indexOf("start-out-2");
-    expect(e1).toBeLessThan(i2);
-    expect(i1).toBeLessThan(e1);
+    expect(mockClient.utils.LimitedMap).toHaveBeenCalledWith(10, ["out-1", "out-2"], expect.any(Function));
+    expect(mockClient.OutputsState).toHaveBeenCalledTimes(2);
   });
 
   it("should handle empty outputs gracefully", async () => {
@@ -958,6 +953,31 @@ describe("MapStreamBatch", () => {
     expect(s2.outputs["out-1"].input?.name).toBe("My Stream");
   });
 
+  it("adds a newly mapped stream from allStreams to a mapped-only list", async () => {
+    const streams: Record<string, any> = {};
+    const streamStatusStore = {
+      streams,
+      streamsByObjectId: {},
+      SetStream: vi.fn(({key, value}) => { streams[key] = {...value, slug: key}; }),
+      LoadAllStreamsStatus: vi.fn().mockResolvedValue(undefined)
+    };
+    const {store: s2} = makeStore(
+      {ContentObjectMetadata: vi.fn().mockResolvedValue({name: "Out", enabled: false, input: null})},
+      streamStatusStore
+    );
+    s2.rootStore.streamListStore = {
+      streamsScope: "mapped",
+      allStreams: {"picked-slug": {slug: "picked-slug", objectId: "iq__stream-1", title: "Picked"}}
+    };
+    s2.outputs = {"out-1": {name: "Out"}};
+
+    await s2.MapStream({outputId: "out-1", streamObjectId: "iq__stream-1"});
+
+    expect(streamStatusStore.SetStream).toHaveBeenCalledWith(expect.objectContaining({key: "picked-slug"}));
+    expect(streamStatusStore.LoadAllStreamsStatus).toHaveBeenCalledWith(true, ["picked-slug"]);
+    expect(s2.outputs["out-1"].input?.name).toBe("Picked");
+  });
+
   it("should throw when OutputsModifyBatch rejects", async () => {
     const {store} = makeStore({
       ContentObjectMetadata: vi.fn().mockResolvedValue({name: "Out", input: null}),
@@ -1221,7 +1241,7 @@ describe("LoadOutputStreamInfo", () => {
   it("should merge url, source, packaging, quality and stats onto the output input", async () => {
     const {store} = makeStore({
       ContentObjectMetadata: vi.fn().mockResolvedValue({url: "srt://host:9000", recording_config: {input_cfg: {}}}),
-      StreamStatus: vi.fn().mockResolvedValue({quality: 0.8, input_stats: {ts: {packets_received: 5}}})
+      StreamRunningState: vi.fn().mockResolvedValue({quality: 0.8, input_stats: {ts: {packets_received: 5}}})
     });
     store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary", name: "Primary"}}};
 
@@ -1237,7 +1257,7 @@ describe("LoadOutputStreamInfo", () => {
 
   it("should still merge quality and stats when EmbedUrl fails", async () => {
     const {store} = makeStore({
-      StreamStatus: vi.fn().mockResolvedValue({quality: 0.6, input_stats: {ts: {packets_received: 9}}}),
+      StreamRunningState: vi.fn().mockResolvedValue({quality: 0.6, input_stats: {ts: {packets_received: 9}}}),
       EmbedUrl: vi.fn().mockRejectedValue(new Error("boom"))
     });
     store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
@@ -1253,7 +1273,7 @@ describe("LoadOutputStreamInfo", () => {
   it("should still merge quality and stats when the config read fails", async () => {
     const {store} = makeStore({
       ContentObjectMetadata: vi.fn().mockRejectedValue(new Error("boom")),
-      StreamStatus: vi.fn().mockResolvedValue({quality: 0.55, input_stats: {ts: {}}})
+      StreamRunningState: vi.fn().mockResolvedValue({quality: 0.55, input_stats: {ts: {}}})
     });
     store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1267,7 +1287,7 @@ describe("LoadOutputStreamInfo", () => {
   it("should merge url and packaging even when the status read fails", async () => {
     const {store} = makeStore({
       ContentObjectMetadata: vi.fn().mockResolvedValue({url: "srt://host:9000"}),
-      StreamStatus: vi.fn().mockRejectedValue(new Error("boom"))
+      StreamRunningState: vi.fn().mockRejectedValue(new Error("boom"))
     });
     store.outputs = {"out-1": {name: "Out", input: {stream: "iq__primary"}}};
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1289,7 +1309,7 @@ describe("LoadFailoverStreamInfo", () => {
   it("should write the resolved name, status, quality and stats onto input.failover", async () => {
     const {store, mockClient} = makeStore({
       ContentObjectMetadata: vi.fn().mockResolvedValue("Failover Stream Name"),
-      StreamStatus: vi.fn().mockResolvedValue({state: "running", quality: 0.75, input_stats: {ts: {packets_received: 10}}})
+      StreamRunningState: vi.fn().mockResolvedValue({state: "running", quality: 0.75, input_stats: {ts: {packets_received: 10}}})
     });
     store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
 
@@ -1298,8 +1318,8 @@ describe("LoadFailoverStreamInfo", () => {
     expect(mockClient.ContentObjectMetadata).toHaveBeenCalledWith(
       expect.objectContaining({objectId: "iq__failover", metadataSubtree: "public/name"})
     );
-    expect(mockClient.StreamStatus).toHaveBeenCalledWith(
-      expect.objectContaining({name: "iq__failover"})
+    expect(mockClient.StreamRunningState).toHaveBeenCalledWith(
+      expect.objectContaining({objectId: "iq__failover"})
     );
     expect(store.outputs["out-1"].input.failover.name).toBe("Failover Stream Name");
     expect(store.outputs["out-1"].input.failover.status).toBe("running");
@@ -1317,7 +1337,7 @@ describe("LoadFailoverStreamInfo", () => {
     await store.LoadFailoverStreamInfo({outputId: "out-1", streamObjectId: "iq__failover"});
 
     expect(mockClient.ContentObjectMetadata).not.toHaveBeenCalled();
-    expect(mockClient.StreamStatus).not.toHaveBeenCalled();
+    expect(mockClient.StreamRunningState).not.toHaveBeenCalled();
     expect(store.outputs["out-1"].input.failover).toBeUndefined();
   });
 
@@ -1333,7 +1353,7 @@ describe("LoadFailoverStreamInfo", () => {
   it("should still merge stats when the name read fails", async () => {
     const {store} = makeStore({
       ContentObjectMetadata: vi.fn().mockRejectedValue(new Error("boom")),
-      StreamStatus: vi.fn().mockResolvedValue({quality: 0.5, input_stats: {ts: {}}})
+      StreamRunningState: vi.fn().mockResolvedValue({quality: 0.5, input_stats: {ts: {}}})
     });
     store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1348,7 +1368,7 @@ describe("LoadFailoverStreamInfo", () => {
 
   it("should swallow errors from the stats read", async () => {
     const {store} = makeStore({
-      StreamStatus: vi.fn().mockRejectedValue(new Error("boom"))
+      StreamRunningState: vi.fn().mockRejectedValue(new Error("boom"))
     });
     store.outputs = {"out-1": {name: "Out", input: {...failoverInput}}};
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1443,10 +1463,7 @@ describe("SwitchOutputInput", () => {
 // ---------------------------------------------------------------------------
 
 describe("CreateOutput location", () => {
-  const makeCreateStore = (clientOverrides: Record<string, unknown> = {}) => {
-    const created = {name: "New Output", srt_pull: {urls: ["srt://host:1234"]}, state: {connected_clients: 0}};
-    return makeStore({OutputsListItem: vi.fn().mockResolvedValue(created), ...clientOverrides});
-  };
+  const makeCreateStore = (clientOverrides: Record<string, unknown> = {}) => makeStore(clientOverrides);
 
   it("should save the region to custom.location and not write description", async () => {
     const {store, mockClient} = makeCreateStore();
@@ -1454,10 +1471,8 @@ describe("CreateOutput location", () => {
     await store.CreateOutput({type: "srt_pull", name: "Out", region: "us-east"});
 
     expect(mockClient.OutputsCreate.mock.calls[0][0].description).toBeUndefined();
-    const modifyArg = mockClient.OutputsModify.mock.calls[0][0];
-    expect(modifyArg.output.custom).toEqual({location: {type: "public", geo: "us-east"}});
-    expect(modifyArg.output.state).toBeUndefined();
-    expect(store.outputs["out-1"].custom).toEqual({location: {type: "public", geo: "us-east"}});
+    expect(mockClient.OutputsCreate.mock.calls[0][0].custom).toEqual({location: {type: "public", geo: "us-east"}});
+    expect(mockClient.OutputsModify).not.toHaveBeenCalled();
   });
 
   it("should resolve a pinned hostname to a node ID and save geo, node and host", async () => {
@@ -1469,7 +1484,7 @@ describe("CreateOutput location", () => {
     const deliveryArg = mockClient.OutputsCreate.mock.calls[0][0].delivery;
     expect(deliveryArg.settings.node_ids).toEqual(["inode123"]);
     expect(deliveryArg.settings.elvgeos).toBeUndefined();
-    expect(mockClient.OutputsModify.mock.calls[0][0].output.custom)
+    expect(mockClient.OutputsCreate.mock.calls[0][0].custom)
       .toEqual({location: {type: "public", geo: "us-east", node: "inode123", host: "host-1.example.com"}});
   });
 
@@ -1491,7 +1506,7 @@ describe("CreateOutput location", () => {
     const deliveryArg = mockClient.OutputsCreate.mock.calls[0][0].delivery;
     expect(deliveryArg.settings.elvgeos).toBeUndefined();
     expect(deliveryArg.settings.node_ids).toBeUndefined();
-    expect(mockClient.OutputsModify.mock.calls[0][0].output.custom).toEqual({location: {type: "public"}});
+    expect(mockClient.OutputsCreate.mock.calls[0][0].custom).toEqual({location: {type: "public"}});
   });
 
   it("should save a dedicated location with the node", async () => {
@@ -1499,18 +1514,7 @@ describe("CreateOutput location", () => {
 
     await store.CreateOutput({type: "srt_pull", name: "Out", nodeType: "dedicated", node: "inode123"});
 
-    expect(mockClient.OutputsModify.mock.calls[0][0].output.custom).toEqual({location: {type: "dedicated", node: "inode123"}});
-  });
-
-  it("should still register the output when saving the location fails", async () => {
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-    const {store} = makeCreateStore({OutputsModify: vi.fn().mockRejectedValue(new Error("boom"))});
-
-    await store.CreateOutput({type: "srt_pull", name: "Out", region: "us-east"});
-
-    expect(store.outputs["out-1"]).toBeDefined();
-    expect(store.outputs["out-1"].custom).toBeUndefined();
-    consoleError.mockRestore();
+    expect(mockClient.OutputsCreate.mock.calls[0][0].custom).toEqual({location: {type: "dedicated", node: "inode123"}});
   });
 });
 

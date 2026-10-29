@@ -87,13 +87,15 @@ vi.mock("mantine-datatable", () => ({
 // The Outputs component reads outputStore / outputModalStore / rootStore from here.
 vi.mock("@/stores/index.ts", () => ({
   // The Outputs page gates its records on streamListStore.streamsLoaded and calls
-  // streamListStore.LoadStreamList in LoadData, so the mock must provide both.
+  // streamListStore.LoadMappedStreams in LoadData, so the mock must provide both.
   streamListStore: {
     streamsLoaded: true,
-    LoadStreamList: vi.fn().mockResolvedValue(undefined)
+    streamsScope: "mapped",
+    LoadMappedStreams: vi.fn().mockResolvedValue(undefined)
   },
   outputStore: {
     state: "pending",
+    mappedStreamIds: [],
     outputSettingsId: "iq__output-settings",
     outputList: [],
     tableFilter: "",

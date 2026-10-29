@@ -37,7 +37,7 @@ const VideoLabel = (record) => {
 
 // Controlled component like AudioTracksTable.jsx, but each row action is an
 // immediate fabric write, not a staged edit awaiting the panel's Save.
-const AlternateTranscodesTable = observer(({records, onChange, disabled, parentObjectId, parentLibraryId, parentSlug}) => {
+const AlternateTranscodesTable = observer(({records, onChange, disabled, parentObjectId, parentLibraryId}) => {
   const [editingTranscode, setEditingTranscode] = useState(null);
   const [adding, setAdding] = useState(false);
   const [pendingDeleteItem, setPendingDeleteItem] = useState(null);
@@ -93,7 +93,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
     try {
       const record = values.id ?
         await alternateTranscodeStore.SaveAlternateTranscode({objectId: values.id, ...values}) :
-        await alternateTranscodeStore.CreateAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, ...values});
+        await alternateTranscodeStore.CreateAlternateTranscode({parentObjectId, parentLibraryId, ...values});
 
       const exists = (records || []).some(r => r.id === record.id);
       onChange(exists ? records.map(r => r.id === record.id ? record : r) : [...(records || []), record]);
@@ -113,7 +113,7 @@ const AlternateTranscodesTable = observer(({records, onChange, disabled, parentO
 
   const HandleDelete = async(id) => {
     try {
-      await alternateTranscodeStore.RemoveAlternateTranscode({parentObjectId, parentLibraryId, parentSlug, id});
+      await alternateTranscodeStore.RemoveAlternateTranscode({parentObjectId, parentLibraryId, id});
       onChange((records || []).filter(r => r.id !== id));
     } catch(error) {
       notifications.show({
