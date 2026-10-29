@@ -310,18 +310,14 @@ class StreamListStore {
     this.streamsLoaded = false;
   }
 
-  // scoped=true applies the streams page's date-range filter to the tenant query.
-  // Callers that need the full stream map (Outputs, Monitor, stream mapping) pass
-  // scoped=false so the list isn't limited to the currently-selected date range.
+  // scoped=false skips the date-range filter, for callers needing the full stream map.
   *LoadStreamList({reload=false, scoped=true}: {reload?: boolean, scoped?: boolean} = {}): Generator<any, void> {
     const scope: StreamsScope = scoped ? "dated" : "all";
     if(this._loadingStreams && !reload && this._loadingScope === scope) { return; }
     this._loadingStreams = true;
     this._loadingScope = scope;
-    // A newer load (e.g. a search typed mid-load) supersedes this one's results.
     const loadId = ++this._streamLoadId;
     this.streamsLoaded = false;
-    // Drop any in-flight "load more" spinner - this rebuild replaces the list.
     this.loadingMoreStreams = false;
     try {
       // Need the site object id for the tenant query scope (and any site-list fallback)
@@ -366,12 +362,8 @@ class StreamListStore {
     }
   }
 
-  // Loads the next page of the paged tenant stream query and appends it to the list.
-  // Called when the streams table is scrolled to the bottom.
+  // Appends the next page of the paged tenant query.
   *LoadMoreStreamList(): Generator<any, void> {
-    // Bail while the list itself is (re)building - it will replace the list anyway.
-    // (streamsLoaded flips true once the list is ready, before the status-polling tail,
-    // so this doesn't block on that long-running tail.)
     if(this._loadingMoreStreams || !this.streamsLoaded || !this.hasMoreStreams) { return; }
 
     this._loadingMoreStreams = true;
@@ -380,10 +372,8 @@ class StreamListStore {
     try {
       const added = yield this.LoadMoreTenantLiveStreamContent();
       newSlugs = Object.keys(added || {});
-      // A reload (e.g. date-filter change) kicked off while this page was in flight -
-      // it will rebuild the list, so don't append these now-stale rows.
+      // Skip stale rows if a reload started meanwhile.
       if(newSlugs.length > 0 && this.streamsLoaded && !this._loadingStreams) {
-        // Load-more only runs on the content-group path - skip per-object fetches.
         yield this.LoadStreams({streamMetadata: added, append: true, fetchObjectData: !this.rootStore.settingsStore.useContentGroup});
       } else {
         newSlugs = [];
@@ -392,8 +382,6 @@ class StreamListStore {
       // eslint-disable-next-line no-console
       console.error("Unable to load more site streams", error);
     } finally {
-      // Clear the spinner as soon as the new rows are in - status polling for them
-      // continues in the background and fills the Status column in as it resolves.
       this._loadingMoreStreams = false;
       this.loadingMoreStreams = false;
     }
@@ -409,9 +397,8 @@ class StreamListStore {
   }
 
   /**
-   * Replace the stream list with only the given objects (the Outputs page's mapped streams), read one object
-   * at a time instead of listing the tenant. Works on both the content-group and legacy paths.
-   * No status pass: OutputsList already set each output's input.status, and the 60s status poll refreshes from here.
+   * Replace the stream list with only the given objects (the Outputs page's mapped streams).
+   * No status pass: OutputsList already set each output's input.status.
    */
   *LoadMappedStreams({objectIds}: {objectIds: string[]}): Generator<any, void> {
     this._loadingStreams = true;
@@ -488,9 +475,8 @@ class StreamListStore {
   }
 
   /**
-   * paged=true fetches only the first page and records a resume cursor; callers pull
-   * further pages via LoadMoreTenantLiveStreamContent. paged=false (default) loops
-   * through every page in one call.
+   * paged=true fetches only the first page and records a resume cursor for
+   * LoadMoreTenantLiveStreamContent; otherwise loops through every page.
    */
   *LoadTenantLiveStreamContent({siteId, dateRange, nameFilter, force=false, paged=false}: {siteId?: string, dateRange?: [Date | null, Date | null], nameFilter?: string[], force?: boolean, paged?: boolean} = {}): Generator<any, StreamMap> {
     if(!siteId) {
@@ -628,9 +614,8 @@ class StreamListStore {
   }
 
   /**
-   * Enrich a raw stream-metadata map with per-object data (objectId, libraryId, title,
-   * tags, source/packaging, inputCfg); returns it without touching store state.
-   * fetchObjectData=false skips the per-object fetch (content-group query loads list data separately).
+   * Enrich a raw stream-metadata map with per-object data; returns it without touching store state.
+   * fetchObjectData=false skips the per-object fetch.
    */
   *_EnrichStreams({streamMetadata, fetchObjectData=true}: {streamMetadata: StreamMap, fetchObjectData?: boolean}): Generator<any, StreamMap> {
     const enriched: StreamMap = {};
@@ -771,8 +756,7 @@ class StreamListStore {
   }
 
   /**
-   * Stream record (originUrl/source/packaging) for one object id. Uses the loaded maps when
-   * the stream is there; otherwise reads just that object rather than paging the whole tenant.
+   * Stream record (originUrl/source/packaging) for one object id, from the loaded maps or a single read.
    */
   *FetchStreamInfo(objectId: string): Generator<any, Partial<StreamInfo> | undefined> {
     const loaded = this.rootStore.streamStatusStore.streams?.[objectId] ?? this.allStreams?.[objectId];
@@ -787,8 +771,7 @@ class StreamListStore {
   }
 
   /**
-   * Load and enrich only the streams in one group (query_fields.title_id). Version
-   * metadata is still paged in full; per-object enrichment runs for the group alone.
+   * Load and enrich only the streams in one group (query_fields.title_id).
    * TODO: server-side title_id filter once the group-data source lands.
    */
   *FetchStreamsByTitleId(titleId: string): Generator<any, StreamMap> {

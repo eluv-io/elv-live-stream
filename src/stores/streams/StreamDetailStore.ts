@@ -264,9 +264,8 @@ class StreamDetailStore {
       // alternate_transcodes is an id array; resolve to full rows for display/edit.
       const alternateTranscodes = yield this.rootStore.alternateTranscodeStore.ResolveAlternateTranscodes({libraryId, ids: liveRecordingConfigTopMeta?.alternate_transcodes ?? []});
 
-      // Detected programs/PID's, read-only - not part of the saved selection.
-      // Prefer the probe; fall back to mpegts_selection, which has only program
-      // numbers and a flat, program-unscoped PID list.
+      // Detected programs and PID numbers (read-only). Falls back to mpegts_selection, which has
+      // only program numbers and an unscoped PID list.
       const mpegtsSelection = inputCfg?.mpegts_selection;
       const programs: ProbeProgram[] = probePrograms?.length ?
         ProgramsFromProbe(probePrograms) :
@@ -467,9 +466,8 @@ class StreamDetailStore {
           rep: `playout/${offering}/options.json`,
           ...authArgs
         }), `Unable to load playout options URL for ${objectId} (${offering})`),
-        // Playout formats in precedence order: overrides -> config -> applied -> keys of the offering.
-        // overrides/config/applied are the "default" offering's settings, not per-offering - only
-        // read them for "default", or they'd wrongly win over every other offering's own formats.
+        // Formats by precedence: overrides -> config -> applied -> offering keys.
+        // The first three are "default"-offering settings, so only read them for "default".
         Guard(
           offering === "default" ?
             Promise.all([
@@ -496,8 +494,7 @@ class StreamDetailStore {
       const configured = overrides ?? config ?? applied ?? Object.keys(offeringFormats || {});
       const formats: string[] = (Array.isArray(configured) ? configured : []).filter(format => PLAYOUT_FORMATS[format]);
 
-      // One URL per format, in parallel, kept in `formats` order.
-      // Prefer the URL from PlayoutOptions; fall back to the expected path when it's absent
+      // Prefer the PlayoutOptions URL; fall back to the expected path.
       const methods = await Promise.all(formats.map(async format => {
         const {label, manifest, protocol, drm} = PLAYOUT_FORMATS[format];
 

@@ -14,18 +14,14 @@ interface CreateOutputParams {
   name?: string;
   externalId?: string;
   offering?: string;
-  // Public outputs target a fabric region (optionally pinned to a node within it),
-  // or none for Automatic; dedicated outputs target a specific node.
   nodeType?: "public" | "dedicated";
   region?: string;
-  // Node ID for a dedicated node. For a public pick, pass `nodeHost` instead - it's
-  // resolved to an ID here.
+  // Dedicated node ID; for a public pick pass `nodeHost` instead.
   node?: string;
   nodeHost?: string;
-  // Required for rtmp: the stream whose ladder supplies input.fmp4.
+  // Required for rtmp (supplies input.fmp4).
   streamObjectId?: string;
-  // Display fields for the picked stream (name/status/source...), so the new row
-  // renders before the next outputs load.
+  // Lets the new row render before the next outputs load.
   streamInfo?: Partial<OutputInput>;
   passphrase?: string;
   encryption?: string;
@@ -42,9 +38,6 @@ class OutputStore {
   tableFilter = "";
   tableTagFilter: string[] = [];
   sortStatus = {columnAccessor: "name", direction: "asc"};
-  // Cache of region -> candidate egress nodes, for the optional "pick a
-  // specific node" dropdown under Public. Keyed by region since a user may
-  // browse several regions in one session.
   nodesByRegion: Record<string, {value: string, label: string}[]> = {};
   loadingNodesRegion: string | null = null;
   _nodesByRegionRequestId = 0;
@@ -72,7 +65,6 @@ class OutputStore {
   FlattenOutput = (slug: string, output: Output): FlatOutput => {
     const {streamsByObjectId, streams} = this.rootStore.streamStatusStore;
     const streamSlug = output.input?.stream ? streamsByObjectId[output.input.stream] : undefined;
-    // srt_pull stores urls as an array; other types store a single url string.
     const url = output.srt_pull?.urls?.[0] ?? output.srt_push?.url ?? output.rtp?.url ?? output.udp?.url ?? output.rtmp?.url;
 
     return {
@@ -83,8 +75,7 @@ class OutputStore {
       enabled: output.enabled,
       streamId: output.input?.stream,
       streamName: output.input?.name,
-      // Live status from the streams map (updated on start/stop) beats
-      // output.input.status, only as fresh as the last outputs load.
+      // Streams map is fresher than output.input.status (updated on start/stop).
       streamStatus: streams?.[streamSlug]?.status ?? output.input?.status,
       url,
       type: DeriveOutputType(output, streams?.[streamSlug]?.source ?? output.input?.source),
@@ -204,9 +195,7 @@ class OutputStore {
 
   /**
    * Fetch a single output's live egress state (mirrors StreamStatusStore.CheckStatus).
-   * With update=true, merges only `state` onto the stored output so derived table
-   * columns react without a full OutputsList reload and without clobbering the
-   * enriched input fields from LoadOutputStreamInfo or the persisted config.
+   * With update=true, merges only `state` onto the stored output.
    */
   *CheckOutputState({outputId, update=false}: {outputId: string, update?: boolean}): Generator<any, any> {
     let response;
@@ -233,9 +222,7 @@ class OutputStore {
   }
 
   /**
-   * Resilient per-output state refresh for polling: updates each output
-   * independently so one failure can't block the rest (unlike the all-or-nothing
-   * LoadOutputs).
+   * Per-output state refresh for polling; one failure doesn't block the rest.
    */
   *LoadAllOutputsState(): Generator<any, void> {
     yield this.client.utils.LimitedMap(
@@ -264,11 +251,8 @@ class OutputStore {
         includeState
       });
 
-      // OutputsListItem's `input` is sparse (stream/name/status) and its
-      // `failover` is the bare fabric block ({after, input}) - client-js never
-      // enriches it. Merge onto the existing input, and deep-merge `failover`,
-      // so the live fields from LoadOutputStreamInfo / LoadFailoverStreamInfo
-      // survive a reload. A null/undefined input (unmapped) passes through.
+      // Merge onto existing input (and failover) so the live fields from
+      // LoadOutputStreamInfo / LoadFailoverStreamInfo survive a reload.
       const existingInput = this.outputs[outputId]?.input;
       this.SetOutput({
         slug: outputId,
@@ -295,8 +279,7 @@ class OutputStore {
   *LoadOutputStreamInfo({slug, streamObjectId}: {slug: string, streamObjectId: string}): Generator<any, {url?: string, embedUrl?: string, source?: StreamSource[], packaging?: StreamPackaging[], quality?: string, stats?: any}, any> {
     const streamInfo: {url?: string, embedUrl?: string, source?: StreamSource[], packaging?: StreamPackaging[], quality?: string, stats?: any} = {};
 
-    // Each fetch is isolated so one failure (e.g. EmbedUrl) can't discard the
-    // others - the live quality/stats must land even if the URL derivation fails.
+    // Each fetch is isolated so one failure can't discard the others.
     if(this.rootStore.settingsStore.useContentGroup) {
       try {
         const record: any = yield this.rootStore.streamListStore.FetchStreamInfo(streamObjectId);
@@ -368,10 +351,8 @@ class OutputStore {
   }
 
   /**
-   * Enrich input.failover for the Summary card: client-js leaves it a bare
-   * object id, so resolve name (public/name) and status/quality/stats
-   * (CheckStatus). Name and stats are resolved independently so one failing
-   * doesn't suppress the other.
+   * Enrich input.failover (client-js leaves a bare object id) with name and
+   * status/quality/stats, resolved independently.
    */
   *LoadFailoverStreamInfo({outputId, streamObjectId}: {outputId: string, streamObjectId: string}): Generator<any, void> {
     const existingInput = this.outputs[outputId]?.input;
@@ -420,11 +401,8 @@ class OutputStore {
   }
 
   /**
-   * Load candidate egress nodes for a region, for the optional "pick a specific
-   * node" dropdown under Public. Only ever driven by one mounted form at a time,
-   * so this uses a request-id guard (rather than full promise-dedupe like
-   * TenantStore.LoadAccessGroups) to drop stale responses if the user flips
-   * regions before the previous fetch resolves.
+   * Load candidate egress nodes for a region. A request-id guard drops stale
+   * responses if the region changes mid-fetch.
    */
   *LoadNodesByRegion({region, force = false}: {region: string, force?: boolean}): Generator<any, void> {
     if(!region) { return; }
@@ -475,7 +453,6 @@ class OutputStore {
       const node = nodeHost ? yield NodeIdForHostname({client: this.client, hostname: nodeHost}) : dedicatedNode;
 
       const isSrt = type === "srt_pull" || type === "srt_push";
-      // srt_pull takes arrays of nodes/geos; the other types take a single value.
       const isPull = type === "srt_pull";
 
       const settings: Record<string, any> = {};
@@ -483,8 +460,7 @@ class OutputStore {
         settings[isPull ? "node_ids" : "node_id"] = isPull ? [node] : node;
       }
 
-      // A pinned node wins - the fabric rejects a node and a region together.
-      // With neither (Automatic), the SDK resolves a default node.
+      // The fabric rejects a node and a region together.
       if(region && !node) {
         settings[isPull ? "elvgeos" : "elvgeo"] = isPull ? [region] : region;
       }
@@ -642,9 +618,8 @@ class OutputStore {
   }
 
   /**
-   * Persist a config edit for one output. Strips transient runtime fields, rebuilds
-   * the applicable transport block fresh (so a type change drops the old one), and
-   * only re-resolves node/region when the pick actually changed.
+   * Persist a config edit for one output. Rebuilds the transport block fresh and
+   * only re-resolves node/region when the pick changed.
    */
   *SaveOutput({
     outputId,
@@ -663,7 +638,6 @@ class OutputStore {
     failoverStream,
     failoverAfter,
     failoverResetClients,
-    // tags
   }: {outputId: string, streamObjectId?: string, name?: string, type?: "srt_pull" | "srt_push" | "rtp" | "udp" | "rtmp", streamKey?: string, passphrase?: string, encryption?: string, stripRtp?: boolean, nodeType?: "public" | "dedicated", node?: string, nodeHost?: string, region?: string, url?: string, failoverStream?: string, failoverAfter?: string, failoverResetClients?: boolean, tags?: string[]}): Generator<any, void> {
     try {
       const objectId = this.outputSettingsId;
@@ -673,9 +647,7 @@ class OutputStore {
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {name: _n, status: _s, ...cleanInput} = existing.input || {};
 
-      // Input failover. Only touched when the caller passes failoverStream;
-      // otherwise the existing block round-trips untouched. "" clears it (sent as
-      // explicit null). "Reset Clients on" => disconnect_outputs true.
+      // Only touched when failoverStream is passed; "" clears it (explicit null).
       if(failoverStream !== undefined) {
         cleanInput.failover = failoverStream
           ? {after: failoverAfter, disconnect_outputs: Boolean(failoverResetClients), input: {stream: failoverStream}}
@@ -700,28 +672,21 @@ class OutputStore {
           enabled = false;
         }
       }
-      // Strip transient runtime `state` and every transport block - the applicable
-      // one is rebuilt fresh below so a type change can't carry the old shape over.
+      // Transport blocks are rebuilt below so a type change can't carry the old shape over.
       // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
       const {state: _st, rtp: _rtp, udp: _udp, rtmp: _rtmp, srt_pull: _srtPull, srt_push: _srtPush, ...cleanExisting} = existing;
 
       const existingTransportKey = existing.srt_pull ? "srt_pull" : existing.srt_push ? "srt_push" : existing.rtp ? "rtp" : existing.udp ? "udp" : existing.rtmp ? "rtmp" : undefined;
       const transportKey = type ?? existingTransportKey;
       const typeChanged = !!type && type !== existingTransportKey;
-      // encryption/passphrase/strip_rtp live on the SRT block (srt_pull or srt_push);
-      // RTP/UDP outputs have none.
+      // encryption/passphrase/strip_rtp only exist on SRT blocks.
       const srtKey = transportKey === "srt_pull" || transportKey === "srt_push" ? transportKey : undefined;
-      // On a type change the old blocks belong to a different shape - don't carry them over.
       const existingTransport = typeChanged ? undefined : (transportKey ? existing[transportKey] : undefined);
       const existingSrt = typeChanged ? undefined : (srtKey ? existing[srtKey] : undefined);
-      // srt_pull stores node/region as arrays; the other types store single values.
       const isPull = transportKey === "srt_pull";
 
-      // node/nodeHost/region are raw picks from the edit form ("" when unset). A public
-      // output has a region (none = Automatic) and optionally a pinned node, picked by
-      // hostname; a dedicated one has only a node ID. Only touch node_id/node_ids when
-      // the pick differs from what's saved (see GetOutputLocation) or the transport
-      // type changed, so a plain rename doesn't re-resolve to a different node.
+      // Only touch node_id/node_ids when the pick or transport type changed, so a
+      // plain rename doesn't re-resolve to a different node.
       const touchesNodeOrRegion = node !== undefined || nodeHost !== undefined || region !== undefined;
       const locationType = nodeType ?? (node && !region ? "dedicated" : "public");
       const dedicatedNodeIds = (this.rootStore.settingsStore?.dedicatedNodesList || []).map((n: {value: string}) => n.value);
@@ -733,8 +698,6 @@ class OutputStore {
         typeChanged || pickChanged || savedLocation.type !== locationType || (region || "") !== savedLocation.geo
       );
 
-      // A pinned hostname, or a chosen region (or none, for Automatic), must be resolved
-      // to a node ID before writing (see ResolveEgressNodeId).
       let resolvedNodeId: string | undefined;
       if(nodeOrRegionChanged) {
         resolvedNodeId = node || (nodeHost ?
@@ -756,13 +719,12 @@ class OutputStore {
       const output = {
         ...cleanExisting,
         ...(name !== undefined && {name: name.trim()}),
-        // ...(tags !== undefined && {tags}),
         enabled,
         input,
         ...(nodeOrRegionChanged && {custom: WithOutputLocation(existing.custom, {
           type: locationType,
           geo: region,
-          // Automatic doesn't save its resolved node - only a dedicated or pinned pick does.
+          // Automatic doesn't save its resolved node.
           node: locationType === "dedicated" ? node : (nodeHost ? resolvedNodeId : undefined),
           host: nodeHost
         })}),
@@ -777,8 +739,7 @@ class OutputStore {
               passphrase: encryption ? (passphrase !== undefined ? (passphrase || undefined) : existingSrt?.passphrase) : undefined,
               strip_rtp: stripRtp ?? existingSrt?.strip_rtp
             }),
-            // Clear elvgeo/elvgeos unconditionally so no stale value from
-            // existingTransport survives a save that touches node/region.
+            // Always clear elvgeo(s) so a stale value doesn't survive.
             ...(nodeOrRegionChanged && {
               [isPull ? "node_ids" : "node_id"]: resolvedNodeId ? (isPull ? [resolvedNodeId] : resolvedNodeId) : undefined,
               [isPull ? "elvgeos" : "elvgeo"]: undefined

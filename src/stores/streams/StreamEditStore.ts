@@ -94,21 +94,13 @@ interface UpdateConfigMetadataParams {
   customReadLoop?: boolean;
   audioData?: AudioDataMap;
   multiPathEnabled?: boolean;
-  // Assumed shape, pending fabric-team confirmation - see the Alternate
-  // Transcodes / Program-PID-Selection design note in CLAUDE.md. Written via
-  // the same ReplaceMetadata call as the fields above, so it won't hard-
-  // reject, but may be silently ignored by the recording pipeline until it's
-  // extended to read these fields (same risk already documented for ats_ts).
+  // Assumed shape, pending fabric-team confirmation; the recording pipeline may ignore these.
   copyPackagingFormats?: string[];
   alternateTranscodeEnabled?: boolean;
-  // Ids of the alternate transcodes' own content objects - see
-  // AlternateTranscodeStore.
   alternateTranscodes?: string[];
   // Only used when objectId targets an alternate transcode's own object.
   resolution?: string;
-  // videoBitrate/streamBitrate are written to
-  // live_recording/recording_config/recording_params/xc_params, not the
-  // recording_config above.
+  // Written to live_recording/recording_config/recording_params/xc_params.
   videoBitrate?: string | number;
   streamBitrate?: string | number;
   programPidSelection?: ProgramPidSelection;
@@ -725,8 +717,6 @@ class StreamEditStore {
           } : {};
         }
 
-        // New fields, additive to the legacy input_cfg above - see the comment
-        // on UpdateConfigMetadataParams for the pending-confirmation caveat.
         if(copyPackagingFormats !== undefined) recordingConfig.copy_packaging_formats = copyPackagingFormats;
         if(alternateTranscodeEnabled !== undefined) recordingConfig.alternate_transcode_enabled = alternateTranscodeEnabled;
         if(programPidSelection !== undefined) recordingConfig.program_pid_selection = programPidSelection;
@@ -826,11 +816,8 @@ class StreamEditStore {
           });
         }
 
-        // xc_params fields for the applied live_recording tree (unlike
-        // recording_config above). streamBitrate is written as a leaf under
-        // input_cfg - note the copyMpegTs block above replaces all of input_cfg
-        // wholesale, so passing both together would wipe this (not currently
-        // possible: alternate transcode callers never pass copyMpegTs).
+        // streamBitrate is a leaf under input_cfg, which the copyMpegTs block above
+        // replaces wholesale - don't pass both.
         if(videoBitrate !== undefined) {
           await this.client.ReplaceMetadata({
             libraryId, objectId, writeToken,
