@@ -32,6 +32,8 @@
 
 :root {
   --mantine-font-family: inter, helvetica neue, helvetica, sans-serif;
+  --mantine-datatable-pagination-active-background-color-light: var(--mantine-color-elv-blue-3);
+  --mantine-datatable-pagination-active-background-color-dark: var(--mantine-color-elv-blue-3);
 }
 
 body {

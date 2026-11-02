@@ -18,8 +18,10 @@ import styles from "./RecordingPeriodsTable.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
+const PAGE_SIZE = 15;
+
 const RecordingPeriodsTable = observer(({
-  records,
+  recordingPeriods,
   objectId,
   slug,
   title,
@@ -57,6 +59,28 @@ const RecordingPeriodsTable = observer(({
   const retention = streamStatusStore.streams?.[slug]?.partTtl;
 
   const [showExpired, setShowExpired] = useState(false);
+
+  const filteredRecords = [...(recordingPeriods || [])]
+    .sort(SortTable({sortStatus}))
+    .filter((record, i) => {
+      const expired = RecordingPeriodIsExpired({
+        parts: record?.sources?.video?.parts || [],
+        startTime: record.start_time,
+        endTime: record.end_time,
+        retention: parseInt(retention)
+      });
+
+      if(showExpired) {
+        return true;
+      } else {
+        if(i === 0) { return record; }
+        return !expired;
+      }
+    });
+
+  // Paging
+  const [page, setPage] = useState(1);
+  const pagedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const HandleCopy = async ({title}) => {
     try {
@@ -129,31 +153,16 @@ const RecordingPeriodsTable = observer(({
       }) : "--";
   };
 
-  const filteredRecords = (records || [])
-    .sort(SortTable({sortStatus}))
-    .filter((record, i) => {
-      const expired = RecordingPeriodIsExpired({
-        parts: record?.sources?.video?.parts || [],
-        startTime: record.start_time,
-        endTime: record.end_time,
-        retention: parseInt(retention)
-      });
-
-      if(showExpired) {
-        return true;
-      } else {
-        if(i === 0) { return record; }
-        return !expired;
-      }
-    });
-  const isDisconnected = !!records?.[0]?.end_time || !StreamIsActive(status);
+  const [latestPeriod, previousPeriod] = [...(recordingPeriods || [])]
+    .sort((a, b) => b.start_time - a.start_time);
+  const isDisconnected = !!latestPeriod?.end_time || !StreamIsActive(status);
 
   const periodsSummaryData = [
     {label: "Status", id: "period-status", value: isDisconnected ? "Disconnected" : "Recording"},
     {label: "Last Start", id: "period-last-start", value: status?.recordingPeriod?.startTimeEpochSec ? DateFormat({time: status?.recordingPeriod?.startTimeEpochSec, format: "sec"}) : ""},
     {label: "Runtime", id: "period-runtime", value: [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state) ? Runtime({startTime: status?.recordingPeriod?.startTimeEpochSec * 1000, currentTimeMs, active: true, format: "hh:mm:ss"}) : ""},
-    {label: "Last Incident", id: "period-last-incident", value: RelativeTime(records?.[1]?.end_time)},
-    {label: "Periods", id: "period-count", value: (records || []).length},
+    {label: "Last Incident", id: "period-last-incident", value: RelativeTime(previousPeriod?.end_time)},
+    {label: "Periods", id: "period-count", value: (recordingPeriods || []).length},
     {label: "Retention", id: "period-retention", value: retention ? (RETENTION_TEXT[retention] ?? FormatDuration(parseInt(retention))) : ""},
   ];
 
@@ -195,7 +204,14 @@ const RecordingPeriodsTable = observer(({
       <Box className={sharedStyles.tableWrapper} mb="4rem">
         <DataTable
           sortStatus={sortStatus}
-          onSortStatusChange={setSortStatus}
+          onSortStatusChange={(status) => {
+            setSortStatus(status);
+            setPage(1);
+          }}
+          totalRecords={filteredRecords.length}
+          recordsPerPage={PAGE_SIZE}
+          page={page}
+          onPageChange={setPage}
           fetching={loading}
           columns={[
             {
@@ -275,6 +291,7 @@ const RecordingPeriodsTable = observer(({
                   checked={showExpired}
                   onChange={() => {
                     setShowExpired((current) => !current);
+                    setPage(1);
                   }}
                 />
               )
@@ -282,7 +299,7 @@ const RecordingPeriodsTable = observer(({
           ]}
           minHeight={(!filteredRecords || filteredRecords.length === 0) ? 130 : 75}
           noRecordsText="No recording periods found"
-          records={filteredRecords}
+          records={pagedRecords}
           selectionColumnClassName={sharedStyles.selectionColumn}
           selectedRecords={selectedRecords}
           onSelectedRecordsChange={HandleSelectionChange}
