@@ -5,6 +5,10 @@
   overflow: hidden;
 }
 
+.fixedTable table {
+  table-layout: fixed;
+}
+
 .selectionColumn {
   width: 40px;
   min-width: 40px;

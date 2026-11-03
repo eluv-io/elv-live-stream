@@ -204,7 +204,7 @@ const RecordingPeriodsTable = observer(({
           </SimpleGrid>
         </Box>
 
-      <Box className={sharedStyles.tableWrapper} mb="4rem">
+      <Box className={`${sharedStyles.tableWrapper} ${sharedStyles.fixedTable}`} mb="4rem">
         <DataTable
           sortStatus={sortStatus}
           onSortStatusChange={(status) => {

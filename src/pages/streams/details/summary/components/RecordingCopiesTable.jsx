@@ -125,7 +125,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
   return (
     <Box mb="24px" maw="100%">
       <SectionTitle mb={7}>Recordings</SectionTitle>
-      <Box className={sharedStyles.tableWrapper}>
+      <Box className={`${sharedStyles.tableWrapper} ${sharedStyles.fixedTable}`}>
         <DataTable
           idAccessor="_id"
           noRecordsText="No live recording copies found"
@@ -167,6 +167,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
             {
               accessor: "startTime",
               title: "Start Time",
+              width: 190,
               render: record => (
                 <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
@@ -179,6 +180,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
             {
               accessor: "endTime",
               title: "End Time",
+              width: 190,
               render: record => (
                 <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
@@ -192,6 +194,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
               accessor: "create_time",
               title: "Date Added",
               sortable: true,
+              width: 190,
               render: record => (
                 <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
@@ -204,6 +207,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
             {
               accessor: "actions",
               title: "",
+              width: 140,
               render: record => (
                 <Group>
                   <Tooltip label="Edit Name" position="bottom">
