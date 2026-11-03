@@ -112,7 +112,7 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) 
     title: "URL",
     width: "minmax(200px, 1.5fr)",
     render: record => (
-      <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}}>
+      <Text fz={14} lineClamp={1} c="elv-gray.9" fw={500} style={{wordBreak: "break-all"}} title={SanitizeUrl({url: record.originUrl})}>
         {SanitizeUrl({url: record.originUrl})}
       </Text>
     )
