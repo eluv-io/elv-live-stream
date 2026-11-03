@@ -195,7 +195,7 @@ class OutputStore {
 
   /**
    * Fetch a single output's live egress state (mirrors StreamStatusStore.CheckStatus).
-   * With update=true, merges only `state` onto the stored output.
+   * With update=true, merges `state` (and `enabled`, when returned) onto the stored output.
    */
   *CheckOutputState({outputId, update=false}: {outputId: string, update?: boolean}): Generator<any, any> {
     let response;
@@ -213,7 +213,8 @@ class OutputStore {
       this.SetOutput({
         slug: outputId,
         updates: {
-          state: response?.state
+          state: response?.state,
+          ...(typeof response?.enabled === "boolean" ? {enabled: response.enabled} : {})
         }
       });
     }
