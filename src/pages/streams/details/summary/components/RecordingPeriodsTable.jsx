@@ -19,6 +19,9 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const PAGE_SIZE = 15;
+// Fixed when paginated so pages don't resize
+const PAGED_ROW_HEIGHT = 52;
+const TABLE_HEADER_HEIGHT = 45;
 
 const RecordingPeriodsTable = observer(({
   recordingPeriods,
@@ -297,7 +300,12 @@ const RecordingPeriodsTable = observer(({
               )
             }
           ]}
-          minHeight={(!filteredRecords || filteredRecords.length === 0) ? 130 : 75}
+          minHeight={
+            filteredRecords.length > PAGE_SIZE ?
+              TABLE_HEADER_HEIGHT + PAGE_SIZE * PAGED_ROW_HEIGHT :
+              (filteredRecords.length === 0 ? 130 : 75)
+          }
+          rowStyle={() => filteredRecords.length > PAGE_SIZE ? {height: PAGED_ROW_HEIGHT} : undefined}
           noRecordsText="No recording periods found"
           records={pagedRecords}
           selectionColumnClassName={sharedStyles.selectionColumn}

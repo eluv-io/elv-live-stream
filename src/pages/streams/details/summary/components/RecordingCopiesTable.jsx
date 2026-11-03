@@ -88,6 +88,14 @@ const EditModal = observer(({show, record, CloseCallback, ConfirmCallback}) => {
 });
 
 const PAGE_SIZE = 15;
+// Fixed when paginated so pages don't resize
+const PAGED_ROW_HEIGHT = 52;
+const TABLE_HEADER_HEIGHT = 45;
+
+const BlankPlaceholders = columns => columns.map(column => ({
+  ...column,
+  render: record => record.placeholder ? null : column.render(record)
+}));
 
 const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, EditCallback, loading}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);
@@ -105,7 +113,14 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
 
   // Pagination state
   const [page, setPage] = useState(1);
-  const records = sortedRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageRecords = sortedRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paginated = sortedRecords.length > PAGE_SIZE;
+  const records = paginated ?
+    [
+      ...pageRecords,
+      ...Array.from({length: PAGE_SIZE - pageRecords.length}, (_, i) => ({_id: `placeholder-${i}`, placeholder: true}))
+    ] :
+    pageRecords;
 
   return (
     <Box mb="24px" maw="100%">
@@ -125,8 +140,13 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
           recordsPerPage={PAGE_SIZE}
           page={page}
           onPageChange={(p) => setPage(p)}
-          minHeight={(!records || records.length === 0) ? 130 : 75}
-          columns={[
+          minHeight={
+            sortedRecords.length > PAGE_SIZE ?
+              TABLE_HEADER_HEIGHT + PAGE_SIZE * PAGED_ROW_HEIGHT :
+              (records.length === 0 ? 130 : 75)
+          }
+          rowStyle={record => paginated ? {height: PAGED_ROW_HEIGHT, ...(record.placeholder && {pointerEvents: "none"})} : undefined}
+          columns={BlankPlaceholders([
             {
               accessor: "title",
               title: "Title",
@@ -135,12 +155,12 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
                 <Stack gap={0}>
                   <Group gap="xs" align="center">
                     <Title order={3} c="elv-gray.9">{record.title}</Title>
+                    {
+                      record.unavailable &&
+                      <Badge color="elv-red.1" variant="light" size="sm">Unavailable</Badge>
+                    }
                   </Group>
                   <Text c="dimmed" fz={12}>{record._id}</Text>
-                  {
-                    record.unavailable &&
-                    <Badge color="elv-red.1" variant="light" size="sm" mt={4}>Unavailable</Badge>
-                  }
                 </Stack>
               )
             },
@@ -230,7 +250,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
                 </Group>
               )
             }
-          ]}
+          ])}
           records={records}
         />
       </Box>
