@@ -253,6 +253,26 @@ describe("CheckOutputState", () => {
     expect(store.outputs["out-1"].name).toBe("One");
   });
 
+  it("should save enabled from the response when update=true", async () => {
+    const {store, mockClient} = makeStore();
+    store.outputs = {"out-1": {name: "One", enabled: true}};
+    mockClient.OutputsState.mockResolvedValue({enabled: false, state: {}});
+
+    await store.CheckOutputState({outputId: "out-1", update: true});
+
+    expect(store.outputs["out-1"].enabled).toBe(false);
+  });
+
+  it("should keep stored enabled when the response omits it", async () => {
+    const {store, mockClient} = makeStore();
+    store.outputs = {"out-1": {name: "One", enabled: true}};
+    mockClient.OutputsState.mockResolvedValue({state: {}});
+
+    await store.CheckOutputState({outputId: "out-1", update: true});
+
+    expect(store.outputs["out-1"].enabled).toBe(true);
+  });
+
   it("should return empty object and not throw when OutputsState rejects", async () => {
     const {store, mockClient} = makeStore();
     mockClient.OutputsState.mockRejectedValue(new Error("network error"));

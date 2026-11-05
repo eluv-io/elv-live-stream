@@ -55,7 +55,7 @@ const SummaryPanel = observer(({recordingInfo, slug}) => {
       <RecordingPeriodsTable
         libraryId={libraryId}
         objectId={objectId}
-        records={recordingInfo?.live_offering}
+        recordingPeriods={recordingInfo?.live_offering}
         title={streamStatusStore.streams?.[slug]?.title}
         CopyCallback={LoadLiveRecordingCopies}
         currentTimeMs={currentTimeMs}

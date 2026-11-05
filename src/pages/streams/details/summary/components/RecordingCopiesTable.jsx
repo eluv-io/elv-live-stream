@@ -1,12 +1,25 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {DataTable} from "mantine-datatable";
-import {ActionIcon, Badge, Box, Button, Flex, Group, Modal, Stack, Text, TextInput, Title} from "@mantine/core";
+import {
+  ActionIcon,
+  Badge,
+  Box,
+  Button,
+  Flex,
+  Group,
+  Modal,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+  Tooltip
+} from "@mantine/core";
 import {DateFormat} from "@/utils/formatters.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import {streamStatusStore, recordingCopyStore} from "@/stores/index.ts";
 import {RecordingCopyMissingError} from "@/stores/streams/RecordingCopyStore.ts";
-import {IconExternalLink, IconPencil, IconTrash} from "@tabler/icons-react";
+import {IconCircleX, IconExternalLink, IconPencil} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import {useForm} from "@mantine/form";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
@@ -74,35 +87,66 @@ const EditModal = observer(({show, record, CloseCallback, ConfirmCallback}) => {
   );
 });
 
+const PAGE_SIZE = 15;
+// Fixed when paginated so pages don't resize
+const PAGED_ROW_HEIGHT = 52;
+const TABLE_HEADER_HEIGHT = 45;
+
+const BlankPlaceholders = columns => columns.map(column => ({
+  ...column,
+  render: record => record.placeholder ? null : column.render(record)
+}));
+
 const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, EditCallback, loading}) => {
   const [showDeleteModal, {open, close}] = useDisclosure(false);
   const [showEditModal, {open: openEdit, close: closeEdit}] = useDisclosure(false);
-  const [showMissingModal, {open: openMissing, close: closeMissing}] = useDisclosure(false);
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "title",
     direction: "asc"
   });
-  const [deleteId, setDeleteId] = useState("");
-  const [missingCopyId, setMissingCopyId] = useState("");
+  const [deleteRecord, setDeleteRecord] = useState(null);
   const [editRecord, setEditRecord] = useState(null);
   const params = useParams();
 
-  const records = Object.values(liveRecordingCopies || {})
+  const sortedRecords = Object.values(liveRecordingCopies || {})
     .sort(SortTable({sortStatus}));
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const pageRecords = sortedRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const paginated = sortedRecords.length > PAGE_SIZE;
+  const records = paginated ?
+    [
+      ...pageRecords,
+      ...Array.from({length: PAGE_SIZE - pageRecords.length}, (_, i) => ({_id: `placeholder-${i}`, placeholder: true}))
+    ] :
+    pageRecords;
 
   return (
     <Box mb="24px" maw="100%">
       <SectionTitle mb={7}>Recordings</SectionTitle>
-      <Box className={sharedStyles.tableWrapper}>
+      <Box className={`${sharedStyles.tableWrapper} ${sharedStyles.fixedTable}`}>
         <DataTable
           idAccessor="_id"
           noRecordsText="No live recording copies found"
           sortStatus={sortStatus}
-          onSortStatusChange={setSortStatus}
+          onSortStatusChange={(status) => {
+            setSortStatus(status);
+            setPage(1);
+          }}
           highlightOnHover
           fetching={loading}
-          minHeight={(!records || records.length === 0) ? 130 : 75}
-          columns={[
+          totalRecords={sortedRecords.length}
+          recordsPerPage={PAGE_SIZE}
+          page={page}
+          onPageChange={(p) => setPage(p)}
+          minHeight={
+            sortedRecords.length > PAGE_SIZE ?
+              TABLE_HEADER_HEIGHT + PAGE_SIZE * PAGED_ROW_HEIGHT :
+              (records.length === 0 ? 130 : 75)
+          }
+          rowStyle={record => paginated ? {height: PAGED_ROW_HEIGHT, ...(record.placeholder && {pointerEvents: "none"})} : undefined}
+          columns={BlankPlaceholders([
             {
               accessor: "title",
               title: "Title",
@@ -111,18 +155,19 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
                 <Stack gap={0}>
                   <Group gap="xs" align="center">
                     <Title order={3} c="elv-gray.9">{record.title}</Title>
+                    {
+                      record.unavailable &&
+                      <Badge color="elv-red.1" variant="light" size="sm">Unavailable</Badge>
+                    }
                   </Group>
                   <Text c="dimmed" fz={12}>{record._id}</Text>
-                  {
-                    record.unavailable &&
-                    <Badge color="elv-red.1" variant="light" size="sm" mt={4}>Unavailable</Badge>
-                  }
                 </Stack>
               )
             },
             {
               accessor: "startTime",
               title: "Start Time",
+              width: 190,
               render: record => (
                 <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
@@ -135,6 +180,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
             {
               accessor: "endTime",
               title: "End Time",
+              width: 190,
               render: record => (
                 <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
@@ -148,6 +194,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
               accessor: "create_time",
               title: "Date Added",
               sortable: true,
+              width: 190,
               render: record => (
                 <BasicTableRowText style={{wordBreak: "break-word"}}>
                   {
@@ -160,75 +207,82 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
             {
               accessor: "actions",
               title: "",
+              width: 140,
               render: record => (
                 <Group>
-                  <ActionIcon
-                    title="Edit Name"
-                    variant="subtle"
-                    color="elv-gray.6"
-                    disabled={record.unavailable}
-                    onClick={() => {
-                      setEditRecord(record);
-                      openEdit();
-                    }}
-                  >
-                    <IconPencil />
-                  </ActionIcon>
-                  <ActionIcon
-                    title="Open in Fabric Browser"
-                    variant="subtle"
-                    color="elv-gray.6"
-                    disabled={record.unavailable}
-                    onClick={() => streamStatusStore.client.SendMessage({
-                      options: {
-                        operation: "OpenLink",
-                        objectId: record._id
-                      },
-                      noResponse: true
-                    })}
-                  >
-                    <IconExternalLink />
-                  </ActionIcon>
-                  <ActionIcon
-                    title={record.unavailable ? "Remove From List" : "Delete Live Recording Copy"}
-                    variant="subtle"
-                    color="elv-gray.6"
-                    onClick={() => {
-                      open();
-                      setDeleteId(record._id);
-                    }}
-                  >
-                    <IconTrash />
-                  </ActionIcon>
+                  <Tooltip label="Edit Name" position="bottom">
+                    <ActionIcon
+                      variant="subtle"
+                      color="elv-gray.6"
+                      disabled={record.unavailable}
+                      onClick={() => {
+                        setEditRecord(record);
+                        openEdit();
+                      }}
+                    >
+                      <IconPencil />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Open in Fabric Browser" position="bottom">
+                    <ActionIcon
+                      variant="subtle"
+                      color="elv-gray.6"
+                      disabled={record.unavailable}
+                      onClick={() => streamStatusStore.client.SendMessage({
+                        options: {
+                          operation: "OpenLink",
+                          objectId: record._id
+                        },
+                        noResponse: true
+                      })}
+                    >
+                      <IconExternalLink />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Remove From List" position="bottom">
+                    <ActionIcon
+                      variant="subtle"
+                      color="elv-gray.6"
+                      onClick={() => {
+                        setDeleteRecord(record);
+                        open();
+                      }}
+                    >
+                      <IconCircleX />
+                    </ActionIcon>
+                  </Tooltip>
                 </Group>
               )
             }
-          ]}
+          ])}
           records={records}
         />
       </Box>
       <ConfirmModal
         show={showDeleteModal}
-        title="Delete Live Recording Copy Confirmation"
-        confirmText="Delete Copy"
-        message="Are you sure you want to delete the live recording copy?"
+        title="Remove Live Recording Copy Confirmation"
+        confirmText="Remove from List"
+        message={
+          deleteRecord?.unavailable ?
+            "This recording no longer exists on the Fabric. Are you sure you want to remove it from the stream?" :
+            "Are you sure you want to remove this recording from the stream? The VOD object itself will not be deleted."
+        }
         detailData={{
-          idKey: "Live Recording Copy ID:",
-          id: deleteId
+          idKey: "Object ID:",
+          id: deleteRecord?._id
         }}
         danger
         ConfirmCallback={async () => {
-          await recordingCopyStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: deleteId});
+          await recordingCopyStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: deleteRecord._id});
 
-          setDeleteId("");
           notifications.show({
-            title: "Live recording copy deleted",
-            message: <NotificationMessage>Successfully deleted {deleteId}</NotificationMessage>
+            title: "Live recording copy removed",
+            message: <NotificationMessage>Successfully removed {deleteRecord._id}</NotificationMessage>
           });
 
-          DeleteCallback();
-
           close();
+          DeleteCallback();
+          setDeleteRecord(null);
         }}
         CloseCallback={close}
       />
@@ -251,8 +305,8 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
             // edit modal close cleanly and offer to remove the stale entry
             // instead of surfacing a raw error.
             if(error instanceof RecordingCopyMissingError) {
-              setMissingCopyId(editRecord._id);
-              openMissing();
+              setDeleteRecord({...editRecord, unavailable: true});
+              open();
               return;
             }
 
@@ -268,30 +322,6 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
             EditCallback();
           }
         }}
-      />
-      <ConfirmModal
-        show={showMissingModal}
-        title="Recording No Longer Exists"
-        confirmText="Remove from List"
-        message="This live recording copy no longer exists on the Fabric. Remove it from the list?"
-        detailData={{
-          idKey: "Live Recording Copy ID:",
-          id: missingCopyId
-        }}
-        danger
-        ConfirmCallback={async () => {
-          await recordingCopyStore.DeleteLiveRecordingCopy({streamId: params.id, recordingCopyId: missingCopyId});
-
-          notifications.show({
-            title: "Live recording copy removed",
-            message: <NotificationMessage>Successfully removed {missingCopyId}</NotificationMessage>
-          });
-
-          setMissingCopyId("");
-          DeleteCallback();
-          closeMissing();
-        }}
-        CloseCallback={closeMissing}
       />
     </Box>
   );
