@@ -299,7 +299,17 @@ const CopyToVodModal = observer(({
                   mt={20}
                   size="lg"
                   color="elv-blue.3"
-                  styles={{track: {"--slider-track-bg": "var(--mantine-color-elv-gray-3)"}}}
+                  styles={{
+                    track: {"--slider-track-bg": "var(--mantine-color-elv-gray-3)"},
+                    mark: {
+                      width: 6,
+                      height: 6,
+                      borderWidth: 1,
+                      // Keep the smaller mark centered on its value
+                      marginInlineStart: "calc(var(--slider-size) / 2 - 3px)",
+                      marginTop: "calc(var(--slider-size) / 2 - 3px)"
+                    }
+                  }}
                   min={bounds.min}
                   max={bounds.max}
                   step={1}

@@ -22,8 +22,15 @@ export const CopyToVodRange = ({periods, startTime, endTime, nowSec}: {
   const startSec = startTime ? EpochSec(startTime) : first?.start_time_epoch_sec;
   const endSec = endTime ? EpochSec(endTime) : (last?.end_time_epoch_sec || nowSec);
 
-  if(sorted.length === 1 && !startTime && !endTime) {
-    return {recordingPeriod: first.id, startTime: undefined, endTime: undefined, startSec, endSec};
+  // Keep targeting the one selected period, narrowing it by any given times
+  if(sorted.length === 1) {
+    return {
+      recordingPeriod: first.id,
+      startTime: startTime ? IsoTime(startSec) : undefined,
+      endTime: endTime ? IsoTime(endSec) : undefined,
+      startSec,
+      endSec
+    };
   }
 
   return {
