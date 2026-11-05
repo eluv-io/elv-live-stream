@@ -9,7 +9,7 @@ import {
   Loader,
   Modal,
   RangeSlider,
-  Select,
+  Select, SimpleGrid,
   Stack,
   Text,
   TextInput
@@ -327,30 +327,32 @@ const CopyToVodModal = observer(({
               </Box>
           }
 
-          <TimePicker
-            label="Start Time"
-            withSeconds
-            format="24h"
-            name="startTime"
-            key={form.key("startTime")}
-            {...form.getInputProps("startTime")}
-            onChange={value => {
-              form.getInputProps("startTime").onChange(value);
-              MoveSliderToTime({index: 0, time: value});
-            }}
-          />
-          <TimePicker
-            label="End Time"
-            withSeconds
-            format="24h"
-            name="endTime"
-            key={form.key("endTime")}
-            {...form.getInputProps("endTime")}
-            onChange={value => {
-              form.getInputProps("endTime").onChange(value);
-              MoveSliderToTime({index: 1, time: value});
-            }}
-          />
+          <SimpleGrid cols={2} spacing={12}>
+            <TimePicker
+              label="Start Time"
+              withSeconds
+              format="24h"
+              name="startTime"
+              key={form.key("startTime")}
+              {...form.getInputProps("startTime")}
+              onChange={value => {
+                form.getInputProps("startTime").onChange(value);
+                MoveSliderToTime({index: 0, time: value});
+              }}
+            />
+            <TimePicker
+              label="End Time"
+              withSeconds
+              format="24h"
+              name="endTime"
+              key={form.key("endTime")}
+              {...form.getInputProps("endTime")}
+              onChange={value => {
+                form.getInputProps("endTime").onChange(value);
+                MoveSliderToTime({index: 1, time: value});
+              }}
+            />
+          </SimpleGrid>
 
           <Text fz=".875rem" c="elv-gray.6" fw={400}>*Leave both fields empty to copy the full available content.</Text>
 
