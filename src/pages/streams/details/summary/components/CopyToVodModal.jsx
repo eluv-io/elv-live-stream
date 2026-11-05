@@ -165,9 +165,15 @@ const CopyToVodModal = observer(({
     validate: {
       libraryId: isNotEmpty("Name is required"),
       title: isNotEmpty("Title is required"),
-      endTime: (value, values) => (
-        value && values.startTime && value <= values.startTime ? "End Time must be after Start Time" : null
-      )
+      endTime: (value, values) => {
+        if(!value && !values.startTime) { return null; }
+
+        // Blank sides fall back to the selection's bounds; compare full timestamps so multi-day ranges work
+        const start = values.startTime ? dayjs(ToIso(FormatDate(startSec), values.startTime)).unix() : startSec;
+        const end = value ? dayjs(ToIso(FormatDate(endSec), value)).unix() : (endSec ?? Math.floor(Date.now() / 1000));
+
+        return end <= start ? "End Time must be after Start Time" : null;
+      }
     }
   });
 
