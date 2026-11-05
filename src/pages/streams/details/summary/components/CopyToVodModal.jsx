@@ -1,23 +1,86 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
-import {Box, Button, Flex, Loader, Modal, Select, Text, TextInput} from "@mantine/core";
-import {tenantStore} from "@/stores/index.ts";
+import {
+  Box,
+  Button,
+  Divider,
+  Flex,
+  Input,
+  Loader,
+  Modal,
+  RangeSlider,
+  Select,
+  Stack,
+  Text,
+  TextInput
+} from "@mantine/core";
+import {recordingCopyStore, tenantStore} from "@/stores/index.ts";
+import {isNotEmpty, useForm} from "@mantine/form";
+import {notifications} from "@mantine/notifications";
+import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import {TimePicker} from "@mantine/dates";
+import dayjs from "dayjs";
+import {FormatTime as FormatElapsed} from "@/utils/formatters.ts";
+
+const FormatTime = (epochSec) => Number.isFinite(epochSec) && epochSec ? dayjs(epochSec * 1000).format("HH:mm:ss") : "";
+const FormatDate = (epochSec) => dayjs(epochSec ? epochSec * 1000 : undefined).format("YYYY-MM-DD");
+const MARK_COUNT = 5;
+const ToIso = (date, time) => dayjs(`${date} ${time}`).toISOString();
 
 const CopyToVodModal = observer(({
   show,
   close,
-  title,
-  setTitle,
-  libraryId,
-  setLibraryId,
-  accessGroup,
-  setAccessGroup,
-  Callback
+  defaultTitle,
+  objectId,
+  selectedPeriods,
+  onCopied,
+  onSubmittingChange
 }) => {
   const [error, setError] = useState();
   const [loadingLibraries, setLoadingLibraries] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const SetBusy = (busy) => {
+    setSubmitting(busy);
+    onSubmittingChange?.(busy);
+  };
+
+  const ends = selectedPeriods.map(period => period.end_time_epoch_sec);
+  const startSec = Math.min(...selectedPeriods.map(period => period.start_time_epoch_sec));
+  // A period with no end is still recording; leave blank so the store uses the current time
+  const endSec = ends.every(Boolean) ? Math.max(...ends) : undefined;
+
+  // Slider domain in epoch seconds; a still-recording selection runs up to when the modal opened
+  const [bounds, setBounds] = useState({min: 0, max: 0});
+  const [range, setRange] = useState([0, 0]);
+  const hasRange = Number.isFinite(startSec) && bounds.max > bounds.min;
+
+  const marks = Array.from({length: MARK_COUNT}, (_, i) => ({
+    value: bounds.min + Math.round(((bounds.max - bounds.min) * (i + 1)) / (MARK_COUNT + 1))
+  }));
+
+  const HandleSliderChange = ([low, high]) => {
+    if(low !== range[0]) {
+      form.setFieldValue("startTime", FormatTime(low));
+    }
+
+    if(high !== range[1]) {
+      form.setFieldValue("endTime", FormatTime(high));
+    }
+
+    setRange([low, high]);
+  };
+
+  const MoveSliderToTime = ({index, time}) => {
+    const date = FormatDate(index === 0 ? startSec : endSec);
+    const sec = dayjs(`${date} ${time}`).unix();
+
+    if(!time || Number.isNaN(sec)) { return; }
+
+    const clamped = Math.min(Math.max(sec, bounds.min), bounds.max);
+    setRange(([low, high]) => index === 0 ? [Math.min(clamped, high), high] : [low, Math.max(clamped, low)]);
+  };
 
   useEffect(() => {
     const SetDefaultLibrary = () => {
@@ -25,7 +88,7 @@ const CopyToVodModal = observer(({
       const libraryMatchMezz = Object.keys(tenantStore.libraries || {}).find(libId => tenantStore.libraries[libId].name.toLowerCase().includes("title mezzanines"));
 
       if(libraryMatchMezz) {
-        setLibraryId(libraryMatchMezz);
+        form.setFieldValue("libraryId", libraryMatchMezz);
       }
     };
 
@@ -35,7 +98,7 @@ const CopyToVodModal = observer(({
         .find(groupName => groupName.toLowerCase().includes("content admin"));
 
       if(groupMatchAdmin) {
-        setAccessGroup(groupMatchAdmin);
+        form.setFieldValue("accessGroup", groupMatchAdmin);
       }
     };
 
@@ -75,6 +138,82 @@ const CopyToVodModal = observer(({
     }
   }, []);
 
+  useEffect(() => {
+    if(show === true) {
+      setError(undefined);
+
+      const max = endSec ?? Math.floor(Date.now() / 1000);
+      setBounds({min: startSec, max});
+      setRange([startSec, max]);
+
+      // setFieldValue (not setValues) so uncontrolled inputs re-render with the new value
+      form.setFieldValue("title", defaultTitle);
+      form.setFieldValue("startTime", "");
+      form.setFieldValue("endTime", "");
+    }
+  }, [show]);
+
+  const form = useForm({
+    mode: "uncontrolled",
+    initialValues: {
+      title: defaultTitle,
+      libraryId: "",
+      accessGroup: "",
+      startTime: "",
+      endTime: ""
+    },
+    validate: {
+      libraryId: isNotEmpty("Name is required"),
+      title: isNotEmpty("Title is required"),
+      endTime: (value, values) => (
+        value && values.startTime && value <= values.startTime ? "End Time must be after Start Time" : null
+      )
+    }
+  });
+
+  const HandleSubmit = async() => {
+    try {
+      setError(undefined);
+      SetBusy(true);
+
+      const {title, libraryId, accessGroup, startTime, endTime} = form.getValues();
+
+      const response = await recordingCopyStore.CopyToVod({
+        objectId,
+        targetLibraryId: libraryId,
+        accessGroup: accessGroup,
+        selectedPeriods,
+        title,
+        // Blank inputs mean the full range; the store derives them from the periods
+        startTime: startTime ? ToIso(FormatDate(startSec), startTime) : undefined,
+        endTime: endTime ? ToIso(FormatDate(endSec), endTime) : undefined
+      });
+
+      await onCopied(title);
+
+      notifications.show({
+        title: <NotificationMessage>Copied to VoD: {title || objectId}</NotificationMessage>,
+        message: <NotificationMessage>Successfully created {response?.target_object_id}</NotificationMessage>,
+        autoClose: false
+      });
+
+      form.reset();
+      close();
+    } catch(error) {
+      // eslint-disable-next-line no-console
+      console.error(error);
+      setError(error?.message || error.kind || error.toString());
+
+      notifications.show({
+        title: "Error",
+        color: "red",
+        message: "Unable to copy to VoD"
+      });
+    } finally {
+      SetBusy(false);
+    }
+  };
+
   return (
     <Modal
       opened={show}
@@ -85,93 +224,149 @@ const CopyToVodModal = observer(({
       size="lg"
       centered
     >
-      <Box w="100%">
-        {
-          (!tenantStore.libraries || loadingLibraries) ?
-            <Box><Loader /></Box> :
-            (
-              <Select
-                label="Library"
-                required={true}
-                data={
-                  Object.keys(tenantStore.libraries || {}).map(libraryId => (
-                    {
-                      label: tenantStore.libraries[libraryId].name || "",
-                      value: libraryId
-                    }
-                  ))
-                }
-                placeholder="Select Library"
-                value={libraryId}
-                onChange={value => setLibraryId(value)}
-                mb={16}
-              />
-            )
-        }
+      <form onSubmit={form.onSubmit(HandleSubmit)}>
+        <Flex w="100%" direction="column" gap={20}>
+          {
+            (!tenantStore.libraries || loadingLibraries) ?
+              <Box><Loader /></Box> :
+              (
+                <Select
+                  label="Library"
+                  required={true}
+                  data={
+                    Object.keys(tenantStore.libraries || {}).map(libraryId => (
+                      {
+                        label: tenantStore.libraries[libraryId].name || "",
+                        value: libraryId
+                      }
+                    ))
+                  }
+                  placeholder="Select Library"
+                  key={form.key("libraryId")}
+                  {...form.getInputProps("libraryId")}
+                />
+              )
+          }
 
-        {
-          (!tenantStore.accessGroups || loadingGroups) ?
-            <Box mt={12}><Loader /></Box> :
-            (
-              <Select
-                label="Access Group"
-                description="This is the Access Group that will manage your live stream object."
-                data={
-                  Object.keys(tenantStore.accessGroups || {}).map(accessGroupName => (
-                    {
-                      label: accessGroupName,
-                      value: accessGroupName
-                    }
-                  ))
-                }
-                placeholder="Select Access Group"
-                value={accessGroup}
-                onChange={value => setAccessGroup(value)}
-                mb={16}
-              />
-            )
-        }
+          {
+            (!tenantStore.accessGroups || loadingGroups) ?
+              <Box mt={12}><Loader /></Box> :
+              (
+                <Select
+                  label="Access Group"
+                  description="This is the Access Group that will manage your live stream object."
+                  data={
+                    Object.keys(tenantStore.accessGroups || {}).map(accessGroupName => (
+                      {
+                        label: accessGroupName,
+                        value: accessGroupName
+                      }
+                    ))
+                  }
+                  placeholder="Select Access Group"
+                  key={form.key("accessGroup")}
+                  {...form.getInputProps("accessGroup")}
+                />
+              )
+          }
 
-        <TextInput
-          label="Enter a title for the VoD"
-          name="title"
-          required={true}
-          value={title}
-          onChange={event => setTitle(event.target.value)}
-          style={{width: "100%"}}
-        />
-        <Text mt={16}>This process takes around 30 seconds per hour of content.</Text>
-      </Box>
-      {
-        !error ? null :
-          <div className="modal__error">
-            Error: { error }
-          </div>
-      }
-      <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
-        <Button variant="outline" onClick={close} mr="0.5rem">
-          Cancel
-        </Button>
-        <Button
-          disabled={submitting || !libraryId || !title}
-          loading={submitting}
-          onClick={async () => {
-            try {
-              setError(undefined);
-              setSubmitting(true);
-              await Callback(title);
-            } catch(error) {
-              // eslint-disable-next-line no-console
-              console.error(error);
-              setError(error?.message || error.kind || error.toString());
-            } finally {
-              setSubmitting(false);
-            }
-          }}
-        >
-          Copy
-        </Button>
-      </Flex>
+          <TextInput
+            label="Enter a title for the VoD"
+            name="title"
+            required={true}
+            key={form.key("title")}
+            {...form.getInputProps("title")}
+          />
+
+          <Divider c="elv-gray.2" />
+
+          <Flex direction="row">
+            <Box>
+              <Input.Label>Time Range <Text c="elv-gray.6" fw={600} fz=".875rem" span>(Optional)</Text></Input.Label>
+              <Input.Description>Select a start and/or end time to copy a specific portion of the stream.</Input.Description>
+            </Box>
+            <Stack gap={2} ml="auto">
+              <Text fz=".675rem" c="elv-gray.7" fw={400} pt={4}>Available Duration</Text>
+              <Text fz=".75rem" c="elv-gray.9" fw={600}>
+                {hasRange ? FormatElapsed({milliseconds: (bounds.max - bounds.min) * 1000, format: "hh:mm:ss"}) : ""}
+              </Text>
+            </Stack>
+          </Flex>
+          {
+            !hasRange ? null :
+              <Box>
+                <RangeSlider
+                  mt={20}
+                  size="lg"
+                  color="elv-blue.3"
+                  styles={{track: {"--slider-track-bg": "var(--mantine-color-elv-gray-3)"}}}
+                  min={bounds.min}
+                  max={bounds.max}
+                  step={1}
+                  minRange={1}
+                  marks={marks}
+                  value={range}
+                  onChange={HandleSliderChange}
+                  label={FormatTime}
+                  mb={8}
+                />
+                <Flex justify="space-between">
+                  <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(bounds.min) }</Text>
+                  <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(bounds.max) }</Text>
+                </Flex>
+              </Box>
+          }
+
+          <TimePicker
+            label="Start Time"
+            withSeconds
+            format="24h"
+            name="startTime"
+            key={form.key("startTime")}
+            {...form.getInputProps("startTime")}
+            onChange={value => {
+              form.getInputProps("startTime").onChange(value);
+              MoveSliderToTime({index: 0, time: value});
+            }}
+          />
+          <TimePicker
+            label="End Time"
+            withSeconds
+            format="24h"
+            name="endTime"
+            key={form.key("endTime")}
+            {...form.getInputProps("endTime")}
+            onChange={value => {
+              form.getInputProps("endTime").onChange(value);
+              MoveSliderToTime({index: 1, time: value});
+            }}
+          />
+
+          <Text fz=".875rem" c="elv-gray.6" fw={400}>*Leave both fields empty to copy the full available content.</Text>
+
+          <Divider c="elv-gray.2" />
+
+          <Text fw={500} fz="0.875rem" c="elv-gray.9">This process takes around 30 seconds per hour of content.</Text>
+        </Flex>
+        {
+          !error ? null :
+            <Text c="elv-red.7" mt={8}>
+              Error: { error }
+            </Text>
+        }
+        <Flex direction="row" align="center" mt="1.5rem" justify="flex-end">
+          <Button variant="outline" onClick={close} mr="0.5rem">
+            Cancel
+          </Button>
+          <Button
+            disabled={submitting}
+            loading={submitting}
+            type="submit"
+          >
+            Copy
+          </Button>
+        </Flex>
+      </form>
     </Modal>
   );
 });

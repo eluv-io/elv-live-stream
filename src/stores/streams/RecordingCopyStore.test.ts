@@ -95,6 +95,71 @@ describe("CopyToVod", () => {
     expect(savedEndTime).toBeLessThanOrEqual(after);
   });
 
+  it("uses given startTime/endTime over the period's bounds", async () => {
+    const {store, mockClient} = makeCopyToVodStore();
+    await store.CopyToVod({
+      objectId: "iq__src",
+      targetLibraryId: "tlib",
+      selectedPeriods: singlePeriod,
+      startTime: "2023-11-14T22:30:00.000Z",
+      endTime: "2023-11-14T22:45:00.000Z"
+    });
+
+    expect(mockClient.StreamCopyToVod).toHaveBeenCalledWith(expect.objectContaining({
+      recordingPeriod: null,
+      startTime: "2023-11-14T22:30:00.000Z",
+      endTime: "2023-11-14T22:45:00.000Z"
+    }));
+
+    const replaceCall = mockClient.ReplaceMetadata.mock.calls.find(
+      ([{metadataSubtree}]) => metadataSubtree === "/live_recording_copies"
+    );
+    expect(replaceCall[0].metadata["iq__new"]).toMatchObject({
+      startTime: Date.parse("2023-11-14T22:30:00.000Z") / 1000,
+      endTime: Date.parse("2023-11-14T22:45:00.000Z") / 1000
+    });
+  });
+
+  it("calculates whichever bound is not given", async () => {
+    const {store, mockClient} = makeCopyToVodStore();
+    await store.CopyToVod({
+      objectId: "iq__src",
+      targetLibraryId: "tlib",
+      selectedPeriods: multiPeriods,
+      startTime: "2023-11-14T22:30:00.000Z"
+    });
+
+    expect(mockClient.StreamCopyToVod).toHaveBeenCalledWith(expect.objectContaining({
+      recordingPeriod: null,
+      startTime: "2023-11-14T22:30:00.000Z",
+      endTime: new Date(1700007200 * 1000).toISOString()
+    }));
+  });
+
+  it("treats empty startTime/endTime as not given", async () => {
+    const {store, mockClient} = makeCopyToVodStore();
+    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod, startTime: "", endTime: ""});
+    expect(mockClient.StreamCopyToVod).toHaveBeenCalledWith(expect.objectContaining({recordingPeriod: "period-1"}));
+  });
+
+  it("rejects an invalid time before creating the VoD object", async () => {
+    const {store, mockClient} = makeCopyToVodStore();
+    await expect(
+      store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: singlePeriod, startTime: "not a time"})
+    ).rejects.toThrow(RangeError);
+    expect(mockClient.CreateContentObject).not.toHaveBeenCalled();
+  });
+
+  it("ends at the current time when the last of multiple periods is still recording", async () => {
+    const {store, mockClient} = makeCopyToVodStore();
+    const periods = [singlePeriod[0], {id: "p2", start_time_epoch_sec: 1700003600, end_time_epoch_sec: 0}];
+    const before = Date.now();
+    await store.CopyToVod({objectId: "iq__src", targetLibraryId: "tlib", selectedPeriods: periods});
+
+    const {endTime} = mockClient.StreamCopyToVod.mock.calls[0][0];
+    expect(Date.parse(endTime)).toBeGreaterThanOrEqual(Math.floor(before / 1000) * 1000);
+  });
+
   it("fetches targetLibraryId when not provided", async () => {
     const {store, mockClient} = makeCopyToVodStore();
     await store.CopyToVod({objectId: "iq__src", selectedPeriods: singlePeriod});

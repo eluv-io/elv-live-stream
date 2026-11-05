@@ -1,8 +1,7 @@
 import {useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useDisclosure} from "@mantine/hooks";
-import {recordingCopyStore, streamStatusStore} from "@/stores/index.ts";
-import {notifications} from "@mantine/notifications";
+import {streamStatusStore} from "@/stores/index.ts";
 import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} from "@mantine/core";
 import {DateFormat, FormatDuration, Pluralize, RelativeTime} from "@/utils/formatters.ts";
@@ -16,7 +15,6 @@ import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.js
 import sharedStyles from "@/assets/shared.module.css";
 import styles from "./RecordingPeriodsTable.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const PAGE_SIZE = 15;
 // Fixed when paginated so pages don't resize
@@ -49,9 +47,6 @@ const RecordingPeriodsTable = observer(({
 
   const [copyingToVod, setCopyingToVod] = useState(false);
   const [showCopyModal, {open, close}] = useDisclosure(false);
-  const [vodTitle, setVodTitle] = useState(`${title} VoD`);
-  const [vodLibraryId, setVodLibraryId] = useState("");
-  const [vodAccessGroup, setVodAccessGroup] = useState(null);
 
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "start_time",
@@ -84,41 +79,6 @@ const RecordingPeriodsTable = observer(({
   // Paging
   const [page, setPage] = useState(1);
   const pagedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const HandleCopy = async ({title}) => {
-    try {
-      setCopyingToVod(true);
-      const response = await recordingCopyStore.CopyToVod({
-        objectId,
-        targetLibraryId: vodLibraryId,
-        accessGroup: vodAccessGroup,
-        selectedPeriods: selectedRecords,
-        title
-      });
-
-      await CopyCallback();
-
-      notifications.show({
-        title: <NotificationMessage>Copied to VoD: {title || objectId}</NotificationMessage>,
-        message: <NotificationMessage>Successfully created {response?.target_object_id}</NotificationMessage>,
-        autoClose: false
-      });
-      close();
-    } catch(error) {
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: "Unable to copy to VoD"
-      });
-
-      // eslint-disable-next-line no-console
-      console.error("Unable to copy to VoD", error);
-      setCopyingToVod(false);
-      close();
-    } finally {
-      setCopyingToVod(false);
-    }
-  };
 
   const RecordingStatus = ({item, text=true, startTime, endTime}) => {
     let status;
@@ -183,7 +143,6 @@ const RecordingPeriodsTable = observer(({
             disabled={selectedRecords.length === 0 || copyingToVod}
             onClick={open}
             size="sm"
-            loading={copyingToVod}
           >
             Copy to VoD
           </Button>
@@ -326,13 +285,11 @@ const RecordingPeriodsTable = observer(({
       <CopyToVodModal
         show={showCopyModal}
         close={close}
-        Callback={(title) => HandleCopy({title})}
-        title={vodTitle}
-        setTitle={setVodTitle}
-        libraryId={vodLibraryId}
-        setLibraryId={setVodLibraryId}
-        accessGroup={vodAccessGroup}
-        setAccessGroup={setVodAccessGroup}
+        objectId={objectId}
+        selectedPeriods={selectedRecords}
+        defaultTitle={`${title} VoD`}
+        onCopied={CopyCallback}
+        onSubmittingChange={setCopyingToVod}
       />
     </>
   );
