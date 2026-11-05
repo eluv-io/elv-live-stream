@@ -171,22 +171,15 @@ describe("RelativeTime", () => {
     expect(result).toMatch(/second/);
   });
 
-  it("returns a minutes-based string for times within an hour", () => {
-    const twentyMinutesAgo = new Date(Date.now() - 20 * 60_000).toISOString();
-    const result = RelativeTime(twentyMinutesAgo);
-    expect(result).toMatch(/minute/);
-  });
-
-  it("returns an hours-based string for times within a day", () => {
-    const threeHoursAgo = new Date(Date.now() - 3 * 3_600_000).toISOString();
-    const result = RelativeTime(threeHoursAgo);
-    expect(result).toMatch(/hour/);
-  });
-
-  it("returns a days-based string for times older than a day", () => {
-    const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000).toISOString();
-    const result = RelativeTime(threeDaysAgo);
-    expect(result).toMatch(/day/);
+  it.each([
+    [20 * 60_000, "20 minutes ago"],
+    [61 * 60_000 + 5_000, "61 minutes ago"],
+    [92 * 60_000 + 5_000, "92 minutes ago"],
+    [3 * 3_600_000 + 60_000, "3 hours ago"],
+    [47 * 3_600_000, "47 hours ago"],
+    [3 * 86_400_000 + 3_600_000, "3 days ago"],
+  ])("formats %ims ago as %s", (ms, expected) => {
+    expect(RelativeTime(new Date(Date.now() - ms).toISOString())).toBe(expected);
   });
 });
 

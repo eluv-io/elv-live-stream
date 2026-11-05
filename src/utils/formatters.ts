@@ -114,11 +114,11 @@ const rtf = new Intl.RelativeTimeFormat("en", {numeric: "auto"});
 export const RelativeTime = (date: string): string => {
   if(!date) { return ""; }
 
-  const diff = Math.floor((new Date(date).getTime() - Date.now()) / 1000);
-  if(Math.abs(diff) < 60) { return rtf.format(diff, "second"); }
-  const minutes = Math.floor(diff / 60);
-  if(Math.abs(minutes) < 60) { return rtf.format(minutes, "minute"); }
-  const hours = Math.floor(minutes / 60);
-  if(Math.abs(hours) < 24) { return rtf.format(hours, "hour"); }
-  return rtf.format(Math.floor(hours / 24), "day");
+  const seconds = Math.trunc((new Date(date).getTime() - Date.now()) / 1000);
+  if(Math.abs(seconds) < 60) { return rtf.format(seconds, "second"); }
+  const minutes = Math.trunc(seconds / 60);
+  if(Math.abs(minutes) < 120) { return rtf.format(minutes, "minute"); }
+  const hours = Math.trunc(minutes / 60);
+  if(Math.abs(hours) < 48) { return rtf.format(hours, "hour"); }
+  return rtf.format(Math.trunc(hours / 24), "day");
 };
