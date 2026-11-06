@@ -150,15 +150,20 @@ const CopyToVodModal = observer(({
 
   const TrackLatest = () => {
     const now = Math.floor(Date.now() / 1000);
-    setBounds(prev => ({...prev, max: now}));
     setRange(([low]) => [low, now]);
     form.setFieldValue("endTime", FormatTime(now));
   };
 
-  useEffect(() => {
-    if(!show || !supportsTimeRange || !streamIsLive || !tracking) { return; }
+  const Tick = (forceTrack=false) => {
+    setBounds(prev => ({...prev, max: Math.floor(Date.now() / 1000)}));
 
-    const interval = setInterval(TrackLatest, 1000);
+    if(forceTrack === true || tracking) { TrackLatest(); }
+  };
+
+  useEffect(() => {
+    if(!show || !supportsTimeRange || !streamIsLive) { return; }
+
+    const interval = setInterval(() => Tick(), 1000);
 
     return () => clearInterval(interval);
   }, [show, supportsTimeRange, streamIsLive, tracking]);
@@ -388,7 +393,7 @@ const CopyToVodModal = observer(({
 
                               if(!tracking) {
                                 setTracking(true);
-                                TrackLatest();
+                                Tick(true);
                               }
                             }}
                             leftSection={<Box w={6} h={6} bg={badgeColors.color} style={{borderRadius: "50%"}} />}
