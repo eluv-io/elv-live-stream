@@ -34,6 +34,7 @@ const CopyToVodModal = observer(({
   defaultTitle,
   objectId,
   selectedPeriods,
+  supportsTimeRange,
   onCopied,
   onSubmittingChange
 }) => {
@@ -41,7 +42,6 @@ const CopyToVodModal = observer(({
   const [loadingLibraries, setLoadingLibraries] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [supportsTimeRange, setSupportsTimeRange] = useState(false);
 
   const SetBusy = (busy) => {
     setSubmitting(busy);
@@ -148,11 +148,6 @@ const CopyToVodModal = observer(({
   useEffect(() => {
     if(show === true) {
       setError(undefined);
-
-      setSupportsTimeRange(false);
-      recordingCopyStore.FetchSupportsTimeRange({objectId})
-        .then(setSupportsTimeRange)
-        .catch(() => setSupportsTimeRange(false));
 
       const max = endSec ?? Math.floor(Date.now() / 1000);
       setBounds({min: startSec, max});

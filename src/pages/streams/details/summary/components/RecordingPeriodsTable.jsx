@@ -1,7 +1,7 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useDisclosure} from "@mantine/hooks";
-import {streamStatusStore} from "@/stores/index.ts";
+import {recordingCopyStore, streamStatusStore} from "@/stores/index.ts";
 import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} from "@mantine/core";
 import {DateFormat, FormatDuration, Pluralize, RelativeTime} from "@/utils/formatters.ts";
@@ -44,6 +44,21 @@ const RecordingPeriodsTable = observer(({
     const newlySelected = newSelectedRecords.find(record => !selectedRecords.includes(record));
     setSelectedRecords(newlySelected ? [newlySelected] : [newSelectedRecords[newSelectedRecords.length - 1]]);
   };
+
+  const [supportsTimeRange, setSupportsTimeRange] = useState(false);
+
+  useEffect(() => {
+    const LoadSupportsTimeRange = async() => {
+      try {
+        setSupportsTimeRange(await recordingCopyStore.FetchSupportsTimeRange({objectId}));
+      } catch {
+        setSupportsTimeRange(false);
+      }
+    };
+
+    setSupportsTimeRange(false);
+    LoadSupportsTimeRange();
+  }, [objectId]);
 
   const [copyingToVod, setCopyingToVod] = useState(false);
   const [showCopyModal, {open, close}] = useDisclosure(false);
@@ -272,6 +287,8 @@ const RecordingPeriodsTable = observer(({
           onSelectedRecordsChange={HandleSelectionChange}
           allRecordsSelectionCheckboxProps={{style: {display: "none"}}}
           isRecordSelectable={(record) => (
+            // Expired periods are copyable with 2.56s segments
+            supportsTimeRange ||
             RecordingStatus({
               item: record,
               text: false,
@@ -287,6 +304,7 @@ const RecordingPeriodsTable = observer(({
         close={close}
         objectId={objectId}
         selectedPeriods={selectedRecords}
+        supportsTimeRange={supportsTimeRange}
         defaultTitle={`${title} VoD`}
         onCopied={CopyCallback}
         onSubmittingChange={setCopyingToVod}
