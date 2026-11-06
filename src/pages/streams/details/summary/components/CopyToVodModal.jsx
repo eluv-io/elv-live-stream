@@ -1,10 +1,11 @@
 import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {
+  Badge,
   Box,
   Button,
   Divider,
-  Flex,
+  Flex, Group,
   Input,
   Loader,
   Modal,
@@ -50,6 +51,11 @@ const CopyToVodModal = observer(({
   const startSec = Math.min(...selectedPeriods.map(period => period.start_time_epoch_sec));
   // A period with no end is still recording; leave blank so the store uses the current time
   const endSec = ends.every(Boolean) ? Math.max(...ends) : undefined;
+
+  const isLive = !endSec;
+  const badgeColors = isLive ?
+    {background: "rgba(255, 0, 0, 0.12)", color: "#FF0000CC"} :
+    {background: "#F3F4F6", color: "#6B7280"};
 
   // Slider domain in epoch seconds; a still-recording selection runs up to when the modal opened
   const [bounds, setBounds] = useState({min: 0, max: 0});
@@ -347,7 +353,24 @@ const CopyToVodModal = observer(({
               }}
             />
             <TimePicker
-              label="End Time"
+              label={
+                <Group gap={8}>
+                  End Time
+                  <Badge
+                    size="md"
+                    leftSection={<Box w={6} h={6} bg={badgeColors.color} style={{borderRadius: "50%"}} />}
+                    styles={{
+                      root: {
+                        borderRadius: "23px",
+                        background: badgeColors.background,
+                        color: badgeColors.color
+                      }
+                    }}
+                  >
+                    {isLive ? "LIVE" : "ENDED"}
+                  </Badge>
+                </Group>
+              }
               withSeconds
               format="24h"
               name="endTime"
