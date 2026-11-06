@@ -3,7 +3,7 @@ import {makeAutoObservable} from "mobx";
 import {FinalizeContentObjectResponse, RecordingPeriod} from "@/utils/stream/stream";
 import {type StreamStatus} from "@/utils/constants";
 import type RootStore from "@/stores/RootStore";
-import {CopyToVodRange} from "@/stores/lib/recordingCopy";
+import {CopyToVodRange, SupportsTimeRange} from "@/stores/lib/recordingCopy";
 
 // Thrown when a live recording copy's content object can no longer be reached
 // (most likely deleted from the Fabric) while attempting to edit it. The UI
@@ -35,6 +35,17 @@ class RecordingCopyStore {
 
   get client() {
     return this.rootStore.client;
+  }
+
+  *FetchSupportsTimeRange({objectId}: {objectId: string}): Generator<any, boolean> {
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    const xcParams = yield this.client.ContentObjectMetadata({
+      objectId,
+      libraryId,
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
+    });
+
+    return SupportsTimeRange(xcParams);
   }
 
   *FetchLiveRecordingCopies({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Record<string, {create_time: number, endTime: number, startTime: number, title: string, unavailable?: boolean}>> {

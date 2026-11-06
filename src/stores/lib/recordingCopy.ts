@@ -4,6 +4,13 @@ import type {RecordingPeriod} from "@/utils/stream/stream";
 const EpochSec = (time: string) => Math.floor(new Date(time).getTime() / 1000);
 const IsoTime = (epochSec: number) => new Date(epochSec * 1000).toISOString();
 
+/** Whether `xc_params` match the 2.56s segment configuration required for partial-range copies. */
+export const SupportsTimeRange = (xcParams?: Record<string, unknown>) =>
+  xcParams?.audio_seg_duration_ts === 1843200 &&
+  xcParams?.force_keyint === 128 &&
+  xcParams?.seg_duration === "38.4" &&
+  xcParams?.video_seg_duration_ts === 3456000;
+
 /**
  * The `StreamCopyToVod` selection args plus the epoch-second bounds to record for a copy.
  * Given times win over the selected periods' bounds; a still-recording period ends at `nowSec`.

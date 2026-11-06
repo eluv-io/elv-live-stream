@@ -41,6 +41,7 @@ const CopyToVodModal = observer(({
   const [loadingLibraries, setLoadingLibraries] = useState(false);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [supportsTimeRange, setSupportsTimeRange] = useState(false);
 
   const SetBusy = (busy) => {
     setSubmitting(busy);
@@ -148,6 +149,11 @@ const CopyToVodModal = observer(({
     if(show === true) {
       setError(undefined);
 
+      setSupportsTimeRange(false);
+      recordingCopyStore.FetchSupportsTimeRange({objectId})
+        .then(setSupportsTimeRange)
+        .catch(() => setSupportsTimeRange(false));
+
       const max = endSec ?? Math.floor(Date.now() / 1000);
       setBounds({min: startSec, max});
       setRange([startSec, max]);
@@ -197,8 +203,8 @@ const CopyToVodModal = observer(({
         selectedPeriods,
         title,
         // Blank inputs mean the full range; the store derives them from the periods
-        startTime: startTime ? ToIso(FormatDate(startSec), startTime) : undefined,
-        endTime: endTime ? ToIso(FormatDate(endSec), endTime) : undefined
+        startTime: supportsTimeRange && startTime ? ToIso(FormatDate(startSec), startTime) : undefined,
+        endTime: supportsTimeRange && endTime ? ToIso(FormatDate(endSec), endTime) : undefined
       });
 
       await onCopied(title);
@@ -292,98 +298,103 @@ const CopyToVodModal = observer(({
 
           <Divider c="elv-gray.2" />
 
-          <Flex direction="row">
-            <Box>
-              <Input.Label>Time Range <Text c="elv-gray.6" fw={600} fz=".875rem" span>(Optional)</Text></Input.Label>
-              <Input.Description>Select a start and/or end time to copy a specific portion of the stream.</Input.Description>
-            </Box>
-            <Stack gap={2} ml="auto">
-              <Text fz=".675rem" c="elv-gray.7" fw={400} pt={4}>Available Duration</Text>
-              <Text fz=".75rem" c="elv-gray.9" fw={600}>
-                {hasRange ? FormatElapsed({milliseconds: (bounds.max - bounds.min) * 1000, format: "hh:mm:ss"}) : ""}
-              </Text>
-            </Stack>
-          </Flex>
           {
-            !hasRange ? null :
-              <Box>
-                <RangeSlider
-                  mt={20}
-                  size="lg"
-                  color="elv-blue.3"
-                  styles={{
-                    track: {"--slider-track-bg": "var(--mantine-color-elv-gray-3)"},
-                    mark: {
-                      width: 6,
-                      height: 6,
-                      borderWidth: 1,
-                      // Keep the smaller mark centered on its value
-                      marginInlineStart: "calc(var(--slider-size) / 2 - 3px)",
-                      marginTop: "calc(var(--slider-size) / 2 - 3px)"
-                    }
-                  }}
-                  min={bounds.min}
-                  max={bounds.max}
-                  step={1}
-                  minRange={1}
-                  marks={marks}
-                  value={range}
-                  onChange={HandleSliderChange}
-                  label={FormatTime}
-                  mb={8}
-                />
-                <Flex justify="space-between">
-                  <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(bounds.min) }</Text>
-                  <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(bounds.max) }</Text>
-                </Flex>
-              </Box>
-          }
+            !supportsTimeRange ? null :
+              <>
+                  <Flex direction="row">
+                    <Box>
+                      <Input.Label>Time Range <Text c="elv-gray.6" fw={600} fz=".875rem" span>(Optional)</Text></Input.Label>
+                      <Input.Description>Select a start and/or end time to copy a specific portion of the stream.</Input.Description>
+                    </Box>
+                    <Stack gap={2} ml="auto">
+                      <Text fz=".675rem" c="elv-gray.7" fw={400} pt={4}>Available Duration</Text>
+                      <Text fz=".75rem" c="elv-gray.9" fw={600}>
+                        {hasRange ? FormatElapsed({milliseconds: (bounds.max - bounds.min) * 1000, format: "hh:mm:ss"}) : ""}
+                      </Text>
+                    </Stack>
+                  </Flex>
+                  {
+                    !hasRange ? null :
+                      <Box>
+                        <RangeSlider
+                          mt={20}
+                          size="lg"
+                          color="elv-blue.3"
+                          styles={{
+                            track: {"--slider-track-bg": "var(--mantine-color-elv-gray-3)"},
+                            mark: {
+                              width: 6,
+                              height: 6,
+                              borderWidth: 1,
+                              // Keep the smaller mark centered on its value
+                              marginInlineStart: "calc(var(--slider-size) / 2 - 3px)",
+                              marginTop: "calc(var(--slider-size) / 2 - 3px)"
+                            }
+                          }}
+                          min={bounds.min}
+                          max={bounds.max}
+                          step={1}
+                          minRange={1}
+                          marks={marks}
+                          value={range}
+                          onChange={HandleSliderChange}
+                          label={FormatTime}
+                          mb={8}
+                        />
+                        <Flex justify="space-between">
+                          <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(bounds.min) }</Text>
+                          <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(bounds.max) }</Text>
+                        </Flex>
+                      </Box>
+                  }
 
-          <SimpleGrid cols={2} spacing={12}>
-            <TimePicker
-              label="Start Time"
-              withSeconds
-              format="24h"
-              name="startTime"
-              key={form.key("startTime")}
-              {...form.getInputProps("startTime")}
-              onChange={value => {
-                form.getInputProps("startTime").onChange(value);
-                MoveSliderToTime({index: 0, time: value});
-              }}
-            />
-            <TimePicker
-              label={
-                <Group gap={8}>
-                  End Time
-                  <Badge
-                    size="md"
-                    leftSection={<Box w={6} h={6} bg={badgeColors.color} style={{borderRadius: "50%"}} />}
-                    styles={{
-                      root: {
-                        borderRadius: "23px",
-                        background: badgeColors.background,
-                        color: badgeColors.color
+                  <SimpleGrid cols={2} spacing={12}>
+                    <TimePicker
+                      label="Start Time"
+                      withSeconds
+                      format="24h"
+                      name="startTime"
+                      key={form.key("startTime")}
+                      {...form.getInputProps("startTime")}
+                      onChange={value => {
+                        form.getInputProps("startTime").onChange(value);
+                        MoveSliderToTime({index: 0, time: value});
+                      }}
+                    />
+                    <TimePicker
+                      label={
+                        <Group gap={8}>
+                          End Time
+                          <Badge
+                            size="md"
+                            leftSection={<Box w={6} h={6} bg={badgeColors.color} style={{borderRadius: "50%"}} />}
+                            styles={{
+                              root: {
+                                borderRadius: "23px",
+                                background: badgeColors.background,
+                                color: badgeColors.color
+                              }
+                            }}
+                          >
+                            {isLive ? "LIVE" : "ENDED"}
+                          </Badge>
+                        </Group>
                       }
-                    }}
-                  >
-                    {isLive ? "LIVE" : "ENDED"}
-                  </Badge>
-                </Group>
-              }
-              withSeconds
-              format="24h"
-              name="endTime"
-              key={form.key("endTime")}
-              {...form.getInputProps("endTime")}
-              onChange={value => {
-                form.getInputProps("endTime").onChange(value);
-                MoveSliderToTime({index: 1, time: value});
-              }}
-            />
-          </SimpleGrid>
+                      withSeconds
+                      format="24h"
+                      name="endTime"
+                      key={form.key("endTime")}
+                      {...form.getInputProps("endTime")}
+                      onChange={value => {
+                        form.getInputProps("endTime").onChange(value);
+                        MoveSliderToTime({index: 1, time: value});
+                      }}
+                    />
+                  </SimpleGrid>
 
-          <Text fz=".875rem" c="elv-gray.6" fw={400}>*Leave both fields empty to copy the full available content.</Text>
+                  <Text fz=".875rem" c="elv-gray.6" fw={400}>*Leave both fields empty to copy the full available content.</Text>
+              </>
+          }
 
           <Divider c="elv-gray.2" />
 
