@@ -106,7 +106,7 @@ describe("CopyToVod", () => {
     });
 
     expect(mockClient.StreamCopyToVod).toHaveBeenCalledWith(expect.objectContaining({
-      recordingPeriod: "period-1",
+      recordingPeriod: -1,
       startTime: "2023-11-14T22:30:00.000Z",
       endTime: "2023-11-14T22:45:00.000Z"
     }));
@@ -136,7 +136,7 @@ describe("CopyToVod", () => {
     }));
   });
 
-  it("sends only the given bound for a single period, still targeting it", async () => {
+  it("sends only the given bound for a single period, with recordingPeriod -1", async () => {
     const {store, mockClient} = makeCopyToVodStore();
     await store.CopyToVod({
       objectId: "iq__src",
@@ -146,7 +146,7 @@ describe("CopyToVod", () => {
     });
 
     expect(mockClient.StreamCopyToVod).toHaveBeenCalledWith(expect.objectContaining({
-      recordingPeriod: "period-1",
+      recordingPeriod: -1,
       startTime: "2023-11-14T22:30:00.000Z",
       endTime: undefined
     }));

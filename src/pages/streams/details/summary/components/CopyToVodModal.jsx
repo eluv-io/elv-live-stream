@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {
   Badge,
@@ -26,6 +26,8 @@ import {FormatTime as FormatElapsed} from "@/utils/formatters.ts";
 const FormatTime = (epochSec) => Number.isFinite(epochSec) && epochSec ? dayjs(epochSec * 1000).format("HH:mm:ss") : "";
 const FormatDate = (epochSec) => dayjs(epochSec ? epochSec * 1000 : undefined).format("YYYY-MM-DD");
 const MARK_COUNT = 5;
+const TICK_MS = 1000;
+const SLIDER_REFRESH_SEC = 5;
 const ToIso = (date, time) => dayjs(`${date} ${time}`).toISOString();
 
 const CopyToVodModal = observer(({
@@ -55,6 +57,16 @@ const CopyToVodModal = observer(({
 
   const streamIsLive = !endSec;
   const [tracking, setTracking] = useState(true);
+  const draggingRef = useRef(false);
+  const lastSliderUpdateRef = useRef(0);
+  const [latest, setLatest] = useState(0);
+
+  useEffect(() => {
+    const EndDrag = () => { draggingRef.current = false; };
+    window.addEventListener("pointerup", EndDrag);
+
+    return () => window.removeEventListener("pointerup", EndDrag);
+  }, []);
   const isLive = streamIsLive && tracking;
   const badgeColors = isLive ?
     {background: "rgba(255, 0, 0, 0.12)", color: "#FF0000CC"} :
@@ -70,16 +82,18 @@ const CopyToVodModal = observer(({
   }));
 
   const HandleSliderChange = ([low, high]) => {
+    // While tracking, the end moves each tick, so a start drag can report a stale `high`; ignore it
     if(low !== range[0]) {
       form.setFieldValue("startTime", FormatTime(low));
+      setRange([low, range[1]]);
+      return;
     }
 
     if(high !== range[1]) {
       setTracking(false);
       form.setFieldValue("endTime", FormatTime(high));
+      setRange([low, high]);
     }
-
-    setRange([low, high]);
   };
 
   const MoveSliderToTime = ({index, time}) => {
@@ -148,22 +162,30 @@ const CopyToVodModal = observer(({
     }
   }, []);
 
-  const TrackLatest = () => {
-    const now = Math.floor(Date.now() / 1000);
-    setRange(([low]) => [low, now]);
-    form.setFieldValue("endTime", FormatTime(now));
-  };
-
   const Tick = (forceTrack=false) => {
-    setBounds(prev => ({...prev, max: Math.floor(Date.now() / 1000)}));
+    const now = Math.floor(Date.now() / 1000);
+    setLatest(now);
 
-    if(forceTrack === true || tracking) { TrackLatest(); }
+    // Changing the scale under the thumb makes the dragged time jump
+    if(draggingRef.current && forceTrack !== true) { return; }
+
+    const follow = forceTrack === true || tracking;
+
+    if(follow) { form.setFieldValue("endTime", FormatTime(now)); }
+
+    // Slider scale and marks refresh slower than the End Time field and duration
+    if(forceTrack === true || now - lastSliderUpdateRef.current >= SLIDER_REFRESH_SEC) {
+      lastSliderUpdateRef.current = now;
+      setBounds(prev => ({...prev, max: now}));
+
+      if(follow) { setRange(([low]) => [low, now]); }
+    }
   };
 
   useEffect(() => {
     if(!show || !supportsTimeRange || !streamIsLive) { return; }
 
-    const interval = setInterval(() => Tick(), 1000);
+    const interval = setInterval(() => Tick(), TICK_MS);
 
     return () => clearInterval(interval);
   }, [show, supportsTimeRange, streamIsLive, tracking]);
@@ -174,6 +196,8 @@ const CopyToVodModal = observer(({
       setTracking(true);
 
       const max = endSec ?? Math.floor(Date.now() / 1000);
+      lastSliderUpdateRef.current = max;
+      setLatest(max);
       setBounds({min: startSec, max});
       setRange([startSec, max]);
 
@@ -328,13 +352,13 @@ const CopyToVodModal = observer(({
                     <Stack gap={2} ml="auto">
                       <Text fz=".675rem" c="elv-gray.7" fw={400} pt={4}>Available Duration</Text>
                       <Text fz=".75rem" c="elv-gray.9" fw={600}>
-                        {hasRange ? FormatElapsed({milliseconds: (bounds.max - bounds.min) * 1000, format: "hh:mm:ss"}) : ""}
+                        {hasRange ? FormatElapsed({milliseconds: (Math.max(latest, bounds.max) - bounds.min) * 1000, format: "hh:mm:ss"}) : ""}
                       </Text>
                     </Stack>
                   </Flex>
                   {
                     !hasRange ? null :
-                      <Box>
+                      <Box onPointerDownCapture={() => { draggingRef.current = true; }}>
                         <RangeSlider
                           mt={20}
                           size="lg"
@@ -362,7 +386,7 @@ const CopyToVodModal = observer(({
                         />
                         <Flex justify="space-between">
                           <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(bounds.min) }</Text>
-                          <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(bounds.max) }</Text>
+                          <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(Math.max(latest, bounds.max)) }</Text>
                         </Flex>
                       </Box>
                   }
