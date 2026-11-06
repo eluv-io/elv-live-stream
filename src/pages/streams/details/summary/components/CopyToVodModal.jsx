@@ -53,7 +53,9 @@ const CopyToVodModal = observer(({
   // A period with no end is still recording; leave blank so the store uses the current time
   const endSec = ends.every(Boolean) ? Math.max(...ends) : undefined;
 
-  const isLive = !endSec;
+  const streamIsLive = !endSec;
+  const [tracking, setTracking] = useState(true);
+  const isLive = streamIsLive && tracking;
   const badgeColors = isLive ?
     {background: "rgba(255, 0, 0, 0.12)", color: "#FF0000CC"} :
     {background: "#F3F4F6", color: "#6B7280"};
@@ -73,6 +75,7 @@ const CopyToVodModal = observer(({
     }
 
     if(high !== range[1]) {
+      setTracking(false);
       form.setFieldValue("endTime", FormatTime(high));
     }
 
@@ -145,9 +148,25 @@ const CopyToVodModal = observer(({
     }
   }, []);
 
+  const TrackLatest = () => {
+    const now = Math.floor(Date.now() / 1000);
+    setBounds(prev => ({...prev, max: now}));
+    setRange(([low]) => [low, now]);
+    form.setFieldValue("endTime", FormatTime(now));
+  };
+
+  useEffect(() => {
+    if(!show || !supportsTimeRange || !streamIsLive || !tracking) { return; }
+
+    const interval = setInterval(TrackLatest, 1000);
+
+    return () => clearInterval(interval);
+  }, [show, supportsTimeRange, streamIsLive, tracking]);
+
   useEffect(() => {
     if(show === true) {
       setError(undefined);
+      setTracking(true);
 
       const max = endSec ?? Math.floor(Date.now() / 1000);
       setBounds({min: startSec, max});
@@ -156,7 +175,7 @@ const CopyToVodModal = observer(({
       // setFieldValue (not setValues) so uncontrolled inputs re-render with the new value
       form.setFieldValue("title", defaultTitle);
       form.setFieldValue("startTime", "");
-      form.setFieldValue("endTime", "");
+      form.setFieldValue("endTime", streamIsLive ? FormatTime(max) : "");
     }
   }, [show]);
 
@@ -199,7 +218,7 @@ const CopyToVodModal = observer(({
         title,
         // Blank inputs mean the full range; the store derives them from the periods
         startTime: supportsTimeRange && startTime ? ToIso(FormatDate(startSec), startTime) : undefined,
-        endTime: supportsTimeRange && endTime ? ToIso(FormatDate(endSec), endTime) : undefined
+        endTime: supportsTimeRange && endTime && !isLive ? ToIso(FormatDate(endSec), endTime) : undefined
       });
 
       await onCopied(title);
@@ -360,19 +379,30 @@ const CopyToVodModal = observer(({
                       label={
                         <Group gap={8}>
                           End Time
-                          <Badge
+                          {streamIsLive && <Badge
+                            component="button"
+                            type="button"
                             size="md"
+                            onClick={event => {
+                              event.preventDefault();
+
+                              if(!tracking) {
+                                setTracking(true);
+                                TrackLatest();
+                              }
+                            }}
                             leftSection={<Box w={6} h={6} bg={badgeColors.color} style={{borderRadius: "50%"}} />}
                             styles={{
                               root: {
                                 borderRadius: "23px",
+                                cursor: tracking ? "default" : "pointer",
                                 background: badgeColors.background,
                                 color: badgeColors.color
                               }
                             }}
                           >
-                            {isLive ? "LIVE" : "ENDED"}
-                          </Badge>
+                            LIVE
+                          </Badge>}
                         </Group>
                       }
                       withSeconds
@@ -382,6 +412,7 @@ const CopyToVodModal = observer(({
                       {...form.getInputProps("endTime")}
                       onChange={value => {
                         form.getInputProps("endTime").onChange(value);
+                        setTracking(false);
                         MoveSliderToTime({index: 1, time: value});
                       }}
                     />
