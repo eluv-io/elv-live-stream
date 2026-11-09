@@ -19,16 +19,16 @@ import {recordingCopyStore, tenantStore} from "@/stores/index.ts";
 import {isNotEmpty, useForm} from "@mantine/form";
 import {notifications} from "@mantine/notifications";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
-import {TimePicker} from "@mantine/dates";
+import {DateTimePicker} from "@mantine/dates";
 import dayjs from "dayjs";
 import {FormatTime as FormatElapsed} from "@/utils/formatters.ts";
 
-const FormatTime = (epochSec) => Number.isFinite(epochSec) && epochSec ? dayjs(epochSec * 1000).format("HH:mm:ss") : "";
-const FormatDate = (epochSec) => dayjs(epochSec ? epochSec * 1000 : undefined).format("YYYY-MM-DD");
+const FormatTime = (epochSec) => Number.isFinite(epochSec) && epochSec ? dayjs(epochSec * 1000).format("YYYY-MM-DD HH:mm:ss") : "";
+const DISPLAY_FORMAT = "MMM D, YYYY, HH:mm:ss";
 const MARK_COUNT = 5;
 const TICK_MS = 1000;
 const SLIDER_REFRESH_SEC = 5;
-const ToIso = (date, time) => dayjs(`${date} ${time}`).toISOString();
+const ToIso = (time) => dayjs(time).toISOString();
 
 const CopyToVodModal = observer(({
   show,
@@ -64,11 +64,13 @@ const CopyToVodModal = observer(({
   const streamIsLive = !endSec;
   const [tracking, setTracking] = useState(true);
   const draggingRef = useRef(false);
+  const [hoverThumb, setHoverThumb] = useState(null);
+  const [dragThumb, setDragThumb] = useState(null);
   const lastSliderUpdateRef = useRef(0);
   const [latest, setLatest] = useState(0);
 
   useEffect(() => {
-    const EndDrag = () => { draggingRef.current = false; };
+    const EndDrag = () => { draggingRef.current = false; setDragThumb(null); };
     window.addEventListener("pointerup", EndDrag);
 
     return () => window.removeEventListener("pointerup", EndDrag);
@@ -102,9 +104,40 @@ const CopyToVodModal = observer(({
     }
   };
 
+  // Shift the tooltip toward the slider's center near the ends so it stays inside the modal
+  const ThumbIndex = (event) => {
+    const thumb = event.target.closest?.("[role=slider]");
+
+    return thumb ? [...event.currentTarget.querySelectorAll("[role=slider]")].indexOf(thumb) : null;
+  };
+
+  const SliderLabel = (sec) => {
+    const index = sec === range[0] ? 0 : 1;
+    const visible = (dragThumb ?? hoverThumb) === index;
+
+    const pct = bounds.max > bounds.min ? (sec - bounds.min) / (bounds.max - bounds.min) : 0.5;
+
+    return (
+      <span
+        style={{
+          display: "block",
+          padding: "4px 8px",
+          borderRadius: 4,
+          background: "var(--mantine-color-dark-9, #000)",
+          color: "white",
+          whiteSpace: "nowrap",
+          opacity: visible ? 1 : 0,
+          pointerEvents: "none",
+          transform: `translateX(${(0.5 - pct) * 140}px)`
+        }}
+      >
+        { dayjs(sec * 1000).format(DISPLAY_FORMAT) }
+      </span>
+    );
+  };
+
   const MoveSliderToTime = ({index, time}) => {
-    const date = FormatDate(index === 0 ? windowStart : endSec);
-    const sec = dayjs(`${date} ${time}`).unix();
+    const sec = dayjs(time).unix();
 
     if(!time || Number.isNaN(sec)) { return; }
 
@@ -211,8 +244,8 @@ const CopyToVodModal = observer(({
 
       // setFieldValue (not setValues) so uncontrolled inputs re-render with the new value
       form.setFieldValue("title", defaultTitle);
-      form.setFieldValue("startTime", "");
-      form.setFieldValue("endTime", streamIsLive ? FormatTime(max) : "");
+      form.setFieldValue("startTime", FormatTime(floor));
+      form.setFieldValue("endTime", FormatTime(max));
     }
   }, [show]);
 
@@ -232,8 +265,8 @@ const CopyToVodModal = observer(({
         if(!value && !values.startTime) { return null; }
 
         // Blank sides fall back to the selection's bounds; compare full timestamps so multi-day ranges work
-        const start = values.startTime ? dayjs(ToIso(FormatDate(windowStart), values.startTime)).unix() : windowStart;
-        const end = value ? dayjs(ToIso(FormatDate(endSec), value)).unix() : (endSec ?? Math.floor(Date.now() / 1000));
+        const start = values.startTime ? dayjs(values.startTime).unix() : windowStart;
+        const end = value ? dayjs(value).unix() : (endSec ?? Math.floor(Date.now() / 1000));
 
         return end <= start ? "End Time must be after Start Time" : null;
       }
@@ -255,9 +288,9 @@ const CopyToVodModal = observer(({
         title,
         // Blank inputs mean the full range; the store derives them from the periods
         startTime: !supportsTimeRange ? undefined :
-          startTime ? ToIso(FormatDate(windowStart), startTime) :
+          startTime ? ToIso(startTime) :
             (windowStart > startSec ? dayjs.unix(windowStart).toISOString() : undefined),
-        endTime: supportsTimeRange && endTime && !isLive ? ToIso(FormatDate(endSec), endTime) : undefined
+        endTime: supportsTimeRange && endTime && !isLive ? ToIso(endTime) : undefined
       });
 
       await onCopied(title);
@@ -368,12 +401,21 @@ const CopyToVodModal = observer(({
                   </Flex>
                   {
                     !hasRange ? null :
-                      <Box onPointerDownCapture={() => { draggingRef.current = true; }}>
+                      <Box
+                        style={{overflowX: "clip"}}
+                        onPointerOver={event => setHoverThumb(ThumbIndex(event))}
+                        onPointerOut={() => setHoverThumb(null)}
+                        onPointerDownCapture={event => {
+                          draggingRef.current = true;
+                          setDragThumb(ThumbIndex(event));
+                        }}
+                      >
                         <RangeSlider
                           mt={20}
                           size="lg"
                           color="elv-blue.3"
                           styles={{
+                            label: {background: "transparent", padding: 0},
                             track: {"--slider-track-bg": "var(--mantine-color-elv-gray-3)"},
                             mark: {
                               width: 6,
@@ -391,21 +433,22 @@ const CopyToVodModal = observer(({
                           marks={marks}
                           value={range}
                           onChange={HandleSliderChange}
-                          label={FormatTime}
+                          label={SliderLabel}
+                          labelAlwaysOn
                           mb={8}
                         />
                         <Flex justify="space-between">
-                          <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(bounds.min) }</Text>
-                          <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatTime(Math.max(latest, bounds.max)) }</Text>
+                          <Text fz=".5625rem" c="elv-gray.6" fw={500}>00:00:00</Text>
+                          <Text fz=".5625rem" c="elv-gray.6" fw={500}>{ FormatElapsed({milliseconds: (Math.max(latest, bounds.max) - bounds.min) * 1000, format: "hh:mm:ss"}) }</Text>
                         </Flex>
                       </Box>
                   }
 
                   <SimpleGrid cols={2} spacing={12}>
-                    <TimePicker
+                    <DateTimePicker
                       label="Start Time"
                       withSeconds
-                      format="24h"
+                      valueFormat={DISPLAY_FORMAT}
                       name="startTime"
                       key={form.key("startTime")}
                       {...form.getInputProps("startTime")}
@@ -414,7 +457,7 @@ const CopyToVodModal = observer(({
                         MoveSliderToTime({index: 0, time: value});
                       }}
                     />
-                    <TimePicker
+                    <DateTimePicker
                       label={
                         <Group gap={8}>
                           End Time
@@ -445,7 +488,7 @@ const CopyToVodModal = observer(({
                         </Group>
                       }
                       withSeconds
-                      format="24h"
+                      valueFormat={DISPLAY_FORMAT}
                       name="endTime"
                       key={form.key("endTime")}
                       {...form.getInputProps("endTime")}
