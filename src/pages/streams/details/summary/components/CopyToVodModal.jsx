@@ -37,6 +37,8 @@ const CopyToVodModal = observer(({
   objectId,
   selectedPeriods,
   supportsTimeRange,
+  retention,
+  persistent,
   onCopied,
   onSubmittingChange
 }) => {
@@ -54,6 +56,10 @@ const CopyToVodModal = observer(({
   const startSec = Math.min(...selectedPeriods.map(period => period.start_time_epoch_sec));
   // A period with no end is still recording; leave blank so the store uses the current time
   const endSec = ends.every(Boolean) ? Math.max(...ends) : undefined;
+
+  // With 2.56s segments, expired periods are copyable but only within the TTL window
+  const ttlSec = persistent || !supportsTimeRange ? 0 : (parseInt(retention) || 0);
+  const [windowStart, setWindowStart] = useState(startSec);
 
   const streamIsLive = !endSec;
   const [tracking, setTracking] = useState(true);
@@ -97,7 +103,7 @@ const CopyToVodModal = observer(({
   };
 
   const MoveSliderToTime = ({index, time}) => {
-    const date = FormatDate(index === 0 ? startSec : endSec);
+    const date = FormatDate(index === 0 ? windowStart : endSec);
     const sec = dayjs(`${date} ${time}`).unix();
 
     if(!time || Number.isNaN(sec)) { return; }
@@ -198,8 +204,10 @@ const CopyToVodModal = observer(({
       const max = endSec ?? Math.floor(Date.now() / 1000);
       lastSliderUpdateRef.current = max;
       setLatest(max);
-      setBounds({min: startSec, max});
-      setRange([startSec, max]);
+      const floor = ttlSec ? Math.min(Math.max(startSec, max - ttlSec), max - 1) : startSec;
+      setWindowStart(floor);
+      setBounds({min: floor, max});
+      setRange([floor, max]);
 
       // setFieldValue (not setValues) so uncontrolled inputs re-render with the new value
       form.setFieldValue("title", defaultTitle);
@@ -224,7 +232,7 @@ const CopyToVodModal = observer(({
         if(!value && !values.startTime) { return null; }
 
         // Blank sides fall back to the selection's bounds; compare full timestamps so multi-day ranges work
-        const start = values.startTime ? dayjs(ToIso(FormatDate(startSec), values.startTime)).unix() : startSec;
+        const start = values.startTime ? dayjs(ToIso(FormatDate(windowStart), values.startTime)).unix() : windowStart;
         const end = value ? dayjs(ToIso(FormatDate(endSec), value)).unix() : (endSec ?? Math.floor(Date.now() / 1000));
 
         return end <= start ? "End Time must be after Start Time" : null;
@@ -246,7 +254,9 @@ const CopyToVodModal = observer(({
         selectedPeriods,
         title,
         // Blank inputs mean the full range; the store derives them from the periods
-        startTime: supportsTimeRange && startTime ? ToIso(FormatDate(startSec), startTime) : undefined,
+        startTime: !supportsTimeRange ? undefined :
+          startTime ? ToIso(FormatDate(windowStart), startTime) :
+            (windowStart > startSec ? dayjs.unix(windowStart).toISOString() : undefined),
         endTime: supportsTimeRange && endTime && !isLive ? ToIso(FormatDate(endSec), endTime) : undefined
       });
 
@@ -447,7 +457,7 @@ const CopyToVodModal = observer(({
                     />
                   </SimpleGrid>
 
-                  <Text fz=".875rem" c="elv-gray.6" fw={400}>*Leave both fields empty to copy the full available content.</Text>
+                  <Text fz=".875rem" c="elv-gray.6" fw={400}>*Leave both fields empty to copy the full available content{ttlSec ? " within the retention window" : ""}.</Text>
               </>
           }
 
