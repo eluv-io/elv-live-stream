@@ -137,9 +137,14 @@ const CopyToVodModal = observer(({
   };
 
   const MoveSliderToTime = ({index, time}) => {
+    if(!time) {
+      setRange(([low, high]) => index === 0 ? [bounds.min, high] : [low, bounds.max]);
+      return;
+    }
+
     const sec = dayjs(time).unix();
 
-    if(!time || Number.isNaN(sec)) { return; }
+    if(Number.isNaN(sec)) { return; }
 
     const clamped = Math.min(Math.max(sec, bounds.min), bounds.max);
     setRange(([low, high]) => index === 0 ? [Math.min(clamped, high), high] : [low, Math.max(clamped, low)]);
@@ -245,7 +250,7 @@ const CopyToVodModal = observer(({
       // setFieldValue (not setValues) so uncontrolled inputs re-render with the new value
       form.setFieldValue("title", defaultTitle);
       form.setFieldValue("startTime", FormatTime(floor));
-      form.setFieldValue("endTime", FormatTime(max));
+      form.setFieldValue("endTime", streamIsLive ? FormatTime(max) : "");
     }
   }, [show]);
 
@@ -325,7 +330,7 @@ const CopyToVodModal = observer(({
       title="Copy to VoD"
       padding="32px"
       radius="6px"
-      size="lg"
+      size="xl"
       centered
       styles={{
         content: {display: "flex", flexDirection: "column", overflow: "hidden"},
@@ -395,17 +400,25 @@ const CopyToVodModal = observer(({
           {
             !supportsTimeRange ? null :
               <>
-                  <Flex direction="row">
-                    <Box>
+                  <Flex direction="row" gap={16} align="flex-start">
+                    <Box style={{flex: 1, minWidth: 0}}>
                       <Input.Label>Time Range <Text c="elv-gray.6" fw={600} fz=".875rem" span>(Optional)</Text></Input.Label>
                       <Input.Description>Select a start and/or end time to copy a specific portion of the stream.</Input.Description>
                     </Box>
-                    <Stack gap={2} ml="auto">
-                      <Text fz=".675rem" c="elv-gray.7" fw={400} pt={4}>Available Duration</Text>
-                      <Text fz=".75rem" c="elv-gray.9" fw={600}>
-                        {hasRange ? FormatElapsed({milliseconds: (Math.max(latest, bounds.max) - bounds.min) * 1000, format: "hh:mm:ss"}) : ""}
-                      </Text>
-                    </Stack>
+                    <Group gap={16} wrap="nowrap" align="flex-start" style={{flexShrink: 0}}>
+                      <Stack gap={2}>
+                        <Text fz=".675rem" c="elv-gray.7" fw={400} pt={4}>Available Duration</Text>
+                        <Text fz=".75rem" c="elv-gray.9" fw={600}>
+                          {hasRange ? FormatElapsed({milliseconds: (Math.max(latest, bounds.max) - bounds.min) * 1000, format: "hh:mm:ss"}) : ""}
+                        </Text>
+                      </Stack>
+                      <Stack gap={2}>
+                        <Text fz=".675rem" c="elv-gray.7" fw={400} pt={4}>Selected Duration</Text>
+                        <Text fz=".75rem" c="elv-gray.9" fw={600}>
+                          {hasRange ? FormatElapsed({milliseconds: Math.max((tracking ? latest : range[1]) - range[0], 0) * 1000, format: "hh:mm:ss"}) : ""}
+                        </Text>
+                      </Stack>
+                    </Group>
                   </Flex>
                   {
                     !hasRange ? null :
@@ -455,6 +468,7 @@ const CopyToVodModal = observer(({
                   <SimpleGrid cols={2} spacing={12}>
                     <DateTimePicker
                       label="Start Time"
+                      clearable
                       withSeconds
                       valueFormat={DISPLAY_FORMAT}
                       name="startTime"
@@ -476,7 +490,9 @@ const CopyToVodModal = observer(({
                             onClick={event => {
                               event.preventDefault();
 
-                              if(!tracking) {
+                              if(tracking) {
+                                setTracking(false);
+                              } else {
                                 setTracking(true);
                                 Tick(true);
                               }
@@ -485,7 +501,8 @@ const CopyToVodModal = observer(({
                             styles={{
                               root: {
                                 borderRadius: "23px",
-                                cursor: tracking ? "default" : "pointer",
+                                cursor: "pointer",
+                                opacity: tracking ? 1 : 0.6,
                                 background: badgeColors.background,
                                 color: badgeColors.color
                               }
@@ -495,6 +512,7 @@ const CopyToVodModal = observer(({
                           </Badge>}
                         </Group>
                       }
+                      clearable
                       withSeconds
                       valueFormat={DISPLAY_FORMAT}
                       name="endTime"
