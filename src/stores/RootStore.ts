@@ -26,6 +26,8 @@ configure({
 export type NetworkName = "demo" | "main" | "test";
 
 // The central hub, instantiating and coordinating all other MobX stores.
+const USER_SETTINGS_WAIT_MS = 1500;
+
 class RootStore {
   client: InstanceType<typeof FrameClient>;
   loaded = false;
@@ -77,6 +79,11 @@ class RootStore {
     makeAutoObservable(this, {}, {autoBind: true});
   }
 
+  RestoreTableFilters() {
+    this.streamListStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.streams);
+    this.outputStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.outputs);
+  }
+
   *Initialize(): Generator<any, void> {
     try {
       this.client = new FrameClient({
@@ -87,13 +94,13 @@ class RootStore {
       this.networkInfo = yield this.client.NetworkInfo();
       this.contentSpaceId = yield this.client.ContentSpaceId();
 
+      const settingsLoad = Promise.resolve(this.userSettingsStore.Load()).then(() => this.RestoreTableFilters());
+
+      // User settings are non-critical; don't let a slow appsvc call block startup.
       yield Promise.all([
         this.tenantStore.Initialize(),
-        this.userSettingsStore.Load()
+        Promise.race([settingsLoad, new Promise(resolve => setTimeout(resolve, USER_SETTINGS_WAIT_MS))])
       ]);
-
-      this.streamListStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.streams);
-      this.outputStore.RestoreTableTagFilter(this.userSettingsStore.settings.tableFilters.outputs);
 
       // Needs siteId from tenantStore.Initialize; started here so it's in flight before the streams page mounts.
       this.streamListStore.PrefetchStreamList();
