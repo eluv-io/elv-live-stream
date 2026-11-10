@@ -29,6 +29,7 @@ import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.js
 import sharedStyles from "@/assets/shared.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
+import BatchActions from "@/components/table/batch-actions/BatchActions.jsx";
 
 const EditModal = observer(({show, record, CloseCallback, ConfirmCallback}) => {
   const [saving, setSaving] = useState(false);
@@ -105,6 +106,8 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
     direction: "asc"
   });
   const [deleteRecord, setDeleteRecord] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showBatchModal, {open: openBatch, close: closeBatch}] = useDisclosure(false);
   const [editRecord, setEditRecord] = useState(null);
   const params = useParams();
 
@@ -122,9 +125,27 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
     ] :
     pageRecords;
 
+  const selectedRecords = sortedRecords.filter(r => selectedIds.includes(r._id));
+
   return (
     <Box mb="24px" maw="100%">
       <SectionTitle mb={7}>Recordings</SectionTitle>
+      <BatchActions
+        mb={8}
+        selectedRecords={selectedRecords}
+        allSelected={sortedRecords.length > 0 && selectedRecords.length === sortedRecords.length}
+        selectAllDisabled={loading}
+        SelectAll={() => setSelectedIds(
+          selectedRecords.length === sortedRecords.length ? [] : sortedRecords.map(r => r._id)
+        )}
+        actions={[{
+          id: "remove",
+          label: "Remove From List",
+          icon: IconCircleX,
+          disabled: selectedRecords.length === 0,
+          onClick: openBatch
+        }]}
+      />
       <Box className={`${sharedStyles.tableWrapper} ${sharedStyles.fixedTable}`}>
         <DataTable
           idAccessor="_id"
@@ -135,6 +156,9 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
             setPage(1);
           }}
           highlightOnHover
+          selectedRecords={selectedRecords}
+          onSelectedRecordsChange={rows => setSelectedIds(rows.map(r => r._id))}
+          isRecordSelectable={record => !record.placeholder}
           fetching={loading}
           totalRecords={sortedRecords.length}
           recordsPerPage={PAGE_SIZE}
@@ -285,6 +309,27 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
           setDeleteRecord(null);
         }}
         CloseCallback={close}
+      />
+      <ConfirmModal
+        show={showBatchModal}
+        title="Remove Live Recording Copies Confirmation"
+        confirmText="Remove from List"
+        message={`Are you sure you want to remove ${selectedRecords.length} recording${selectedRecords.length === 1 ? "" : "s"} from the stream? The VOD objects themselves will not be deleted.`}
+        danger
+        ConfirmCallback={async () => {
+          const ids = selectedRecords.map(r => r._id);
+          await recordingCopyStore.DeleteLiveRecordingCopies({streamId: params.id, recordingCopyIds: ids});
+
+          notifications.show({
+            title: "Live recording copies removed",
+            message: <NotificationMessage>Successfully removed {ids.length} recording{ids.length === 1 ? "" : "s"}</NotificationMessage>
+          });
+
+          closeBatch();
+          setSelectedIds([]);
+          DeleteCallback();
+        }}
+        CloseCallback={closeBatch}
       />
       <EditModal
         show={showEditModal}

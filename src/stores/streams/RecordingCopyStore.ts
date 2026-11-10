@@ -82,9 +82,14 @@ class RecordingCopyStore {
   }
 
   *DeleteLiveRecordingCopy({streamId, recordingCopyId}: {streamId: string, recordingCopyId: string}) : Generator<any, FinalizeContentObjectResponse> {
+    return yield this.DeleteLiveRecordingCopies({streamId, recordingCopyIds: [recordingCopyId]});
+  }
+
+  // One write for all ids: parallel read-modify-write calls on the same metadata would drop each other's removals.
+  *DeleteLiveRecordingCopies({streamId, recordingCopyIds}: {streamId: string, recordingCopyIds: string[]}) : Generator<any, FinalizeContentObjectResponse> {
     const liveRecordingCopies = yield this.FetchLiveRecordingCopies({objectId: streamId});
 
-    delete liveRecordingCopies[recordingCopyId];
+    recordingCopyIds.forEach(id => delete liveRecordingCopies[id]);
 
     const libraryId = yield this.client.ContentObjectLibraryId({objectId: streamId});
     const {writeToken} = yield this.client.EditContentObject({
@@ -104,7 +109,7 @@ class RecordingCopyStore {
       objectId: streamId,
       libraryId,
       writeToken,
-      commitMessage: "Remove live recording copy"
+      commitMessage: recordingCopyIds.length > 1 ? "Remove live recording copies" : "Remove live recording copy"
     });
   }
 

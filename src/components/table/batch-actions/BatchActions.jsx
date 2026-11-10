@@ -11,8 +11,12 @@ const BatchActions = ({
   endActions=[],
   selectedRecords=[],
   SelectAll,
+  allSelected=false,
+  selectAllDisabled=false,
   mb=20,
 }) => {
+  const selectAllLabel = allSelected ? "Unselect All" : "Select All";
+  const selectAllColor = selectAllDisabled ? "elv-gray.6" : "elv-gray.9";
   const IconDisplay = Icon => <Icon size={16} />;
   const ActionButton = action => (
     <Button
@@ -38,15 +42,15 @@ const BatchActions = ({
           <Group gap={0}>
             {
               selectedRecords.length === 0 ?
-                <UnstyledButton onClick={SelectAll}>
-                  <Text td="underline" fw={400} c="elv-gray.9" fz="0.875rem">Select All</Text>
+                <UnstyledButton onClick={SelectAll} disabled={selectAllDisabled}>
+                  <Text td="underline" fw={400} c={selectAllColor} fz="0.875rem">{selectAllLabel}</Text>
                 </UnstyledButton> :
                 <Group gap={4}>
                   <Text fw={400} c="elv-gray.9" fz="0.875rem" miw={70}>{selectedRecords.length} selected</Text>
-                  <UnstyledButton onClick={SelectAll}>
+                  <UnstyledButton onClick={SelectAll} disabled={selectAllDisabled}>
                     <Group gap={0}>
                       <Text fw={400} c="elv-gray.9" fz="0.875rem">&nbsp;(</Text>
-                      <Text td="underline" fw={400} c="elv-gray.9" fz="0.875rem">Select All</Text>
+                      <Text td="underline" fw={400} c={selectAllColor} fz="0.875rem">{selectAllLabel}</Text>
                       <Text fw={400} c="elv-gray.9" fz="0.875rem">)</Text>
                     </Group>
                   </UnstyledButton>

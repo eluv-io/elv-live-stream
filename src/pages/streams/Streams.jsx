@@ -123,6 +123,7 @@ const Streams = observer(() => {
   };
 
   const records = streamListStore.filteredStreams.slice().sort(SortTable({sortStatus}));
+  const allSelected = records.length > 0 && records.every(r => selectedRecords.some(s => s.slug === r.slug));
 
   // Stable position (objectId -> index) over the full, unfiltered sorted list, so a
   // group row stays put when a tag/text filter hides some of its members.
@@ -297,7 +298,9 @@ const Streams = observer(() => {
 
       <BatchActions
         selectedRecords={selectedRecords}
-        SelectAll={() => setSelectedRecords(records)}
+        allSelected={allSelected}
+        selectAllDisabled={!streamListStore.streamsLoaded}
+        SelectAll={() => setSelectedRecords(allSelected ? [] : records)}
         ClearSelection={() => setSelectedRecords([])}
         actions={batchActions}
         endActions={groupActions}
