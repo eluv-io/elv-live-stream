@@ -189,6 +189,7 @@ module.exports = [
   "unmounting",
   "unregister",
   "unscoped",
+  "unselect",
   "unattempted",
   "unsecure",
   "unstyled",
