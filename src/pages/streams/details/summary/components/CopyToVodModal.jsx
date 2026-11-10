@@ -327,8 +327,16 @@ const CopyToVodModal = observer(({
       radius="6px"
       size="lg"
       centered
+      styles={{
+        content: {display: "flex", flexDirection: "column", overflow: "hidden"},
+        body: {display: "flex", flexDirection: "column", flex: 1, minHeight: 0}
+      }}
     >
-      <form onSubmit={form.onSubmit(HandleSubmit)}>
+      <form
+        onSubmit={form.onSubmit(HandleSubmit)}
+        style={{display: "flex", flexDirection: "column", flex: 1, minHeight: 0}}
+      >
+        <Box style={{flex: 1, minHeight: 0, overflowY: "auto"}}>
         <Flex w="100%" direction="column" gap={20}>
           {
             (!tenantStore.libraries || loadingLibraries) ?
@@ -508,6 +516,7 @@ const CopyToVodModal = observer(({
 
           <Text fw={500} fz="0.875rem" c="elv-gray.9">This process takes around 30 seconds per hour of content.</Text>
         </Flex>
+        </Box>
         {
           !error ? null :
             <Text c="elv-red.7" mt={8}>
