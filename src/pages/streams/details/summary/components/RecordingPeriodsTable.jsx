@@ -73,28 +73,6 @@ const RecordingPeriodsTable = observer(({
 
   const [showExpired, setShowExpired] = useState(false);
 
-  const filteredRecords = [...(recordingPeriods || [])]
-    .sort(SortTable({sortStatus}))
-    .filter((record, i) => {
-      const expired = RecordingPeriodIsExpired({
-        parts: record?.sources?.video?.parts || [],
-        startTime: record.start_time,
-        endTime: record.end_time,
-        retention: parseInt(retention)
-      });
-
-      if(showExpired) {
-        return true;
-      } else {
-        if(i === 0) { return record; }
-        return !expired;
-      }
-    });
-
-  // Paging
-  const [page, setPage] = useState(1);
-  const pagedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
   const RecordingStatus = ({item, text=true, startTime, endTime}) => {
     let status;
     const videoIsEmpty = (item?.sources?.video?.parts || []).length === 0;
@@ -107,7 +85,8 @@ const RecordingPeriodsTable = observer(({
         retention: parseInt(retention)
       })
     ) {
-      status = "EXPIRED";
+      // Expired parts remain copyable with 2.56s segments
+      status = supportsTimeRange ? "PARTIALLY_AVAILABLE" : "EXPIRED";
     } else if(!videoIsEmpty && item?.sources?.video?.trimmed > 0) {
       status = "PARTIALLY_AVAILABLE";
     } else {
@@ -116,6 +95,23 @@ const RecordingPeriodsTable = observer(({
 
     return text ? RECORDING_STATUS_TEXT[status] : status;
   };
+
+  const filteredRecords = [...(recordingPeriods || [])]
+    .sort(SortTable({sortStatus}))
+    .filter((record, i) => {
+      if(showExpired || i === 0) { return true; }
+
+      return !RecordingPeriodIsExpired({
+        parts: record?.sources?.video?.parts || [],
+        startTime: record.start_time,
+        endTime: record.end_time,
+        retention: parseInt(retention)
+      });
+    });
+
+  // Paging
+  const [page, setPage] = useState(1);
+  const pagedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const ExpirationTime = ({startTime, retention, persistent}) => {
     if(!startTime) { return "--"; }
@@ -229,12 +225,12 @@ const RecordingPeriodsTable = observer(({
                         endTime: new Date(record.end_time).getTime(),
                         currentTimeMs,
                         format: "hh:mm:ss",
-                        active: RecordingStatus({
-                          item: record,
-                          text: false,
+                        active: !RecordingPeriodIsExpired({
+                          parts: record?.sources?.video?.parts || [],
                           startTime: record.start_time,
-                          endTime: record.end_time
-                        }) !== "EXPIRED"
+                          endTime: record.end_time,
+                          retention: parseInt(retention)
+                        })
                       }) : "--"
                   }
                 </BasicTableRowText>
