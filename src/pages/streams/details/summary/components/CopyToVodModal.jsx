@@ -136,6 +136,8 @@ const CopyToVodModal = observer(({
     );
   };
 
+  const pickerLimits = hasRange ? {minDate: new Date(bounds.min * 1000), maxDate: new Date(bounds.max * 1000)} : {};
+
   const MoveSliderToTime = ({index, time}) => {
     if(!time) {
       setRange(([low, high]) => index === 0 ? [bounds.min, high] : [low, bounds.max]);
@@ -469,6 +471,7 @@ const CopyToVodModal = observer(({
                     <DateTimePicker
                       label="Start Time"
                       clearable
+                      {...pickerLimits}
                       withSeconds
                       valueFormat={DISPLAY_FORMAT}
                       name="startTime"
@@ -513,6 +516,7 @@ const CopyToVodModal = observer(({
                         </Group>
                       }
                       clearable
+                      {...pickerLimits}
                       withSeconds
                       valueFormat={DISPLAY_FORMAT}
                       name="endTime"
