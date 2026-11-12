@@ -64,7 +64,7 @@ export interface ProbeData {
 }
 
 type GeneralConfigData = Pick<StreamMetadata,
-  "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
+  "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags" | "profileLastUpdated"
 > & {
   ingressNodeId: string;
   geo: string;
@@ -173,7 +173,7 @@ class StreamDetailStore {
           libraryId,
           objectId,
           metadataSubtree: "public",
-          select: ["name", "description", "asset_metadata/display_title", "asset_metadata/tags"]
+          select: ["name", "description", "asset_metadata/display_title", "asset_metadata/tags", "asset_metadata/profile_last_updated"]
         }),
         this.client.ContentObjectMetadata({
           libraryId,
@@ -200,6 +200,7 @@ class StreamDetailStore {
         ingressNodeId: liveRecordingConfigMeta?.ingress_node_id ?? "",
         geo: liveRecordingConfigMeta?.geo ?? "",
         configProfile: slugify(liveRecordingConfigMeta?.name),
+        profileLastUpdated: generalMeta?.asset_metadata?.profile_last_updated,
         permission,
         accessGroup
       };

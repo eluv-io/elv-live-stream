@@ -925,8 +925,32 @@ class StreamEditStore {
       }));
     }
 
+    // StreamApplyProfile drops node selection; without it StreamConfig resolves
+    // the node from the URL host and fails for non-fabric hosts (UDP/RTP).
+    const nodeConfig = yield this.client.ContentObjectMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording_config",
+      select: ["ingress_node_id", "geo", "name"]
+    });
+
+    const {siteLibraryId, siteId} = this.rootStore.tenantStore;
+    const assignedStreams = slugify(nodeConfig?.name) === profileSlug ?
+      yield this.client.ContentObjectMetadata({
+        libraryId: siteLibraryId,
+        objectId: siteId,
+        metadataSubtree: `public/asset_metadata/profile_streams/${profileSlug}`
+      }) : undefined;
+    // Re-applying the current profile leaves the site write token empty
+    const siteUnchanged = (assignedStreams || []).includes(objectId);
+
     const response = yield this.client.StreamApplyProfile({
-      profile: toJS(profile),
+      profile: {
+        ...toJS(profile),
+        ...(nodeConfig?.ingress_node_id ? {ingress_node_id: nodeConfig.ingress_node_id} : {}),
+        ...(nodeConfig?.geo ? {geo: nodeConfig.geo} : {})
+      },
       objectId,
       streamWriteToken: writeToken,
       finalize: false
@@ -949,10 +973,10 @@ class StreamEditStore {
         awaitCommitConfirmation: true
       });
 
-      if(response?.siteWriteToken) {
+      if(response?.siteWriteToken && !siteUnchanged) {
         yield this.client.FinalizeContentObject({
-          libraryId: this.rootStore.tenantStore.siteLibraryId,
-          objectId: this.rootStore.tenantStore.siteId,
+          libraryId: siteLibraryId,
+          objectId: siteId,
           writeToken: response.siteWriteToken,
           commitMessage: "Apply stream profile",
           awaitCommitConfirmation: true
@@ -960,7 +984,7 @@ class StreamEditStore {
       }
     }
 
-    return response;
+    return siteUnchanged ? {...response, siteWriteToken: undefined} : response;
   }
 
   // Stream Configuration (probe, watermark, DRM, audio)
