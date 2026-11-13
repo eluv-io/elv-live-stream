@@ -67,6 +67,9 @@ const StreamDetailsPage = observer(() => {
       objectId: params.id
     });
 
+    // eslint-disable-next-line no-console
+    console.log("live_offering (raw)", JSON.parse(JSON.stringify(metadata?.live_offering ?? null)));
+
     if(metadata) {
       metadata.live_offering = (metadata.live_offering || []).map((item, i) => ({
         ...item,

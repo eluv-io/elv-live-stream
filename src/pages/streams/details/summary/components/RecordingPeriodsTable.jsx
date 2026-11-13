@@ -73,6 +73,10 @@ const RecordingPeriodsTable = observer(({
 
   const [showExpired, setShowExpired] = useState(false);
 
+  const [latestPeriod, previousPeriod] = [...(recordingPeriods || [])]
+    .sort((a, b) => (b.start_time_epoch_sec || 0) - (a.start_time_epoch_sec || 0));
+  const isDisconnected = !!latestPeriod?.end_time || !StreamIsActive(status?.state);
+
   const RecordingStatus = ({item, text=true, startTime, endTime}) => {
     let status;
     const videoIsEmpty = (item?.sources?.video?.parts || []).length === 0;
@@ -85,8 +89,9 @@ const RecordingPeriodsTable = observer(({
         retention: parseInt(retention)
       })
     ) {
-      // Expired parts remain copyable with 2.56s segments
-      status = supportsTimeRange ? "PARTIALLY_AVAILABLE" : "EXPIRED";
+      // A still-running period keeps its last TTL-worth of parts
+      const running = item?.id === latestPeriod?.id && !isDisconnected;
+      status = running && !videoIsEmpty ? "PARTIALLY_AVAILABLE" : "EXPIRED";
     } else if(!videoIsEmpty && item?.sources?.video?.trimmed > 0) {
       status = "PARTIALLY_AVAILABLE";
     } else {
@@ -101,12 +106,12 @@ const RecordingPeriodsTable = observer(({
     .filter((record, i) => {
       if(showExpired || i === 0) { return true; }
 
-      return !RecordingPeriodIsExpired({
-        parts: record?.sources?.video?.parts || [],
+      return RecordingStatus({
+        item: record,
+        text: false,
         startTime: record.start_time,
-        endTime: record.end_time,
-        retention: parseInt(retention)
-      });
+        endTime: record.end_time
+      }) !== "EXPIRED";
     });
 
   // Paging
@@ -127,9 +132,6 @@ const RecordingPeriodsTable = observer(({
       }) : "--";
   };
 
-  const [latestPeriod, previousPeriod] = [...(recordingPeriods || [])]
-    .sort((a, b) => b.start_time - a.start_time);
-  const isDisconnected = !!latestPeriod?.end_time || !StreamIsActive(status);
 
   const periodsSummaryData = [
     {label: "Status", id: "period-status", value: isDisconnected ? "Disconnected" : "Recording"},
@@ -225,12 +227,12 @@ const RecordingPeriodsTable = observer(({
                         endTime: new Date(record.end_time).getTime(),
                         currentTimeMs,
                         format: "hh:mm:ss",
-                        active: !RecordingPeriodIsExpired({
-                          parts: record?.sources?.video?.parts || [],
+                        active: RecordingStatus({
+                          item: record,
+                          text: false,
                           startTime: record.start_time,
-                          endTime: record.end_time,
-                          retention: parseInt(retention)
-                        })
+                          endTime: record.end_time
+                        }) !== "EXPIRED"
                       }) : "--"
                   }
                 </BasicTableRowText>
@@ -282,16 +284,18 @@ const RecordingPeriodsTable = observer(({
           selectedRecords={selectedRecords}
           onSelectedRecordsChange={HandleSelectionChange}
           allRecordsSelectionCheckboxProps={{style: {display: "none"}}}
-          isRecordSelectable={(record) => (
-            // Expired periods are copyable with 2.56s segments
-            supportsTimeRange ||
-            RecordingStatus({
+          isRecordSelectable={(record) => {
+            const recordStatus = RecordingStatus({
               item: record,
               text: false,
               startTime: record.start_time,
               endTime: record.end_time
-            }) === "AVAILABLE"
-          )}
+            });
+
+            // Trimmed periods need a time-range copy
+            return recordStatus === "AVAILABLE" ||
+              (supportsTimeRange && recordStatus === "PARTIALLY_AVAILABLE");
+          }}
           highlightOnHover
         />
       </Box>
