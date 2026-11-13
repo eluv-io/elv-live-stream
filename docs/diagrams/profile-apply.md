@@ -23,6 +23,7 @@ flowchart TD
     end
 ```
 
+- "Built-in Configuration" (value `""`) is applied like any profile: `ApplyStreamProfile` sends `defaultConfigProfile` with `name: null` (so the stream reads back as `""`) and `profileSlug: BUILT_IN_PROFILE_SLUG` for the site `profile_streams` entry. Hence `SaveGeneralConfig` tests `configProfile !== undefined`, not truthiness.
 - Switching to a different profile requires the "Apply profile settings…" checkbox (form validation). Checking it on the **current** profile re-applies that profile on Save.
 - The "Profile has been changed." message compares the profile's `last_updated` with the stream's `public/asset_metadata/profile_last_updated`, which `StreamDetailStore.LoadGeneralConfigData` loads into `streams[slug].profileLastUpdated`. `StreamApplyProfile` stamps a new `profile_last_updated`, so a successful apply hides the message.
 - Re-apply commits on its own and then remounts every panel, so it's blocked while any tab is dirty rather than silently discarding edits.

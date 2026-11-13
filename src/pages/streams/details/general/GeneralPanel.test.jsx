@@ -174,7 +174,7 @@ describe("GeneralPanel", () => {
       });
     });
 
-    it("calls SaveGeneralConfig with empty configProfile when no profile is selected", async () => {
+    it("doesn't re-apply Built-in when it's unchanged", async () => {
       mockUpdateGeneralConfig.mockResolvedValue(undefined);
       renderGeneralPanel();
 
@@ -190,7 +190,7 @@ describe("GeneralPanel", () => {
       await waitFor(() => {
         expect(mockUpdateGeneralConfig).toHaveBeenCalledWith(
           expect.objectContaining({
-            configProfile: ""
+            configProfile: undefined
           })
         );
       });

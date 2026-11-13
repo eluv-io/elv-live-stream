@@ -59,7 +59,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
       url: (value) => (!value ? "URL is required" : null),
       ingressNodeId: (value, values) => (values.nodeType === "dedicated" && !value ? "Node is required" : null),
       configProfile: (value, values) => (
-        !!value && value !== currentConfigProfile && !values.applyConfigProfile
+        value !== (currentConfigProfile || "") && !values.applyConfigProfile
           ? "Check \"Apply profile settings…\" to apply this profile"
           : null
       )
@@ -135,7 +135,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
       objectId: params.id,
       slug,
       formData: values,
-      configProfile: (values.applyConfigProfile || values.configProfile !== currentConfigProfile) ? values.configProfile : undefined,
+      configProfile: (values.applyConfigProfile || values.configProfile !== (currentConfigProfile || "")) ? values.configProfile : undefined,
       nodeChanged: ["nodeType", "ingressNodeId", "geo"].some(field => form.isDirty(field)),
       updatePermission: currentSettings.permission !== values.permission,
       updateAccessGroup: currentSettings.accessGroup !== values.accessGroup,

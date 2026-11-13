@@ -12,6 +12,7 @@ import {
 } from "@/utils/stream/stream";
 import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@/utils/helpers";
+import {BUILT_IN_PROFILE_SLUG, defaultConfigProfile} from "@/utils/defaultProfile";
 import {ResolveIngestNodeId} from "@/stores/lib/fabricNodes";
 import {LiveRecordingConfigParams, WriteLiveRecordingConfig} from "@/stores/lib/liveRecordingConfig";
 import {WithWriteToken} from "@/utils/fabric/withWriteToken";
@@ -766,7 +767,7 @@ class StreamEditStore {
 
       // Re-derive fabric_config for the new node so start/stop target it;
       // needs existing probe data since StreamConfig would otherwise re-probe.
-      if(!configProfile && resolvedNodeId && existingProbe) {
+      if(configProfile === undefined && resolvedNodeId && existingProbe) {
         yield this.client.StreamConfig({
           name: objectId,
           writeToken,
@@ -774,7 +775,7 @@ class StreamEditStore {
           inputStreamInfo: existingProbe
         });
       }
-    } else if(!configProfile && host && host !== hostOf(existingUrl)) {
+    } else if(configProfile === undefined && host && host !== hostOf(existingUrl)) {
       const hasFabricConfig = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
@@ -801,7 +802,7 @@ class StreamEditStore {
       }
     }
 
-    if(configProfile) {
+    if(configProfile !== undefined) {
       const {siteWriteToken} = yield this.ApplyStreamProfile({
         objectId,
         writeToken,
@@ -845,7 +846,7 @@ class StreamEditStore {
       key: slug,
       value: {
         tags: tags ?? [],
-        ...(configProfile ? {configProfile} : {}),
+        ...(configProfile !== undefined ? {configProfile} : {}),
         ...(nodeChanged ? {ingressNodeId: resolvedNodeId ?? "", geo: publicNode ? (geo || "") : ""} : {})
       }
     });
@@ -915,7 +916,12 @@ class StreamEditStore {
     profileSlug,
     finalize=true
   }: {objectId: string, writeToken?: string, profileSlug: string, finalize?: boolean}) : Generator<any, {streamWriteToken?: string, siteWriteToken?: string, config?: LiveRecordingConfigProfile}> {
-    const profile = this.rootStore.profileStore.profiles[profileSlug];
+    // "" is Built-in: applied unnamed so the stream reads back as "", tracked on the site under BUILT_IN_PROFILE_SLUG
+    const isBuiltIn = !profileSlug;
+    const profile = isBuiltIn ?
+      {...defaultConfigProfile, name: null} :
+      this.rootStore.profileStore.profiles[profileSlug];
+    const siteProfileSlug = isBuiltIn ? BUILT_IN_PROFILE_SLUG : profileSlug;
 
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
@@ -941,7 +947,7 @@ class StreamEditStore {
       yield this.client.ContentObjectMetadata({
         libraryId: siteLibraryId,
         objectId: siteId,
-        metadataSubtree: `public/asset_metadata/profile_streams/${profileSlug}`
+        metadataSubtree: `public/asset_metadata/profile_streams/${siteProfileSlug}`
       }) : undefined;
     // Re-applying the current profile leaves the site write token empty
     const siteUnchanged = (assignedStreams || []).includes(objectId);
@@ -952,6 +958,7 @@ class StreamEditStore {
         ...(nodeConfig?.ingress_node_id ? {ingress_node_id: nodeConfig.ingress_node_id} : {}),
         ...(nodeConfig?.geo ? {geo: nodeConfig.geo} : {})
       },
+      profileSlug: siteProfileSlug,
       objectId,
       streamWriteToken: writeToken,
       finalize: false

@@ -1,5 +1,8 @@
 import {LiveRecordingConfigProfile} from "@/utils/stream/stream";
 
+// Site profile_streams key for streams on the built-in config (never a stored profile)
+export const BUILT_IN_PROFILE_SLUG = "built-in";
+
 export const defaultConfigProfile: LiveRecordingConfigProfile = {
   "name": "Built In",
   "playout_config": {
