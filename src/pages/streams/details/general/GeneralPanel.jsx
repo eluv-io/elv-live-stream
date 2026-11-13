@@ -294,6 +294,15 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
                 {...form.getInputProps("applyConfigProfile", {type: "checkbox"})}
               />
               {
+                profileStore.profiles[currentConfigProfile]?.input_stream_info && streamStatusStore.streams[slug]?.customProbe ?
+                  <Flex gap={6} align="flex-start" mt={12}>
+                    <IconInfoCircle size={16} style={{flexShrink: 0, marginTop: 2}} />
+                    <Text c="elv-gray.9" fz={14}>
+                      This stream uses a custom probe from its last Configure, not the probe in this profile. Re-apply the profile to use the profile&apos;s probe.
+                    </Text>
+                  </Flex> : null
+              }
+              {
                 (profileStore.profiles[currentConfigProfile]?.last_updated > streamStatusStore.streams[slug]?.profileLastUpdated) ?
                   <Box>
                     <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>

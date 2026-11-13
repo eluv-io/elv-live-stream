@@ -80,10 +80,10 @@ class AlternateTranscodeStore {
         libraryId: parentLibraryId,
         objectId: parentObjectId,
         metadataSubtree: "live_recording_config",
-        select: ["alternate_transcodes", "probe_info"]
+        select: ["alternate_transcodes", "probe_info", "input_stream_info"]
       });
       const existingIds: string[] = parentConfig?.alternate_transcodes ?? [];
-      const parentProbeInfo = parentConfig?.probe_info;
+      const parentProbeInfo = parentConfig?.probe_info ?? parentConfig?.input_stream_info;
 
       // Dedicated nodes use the node picked in the modal directly; public
       // nodes resolve one from the chosen geo (see lib/fabricNodes).
@@ -261,8 +261,9 @@ class AlternateTranscodeStore {
         objectId,
         writeToken,
         metadataSubtree: "live_recording_config",
-        select: ["ingress_node_id", "probe_info"]
+        select: ["ingress_node_id", "probe_info", "input_stream_info"]
       });
+      const existingProbe = existingConfig?.probe_info ?? existingConfig?.input_stream_info;
 
       // Same dedicated/public resolution as CreateAlternateTranscode.
       const resolvedNodeId = nodeType === "dedicated" ?
@@ -290,12 +291,12 @@ class AlternateTranscodeStore {
       // one. Only when there's already probe data to reuse; without it
       // StreamConfig would try (and likely fail) to probe this object's own,
       // probably inactive, url.
-      if(nodeChanged && resolvedNodeId && existingConfig?.probe_info) {
+      if(nodeChanged && resolvedNodeId && existingProbe) {
         yield this.client.StreamConfig({
           name: objectId,
           writeToken,
           finalize: false,
-          inputStreamInfo: existingConfig.probe_info
+          inputStreamInfo: existingProbe
         });
       }
 

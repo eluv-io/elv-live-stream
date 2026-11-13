@@ -723,8 +723,9 @@ class StreamEditStore {
       objectId,
       writeToken,
       metadataSubtree: "live_recording_config",
-      select: ["probe_info"]
+      select: ["probe_info", "input_stream_info"]
     });
+    const existingProbe = existingConfig?.probe_info ?? existingConfig?.input_stream_info;
 
     const publicNode = nodeType === "public";
     const resolvedNodeId = !nodeChanged ? undefined :
@@ -765,12 +766,12 @@ class StreamEditStore {
 
       // Re-derive fabric_config for the new node so start/stop target it;
       // needs existing probe data since StreamConfig would otherwise re-probe.
-      if(!configProfile && resolvedNodeId && existingConfig?.probe_info) {
+      if(!configProfile && resolvedNodeId && existingProbe) {
         yield this.client.StreamConfig({
           name: objectId,
           writeToken,
           finalize: false,
-          inputStreamInfo: existingConfig.probe_info
+          inputStreamInfo: existingProbe
         });
       }
     } else if(!configProfile && host && host !== hostOf(existingUrl)) {
@@ -1588,12 +1589,13 @@ class StreamEditStore {
         metadataSubtree: "live_recording_config",
         select: [
           "probe_info/streams",
+          "input_stream_info/streams",
           "recording_stream_config/audio"
         ]
       });
 
       const audioConfig = liveRecordingMetadata?.recording_stream_config?.audio || {};
-      const probeAudioStreams = (liveRecordingMetadata?.probe_info?.streams || [])
+      const probeAudioStreams = ((liveRecordingMetadata?.probe_info ?? liveRecordingMetadata?.input_stream_info)?.streams || [])
         .filter(stream => stream.codec_type === "audio");
       const audioIndexes = probeAudioStreams.map(stream => stream.stream_index);
 

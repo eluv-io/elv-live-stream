@@ -44,7 +44,7 @@ sequenceDiagram
         Note right of StreamEditStore: siteUnchanged = stream already listed<br/>(StreamAssignProfile will be a no-op)
     end
     StreamEditStore->>FrameClient: StreamApplyProfile({...profile, ingress_node_id?, geo?},<br/>objectId, streamWriteToken, finalize:false)
-    Note over FrameClient: keeps only url/name/probe_info/input_stream_info<br/>from the old config — node fields are re-added by the<br/>app so StreamConfig resolves the node by id, not URL host.<br/>Resets live_recording / overrides, runs StreamConfig if probed,<br/>stamps profile_last_updated, (un)assigns on site token
+    Note over FrameClient: keeps url/name from the old config, plus probe_info/<br/>input_stream_info only if the profile has no input_stream_info<br/>(profile probe wins over a stale stream probe). Node fields are<br/>re-added by the app so StreamConfig resolves the node by id.<br/>Resets live_recording / overrides, runs StreamConfig if probed,<br/>then moves the probe to input_stream_info and deletes probe_info.<br/>Stamps profile_last_updated, (un)assigns on site token
     FrameClient-->>StreamEditStore: {streamWriteToken, siteWriteToken}
 
     alt probeCleared is falsy (always, on client-js 4.2.46)
@@ -62,6 +62,10 @@ sequenceDiagram
     end
     StreamEditStore-->>Caller: response (siteWriteToken dropped when siteUnchanged)
 ```
+
+After an apply, `live_recording_config/input_stream_info` is the only probe data on the stream (`probe_info` is gone until the next Configure). App readers of probe data therefore use `probe_info ?? input_stream_info`.
+
+A later Configure writes a fresh `probe_info`, which `StreamConfig` prefers over `input_stream_info`. `LoadGeneralConfigData` flags this as `customProbe` (profile set, `probe_info` present and not deep-equal to `input_stream_info` — node-change re-configs rewrite `probe_info` from `input_stream_info`, so equality means not custom), and `GeneralPanel` shows a note under Config Profile.
 
 `siteUnchanged` exists because `StreamApplyProfile` always opens a site write token, but re-applying the stream's current profile writes nothing to it — finalizing it would produce an empty site commit. The token is left unfinalized.
 

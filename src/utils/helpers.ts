@@ -238,6 +238,17 @@ export const FormatStreamEventTime = (time?: string): string => {
 export const slugify = (str?: string): string =>
   (str || "").toLowerCase().trim().replace(/ /g, "-").replace(/[^a-z0-9-]/g, "");
 
+export const DeepEqual = (a: unknown, b: unknown): boolean => {
+  if(a === b) { return true; }
+  if(typeof a !== "object" || typeof b !== "object" || a === null || b === null) { return false; }
+  if(Array.isArray(a) !== Array.isArray(b)) { return false; }
+
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  return aKeys.length === bKeys.length &&
+    aKeys.every(key => DeepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
+};
+
 // Fails fast on a hung call (e.g. permission-restricted object) so it can't block a concurrent batch.
 export const WithTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
   Promise.race([
