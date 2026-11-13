@@ -567,11 +567,12 @@ class StreamEditStore {
         });
       }
 
-      if(description) {
+      // !== undefined so clearing the field writes "" (MergeMetadata won't drop an omitted key)
+      if(description !== undefined) {
         metadata.public["description"] = description;
       }
 
-      if(displayTitle) {
+      if(displayTitle !== undefined) {
         metadata.public.asset_metadata["display_title"] = displayTitle;
       }
 
@@ -610,6 +611,7 @@ class StreamEditStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to update metadata", error);
+      throw error;
     }
   }
 
