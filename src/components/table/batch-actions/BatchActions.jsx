@@ -14,6 +14,7 @@ const BatchActions = ({
   allSelected=false,
   selectAllDisabled=false,
   mb=20,
+  ml=0
 }) => {
   const selectAllLabel = allSelected ? "Unselect All" : "Select All";
   const selectAllColor = selectAllDisabled ? "elv-gray.6" : "elv-gray.9";
@@ -37,7 +38,7 @@ const BatchActions = ({
   );
   return (
     <>
-      <Box bg="elv-blue.0" p="3px 12px" mb={mb} className={styles.boxRounded}>
+      <Box bg="elv-blue.0" p="3px 12px" mb={mb} className={styles.boxRounded} ml={ml}>
         <Flex direction="row" w="100%" h={30} align="center" gap={12}>
           <Group gap={0}>
             {

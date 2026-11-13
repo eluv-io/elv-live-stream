@@ -113,6 +113,56 @@ class RecordingCopyStore {
     });
   }
 
+  // Copies each object into its own library, then registers all copies on the stream in one write.
+  *DuplicateLiveRecordingCopies({streamId, recordingCopyIds}: {streamId: string, recordingCopyIds: string[]}) : Generator<any, string[]> {
+    const liveRecordingCopies = yield this.FetchLiveRecordingCopies({objectId: streamId});
+    const now = Date.now();
+
+    const newCopies: {id: string, copy: Record<string, unknown>}[] = yield Promise.all(
+      recordingCopyIds.map(async(recordingCopyId) => {
+        const original = liveRecordingCopies?.[recordingCopyId];
+        if(!original || original.unavailable) {
+          throw new RecordingCopyMissingError(recordingCopyId);
+        }
+
+        const libraryId = await this.client.ContentObjectLibraryId({objectId: recordingCopyId});
+        const originalVersionHash = await this.client.LatestVersionHash({objectId: recordingCopyId});
+        const title = `${original.title || recordingCopyId} (Copy)`;
+
+        const {id} = await this.client.CopyContentObject({
+          libraryId,
+          originalVersionHash,
+          options: {meta: {public: {name: title}}}
+        });
+
+        return {id, copy: {...original, title, create_time: now}};
+      })
+    );
+
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId: streamId});
+    const {writeToken} = yield this.client.EditContentObject({objectId: streamId, libraryId});
+
+    yield this.client.ReplaceMetadata({
+      objectId: streamId,
+      libraryId,
+      writeToken,
+      metadataSubtree: "live_recording_copies",
+      metadata: {
+        ...liveRecordingCopies,
+        ...Object.fromEntries(newCopies.map(({id, copy}) => [id, copy]))
+      }
+    });
+
+    yield this.client.FinalizeContentObject({
+      objectId: streamId,
+      libraryId,
+      writeToken,
+      commitMessage: newCopies.length > 1 ? "Duplicate live recording copies" : "Duplicate live recording copy"
+    });
+
+    return newCopies.map(({id}) => id);
+  }
+
   *EditLiveRecordingCopy({streamId, recordingCopyId, title}: {streamId: string, recordingCopyId: string, title: string}) : Generator<any, FinalizeContentObjectResponse> {
     try {
       const liveRecordingCopies = yield this.FetchLiveRecordingCopies({objectId: streamId});

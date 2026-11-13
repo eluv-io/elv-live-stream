@@ -19,7 +19,7 @@ import {DateFormat} from "@/utils/formatters.ts";
 import {SortTable} from "@/utils/helpers.ts";
 import {streamStatusStore, recordingCopyStore} from "@/stores/index.ts";
 import {RecordingCopyMissingError} from "@/stores/streams/RecordingCopyStore.ts";
-import {IconCircleX, IconExternalLink, IconPencil} from "@tabler/icons-react";
+import {IconCircleX, IconExternalLink, IconPencil, IconCopy} from "@tabler/icons-react";
 import {useDisclosure} from "@mantine/hooks";
 import {useForm} from "@mantine/form";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
@@ -109,6 +109,7 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
   const [selectedIds, setSelectedIds] = useState([]);
   const [showBatchModal, {open: openBatch, close: closeBatch}] = useDisclosure(false);
   const [editRecord, setEditRecord] = useState(null);
+  const [showDuplicateModal, {open: openDuplicate, close: closeDuplicate}] = useDisclosure(false);
   const params = useParams();
 
   const sortedRecords = Object.values(liveRecordingCopies || {})
@@ -129,23 +130,35 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
 
   return (
     <Box mb="24px" maw="100%">
-      <SectionTitle mb={7}>Recordings</SectionTitle>
-      <BatchActions
-        mb={8}
-        selectedRecords={selectedRecords}
-        allSelected={sortedRecords.length > 0 && selectedRecords.length === sortedRecords.length}
-        selectAllDisabled={loading}
-        SelectAll={() => setSelectedIds(
-          selectedRecords.length === sortedRecords.length ? [] : sortedRecords.map(r => r._id)
-        )}
-        actions={[{
-          id: "remove",
-          label: "Remove From List",
-          icon: IconCircleX,
-          disabled: selectedRecords.length === 0,
-          onClick: openBatch
-        }]}
-      />
+      <Flex direction="row" mb={7} align="center">
+        <SectionTitle>Recordings</SectionTitle>
+        <BatchActions
+          mb={0}
+          ml="auto"
+          selectedRecords={selectedRecords}
+          allSelected={sortedRecords.length > 0 && selectedRecords.length === sortedRecords.length}
+          selectAllDisabled={loading}
+          SelectAll={() => setSelectedIds(
+            selectedRecords.length === sortedRecords.length ? [] : sortedRecords.map(r => r._id)
+          )}
+          actions={[
+            {
+              id: "remove",
+              label: "Remove From List",
+              icon: IconCircleX,
+              disabled: selectedRecords.length === 0,
+              onClick: openBatch
+            },
+            {
+              id: "duplicate",
+              label: "Duplicate",
+              icon: IconCopy,
+              disabled: selectedRecords.length === 0 || selectedRecords.some(r => r.unavailable),
+              onClick: openDuplicate
+            }
+          ]}
+        />
+      </Flex>
       <Box className={`${sharedStyles.tableWrapper} ${sharedStyles.fixedTable}`}>
         <DataTable
           idAccessor="_id"
@@ -330,6 +343,27 @@ const RecordingCopiesTable = observer(({liveRecordingCopies, DeleteCallback, Edi
           DeleteCallback();
         }}
         CloseCallback={closeBatch}
+      />
+      <ConfirmModal
+        show={showDuplicateModal}
+        title="Duplicate Live Recording Copies Confirmation"
+        confirmText="Duplicate"
+        message={`Are you sure you want to duplicate ${selectedRecords.length} recording${selectedRecords.length === 1 ? "" : "s"}? Each copy will be added to this stream's recordings.`}
+        ConfirmCallback={async () => {
+          const ids = selectedRecords.map(r => r._id);
+          await recordingCopyStore.DuplicateLiveRecordingCopies({streamId: params.id, recordingCopyIds: ids});
+
+          notifications.show({
+            title: "Live recording duplicated",
+            message: <NotificationMessage>Successfully duplicated {ids.length} recording{ids.length === 1 ? "" : "s"}</NotificationMessage>
+          });
+
+          setSelectedIds([]);
+          if(EditCallback) {
+            EditCallback();
+          }
+        }}
+        CloseCallback={closeDuplicate}
       />
       <EditModal
         show={showEditModal}
