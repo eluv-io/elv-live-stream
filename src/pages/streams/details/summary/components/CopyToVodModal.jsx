@@ -152,26 +152,20 @@ const CopyToVodModal = observer(({
     setRange(([low, high]) => index === 0 ? [Math.min(clamped, high), high] : [low, Math.max(clamped, low)]);
   };
 
+  const SetDefaultLibrary = () => {
+    const libraryMatchMezz = Object.keys(tenantStore.libraries || {}).find(libId => tenantStore.libraries[libId].name.toLowerCase().includes("title mezzanines"));
+
+    form.setFieldValue("libraryId", libraryMatchMezz || "");
+  };
+
+  const SetDefaultGroup = () => {
+    const groupMatchAdmin = Object.keys(tenantStore.accessGroups || {})
+      .find(groupName => groupName.toLowerCase().includes("content admin"));
+
+    form.setFieldValue("accessGroup", groupMatchAdmin || "");
+  };
+
   useEffect(() => {
-    const SetDefaultLibrary = () => {
-      // Default to title mezzanine library
-      const libraryMatchMezz = Object.keys(tenantStore.libraries || {}).find(libId => tenantStore.libraries[libId].name.toLowerCase().includes("title mezzanines"));
-
-      if(libraryMatchMezz) {
-        form.setFieldValue("libraryId", libraryMatchMezz);
-      }
-    };
-
-    const SetDefaultGroup = () => {
-      // Default to content admin group
-      const groupMatchAdmin = Object.keys(tenantStore.accessGroups || {})
-        .find(groupName => groupName.toLowerCase().includes("content admin"));
-
-      if(groupMatchAdmin) {
-        form.setFieldValue("accessGroup", groupMatchAdmin);
-      }
-    };
-
     const LoadLibraries = async() => {
       try {
         setLoadingLibraries(true);
@@ -251,6 +245,8 @@ const CopyToVodModal = observer(({
 
       // setFieldValue (not setValues) so uncontrolled inputs re-render with the new value
       form.setFieldValue("title", defaultTitle);
+      if(tenantStore.libraries) { SetDefaultLibrary(); }
+      if(tenantStore.accessGroups) { SetDefaultGroup(); }
       form.setFieldValue("startTime", FormatTime(floor));
       form.setFieldValue("endTime", streamIsLive ? FormatTime(max) : "");
     }
