@@ -531,10 +531,10 @@ const CopyToVodModal = observer(({
                   </SimpleGrid>
 
                   <Text fz=".875rem" c="elv-gray.6" fw={400}>*Leave both fields empty to copy the full available content{ttlSec ? " within the retention window" : ""}.</Text>
+
+                  <Divider c="elv-gray.2" />
               </>
           }
-
-          <Divider c="elv-gray.2" />
 
           <Text fw={500} fz="0.875rem" c="elv-gray.9">This process takes around 30 seconds per hour of content.</Text>
         </Flex>
