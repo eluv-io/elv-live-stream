@@ -16,6 +16,7 @@ import {
 import {useEffect, useMemo, useRef, useState} from "react";
 import {toJS} from "mobx";
 import {useForm} from "@mantine/form";
+import {notifications} from "@mantine/notifications";
 import {tenantStore, settingsStore, streamEditStore, streamStatusStore, streamDetailStore, profileStore, streamSaveStore, streamListStore} from "@/stores/index.ts";
 import {useParams} from "react-router-dom";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
@@ -58,7 +59,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
       url: (value) => (!value ? "URL is required" : null),
       ingressNodeId: (value, values) => (values.nodeType === "dedicated" && !value ? "Node is required" : null),
       configProfile: (value, values) => (
-        !!value && value !== currentConfigProfile && !values.applyConfigProfile
+        value !== (currentConfigProfile || "") && !values.applyConfigProfile
           ? "Check \"Apply profile settings…\" to apply this profile"
           : null
       )
@@ -81,7 +82,6 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
           profileStore.state !== "loaded" ? profileStore.LoadProfiles() : Promise.resolve()
         ]);
         const stream = streamStatusStore.streams[slug];
-
         const values = {
           name: stream.title || "",
           description: stream.description || "",
@@ -135,8 +135,7 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
       objectId: params.id,
       slug,
       formData: values,
-      // Only re-apply the profile when it actually changed
-      configProfile: values.configProfile !== currentConfigProfile ? values.configProfile : undefined,
+      configProfile: (values.applyConfigProfile || values.configProfile !== (currentConfigProfile || "")) ? values.configProfile : undefined,
       nodeChanged: ["nodeType", "ingressNodeId", "geo"].some(field => form.isDirty(field)),
       updatePermission: currentSettings.permission !== values.permission,
       updateAccessGroup: currentSettings.accessGroup !== values.accessGroup,
@@ -295,12 +294,25 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
                 {...form.getInputProps("applyConfigProfile", {type: "checkbox"})}
               />
               {
+                profileStore.profiles[currentConfigProfile]?.input_stream_info && streamStatusStore.streams[slug]?.customProbe ?
+                  <Flex gap={6} align="flex-start" mt={12}>
+                    <IconInfoCircle size={16} style={{flexShrink: 0, marginTop: 2}} />
+                    <Text c="elv-gray.9" fz={14}>
+                      This stream uses a custom probe from its last Configure, not the probe in this profile. Re-apply the profile to use the profile&apos;s probe.
+                    </Text>
+                  </Flex> : null
+              }
+              {
                 (profileStore.profiles[currentConfigProfile]?.last_updated > streamStatusStore.streams[slug]?.profileLastUpdated) ?
                   <Box>
                     <Text c="elv-gray.9" mb={12} mt={12} fz={14}>Profile has been changed.</Text>
+                    <DisabledTooltipWrapper
+                      disabled={streamSaveStore.anyDirty}
+                      tooltipLabel="Save or discard your changes before re-applying the profile"
+                    >
                     <Button
                       variant="outline"
-                      disabled={applyingProfileChanges}
+                      disabled={applyingProfileChanges || streamSaveStore.anyDirty}
                       onClick={async() => {
                         try {
                           setApplyingProfileChanges(true);
@@ -309,12 +321,21 @@ const GeneralPanel = observer(({slug, status, active, checkVersion, Refresh}) =>
                             profileSlug: currentConfigProfile
                           });
                           Refresh?.();
+                      } catch(error) {
+                        // eslint-disable-next-line no-console
+                        console.error("Unable to re-apply profile", error);
+                        notifications.show({
+                          title: "Error",
+                          color: "red",
+                          message: `Unable to re-apply profile: ${error?.message ?? error}`
+                        });
                       } finally {
                         setApplyingProfileChanges(false);
                       }
                     }}
                     >Re-apply
                     </Button>
+                    </DisabledTooltipWrapper>
                   </Box> : null
               }
             </Box>

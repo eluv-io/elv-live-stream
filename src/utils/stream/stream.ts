@@ -294,6 +294,7 @@ export interface FinalizeContentObjectResponse {
 
 export interface LiveRecordingConfigProfile {
   name?: string;
+  last_updated?: string;
   recording_config?: RecordingConfig;
   playout_config?: PlayoutConfig;
   recording_stream_config?: { audio?: Record<string, AudioStreamConfig> };

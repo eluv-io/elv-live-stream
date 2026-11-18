@@ -1,8 +1,7 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {observer} from "mobx-react-lite";
 import {useDisclosure} from "@mantine/hooks";
 import {recordingCopyStore, streamStatusStore} from "@/stores/index.ts";
-import {notifications} from "@mantine/notifications";
 import {RECORDING_STATUS_TEXT, RETENTION_TEXT, STATUS_MAP} from "@/utils/constants.ts";
 import {Box, Button, Checkbox, Divider, Flex, Group, SimpleGrid, Stack, Text} from "@mantine/core";
 import {DateFormat, FormatDuration, Pluralize, RelativeTime} from "@/utils/formatters.ts";
@@ -16,7 +15,6 @@ import {BasicTableRowText} from "@/pages/streams/details/common/DetailsCommon.js
 import sharedStyles from "@/assets/shared.module.css";
 import styles from "./RecordingPeriodsTable.module.css";
 import SectionTitle from "@/components/section-title/SectionTitle.jsx";
-import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 
 const PAGE_SIZE = 15;
 // Fixed when paginated so pages don't resize
@@ -47,11 +45,23 @@ const RecordingPeriodsTable = observer(({
     setSelectedRecords(newlySelected ? [newlySelected] : [newSelectedRecords[newSelectedRecords.length - 1]]);
   };
 
+  const [supportsTimeRange, setSupportsTimeRange] = useState(false);
+
+  useEffect(() => {
+    const LoadSupportsTimeRange = async() => {
+      try {
+        setSupportsTimeRange(await recordingCopyStore.FetchSupportsTimeRange({objectId}));
+      } catch {
+        setSupportsTimeRange(false);
+      }
+    };
+
+    setSupportsTimeRange(false);
+    LoadSupportsTimeRange();
+  }, [objectId]);
+
   const [copyingToVod, setCopyingToVod] = useState(false);
   const [showCopyModal, {open, close}] = useDisclosure(false);
-  const [vodTitle, setVodTitle] = useState(`${title} VoD`);
-  const [vodLibraryId, setVodLibraryId] = useState("");
-  const [vodAccessGroup, setVodAccessGroup] = useState(null);
 
   const [sortStatus, setSortStatus] = useState({
     columnAccessor: "start_time",
@@ -63,62 +73,9 @@ const RecordingPeriodsTable = observer(({
 
   const [showExpired, setShowExpired] = useState(false);
 
-  const filteredRecords = [...(recordingPeriods || [])]
-    .sort(SortTable({sortStatus}))
-    .filter((record, i) => {
-      const expired = RecordingPeriodIsExpired({
-        parts: record?.sources?.video?.parts || [],
-        startTime: record.start_time,
-        endTime: record.end_time,
-        retention: parseInt(retention)
-      });
-
-      if(showExpired) {
-        return true;
-      } else {
-        if(i === 0) { return record; }
-        return !expired;
-      }
-    });
-
-  // Paging
-  const [page, setPage] = useState(1);
-  const pagedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const HandleCopy = async ({title}) => {
-    try {
-      setCopyingToVod(true);
-      const response = await recordingCopyStore.CopyToVod({
-        objectId,
-        targetLibraryId: vodLibraryId,
-        accessGroup: vodAccessGroup,
-        selectedPeriods: selectedRecords,
-        title
-      });
-
-      await CopyCallback();
-
-      notifications.show({
-        title: <NotificationMessage>Copied to VoD: {title || objectId}</NotificationMessage>,
-        message: <NotificationMessage>Successfully created {response?.target_object_id}</NotificationMessage>,
-        autoClose: false
-      });
-      close();
-    } catch(error) {
-      notifications.show({
-        title: "Error",
-        color: "red",
-        message: "Unable to copy to VoD"
-      });
-
-      // eslint-disable-next-line no-console
-      console.error("Unable to copy to VoD", error);
-      setCopyingToVod(false);
-      close();
-    } finally {
-      setCopyingToVod(false);
-    }
-  };
+  const [latestPeriod, previousPeriod] = [...(recordingPeriods || [])]
+    .sort((a, b) => (b.start_time_epoch_sec || 0) - (a.start_time_epoch_sec || 0));
+  const isDisconnected = !!latestPeriod?.end_time || !StreamIsActive(status?.state);
 
   const RecordingStatus = ({item, text=true, startTime, endTime}) => {
     let status;
@@ -132,7 +89,9 @@ const RecordingPeriodsTable = observer(({
         retention: parseInt(retention)
       })
     ) {
-      status = "EXPIRED";
+      // A still-running period keeps its last TTL-worth of parts
+      const running = item?.id === latestPeriod?.id && !isDisconnected;
+      status = running && !videoIsEmpty ? "PARTIALLY_AVAILABLE" : "EXPIRED";
     } else if(!videoIsEmpty && item?.sources?.video?.trimmed > 0) {
       status = "PARTIALLY_AVAILABLE";
     } else {
@@ -141,6 +100,23 @@ const RecordingPeriodsTable = observer(({
 
     return text ? RECORDING_STATUS_TEXT[status] : status;
   };
+
+  const filteredRecords = [...(recordingPeriods || [])]
+    .sort(SortTable({sortStatus}))
+    .filter((record, i) => {
+      if(showExpired || i === 0) { return true; }
+
+      return RecordingStatus({
+        item: record,
+        text: false,
+        startTime: record.start_time,
+        endTime: record.end_time
+      }) !== "EXPIRED";
+    });
+
+  // Paging
+  const [page, setPage] = useState(1);
+  const pagedRecords = filteredRecords.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const ExpirationTime = ({startTime, retention, persistent}) => {
     if(!startTime) { return "--"; }
@@ -156,9 +132,6 @@ const RecordingPeriodsTable = observer(({
       }) : "--";
   };
 
-  const [latestPeriod, previousPeriod] = [...(recordingPeriods || [])]
-    .sort((a, b) => b.start_time - a.start_time);
-  const isDisconnected = !!latestPeriod?.end_time || !StreamIsActive(status);
 
   const periodsSummaryData = [
     {label: "Status", id: "period-status", value: isDisconnected ? "Disconnected" : "Recording"},
@@ -183,7 +156,6 @@ const RecordingPeriodsTable = observer(({
             disabled={selectedRecords.length === 0 || copyingToVod}
             onClick={open}
             size="sm"
-            loading={copyingToVod}
           >
             Copy to VoD
           </Button>
@@ -312,27 +284,32 @@ const RecordingPeriodsTable = observer(({
           selectedRecords={selectedRecords}
           onSelectedRecordsChange={HandleSelectionChange}
           allRecordsSelectionCheckboxProps={{style: {display: "none"}}}
-          isRecordSelectable={(record) => (
-            RecordingStatus({
+          isRecordSelectable={(record) => {
+            const recordStatus = RecordingStatus({
               item: record,
               text: false,
               startTime: record.start_time,
               endTime: record.end_time
-            }) === "AVAILABLE"
-          )}
+            });
+
+            // Trimmed periods need a time-range copy
+            return recordStatus === "AVAILABLE" ||
+              (supportsTimeRange && recordStatus === "PARTIALLY_AVAILABLE");
+          }}
           highlightOnHover
         />
       </Box>
       <CopyToVodModal
         show={showCopyModal}
         close={close}
-        Callback={(title) => HandleCopy({title})}
-        title={vodTitle}
-        setTitle={setVodTitle}
-        libraryId={vodLibraryId}
-        setLibraryId={setVodLibraryId}
-        accessGroup={vodAccessGroup}
-        setAccessGroup={setVodAccessGroup}
+        objectId={objectId}
+        selectedPeriods={selectedRecords}
+        supportsTimeRange={supportsTimeRange}
+        retention={retention}
+        persistent={persistent}
+        defaultTitle={`${title} VoD`}
+        onCopied={CopyCallback}
+        onSubmittingChange={setCopyingToVod}
       />
     </>
   );

@@ -1,6 +1,6 @@
 // Per-stream detail reads for the stream details page (summary, general, recording, playout, probe) and playout URL building.
 import {makeAutoObservable} from "mobx";
-import {slugify} from "@/utils/helpers";
+import {DeepEqual, slugify} from "@/utils/helpers";
 import {RECORDING_BITRATE_OPTIONS} from "@/utils/constants";
 import {
   AlternateTranscode,
@@ -64,8 +64,9 @@ export interface ProbeData {
 }
 
 type GeneralConfigData = Pick<StreamMetadata,
-  "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags"
+  "title" | "description" | "display_title" | "originUrl" | "referenceUrl" | "configProfile" | "tags" | "profileLastUpdated"
 > & {
+  customProbe: boolean;
   ingressNodeId: string;
   geo: string;
   permission: PermissionLevel;
@@ -173,13 +174,13 @@ class StreamDetailStore {
           libraryId,
           objectId,
           metadataSubtree: "public",
-          select: ["name", "description", "asset_metadata/display_title", "asset_metadata/tags"]
+          select: ["name", "description", "asset_metadata/display_title", "asset_metadata/tags", "asset_metadata/profile_last_updated"]
         }),
         this.client.ContentObjectMetadata({
           libraryId,
           objectId,
           metadataSubtree: "live_recording_config",
-          select: ["url", "name", "reference_url", "ingress_node_id", "geo"]
+          select: ["url", "name", "reference_url", "ingress_node_id", "geo", "probe_info", "input_stream_info"]
         }),
         this.client.ContentObjectMetadata({
           libraryId,
@@ -200,6 +201,11 @@ class StreamDetailStore {
         ingressNodeId: liveRecordingConfigMeta?.ingress_node_id ?? "",
         geo: liveRecordingConfigMeta?.geo ?? "",
         configProfile: slugify(liveRecordingConfigMeta?.name),
+        profileLastUpdated: generalMeta?.asset_metadata?.profile_last_updated,
+        // A Configure after the last profile apply writes probe_info; applies leave only input_stream_info
+        customProbe: !!liveRecordingConfigMeta?.name &&
+          !!liveRecordingConfigMeta?.probe_info &&
+          !DeepEqual(liveRecordingConfigMeta.probe_info, liveRecordingConfigMeta.input_stream_info),
         permission,
         accessGroup
       };
@@ -607,7 +613,7 @@ class StreamDetailStore {
         ]
       });
 
-      let probeMeta = liveRecordingConfigMeta?.probe_info;
+      let probeMeta = liveRecordingConfigMeta?.probe_info ?? liveRecordingConfigMeta?.input_stream_info;
 
       // Phase out as new streams will have live_recording_config/probe_info
       if(!probeMeta) {

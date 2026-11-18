@@ -12,6 +12,7 @@ import {
 } from "@/utils/stream/stream";
 import {PlayoutFormat, STATUS_MAP, StreamStatus} from "@/utils/constants";
 import {slugify} from "@/utils/helpers";
+import {BUILT_IN_PROFILE_SLUG, defaultConfigProfile} from "@/utils/defaultProfile";
 import {ResolveIngestNodeId} from "@/stores/lib/fabricNodes";
 import {LiveRecordingConfigParams, WriteLiveRecordingConfig} from "@/stores/lib/liveRecordingConfig";
 import {WithWriteToken} from "@/utils/fabric/withWriteToken";
@@ -566,11 +567,12 @@ class StreamEditStore {
         });
       }
 
-      if(description) {
+      // !== undefined so clearing the field writes "" (MergeMetadata won't drop an omitted key)
+      if(description !== undefined) {
         metadata.public["description"] = description;
       }
 
-      if(displayTitle) {
+      if(displayTitle !== undefined) {
         metadata.public.asset_metadata["display_title"] = displayTitle;
       }
 
@@ -609,6 +611,7 @@ class StreamEditStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to update metadata", error);
+      throw error;
     }
   }
 
@@ -723,8 +726,9 @@ class StreamEditStore {
       objectId,
       writeToken,
       metadataSubtree: "live_recording_config",
-      select: ["probe_info"]
+      select: ["probe_info", "input_stream_info"]
     });
+    const existingProbe = existingConfig?.probe_info ?? existingConfig?.input_stream_info;
 
     const publicNode = nodeType === "public";
     const resolvedNodeId = !nodeChanged ? undefined :
@@ -765,15 +769,15 @@ class StreamEditStore {
 
       // Re-derive fabric_config for the new node so start/stop target it;
       // needs existing probe data since StreamConfig would otherwise re-probe.
-      if(!configProfile && resolvedNodeId && existingConfig?.probe_info) {
+      if(configProfile === undefined && resolvedNodeId && existingProbe) {
         yield this.client.StreamConfig({
           name: objectId,
           writeToken,
           finalize: false,
-          inputStreamInfo: existingConfig.probe_info
+          inputStreamInfo: existingProbe
         });
       }
-    } else if(!configProfile && host && host !== hostOf(existingUrl)) {
+    } else if(configProfile === undefined && host && host !== hostOf(existingUrl)) {
       const hasFabricConfig = yield this.client.ContentObjectMetadata({
         libraryId,
         objectId,
@@ -800,7 +804,7 @@ class StreamEditStore {
       }
     }
 
-    if(configProfile) {
+    if(configProfile !== undefined) {
       const {siteWriteToken} = yield this.ApplyStreamProfile({
         objectId,
         writeToken,
@@ -844,7 +848,7 @@ class StreamEditStore {
       key: slug,
       value: {
         tags: tags ?? [],
-        ...(configProfile ? {configProfile} : {}),
+        ...(configProfile !== undefined ? {configProfile} : {}),
         ...(nodeChanged ? {ingressNodeId: resolvedNodeId ?? "", geo: publicNode ? (geo || "") : ""} : {})
       }
     });
@@ -914,7 +918,12 @@ class StreamEditStore {
     profileSlug,
     finalize=true
   }: {objectId: string, writeToken?: string, profileSlug: string, finalize?: boolean}) : Generator<any, {streamWriteToken?: string, siteWriteToken?: string, config?: LiveRecordingConfigProfile}> {
-    const profile = this.rootStore.profileStore.profiles[profileSlug];
+    // "" is Built-in: applied unnamed so the stream reads back as "", tracked on the site under BUILT_IN_PROFILE_SLUG
+    const isBuiltIn = !profileSlug;
+    const profile = isBuiltIn ?
+      {...defaultConfigProfile, name: null} :
+      this.rootStore.profileStore.profiles[profileSlug];
+    const siteProfileSlug = isBuiltIn ? BUILT_IN_PROFILE_SLUG : profileSlug;
 
     const libraryId = yield this.client.ContentObjectLibraryId({objectId});
 
@@ -925,8 +934,33 @@ class StreamEditStore {
       }));
     }
 
+    // StreamApplyProfile drops node selection; without it StreamConfig resolves
+    // the node from the URL host and fails for non-fabric hosts (UDP/RTP).
+    const nodeConfig = yield this.client.ContentObjectMetadata({
+      libraryId,
+      objectId,
+      writeToken,
+      metadataSubtree: "live_recording_config",
+      select: ["ingress_node_id", "geo", "name"]
+    });
+
+    const {siteLibraryId, siteId} = this.rootStore.tenantStore;
+    const assignedStreams = slugify(nodeConfig?.name) === profileSlug ?
+      yield this.client.ContentObjectMetadata({
+        libraryId: siteLibraryId,
+        objectId: siteId,
+        metadataSubtree: `public/asset_metadata/profile_streams/${siteProfileSlug}`
+      }) : undefined;
+    // Re-applying the current profile leaves the site write token empty
+    const siteUnchanged = (assignedStreams || []).includes(objectId);
+
     const response = yield this.client.StreamApplyProfile({
-      profile: toJS(profile),
+      profile: {
+        ...toJS(profile),
+        ...(nodeConfig?.ingress_node_id ? {ingress_node_id: nodeConfig.ingress_node_id} : {}),
+        ...(nodeConfig?.geo ? {geo: nodeConfig.geo} : {})
+      },
+      profileSlug: siteProfileSlug,
       objectId,
       streamWriteToken: writeToken,
       finalize: false
@@ -949,10 +983,10 @@ class StreamEditStore {
         awaitCommitConfirmation: true
       });
 
-      if(response?.siteWriteToken) {
+      if(response?.siteWriteToken && !siteUnchanged) {
         yield this.client.FinalizeContentObject({
-          libraryId: this.rootStore.tenantStore.siteLibraryId,
-          objectId: this.rootStore.tenantStore.siteId,
+          libraryId: siteLibraryId,
+          objectId: siteId,
           writeToken: response.siteWriteToken,
           commitMessage: "Apply stream profile",
           awaitCommitConfirmation: true
@@ -960,7 +994,7 @@ class StreamEditStore {
       }
     }
 
-    return response;
+    return siteUnchanged ? {...response, siteWriteToken: undefined} : response;
   }
 
   // Stream Configuration (probe, watermark, DRM, audio)
@@ -1564,12 +1598,13 @@ class StreamEditStore {
         metadataSubtree: "live_recording_config",
         select: [
           "probe_info/streams",
+          "input_stream_info/streams",
           "recording_stream_config/audio"
         ]
       });
 
       const audioConfig = liveRecordingMetadata?.recording_stream_config?.audio || {};
-      const probeAudioStreams = (liveRecordingMetadata?.probe_info?.streams || [])
+      const probeAudioStreams = ((liveRecordingMetadata?.probe_info ?? liveRecordingMetadata?.input_stream_info)?.streams || [])
         .filter(stream => stream.codec_type === "audio");
       const audioIndexes = probeAudioStreams.map(stream => stream.stream_index);
 

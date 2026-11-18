@@ -3,6 +3,7 @@ import {makeAutoObservable} from "mobx";
 import {FinalizeContentObjectResponse, RecordingPeriod} from "@/utils/stream/stream";
 import {type StreamStatus} from "@/utils/constants";
 import type RootStore from "@/stores/RootStore";
+import {CopyToVodRange, SupportsTimeRange} from "@/stores/lib/recordingCopy";
 
 // Thrown when a live recording copy's content object can no longer be reached
 // (most likely deleted from the Fabric) while attempting to edit it. The UI
@@ -20,6 +21,8 @@ interface CopyToVodParams {
   accessGroup?: string;
   selectedPeriods?: RecordingPeriod[];
   title?: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 class RecordingCopyStore {
@@ -32,6 +35,17 @@ class RecordingCopyStore {
 
   get client() {
     return this.rootStore.client;
+  }
+
+  *FetchSupportsTimeRange({objectId}: {objectId: string}): Generator<any, boolean> {
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    const xcParams = yield this.client.ContentObjectMetadata({
+      objectId,
+      libraryId,
+      metadataSubtree: "live_recording/recording_config/recording_params/xc_params"
+    });
+
+    return SupportsTimeRange(xcParams);
   }
 
   *FetchLiveRecordingCopies({objectId, libraryId}: {objectId: string, libraryId?: string}): Generator<any, Record<string, {create_time: number, endTime: number, startTime: number, title: string, unavailable?: boolean}>> {
@@ -68,9 +82,14 @@ class RecordingCopyStore {
   }
 
   *DeleteLiveRecordingCopy({streamId, recordingCopyId}: {streamId: string, recordingCopyId: string}) : Generator<any, FinalizeContentObjectResponse> {
+    return yield this.DeleteLiveRecordingCopies({streamId, recordingCopyIds: [recordingCopyId]});
+  }
+
+  // One write for all ids: parallel read-modify-write calls on the same metadata would drop each other's removals.
+  *DeleteLiveRecordingCopies({streamId, recordingCopyIds}: {streamId: string, recordingCopyIds: string[]}) : Generator<any, FinalizeContentObjectResponse> {
     const liveRecordingCopies = yield this.FetchLiveRecordingCopies({objectId: streamId});
 
-    delete liveRecordingCopies[recordingCopyId];
+    recordingCopyIds.forEach(id => delete liveRecordingCopies[id]);
 
     const libraryId = yield this.client.ContentObjectLibraryId({objectId: streamId});
     const {writeToken} = yield this.client.EditContentObject({
@@ -90,8 +109,58 @@ class RecordingCopyStore {
       objectId: streamId,
       libraryId,
       writeToken,
-      commitMessage: "Remove live recording copy"
+      commitMessage: recordingCopyIds.length > 1 ? "Remove live recording copies" : "Remove live recording copy"
     });
+  }
+
+  // Copies each object into its own library, then registers all copies on the stream in one write.
+  *DuplicateLiveRecordingCopies({streamId, recordingCopyIds}: {streamId: string, recordingCopyIds: string[]}) : Generator<any, string[]> {
+    const liveRecordingCopies = yield this.FetchLiveRecordingCopies({objectId: streamId});
+    const now = Date.now();
+
+    const newCopies: {id: string, copy: Record<string, unknown>}[] = yield Promise.all(
+      recordingCopyIds.map(async(recordingCopyId) => {
+        const original = liveRecordingCopies?.[recordingCopyId];
+        if(!original || original.unavailable) {
+          throw new RecordingCopyMissingError(recordingCopyId);
+        }
+
+        const libraryId = await this.client.ContentObjectLibraryId({objectId: recordingCopyId});
+        const originalVersionHash = await this.client.LatestVersionHash({objectId: recordingCopyId});
+        const title = `${original.title || recordingCopyId} (Copy)`;
+
+        const {id} = await this.client.CopyContentObject({
+          libraryId,
+          originalVersionHash,
+          options: {meta: {public: {name: title}}}
+        });
+
+        return {id, copy: {...original, title, create_time: now}};
+      })
+    );
+
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId: streamId});
+    const {writeToken} = yield this.client.EditContentObject({objectId: streamId, libraryId});
+
+    yield this.client.ReplaceMetadata({
+      objectId: streamId,
+      libraryId,
+      writeToken,
+      metadataSubtree: "live_recording_copies",
+      metadata: {
+        ...liveRecordingCopies,
+        ...Object.fromEntries(newCopies.map(({id, copy}) => [id, copy]))
+      }
+    });
+
+    yield this.client.FinalizeContentObject({
+      objectId: streamId,
+      libraryId,
+      writeToken,
+      commitMessage: newCopies.length > 1 ? "Duplicate live recording copies" : "Duplicate live recording copy"
+    });
+
+    return newCopies.map(({id}) => id);
   }
 
   *EditLiveRecordingCopy({streamId, recordingCopyId, title}: {streamId: string, recordingCopyId: string, title: string}) : Generator<any, FinalizeContentObjectResponse> {
@@ -161,88 +230,87 @@ class RecordingCopyStore {
     }
   }
 
+  *_CreateVodObject({libraryId, title}: {libraryId: string, title: string}): Generator<any, string> {
+    const titleType = this.rootStore.tenantStore.titleContentType;
+
+    const {id: objectId, writeToken} = yield this.client.CreateContentObject({
+      libraryId,
+      options: titleType ?
+        {type: titleType, meta: {public: {name: title}}} :
+        {}
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      awaitCommitConfirmation: true,
+      commitMessage: "Create VoD object"
+    });
+
+    yield this.client.SetPermission({objectId, permission: "editable"});
+
+    return objectId;
+  }
+
+  *_SaveRecordingCopy({objectId, copyId, copy}: {
+    objectId: string,
+    copyId: string,
+    copy: {startTime: number, endTime: number, create_time: number, title: string}
+  }) {
+    const libraryId = yield this.client.ContentObjectLibraryId({objectId});
+    const {writeToken} = yield this.client.EditContentObject({objectId, libraryId});
+
+    const copiesMetadata = yield this.client.ContentObjectMetadata({
+      objectId,
+      libraryId,
+      metadataSubtree: "live_recording_copies"
+    });
+
+    yield this.client.ReplaceMetadata({
+      objectId,
+      libraryId,
+      writeToken,
+      metadataSubtree: "/live_recording_copies",
+      metadata: {...copiesMetadata, [copyId]: copy}
+    });
+
+    yield this.client.FinalizeContentObject({
+      libraryId,
+      objectId,
+      writeToken,
+      awaitCommitConfirmation: true,
+      commitMessage: "Update live recording copies"
+    });
+  }
+
   *CopyToVod({
     objectId,
     targetLibraryId,
     accessGroup,
     selectedPeriods=[],
-    title
+    title,
+    startTime,
+    endTime
   }: CopyToVodParams): Generator<any, StreamStatus> {
-    let recordingPeriod: number, startTime: string, endTime: string;
-    const timeSeconds: Partial<{startTime: number, endTime: number}> = {};
-    const sortedPeriods = [...selectedPeriods].sort((a, b) => a?.start_time_epoch_sec - b?.start_time_epoch_sec);
-    const firstPeriod = sortedPeriods[0];
-    const currentDateTime = new Date();
-
-    if(sortedPeriods.length > 1) {
-      const lastPeriod = sortedPeriods[sortedPeriods.length - 1];
-      recordingPeriod = null;
-      startTime = new Date(firstPeriod?.start_time_epoch_sec * 1000).toISOString();
-      endTime = new Date(lastPeriod?.end_time_epoch_sec * 1000).toISOString();
-
-      timeSeconds.startTime = firstPeriod?.start_time_epoch_sec;
-      timeSeconds.endTime = lastPeriod?.end_time_epoch_sec;
-    } else {
-      recordingPeriod = firstPeriod.id;
-      timeSeconds.startTime = firstPeriod?.start_time_epoch_sec;
-      timeSeconds.endTime = firstPeriod?.end_time_epoch_sec;
-    }
-
-    if(!timeSeconds.endTime) {
-      timeSeconds.endTime = Math.floor(currentDateTime.getTime() / 1000);
-    }
-
-    const titleType = this.rootStore.tenantStore.titleContentType;
+    const now = Date.now();
+    // Resolved first so a bad time fails before anything is created
+    const {startSec, endSec, ...selection} = CopyToVodRange({
+      periods: selectedPeriods,
+      startTime,
+      endTime,
+      nowSec: Math.floor(now / 1000)
+    });
 
     if(!targetLibraryId) {
       targetLibraryId = yield this.client.ContentObjectLibraryId({objectId});
     }
 
-    const streams = this.rootStore.streamStatusStore.streams;
-    const streamSlug = Object.keys(streams || {}).find(slug => (
-      streams[slug].objectId === objectId
-    ));
-    const targetTitle = title || `${streams[streamSlug]?.title || objectId} VoD`;
+    const stream = Object.values(this.rootStore.streamStatusStore.streams || {})
+      .find(({objectId: streamObjectId}) => streamObjectId === objectId);
+    const targetTitle = title || `${stream?.title || objectId} VoD`;
 
-    const createResponse = yield this.client.CreateContentObject({
-      libraryId: targetLibraryId,
-      options: titleType ?
-        {
-          type: titleType,
-          meta: {
-            public: {
-              name: targetTitle
-            }
-          }
-        } :
-        {}
-    });
-    const targetObjectId = createResponse.id;
-
-    try {
-      yield this.client.FinalizeContentObject({
-        libraryId: targetLibraryId,
-        objectId: targetObjectId,
-        writeToken: createResponse.writeToken,
-        awaitCommitConfirmation: true,
-        commitMessage: "Create VoD object"
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to finalize object", error);
-      throw error;
-    }
-
-    try {
-      yield this.client.SetPermission({
-        objectId: targetObjectId,
-        permission: "editable"
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to set permission", error);
-      throw error;
-    }
+    const targetObjectId = yield this._CreateVodObject({libraryId: targetLibraryId, title: targetTitle});
 
     if(accessGroup) {
       this.rootStore.streamEditStore.AddAccessGroupPermission({
@@ -251,66 +319,24 @@ class RecordingCopyStore {
       });
     }
 
-    let response: StreamStatus;
-    try {
-      response = yield this.client.StreamCopyToVod({
-        name: objectId,
-        targetObjectId,
-        recordingPeriod,
-        startTime,
-        endTime,
-        fcTimeout: 900
-      });
-    } catch(error) {
-      // eslint-disable-next-line no-console
-      console.error("Unable to copy to VoD.", error);
-      throw error;
-    }
+    const response: StreamStatus = yield this.client.StreamCopyToVod({
+      name: objectId,
+      targetObjectId,
+      ...selection,
+      fcTimeout: 900
+    });
 
     if(!response) {
       throw Error("Unable to copy to VoD. Is part available?");
-    } else if(response) {
-      const libraryId = yield this.client.ContentObjectLibraryId({objectId});
-      const {writeToken} = yield this.client.EditContentObject({
-        objectId,
-        libraryId
-      });
-
-      let copiesMetadata = yield this.client.ContentObjectMetadata({
-        objectId,
-        libraryId,
-        metadataSubtree: "live_recording_copies"
-      });
-
-      if(!copiesMetadata) {
-        copiesMetadata = {};
-      }
-
-      copiesMetadata[targetObjectId] = {
-        startTime: timeSeconds.startTime,
-        endTime: timeSeconds.endTime,
-        create_time: currentDateTime.getTime(),
-        title: targetTitle
-      };
-
-      yield this.client.ReplaceMetadata({
-        objectId,
-        libraryId,
-        writeToken,
-        metadataSubtree: "/live_recording_copies",
-        metadata: copiesMetadata
-      });
-
-      yield this.client.FinalizeContentObject({
-        libraryId,
-        objectId,
-        writeToken,
-        awaitCommitConfirmation: true,
-        commitMessage: "Update live recording copies"
-      });
-
-      return response;
     }
+
+    yield this._SaveRecordingCopy({
+      objectId,
+      copyId: targetObjectId,
+      copy: {startTime: startSec, endTime: endSec, create_time: now, title: targetTitle}
+    });
+
+    return response;
   }
 }
 

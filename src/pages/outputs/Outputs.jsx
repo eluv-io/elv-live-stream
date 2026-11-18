@@ -135,7 +135,11 @@ const Outputs = observer(() => {
           <BatchActions
             actions={actions}
             selectedRecords={selectedRecords}
-            SelectAll={() => setSelectedSlugs(records.map(r => r.slug))}
+            allSelected={records.length > 0 && selectedRecords.length === records.length}
+            selectAllDisabled={loading || !streamListStore.streamsLoaded}
+            SelectAll={() => setSelectedSlugs(
+              selectedRecords.length === records.length ? [] : records.map(r => r.slug)
+            )}
             ClearSelection={() => setSelectedSlugs([])}
           />
         </Stack>

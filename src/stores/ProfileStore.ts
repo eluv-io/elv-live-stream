@@ -131,6 +131,9 @@ class ProfileStore {
         if(isDirty) {
           needsFinalize = true;
           try {
+            // SDK stamps last_updated on its own copy across FrameClient; mirror it locally
+            draft.last_updated = new Date().toISOString();
+
             yield this.client.StreamSaveConfigProfile({
               profileMetadata: toJS(draft),
               writeToken,
