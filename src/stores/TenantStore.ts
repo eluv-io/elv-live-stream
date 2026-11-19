@@ -72,6 +72,7 @@ export interface StreamInfo {
   partTtl?: string | number | null;
   persistent?: any;
   status?: StreamStatus;
+  errors?: any;
   warnings?: any;
   quality?: any;
   embedUrl?: string;

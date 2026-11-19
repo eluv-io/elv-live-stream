@@ -191,6 +191,26 @@ describe("StreamStatusStore.CheckStatus", () => {
   });
 });
 
+describe("StreamStatusStore.CheckStatus - errors and warnings", () => {
+  it("stores errors, warnings and quality on the stream when updating", async () => {
+    const {store, mockClient} = makeStore({streams: {s: {slug: "s", objectId: "iq__s", libraryId: "l"}}});
+    mockClient.StreamStatus.mockResolvedValue({state: "running", errors: ["t1 bad"], warnings: ["t1 slow"], quality: "severe"});
+
+    await store.CheckStatus({objectId: "iq__s", slug: "s", update: true, localState: {libraryId: "l"}});
+
+    expect(store.streams.s).toMatchObject({status: "running", errors: ["t1 bad"], warnings: ["t1 slow"], quality: "severe"});
+  });
+
+  it("returns errors from FetchStreamStatuses", async () => {
+    const {store, mockClient} = makeStore({streams: {s: {slug: "s", objectId: "iq__s", libraryId: "l", queryMainMeta: {}}}});
+    mockClient.StreamStatus.mockResolvedValue({state: "running", errors: ["t1 bad"]});
+
+    const result = await store.FetchStreamStatuses(["iq__s"]);
+
+    expect(result.iq__s.errors).toEqual(["t1 bad"]);
+  });
+});
+
 describe("StreamStatusStore._SetStreamActive", () => {
   it("adds and removes slugs, writing the resolved state on removal", () => {
     const {store} = makeStore({streams: {a: {slug: "a", objectId: "iq__a"}}});

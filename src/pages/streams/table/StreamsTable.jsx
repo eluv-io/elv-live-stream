@@ -8,7 +8,7 @@ import StatusIndicator from "@/components/status-indicator/StatusIndicator.jsx";
 import {GetStreamActions} from "@/utils/stream/streamActions.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 import styles from "./StreamsTable.module.css";
-import {SOURCE_PACKAGING_COLOR_MAP, QUALITY_MAP} from "@/utils/constants.ts";
+import {SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants.ts";
 import {BuildGroupedRows} from "./groupedRows.js";
 import {settingsStore} from "@/stores/index.ts";
 
@@ -153,7 +153,8 @@ const BuildColumns = ({showActions, onNameClick, onViewSummary, getRowActions}) 
     render: record => !record.status ? null :
       <StatusIndicator
         status={record.status}
-        showWarning={record.quality && (record.quality !== QUALITY_MAP.GOOD)}
+        errors={record.errors}
+        quality={record.quality}
         size="md"
         fw={400}
       />

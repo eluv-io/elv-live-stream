@@ -5,14 +5,23 @@ import SectionTitle from "@/components/section-title/SectionTitle.jsx";
 import DetailCard from "@/components/detail-card/DetailCard.jsx";
 import {BuildStateData, BuildRecordingData} from "@/pages/streams/details/summary/SummarySelectors.tsx";
 import {TsPackagingOnly} from "@/utils/stream/streamActions.jsx";
-import {useMemo} from "react";
+import {useMemo, useState} from "react";
+import {observer} from "mobx-react-lite";
+import {streamStatusStore} from "@/stores/index.ts";
+import ErrorLogModal from "@/components/modals/ErrorLogModal.jsx";
 
-const PreviewSection = ({slug, status, recordingInfo, currentTimeMs, packaging}) => {
+const PreviewSection = observer(({slug, status, recordingInfo, currentTimeMs, packaging}) => {
+  const [showErrorLog, setShowErrorLog] = useState(false);
+  // Read from the store, not `status`, so the modal's Refresh updates this row too.
+  const errors = streamStatusStore.streams?.[slug]?.errors;
   const isActive = [STATUS_MAP.RUNNING, STATUS_MAP.STARTING].includes(status?.state);
   // No playable (fmp4) output when a stream is packaged as Transport Stream only.
   const tsPackagingOnly = TsPackagingOnly({packaging});
 
-  const stateData = useMemo(() => BuildStateData({status}), [status]);
+  const stateData = useMemo(
+    () => BuildStateData({status, errors, onViewErrors: () => setShowErrorLog(true)}),
+    [status, errors]
+  );
   const recordingData = useMemo(
     () => BuildRecordingData({recordingInfo, status, currentTimeMs}),
     [recordingInfo, status, currentTimeMs]
@@ -38,8 +47,9 @@ const PreviewSection = ({slug, status, recordingInfo, currentTimeMs, packaging})
       )}
       <DetailCard title="State" labelWidth={120} data={stateData} />
       <DetailCard flex={1} title="Recording Info" labelWidth={120} data={recordingData} />
+      <ErrorLogModal opened={showErrorLog} onClose={() => setShowErrorLog(false)} slug={slug} />
     </Stack>
   );
-};
+});
 
 export default PreviewSection;

@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor, LiveRecordingConfigProfile} from "@/utils/stream/stream";
+import {ParseLiveConfigData, StreamIsActive, DeriveSourceAndPackaging, StatusColor, LiveRecordingConfigProfile, LogEntries, LogSummary} from "@/utils/stream/stream";
 import {STATUS_MAP} from "@/utils/constants";
 
 describe("ParseLiveConfigData", () => {
@@ -262,5 +262,54 @@ describe("DeriveSourceAndPackaging", () => {
       });
       expect(packaging).toEqual(["rtp", "ts", "fmp4"]);
     });
+  });
+});
+
+describe("StatusColor - unreachable", () => {
+  it("returns red for unreachable", () => {
+    expect(StatusColor(STATUS_MAP.UNREACHABLE)).toBe("elv-red.4");
+  });
+});
+
+describe("LogEntries", () => {
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["an empty array", []],
+    ["an object with a null array field", {Errors: null}]
+  ])("returns [] for %s", (_label, value) => {
+    expect(LogEntries(value)).toEqual([]);
+  });
+
+  it("returns a string array newest first", () => {
+    expect(LogEntries(["t1 first", "t2 second"])).toEqual(["t2 second", "t1 first"]);
+  });
+
+  it("uses the first array value of an object", () => {
+    expect(LogEntries({Errors: ["t1 a", "t2 b"]})).toEqual(["t2 b", "t1 a"]);
+  });
+
+  it("wraps a scalar and drops empty entries", () => {
+    expect(LogEntries("boom")).toEqual(["boom"]);
+    expect(LogEntries(["a", "", null, "b"])).toEqual(["b", "a"]);
+  });
+
+  it("stringifies non-string entries", () => {
+    expect(LogEntries([{code: 1}])).toEqual(["{\"code\":1}"]);
+  });
+});
+
+describe("LogSummary", () => {
+  it("returns an empty string for no entries", () => {
+    expect(LogSummary([])).toBe("");
+  });
+
+  it("returns a single short entry unchanged", () => {
+    expect(LogSummary(["short"])).toBe("short");
+  });
+
+  it("truncates the latest entry and appends the remaining count", () => {
+    const long = "x".repeat(100);
+    expect(LogSummary([long, "older", "oldest"], 10)).toBe(`${"x".repeat(9)}… (+2 more)`);
   });
 });

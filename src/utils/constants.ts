@@ -11,7 +11,8 @@ export const STATUS_MAP = {
   RUNNING: "running",
   STALLED: "stalled",
   DEGRADED: "degraded",
-  UNAVAILABLE: "unavailable"
+  UNAVAILABLE: "unavailable",
+  UNREACHABLE: "unreachable"
 } as const;
 
 export const DEFAULT_WATERMARK_TEXT = {
@@ -142,7 +143,8 @@ export const STATUS_TEXT = {
   running: "Running",
   stalled: "Stalled",
   terminating: "Terminating",
-  unavailable: "Unavailable"
+  unavailable: "Unavailable",
+  unreachable: "Unreachable"
 };
 
 export const CODEC_TEXT = {

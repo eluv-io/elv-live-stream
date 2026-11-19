@@ -528,13 +528,44 @@ export const StatusColor = (status: StreamStatus | ""): "elv-orange.6" | "elv-gr
     return "elv-orange.6";
   } else if(status === STATUS_MAP.RUNNING) {
     return "elv-green.5";
-  } else if(([STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED, STATUS_MAP.STALLED] as StreamStatus[]).includes(status as StreamStatus)) {
+  } else if(([STATUS_MAP.INACTIVE, STATUS_MAP.UNINITIALIZED, STATUS_MAP.STALLED, STATUS_MAP.UNREACHABLE] as StreamStatus[]).includes(status as StreamStatus)) {
     return "elv-red.4";
   } else if(status === STATUS_MAP.DEGRADED) {
     return "elv-yellow.6";
   }
 
   return "";
+};
+
+/** Normalized string array from a live-status `errors` / `warnings` value, newest first. */
+// The backend `errors` shape is unsettled (currently `{Errors: null}`), so accept anything.
+export const LogEntries = (value: unknown): string[] => {
+  let entries: unknown[];
+
+  if(value === null || value === undefined) {
+    entries = [];
+  } else if(Array.isArray(value)) {
+    entries = value;
+  } else if(typeof value === "object") {
+    entries = (Object.values(value).find(Array.isArray) as unknown[]) ?? [];
+  } else {
+    entries = [value];
+  }
+
+  return entries
+    .filter(entry => entry !== null && entry !== undefined && entry !== "")
+    .map(entry => typeof entry === "string" ? entry : JSON.stringify(entry))
+    .reverse();
+};
+
+/** One-line summary of log entries: the newest, truncated, plus a "+N more" count. */
+export const LogSummary = (entries: string[], maxLength=80): string => {
+  if(!entries?.length) { return ""; }
+
+  const [latest] = entries;
+  const truncated = latest.length > maxLength ? `${latest.slice(0, maxLength - 1)}…` : latest;
+
+  return entries.length > 1 ? `${truncated} (+${entries.length - 1} more)` : truncated;
 };
 
 export type StreamSource = "srt" | "ts" | "rtp" | "rtmp";

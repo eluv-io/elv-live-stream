@@ -1062,6 +1062,7 @@ class StreamEditStore {
         key: slug,
         value: {
           status: response.state,
+          errors: response.errors,
           warnings: response.warnings,
           quality: response.quality,
           ...streamDetails

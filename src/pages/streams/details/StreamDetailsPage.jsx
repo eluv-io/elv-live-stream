@@ -11,13 +11,13 @@ import PageContainer from "@/components/page-container/PageContainer.jsx";
 import ConfirmModal from "@/components/confirm-modal/ConfirmModal.jsx";
 import NotificationMessage from "@/components/notification-message/NotificationMessage.jsx";
 import {GetStreamActions} from "@/utils/stream/streamActions.jsx";
-import {QUALITY_MAP} from "@/utils/constants.ts";
 import {IconExternalLink} from "@tabler/icons-react";
 import SummaryPanel from "@/pages/streams/details/summary/SummaryPanel.jsx";
 import GeneralPanel from "@/pages/streams/details/general/GeneralPanel.jsx";
 import RecordingPanel from "@/pages/streams/details/recording/RecordingPanel.jsx";
 import PlayoutPanel from "@/pages/streams/details/playout/PlayoutPanel.jsx";
 import TransportStreamPanel from "@/pages/streams/details/transport-stream/TransportStreamPanel.jsx";
+import ErrorLogModal from "@/components/modals/ErrorLogModal.jsx";
 
 const DETAILS_TABS = [
   {label: "Summary", value: "status", Component: SummaryPanel},
@@ -37,6 +37,7 @@ const StreamDetailsPage = observer(() => {
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [pendingBack, setPendingBack] = useState(false);
   const [pendingRefresh, setPendingRefresh] = useState(false);
+  const [showErrorLog, setShowErrorLog] = useState(false);
 
   // Blocks in-app navigation (sidebar links, browser back/forward, navigate())
   // away from this page while a config tab has unsaved changes. Only guards
@@ -200,7 +201,9 @@ const StreamDetailsPage = observer(() => {
       titleBadge={
         <StatusIndicator
           status={stream.status}
-          showWarning={streamStatusStore.streams?.[streamSlug]?.quality && streamStatusStore.streams[streamSlug].quality !== QUALITY_MAP.GOOD}
+          errors={stream.errors}
+          quality={stream.quality}
+          onErrorClick={() => setShowErrorLog(true)}
           size="md"
           withBorder
         />
@@ -336,6 +339,12 @@ const StreamDetailsPage = observer(() => {
           DebouncedRefresh();
         }}
         CloseCallback={() => setPendingRefresh(false)}
+      />
+
+      <ErrorLogModal
+        opened={showErrorLog}
+        onClose={() => setShowErrorLog(false)}
+        slug={streamSlug}
       />
     </PageContainer>
   );

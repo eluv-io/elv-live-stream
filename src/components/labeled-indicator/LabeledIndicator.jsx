@@ -1,4 +1,4 @@
-import {Box, Flex, Group, Indicator, Text} from "@mantine/core";
+import {Box, Flex, Group, Indicator, Text, Tooltip, UnstyledButton} from "@mantine/core";
 import styles from "./LabeledIndicator.module.css";
 import {IconAlertCircle} from "@tabler/icons-react";
 
@@ -6,6 +6,9 @@ const LabeledIndicator = ({
   label,
   color,
   showWarning=false,
+  showError=false,
+  tooltip=null,
+  onClick=null,
   withBorder=false,
   size="sm",
   fz,
@@ -31,16 +34,30 @@ const LabeledIndicator = ({
     }
   };
 
-  if(showWarning) {
+  if(showWarning || showError) {
+    const content = (
+      <Group gap={5} wrap="nowrap">
+        <IconAlertCircle
+          color={`var(--mantine-color-elv-${showError ? "red-4" : "orange-3"})`}
+          width={14}
+          aria-label={showError ? "Errors" : "Warning"}
+        />
+        <Text fz={14} fw={fw} c={c} lh={1}>
+          { label }
+        </Text>
+      </Group>
+    );
+
     return (
-      <Box className={withBorder ? styles.box : ""} ml="-3px">
-        <Group gap={5}>
-          <IconAlertCircle color="var(--mantine-color-elv-orange-3)" width={14} />
-          <Text fz={14} fw={fw} c={c} lh={1}>
-            { label }
-          </Text>
-        </Group>
-      </Box>
+      <Tooltip label={tooltip} disabled={!tooltip} multiline maw={400} withinPortal>
+        <Box className={withBorder ? styles.box : ""} ml="-3px">
+          {
+            onClick ?
+              <UnstyledButton onClick={onClick} aria-label="View error log">{ content }</UnstyledButton> :
+              content
+          }
+        </Box>
+      </Tooltip>
     );
   } else {
     return (

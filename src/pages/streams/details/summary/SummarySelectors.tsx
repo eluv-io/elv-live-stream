@@ -1,7 +1,8 @@
-import {Badge, Group} from "@mantine/core";
+import {Anchor, Badge, Group, Text} from "@mantine/core";
 import {BytesToMb, DateFormat} from "@/utils/formatters";
 import {STATUS_MAP, QUALITY_TEXT, QUALITY_COLOR_MAP, SOURCE_PACKAGING_COLOR_MAP} from "@/utils/constants";
 import {Runtime} from "@/utils/helpers";
+import {LogEntries} from "@/utils/stream/stream";
 import LabeledIndicator from "@/components/labeled-indicator/LabeledIndicator.jsx";
 import sharedStyles from "@/assets/shared.module.css";
 
@@ -10,19 +11,35 @@ import sharedStyles from "@/assets/shared.module.css";
  * All are independently testable with no component mounting required.
  */
 
-export const BuildStateData = ({status}: {status: any}) => [
-  {
-    label: "Quality",
-    value: (
-      <LabeledIndicator
-        label={QUALITY_TEXT[status?.quality] || ""}
-        color={status?.quality ? QUALITY_COLOR_MAP[status?.quality] : null}
-        fz={14}
-        fw={600}
-      />
-    )
-  }
-];
+export const BuildStateData = ({status, errors, onViewErrors}: {status: any; errors?: unknown; onViewErrors?: () => void}) => {
+  const errorCount = LogEntries(errors).length;
+
+  return [
+    {
+      label: "Quality",
+      value: (
+        <LabeledIndicator
+          label={QUALITY_TEXT[status?.quality] || ""}
+          color={status?.quality ? QUALITY_COLOR_MAP[status?.quality] : null}
+          fz={14}
+          fw={600}
+        />
+      )
+    },
+    ...(errorCount > 0 ? [{
+      label: "Errors",
+      value: (
+        <Group gap={6}>
+          <Text c="elv-red.4" fw={600} fz="0.875rem">{ errorCount }</Text>
+          <Text c="elv-gray.5" fz="0.875rem">·</Text>
+          <Anchor component="button" type="button" fz="0.875rem" fw={600} onClick={onViewErrors}>
+            View log
+          </Anchor>
+        </Group>
+      )
+    }] : [])
+  ];
+};
 
 export const BuildRecordingData = ({
   recordingInfo,

@@ -48,7 +48,7 @@ sequenceDiagram
     StreamEditStore->>SettingsStore: SaveStreamLink(objectId, slug)
     StreamEditStore->>StreamStatusStore: CheckStatus
     StreamEditStore->>StreamDetailStore: LoadStreamMetadata
-    StreamEditStore->>StreamStatusStore: SetStream(slug, {status, warnings, quality, ...})
+    StreamEditStore->>StreamStatusStore: SetStream(slug, {status, errors, warnings, quality, ...})
 ```
 
 Errors are split into timeout vs. other for logging, then re-thrown either way.
@@ -85,6 +85,8 @@ flowchart TD
 
 `LoadAllStreamsStatus` is two-phase. `_ClassifyStreams` first does a cheap, fabric-node-free pass over every stream — a narrow `ContentObjectMetadata` read that mirrors the pre-bitcode branch of client-js `StreamStatus`: no `live_recording_config/url` → `unconfigured`; missing `live_recording` fabric/playout/recording config → `uninitialized`; no `live_recording/status/edge_write_token` (nor `fabric_config/edge_write_token`) → `inactive`. Those states are written directly. Only streams that still hold an edge write token are "active" and get the full `StreamStatus` call. `activeStreamSlugs` is rebuilt every poll, and nudged optimistically by `StartStream` (add) and `DeactivateStream` (remove) so the UI reacts before the next cycle; `_ReplaceStreams` prunes slugs dropped from the list.
 
+`CheckStatus` stores `errors` / `warnings` / `quality` from the live-status response on each stream. `errors` and `warnings` are the LRO's `custom.errors` / `custom.warnings` — timestamped strings the fabric accumulates — and drive the Error Log UI (see the Error logs bullet in `CLAUDE.md`).
+
 ```mermaid
 sequenceDiagram
     participant DataWrapper
@@ -101,7 +103,7 @@ sequenceDiagram
             FrameClient-->>StreamStatusStore: live_recording_config/url, live_recording/*/config,<br/>live_recording/status/edge_write_token
             StreamStatusStore->>StreamStatusStore: no token -> SetStream(status = unconfigured / uninitialized / inactive)<br/>token -> activeStreamSlugs.add(slug)
             StreamStatusStore->>FrameClient: CheckStatus per ACTIVE stream only<br/>(LimitedMap, concurrency 15)
-            FrameClient-->>StreamStatusStore: {state, warnings, quality, embedUrl}
+            FrameClient-->>StreamStatusStore: {state, errors, warnings, quality, embedUrl}
             StreamStatusStore->>StreamStatusStore: SetStream per active slug
             StreamStatusStore->>StreamStatusStore: loadingStatus = false
         end
@@ -137,4 +139,6 @@ Defined in `STATUS_MAP`: `unconfigured`, `uninitialized`, `initialized`, `inacti
 - `src/stores/streams/StreamStatusStore.ts` — `CheckStatus`
 - `src/components/data-wrapper/DataWrapper.jsx` — polling loop scheduler
 - `src/utils/constants.ts` — `STATUS_MAP`
+- `src/utils/stream/stream.ts` — `LogEntries` / `LogSummary` (errors/warnings normalization)
+- `src/components/modals/ErrorLogModal.jsx` — Error Log modal
 - `src/stores/streams/StreamModalStore.ts` — `BATCH_READY_STATUSES`

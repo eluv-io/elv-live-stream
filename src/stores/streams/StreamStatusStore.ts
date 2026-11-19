@@ -204,6 +204,7 @@ class StreamStatusStore {
         key: slug,
         value: {
           status: response.state,
+          errors: response.errors,
           warnings: response.warnings,
           quality: response.quality
         }
@@ -380,6 +381,7 @@ class StreamStatusStore {
     } catch(error) {
       // eslint-disable-next-line no-console
       console.error("Unable to deactivate stream", error);
+      throw error;
     }
   }
 
@@ -541,6 +543,7 @@ class StreamStatusStore {
           const response = await this.CheckStatus({objectId}) as any;
           result[objectId] = {
             status: response?.state,
+            errors: response?.errors,
             warnings: response?.warnings,
             quality: response?.quality
           };
